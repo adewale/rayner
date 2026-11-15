@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where does an empty ext4 filesystem’s space go?</title>
+<style>
+:root { color-scheme: light; --ink:#1d1d1f; --soft:#6e6e73; --line:#d2d2d7; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.5rem 0; }
+h2 { font-size: 1.15rem; line-height: 1.3; margin: 1rem 0 0.5rem; }
+.intro, .leaves { color: var(--soft); font-size: 0.95rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; }
+.controls label { font-weight: 600; font-size: 0.95rem; }
+select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+button:disabled { opacity: 0.4; }
+.nav { display: flex; align-items: center; gap: 12px; }
+.counter { color: var(--soft); font-size: 0.9rem; }
+.figure { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0; }
+.figure svg { display: block; max-width: 100%; height: auto; }
+.caption { margin: 8px 0 16px; }
+details { border-top: 1px solid var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>Where does an empty ext4 filesystem’s space go?</h1>
+<p class="intro">For someone who formats disks and has seen df report less space than the disk holds. Pick a disk size and a root reserve, then step through. Every number on this page is computed from a model of mkfs.ext4 1.47.3 that is tested against mkfs.ext4 1.47.3 runs and a mounted Linux 6.8.0’s statfs; the first and last steps show those recorded values.</p>
+<div id="app"></div>
+<p class="leaves">Leaves out: every other mkfs option, block sizes other than 4 KiB, disks that are not whole 128 MiB block groups, quotas, and the space a working filesystem later uses.</p>
+</main>
+<script>(() => {
+  // bench/premise/shell.ts
+  var el = (tag, attrs = {}, text2) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text2 !== void 0) e.textContent = text2;
+    return e;
+  };
+  function mount(root, spec) {
+    const values = Object.fromEntries(spec.settings.map((s) => [s.id, s.default]));
+    let index = 0;
+    const controls = el("div", { class: "controls" });
+    for (const s of spec.settings) {
+      const label = el("label", {}, `${s.label} `);
+      const select = el("select", { "aria-label": s.label });
+      for (const o of s.options) {
+        const opt = el("option", { value: o.value }, o.label);
+        if (o.value === s.default) opt.selected = true;
+        select.append(opt);
+      }
+      select.addEventListener("change", () => {
+        values[s.id] = select.value;
+        render();
+      });
+      label.append(select);
+      controls.append(label);
+    }
+    const nav = el("div", { class: "nav" });
+    const prev = el("button", { type: "button" }, "\u2190 Prev");
+    const counter = el("span", { class: "counter", "aria-live": "polite" });
+    const next = el("button", { type: "button" }, "Next \u2192");
+    nav.append(prev, counter, next);
+    const title = el("h2");
+    const figure = el("div", { class: "figure" });
+    const caption = el("p", { class: "caption" });
+    const checks = el("section", { class: "checks" });
+    checks.append(el("h2", {}, "Check yourself"));
+    for (const c of spec.checks) {
+      const d = el("details");
+      d.append(el("summary", {}, c.q), el("p", {}, c.a));
+      checks.append(d);
+    }
+    root.append(controls, nav, title, figure, caption, checks);
+    function render() {
+      const all = spec.steps(values);
+      index = Math.max(0, Math.min(index, all.length - 1));
+      const s = all[index];
+      title.textContent = s.title;
+      figure.innerHTML = s.svg;
+      caption.textContent = s.caption;
+      counter.textContent = `Step ${index + 1} of ${all.length}`;
+      prev.disabled = index === 0;
+      next.disabled = index === all.length - 1;
+      checks.hidden = index !== all.length - 1;
+    }
+    prev.addEventListener("click", () => {
+      index--;
+      render();
+    });
+    next.addEventListener("click", () => {
+      index++;
+      render();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "SELECT") return;
+      if (e.key === "ArrowRight") next.click();
+      if (e.key === "ArrowLeft") prev.click();
+    });
+    render();
+  }
+
+  // scenes/explainers/lib/format.ts
+  function listed(items, { or = false } = {}) {
+    return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} ${or ? "or" : "and"} ${items.at(-1)}`;
+  }
+  function grouped(n) {
+    const [whole, fraction] = String(n).split(".");
+    return whole.replace(/\B(?=(\d{3})+$)/g, ",") + (fraction === void 0 ? "" : `.${fraction}`);
+  }
+  function percent(x, { digits = 1, of = 1, under1, least, rounding = "toFixed" } = {}) {
+    let p = of === 100 ? x : 100 * x / of;
+    if (under1 && p < 1) {
+      if ("significant" in under1) return `${p.toPrecision(under1.significant)}%`;
+      digits = under1.digits;
+    }
+    if (rounding === "Math.round") p = Math.round(p * 10 ** digits) / 10 ** digits;
+    if (least !== void 0 && x > 0) p = Math.max(least, p);
+    return `${p.toFixed(digits)}%`;
+  }
+
+  // scenes/explainers/ext4-space/model.ts
+  var BLOCK = 4096;
+  var INODE_SIZE = 256;
+  var BLOCKS_PER_GROUP = BLOCK * 8;
+  var DESC_SIZE = 64;
+  var DESC_PER_BLOCK = BLOCK / DESC_SIZE;
+  var ADDR_PER_BLOCK = BLOCK / 4;
+  var MAX_32 = 2 ** 32 - 1;
+  var DEFAULT_RESERVE = 5;
+  var KERNEL_RESERVE_MAX = 4096;
+  var EXTENT_MAX = 2 ** 15;
+  var EXTENTS_IN_INODE = 4;
+  var MiB = 2 ** 20;
+  var GiB = 2 ** 30;
+  var TiB = 2 ** 40;
+  function sizeType(blocks) {
+    const meg = MiB / BLOCK;
+    if (blocks < 512 * meg) throw new Error("Under 512 MiB mke2fs picks the small type, with 1 KiB blocks");
+    if (blocks < 4 * 1024 * 1024 * meg) return "default";
+    if (blocks < 16 * 1024 * 1024 * meg) return "big";
+    return "huge";
+  }
+  var INODE_RATIO = { default: 16384, big: 32768, huge: 65536 };
+  function journalBlocks(blocks) {
+    if (blocks < 2048) return -1;
+    if (blocks < 32768) return 1024;
+    if (blocks < 256 * 1024) return 4096;
+    if (blocks < 512 * 1024) return 8192;
+    if (blocks < 4096 * 1024) return 16384;
+    if (blocks < 8192 * 1024) return 32768;
+    if (blocks < 16384 * 1024) return 65536;
+    if (blocks < 32768 * 1024) return 131072;
+    return 262144;
+  }
+  var JOURNAL_STEPS = [32768, 256 * 1024, 512 * 1024, 4096 * 1024, 8192 * 1024, 16384 * 1024, 32768 * 1024];
+  function orphanBlocks(blocks) {
+    if (blocks < 128 * 1024) return 32;
+    if (blocks < 2 * 1024 * 1024) return Math.floor(blocks / 4096);
+    return 512;
+  }
+  function superGroups(groups) {
+    const out = /* @__PURE__ */ new Set([0]);
+    if (groups > 1) out.add(1);
+    for (const b of [3, 5, 7]) for (let g2 = b; g2 < groups; g2 *= b) out.add(g2);
+    return [...out].sort((a, b) => a - b);
+  }
+  function layout(bytes) {
+    if (bytes % (BLOCKS_PER_GROUP * BLOCK)) throw new Error("The model covers whole 128 MiB block groups");
+    if (bytes > 64 * TiB) throw new Error("The model is checked up to 64 TiB");
+    const blocks = bytes / BLOCK;
+    const type = sizeType(blocks);
+    const inodeRatio = INODE_RATIO[type];
+    const groups = Math.ceil(blocks / BLOCKS_PER_GROUP);
+    const asked = Math.min(Math.floor(blocks * BLOCK / inodeRatio), MAX_32);
+    let ipg = Math.ceil(asked / groups);
+    if (ipg > BLOCK * 8) throw new Error("Outside the model: mke2fs would shrink the groups");
+    let tableBlocksPerGroup = Math.ceil(ipg * INODE_SIZE / BLOCK);
+    ipg = tableBlocksPerGroup * BLOCK / INODE_SIZE;
+    ipg = Math.max(ipg, 8) & ~7;
+    tableBlocksPerGroup = Math.ceil(ipg * INODE_SIZE / BLOCK);
+    if (ipg * groups > MAX_32) throw new Error("Outside the model: mke2fs would trim the inodes per group");
+    const inodes = ipg * groups;
+    const descBlocks = Math.ceil(groups / DESC_PER_BLOCK);
+    const resizeInode = blocks <= MAX_32;
+    let reservedGdt = 0;
+    if (resizeInode) {
+      const max = blocks < Math.floor(MAX_32 / 1024) ? blocks * 1024 : MAX_32;
+      const rsvGroups = Math.ceil(max / BLOCKS_PER_GROUP);
+      reservedGdt = Math.min(Math.max(Math.ceil(rsvGroups / DESC_PER_BLOCK) - descBlocks, 0), ADDR_PER_BLOCK);
+    }
+    const supers = superGroups(groups).length;
+    const superCopies = supers * (1 + descBlocks + reservedGdt);
+    const bitmaps = 2 * groups;
+    const inodeTables = groups * tableBlocksPerGroup;
+    const journal = journalBlocks(blocks);
+    const overhead = superCopies + bitmaps + inodeTables + journal;
+    const files = {
+      root: 1,
+      lostFound: 4,
+      orphan: orphanBlocks(blocks),
+      resize: resizeInode ? 1 : 0,
+      journalTree: Math.ceil(journal / EXTENT_MAX) > EXTENTS_IN_INODE ? 1 : 0
+    };
+    const filesTotal = files.root + files.lostFound + files.orphan + files.resize + files.journalTree;
+    const metadata = overhead + filesTotal;
+    return {
+      bytes,
+      blocks,
+      type,
+      inodeRatio,
+      groups,
+      inodes,
+      inodesPerGroup: ipg,
+      tableBlocksPerGroup,
+      inodeTables,
+      descBlocks,
+      resizeInode,
+      reservedGdt,
+      superGroups: supers,
+      superCopies,
+      bitmaps,
+      journal,
+      overhead,
+      files,
+      filesTotal,
+      other: superCopies + bitmaps + filesTotal,
+      metadata,
+      free: blocks - metadata
+    };
+  }
+  var rootReserve = (blocks, percent3) => Math.floor(percent3 * blocks / 100);
+  var kernelReserve = (blocks) => Math.min(Math.floor(blocks / 50), KERNEL_RESERVE_MAX);
+  function space(bytes, percent3) {
+    const l = layout(bytes);
+    const root = rootReserve(l.blocks, percent3), kernel = kernelReserve(l.blocks);
+    return { layout: l, percent: percent3, root, kernel, users: Math.max(l.free - root - kernel, 0) };
+  }
+  var SIZES = {
+    "1g": { bytes: GiB, label: "1 GiB" },
+    "1t": { bytes: TiB, label: "1 TiB" },
+    "20t": { bytes: 20 * TiB, label: "20 TiB" }
+  };
+  var RESERVES = [5, 1, 0];
+  var percent2 = (part, whole) => percent(part, { of: whole, under1: { significant: 2 } });
+  function bytesOf(blocks) {
+    const b = blocks * BLOCK;
+    for (const [unit, size] of [
+      ["TiB", TiB],
+      ["GiB", GiB],
+      ["MiB", MiB]
+    ])
+      if (b >= size && b % size === 0) return `${b / size} ${unit}`;
+    for (const [unit, size] of [
+      ["TiB", TiB],
+      ["GiB", GiB],
+      ["MiB", MiB]
+    ])
+      if (b >= size) return `${(b / size).toFixed(1)} ${unit}`;
+    return `${b / 1024} KiB`;
+  }
+  var times = (a, b) => `${(a / b).toFixed(1)} times`;
+
+  // scenes/explainers/ext4-space/answers.ts
+  var keys = Object.keys(SIZES);
+  var RATIOS = keys.map((k) => {
+    const x = space(SIZES[k].bytes, DEFAULT_RESERVE);
+    return (x.root / x.layout.metadata).toFixed(1);
+  });
+  var TWO = space(2 * GiB, DEFAULT_RESERVE);
+  var ONE = space(GiB, DEFAULT_RESERVE);
+  var BELOW = space(4 * TiB - BLOCKS_PER_GROUP * BLOCK, DEFAULT_RESERVE);
+  var BIG = space(4 * TiB, DEFAULT_RESERVE);
+  var T5 = space(TiB, DEFAULT_RESERVE);
+  var T0 = space(TiB, 0);
+  var answer = () => `Much of it is free space held back for root: the default 5% reserve is ${listed(RATIOS)} times all the metadata on the ${listed(keys.map((k) => SIZES[k].label))} disks`;
+  var questions = {
+    1: () => ({
+      question: `On the 1 GiB disk the default reserve just covers the metadata. Going to 2 GiB doubles the reserve, and also doubles the journal, from ${bytesOf(ONE.layout.journal)} to ${bytesOf(TWO.layout.journal)}. Does the 5% reserve still cover all the metadata?`,
+      answer: `No, it falls just short: ${grouped(TWO.root)} reserved blocks against ${grouped(TWO.layout.metadata)} of metadata, ${(TWO.root / TWO.layout.metadata).toFixed(3)} times. The journal is most of the metadata on a disk this small, so doubling it grows the metadata about as fast as the 5% reserve. These are the counts a recorded mkfs.ext4 1.47.3 run at 2 GiB gives.`
+    }),
+    2: () => `The bigger disk has less. Its inode tables are about half the size, so its metadata is ${grouped(BIG.layout.metadata)} blocks against ${grouped(BELOW.layout.metadata)}, and users can write ${bytesOf(BIG.users - BELOW.users)} more although the disk grew by only 128 MiB.`,
+    3: () => `They get back the root reserve, ${grouped(T5.root)} blocks or ${bytesOf(T5.root)}, which was free all along. The ${grouped(T5.layout.metadata)} blocks of inode tables, journal and other metadata stay, and so do the kernel\u2019s ${grouped(T0.kernel)}.`
+  };
+
+  // bench/premise/draw.ts
+  var W = 400;
+  var C = {
+    ink: "#1d1d1f",
+    soft: "#6e6e73",
+    line: "#c7c7cc",
+    good: "#2e7d32",
+    bad: "#c62828",
+    goodFill: "#dcefdc",
+    badFill: "#f6d5d5",
+    a: "#c9d7f2",
+    b: "#f6c17a",
+    c: "#b9e0c4",
+    d: "#ececec",
+    e: "#e4d4f4",
+    hi: "#fff4c2"
+  };
+  var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var svg = (h, body, label) => `<svg viewBox="0 0 ${W} ${Math.ceil(h)}" width="100%" role="img" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">${body}</svg>`;
+  var text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size ?? 13}" fill="${o.fill ?? C.ink}" text-anchor="${o.anchor ?? "start"}"${o.weight ? ` font-weight="${o.weight}"` : ""}${o.mono ? ' font-family="ui-monospace, Menlo, monospace"' : ""}>${esc(s)}</text>`;
+  var rect = (x, y, w, h, fill, o = {}) => `<rect x="${x}" y="${y}" width="${Math.max(0, w)}" height="${Math.max(0, h)}" fill="${fill}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.rx ? ` rx="${o.rx}"` : ""}${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var line = (x1, y1, x2, y2, o = {}) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var swatch = (x, y, fill, label) => rect(x, y, 12, 12, fill) + text(x + 16, y + 11, label, { size: 12 });
+  function rows(y0, list, o = {}) {
+    const gap = o.gap ?? 24;
+    let body = "";
+    list.forEach(([k, v], i) => {
+      const y = y0 + i * gap;
+      body += text(8, y, k, { size: o.size ?? 12.5 }) + text(W - 8, y, v, { size: o.size ?? 12.5, anchor: "end", mono: true });
+      body += line(8, y + 7, W - 8, y + 7, { stroke: C.line });
+    });
+    return { body, h: list.length * gap };
+  }
+  var fmt = (n, d = 0) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  // bench/premise/ext4-space/method/oracle.ts
+  var run = (sb, files, st) => ({
+    dumpe2fs: { blocks: sb[0], reserved: sb[1], overhead: sb[2], free: sb[3], inodes: sb[4], inodesPerGroup: sb[5], reservedGdt: sb[6] },
+    debugfs: { root: files[0], resize: files[1], journal: files[2], lostFound: files[3], orphan: files[4] },
+    statfs: { blocks: st[0], bfree: st[1], bavail: st[2] }
+  });
+  var RUNS = {
+    "1g/5": run([262144, 13107, 12949, 249125, 65536, 8192, 127], [8, 5088, 65536, 32, 512], [249195, 249125, 231922]),
+    "1g/1": run([262144, 2621, 12949, 249125, 65536, 8192, 127], [8, 5088, 65536, 32, 512], [249195, 249125, 242408]),
+    "1g/0": run([262144, 0, 12949, 249125, 65536, 8192, 127], [8, 5088, 65536, 32, 512], [249195, 249125, 245029]),
+    "1t/5": run([268435456, 13421772, 4494739, 263940198, 67108864, 8192, 1024], [8, 155656, 2097160, 32, 4096], [263940717, 263940198, 250514330]),
+    "1t/1": run([268435456, 2684354, 4494739, 263940198, 67108864, 8192, 1024], [8, 155656, 2097160, 32, 4096], [263940717, 263940198, 261251748]),
+    "1t/0": run([268435456, 0, 4494739, 263940198, 67108864, 8192, 1024], [8, 155656, 2097160, 32, 4096], [263940717, 263940198, 263936102]),
+    "20t/5": run([5368709120, 268435456, 21625369, 5347083233, 335544320, 2048, 0], [8, 0, 2097160, 32, 4096], [5347083751, 5347083233, 5078643681]),
+    "20t/1": run([5368709120, 53687091, 21625369, 5347083233, 335544320, 2048, 0], [8, 0, 2097160, 32, 4096], [5347083751, 5347083233, 5293392046]),
+    "20t/0": run([5368709120, 0, 21625369, 5347083233, 335544320, 2048, 0], [8, 0, 2097160, 32, 4096], [5347083751, 5347083233, 5347079137]),
+    "2g/5": run([524288, 26214, 26150, 498004, 131072, 8192, 255], [8, 12248, 131072, 32, 1024], [498138, 498004, 467694]),
+    "4194176m/5": run([1073709056, 53685452, 17138196, 1056570341, 268427264, 8192, 1024], [8, 180232, 2097160, 32, 4096], [1056570860, 1056570341, 1002880793]),
+    "4t/5": run([1073741824, 53687091, 8750102, 1064991203, 134217728, 4096, 1024], [8, 180232, 2097160, 32, 4096], [1064991722, 1064991203, 1011300016])
+  };
+  var metadataOf = (r) => r.dumpe2fs.blocks - r.dumpe2fs.free;
+
+  // bench/premise/ext4-space/method/page.ts
+  var SIZE_KEYS = Object.keys(SIZES);
+  var DEFAULT = { size: "1t", reserve: 5 };
+  var g = fmt;
+  var runOf = (size, reserve) => RUNS[`${size}/${reserve}`];
+  var usersShare = (size, reserve) => percent2(runOf(size, reserve).statfs.bavail, runOf(size, reserve).dumpe2fs.blocks);
+  function stack(y, parts, whole, h = 34) {
+    let body = "", x = 8;
+    const bw = W - 16;
+    for (const p of parts) {
+      const w = p.value / whole * bw;
+      body += rect(x, y, w, h, p.fill, { stroke: C.line, sw: 0.5 });
+      x += w;
+    }
+    return body + rect(8, y, bw, h, "none");
+  }
+  function legend(y, parts, whole) {
+    let body = "";
+    parts.forEach((p, i) => {
+      const yy = y + i * 22;
+      body += swatch(8, yy, p.fill, p.label) + text(W - 92, yy + 11, `${g(p.value)}`, { size: 12, anchor: "end", mono: true }) + text(W - 8, yy + 11, percent2(p.value, whole), { size: 12, anchor: "end", mono: true });
+    });
+    return { body, h: parts.length * 22 };
+  }
+  function dfSvg(size, reserve) {
+    const r = runOf(size, reserve), blocks = r.dumpe2fs.blocks;
+    const parts = [
+      { label: "Avail: a user can write (f_bavail)", value: r.statfs.bavail, fill: C.goodFill },
+      { label: "Unavailable to that user", value: blocks - r.statfs.bavail, fill: C.d }
+    ];
+    let body = text(8, 16, `${SIZES[size].label}: ${g(blocks)} blocks of ${BLOCK} bytes`, { size: 12.5, weight: "600" });
+    body += stack(26, parts, blocks);
+    const l = legend(76, parts, blocks);
+    body += l.body + text(8, 76 + l.h + 14, "Recorded: mkfs.ext4 1.47.3, then statfs on Linux 6.8.0.", { size: 11.5, fill: C.soft });
+    return svg(76 + l.h + 22, body, `${SIZES[size].label}: a user can write ${usersShare(size, reserve)} of the disk`);
+  }
+  function reserveSvg(sp) {
+    const l = sp.layout;
+    const parts = [
+      { label: "Metadata (occupied)", value: l.metadata, fill: C.b },
+      { label: "Root reserve (free, held back)", value: sp.root, fill: C.e },
+      { label: "Kernel reserve (free, held back)", value: sp.kernel, fill: C.a },
+      { label: "Users can write", value: sp.users, fill: C.goodFill }
+    ].filter((p) => p.value > 0);
+    let body = text(8, 16, `Every block of ${bytesOf(l.blocks)}, at -m ${sp.percent}`, { size: 12.5, weight: "600" });
+    body += stack(26, parts, l.blocks);
+    const lg = legend(76, parts, l.blocks);
+    body += lg.body;
+    return svg(76 + lg.h + 6, body, `Metadata ${l.metadata} blocks, root reserve ${sp.root}, kernel reserve ${sp.kernel}, users ${sp.users}`);
+  }
+  function metadataSvg(sp, mark) {
+    const l = sp.layout;
+    const parts = [
+      { label: "Inode tables", value: l.inodeTables, fill: mark === "inodes" ? C.b : "#f8e1bd" },
+      { label: "Journal", value: l.journal, fill: mark === "journal" ? C.b : "#f8e1bd" },
+      { label: "Other metadata", value: l.other, fill: mark === "other" ? C.b : "#f8e1bd" }
+    ];
+    let body = text(8, 16, `The ${g(l.metadata)} metadata blocks of ${bytesOf(l.blocks)}`, { size: 12.5, weight: "600" });
+    body += stack(26, parts, l.metadata);
+    const lg = legend(76, parts, l.metadata);
+    body += lg.body;
+    let y = 76 + lg.h + 10;
+    if (mark === "inodes") {
+      const r = rows(y + 14, [
+        ["size type", l.type],
+        ["one inode per", `${l.inodeRatio / 1024} KiB`],
+        ["inodes", g(l.inodes)],
+        ["inode size", `${INODE_SIZE} bytes`],
+        ["inode-table blocks", `${g(l.inodeTables)} (${percent2(l.inodeTables, l.blocks)} of disk)`]
+      ]);
+      body += r.body;
+      y += r.h + 10;
+    }
+    if (mark === "journal") {
+      body += text(8, y + 12, "Disk size from \u2192 journal", { size: 12, fill: C.soft });
+      JOURNAL_STEPS.forEach((b, i) => {
+        const yy = y + 32 + i * 20;
+        const here = journalBlocks(l.blocks) === journalBlocks(b) && (i === JOURNAL_STEPS.length - 1 || l.blocks < JOURNAL_STEPS[i + 1]);
+        if (here) body += rect(6, yy - 14, W - 12, 19, C.hi, { stroke: "none" });
+        body += text(8, yy, bytesOf(b), { size: 12, mono: true }) + text(160, yy, `\u2192 ${bytesOf(journalBlocks(b))}`, { size: 12, mono: true });
+      });
+      y += 32 + JOURNAL_STEPS.length * 20;
+    }
+    if (mark === "other") {
+      const r = rows(y + 14, [
+        ["groups with a superblock copy", `${g(l.superGroups)} of ${g(l.groups)}`],
+        ["blocks per copy (1 + descriptors + spare)", `1 + ${l.descBlocks} + ${l.reservedGdt}`],
+        ["bitmaps (two per group)", g(l.bitmaps)],
+        ["first files (root, lost+found, orphan, index)", g(l.filesTotal)]
+      ]);
+      body += r.body;
+      y += r.h + 10;
+    }
+    return svg(y + 4, body, `Metadata of ${bytesOf(l.blocks)}: inode tables ${l.inodeTables}, journal ${l.journal}, other ${l.other}`);
+  }
+  function sizesSvg(size, reserve) {
+    const x0 = 170, cw = (W - x0 - 8) / 3;
+    let body = "";
+    SIZE_KEYS.forEach((k, i) => body += text(x0 + i * cw + cw / 2, 16, SIZES[k].label, { size: 12.5, anchor: "middle", weight: "600" }));
+    const lines = [
+      ["users can write", (k) => usersShare(k, reserve)],
+      ["metadata", (k) => percent2(metadataOf(runOf(k, reserve)), runOf(k, reserve).dumpe2fs.blocks)],
+      ["root reserve", (k) => percent2(runOf(k, reserve).dumpe2fs.reserved, runOf(k, reserve).dumpe2fs.blocks)]
+    ];
+    lines.forEach(([label, f], r) => {
+      const y = 28 + r * 32;
+      body += text(8, y + 19, label, { size: 12.5 });
+      SIZE_KEYS.forEach((k, i) => {
+        body += rect(x0 + i * cw + 2, y + 2, cw - 4, 26, k === size ? C.hi : "#fff", { stroke: k === size ? C.ink : C.line });
+        body += text(x0 + i * cw + cw / 2, y + 20, f(k), { size: 12.5, anchor: "middle", mono: true });
+      });
+    });
+    const h = 28 + lines.length * 32;
+    body += text(8, h + 16, `Recorded: mkfs.ext4 1.47.3 -m ${reserve}, statfs on Linux 6.8.0.`, { size: 11.5, fill: C.soft });
+    return svg(h + 24, body, `At -m ${reserve}, users can write ${SIZE_KEYS.map((k) => usersShare(k, reserve)).join(", ")} of the three disks`);
+  }
+  function steps(size, reserve) {
+    const sp = space(SIZES[size].bytes, reserve), def = space(SIZES[size].bytes, DEFAULT_RESERVE), l = sp.layout;
+    const r = runOf(size, reserve);
+    const label = SIZES[size].label;
+    const blocks = r.dumpe2fs.blocks, unavailable = blocks - r.statfs.bavail;
+    const out = [];
+    out.push({
+      id: "df",
+      title: `A new ${label} disk: a user can write ${usersShare(size, reserve)} of it`,
+      caption: `mkfs.ext4 1.47.3${reserve === DEFAULT_RESERVE ? " with no options" : ` -m ${reserve}`} on an empty ${label} disk of ${g(blocks)} blocks of ${BLOCK} bytes, then mounted. The kernel's statfs, which df reads, says a user other than root can write ${g(r.statfs.bavail)} blocks: ${usersShare(size, reserve)}. The other ${g(unavailable)} blocks, ${percent2(unavailable, blocks)} or ${bytesOf(unavailable)}, are unavailable to that user before any file is written. Predict: are they all occupied by the filesystem's own structures?`,
+      svg: dfSvg(size, reserve)
+    });
+    out.push({
+      id: "reserve",
+      title: `Answer: the 5% root reserve is ${times(def.root, l.metadata)} all the metadata here`,
+      caption: `${answer()}. Without -m, mke2fs keeps 5% of the blocks for root: ${g(def.root)} on this disk, free blocks held back for privileged use, not occupied. The metadata is ${g(l.metadata)} blocks, ${percent2(l.metadata, l.blocks)}. Once mounted, the kernel holds back ${g(sp.kernel)} more. A user can write the free blocks less both reserves${reserve !== DEFAULT_RESERVE ? `; this run used -m ${reserve}, so root keeps ${g(sp.root)}` : ""}.`,
+      svg: reserveSvg(sp)
+    });
+    out.push({
+      id: "inodes",
+      title: `Inode tables are ${percent2(l.inodeTables, l.metadata)} of the metadata`,
+      caption: `Each file needs an inode, and mke2fs sets aside a fixed number of ${INODE_SIZE}-byte inodes when it formats, by the disk's size type: one per ${INODE_RATIO.default / 1024} KiB for the default type (512 MiB to under 4 TiB), one per ${INODE_RATIO.big / 1024} KiB for big (under 16 TiB) and one per ${INODE_RATIO.huge / 1024} KiB for huge. ${label} is ${l.type === "default" ? "of the default type" : `of the ${l.type} type`}, so it gets ${g(l.inodes)} inodes, whose tables take ${g(l.inodeTables)} blocks: ${percent2(l.inodeTables, l.blocks)} of the disk.`,
+      svg: metadataSvg(sp, "inodes")
+    });
+    out.push({
+      id: "journal",
+      title: l.journal === journalBlocks(JOURNAL_STEPS.at(-1)) ? "The journal stops growing at 1 GiB" : `The journal is ${bytesOf(l.journal)}, ${percent2(l.journal, l.metadata)} of the metadata`,
+      caption: `mke2fs sizes the journal by steps of disk size: 16 MiB from 128 MiB, doubling at each step to 1 GiB from 128 GiB, and no larger beyond. ${label} gets ${g(l.journal)} blocks, ${bytesOf(l.journal)}: ${percent2(l.journal, l.metadata)} of the metadata and ${percent2(l.journal, l.blocks)} of the disk.`,
+      svg: metadataSvg(sp, "journal")
+    });
+    out.push({
+      id: "other",
+      title: `The other ${g(l.other)} blocks: superblock copies, bitmaps and the first files`,
+      caption: `Groups 0 and 1 and groups that are powers of 3, 5 or 7 hold a copy of the superblock and the group descriptors: ${g(l.superGroups)} of ${g(l.groups)} groups here${l.reservedGdt ? `, each with ${g(l.reservedGdt)} spare descriptor blocks for growing the filesystem` : ""}. Every group has a block bitmap and an inode bitmap. The root directory, lost+found, the orphan file${l.files.resize ? ", the resize inode" : ""} and ${l.files.journalTree ? "the journal\u2019s extent block" : "nothing else"} take ${g(l.filesTotal)} blocks.`,
+      svg: metadataSvg(sp, "other")
+    });
+    if (reserve !== DEFAULT_RESERVE) {
+      const gain = sp.users - def.users;
+      out.push({
+        id: "chosen",
+        title: `With -m ${reserve}, a user can write ${percent2(sp.users, l.blocks)}`,
+        caption: reserve === 0 ? `mkfs.ext4 -m 0 keeps nothing for root, so only the kernel's ${g(sp.kernel)} blocks are held back. A user can write ${g(sp.users)} blocks, ${g(gain)} more than at -m 5, ${bytesOf(gain)}. Root then has no more room than anyone else.` : `mkfs.ext4 -m 1 keeps 1% for root: ${g(sp.root)} blocks. A user can write ${g(sp.users)} blocks, ${g(gain)} more than at -m 5, ${bytesOf(gain)}.`,
+        svg: reserveSvg(sp)
+      });
+    }
+    const big = space(SIZES["20t"].bytes, reserve);
+    out.push({
+      id: "sizes",
+      title: `At -m ${reserve}, a user can write ${SIZE_KEYS.map((k) => usersShare(k, reserve)).join(", ")} of 1 GiB, 1 TiB and 20 TiB`,
+      caption: `The metadata's share falls as disks grow, from ${SIZE_KEYS.map((k) => percent2(metadataOf(runOf(k, reserve)), runOf(k, reserve).dumpe2fs.blocks)).join(" to ")}, because the journal stops at 1 GiB and the big and huge types give larger disks fewer inodes per byte. ${reserve ? `A ${reserve}% reserve grows with the disk: at 20 TiB it is ${bytesOf(big.root)}, ${times(big.root, big.layout.metadata)} the metadata.` : "With no root reserve, nearly every free block is a user\u2019s."}`,
+      svg: sizesSvg(size, reserve)
+    });
+    return out;
+  }
+  var q1 = questions[1]();
+  var CHECKS = [
+    { q: q1.question, a: q1.answer },
+    { q: "At 4 TiB mke2fs switches to its big type, with one inode per 32 KiB of disk instead of 16 KiB. How does a 4 TiB disk\u2019s metadata compare with that of a disk 128 MiB smaller?", a: questions[2]() },
+    { q: "An administrator runs tune2fs -m 0 on the 1 TiB disk to reclaim the filesystem\u2019s overhead. What do users get back, and what stays?", a: questions[3]() }
+  ];
+
+  // bench/premise/ext4-space/method/main.ts
+  mount(document.getElementById("app"), {
+    settings: [
+      { id: "size", label: "Size", default: DEFAULT.size, options: SIZE_KEYS.map((k) => ({ value: k, label: SIZES[k].label })) },
+      { id: "reserve", label: "Root reserve", default: String(DEFAULT.reserve), options: RESERVES.map((m) => ({ value: String(m), label: `-m ${m}${m === 5 ? " (default)" : ""}` })) }
+    ],
+    steps: (v) => steps(v.size, Number(v.reserve)),
+    checks: CHECKS
+  });
+})();
+</script>
+</body>
+</html>

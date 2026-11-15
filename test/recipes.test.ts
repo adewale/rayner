@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Succession, linear, keyed } from 'rayner';
-import { StringSink, NullSink, renderFrame, toSvgString } from 'rayner/output';
+import { Scene, Succession, linear, keyed, StringSink, renderFrame, toSvgString } from 'rayner';
 import { traceScene, TraceSink, sampleAnimation } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
@@ -17,7 +16,6 @@ test('document recipe accepts data, computes both routes, and exposes the model 
     input.cached = !cached;
     const result = await outputs(SceneClass, 1e6);
     assert.deepEqual(result.state, { cached, destination: expected });
-    assert.match(result.text, new RegExp(expected));
     assert.equal(result.trace.steps.length, 3);
     assert.deepEqual(result.trace.steps[1]!.after, { cached, destination: expected });
     // The route the model chose, and the readout's sync recording what its morph paired as it began
@@ -27,8 +25,7 @@ test('document recipe accepts data, computes both routes, and exposes the model 
   }
 });
 
-test('document recipe validates its input with jsonObject and refuses data a trace could not hold', () => {
-  assert.throws(() => requestScene({ cached: true, extra: () => 1 } as unknown as { cached: boolean }), /input\.extra must contain finite, acyclic JSON data/);
+test('document recipe refuses an input whose value the state could not hold', () => {
   assert.throws(() => requestScene({ cached: 'yes' } as unknown as { cached: boolean }), /cached must be a boolean/);
 });
 
@@ -85,7 +82,7 @@ test('parameter animations capture starts in succession and reject another write
       ]), { rateFunc: linear });
     }
   }
-  const scene = await renderFrame(RoundTrip, 45, new NullSink(), { fps: 60 });
+  const scene = await renderFrame(RoundTrip, 45, { skipUntil: Infinity, async frame() {} }, { fps: 60 });
   assert.ok(Math.abs((scene.state.angle as number) - Math.PI / 2) < 1e-12);
   class Conflicting extends Scene {
     override async construct() {
@@ -93,15 +90,15 @@ test('parameter animations capture starts in succession and reject another write
       await this.play(new FollowAngle(rig, Math.PI), rig.dot.animate.shift([1, 0]));
     }
   }
-  await assert.rejects(new Conflicting(new NullSink()).run(), /only once/);
+  await assert.rejects(new Conflicting({ skipUntil: Infinity, async frame() {} }).run(), /only once/);
 });
 
-test('every supported recipe produces nonempty SVG, text, elements and a named-step trace through public APIs', async () => {
+test('every supported recipe produces nonempty SVG, its state and a named-step trace through public APIs', async () => {
   assert.deepEqual(Object.keys(recipes), ['document', 'extensions', 'continuous', 'choreography', 'invariants']);
   for (const SceneClass of Object.values(recipes)) {
     const result = await outputs(SceneClass);
     assert.match(result.svg, /^<svg/);
-    assert.ok(result.text.trim().length > 0);
+    assert.ok(result.state && typeof result.state === 'object');
     assert.ok(result.trace.steps.length >= 2);
   }
 });

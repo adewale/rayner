@@ -25,7 +25,7 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows: from npm once it lists that version (`npm view rayner-cli versions`), and until then from archives built in a clone of this repository. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
-This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
+This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: Playwright's own build, another installed Playwright build or the Chrome or Chromium already on the machine ([Finding Chromium](REFERENCE.md#finding-chromium)). Only if none is found, install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
 
 ## 1. Plan on paper
 
@@ -244,31 +244,30 @@ The third step's captions are written by hand for each scenario; they are claims
 
 ### Drawing a picture of your own
 
-The card is a ready-made picture. When the picture should look like the thing itself, draw it with [`rayner/kit`](REFERENCE.md#kit), the default way to draw by hand. A picture module like this one draws one policy's cache as a row of slots, newest first:
+The card is a ready-made picture. When the picture should look like the thing itself, draw it by hand with the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`, the same module the card comes from. A picture module like this one draws one policy's cache as a row of slots, newest first:
 
-<!-- kit example, run by test/kit.test.ts -->
+<!-- kit example, run by test/drawing.test.ts -->
 ```ts
 import type { Stage } from 'rayner/explain';
-import { keyedParts } from 'rayner/drawing';
-import { MARGIN, SPACE, addAll, box, connector, tones, words } from 'rayner/kit';
+import { MARGIN, SPACE, TYPE, addAll, connector, keyedParts, label, tile, tones } from 'rayner/drawing';
 
 /** One policy's cache, newest first: a box per slot, keyed by its item, the newest in use. */
 export function drawSlots(s: Stage, policy: string, cache: readonly string[], y: number) {
   const parts = keyedParts(), t = tones(s);
-  parts.add(words(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true }), `${policy}:name`);
+  parts.add(label(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true, align: 'start' }), `${policy}:name`);
   cache.forEach((item, i) =>
-    addAll(parts, box(s, item, { at: [-3 + i * (1.6 + SPACE.m), y], width: 1.6, key: `${policy}:${item}`, active: i === 0 })));
+    addAll(parts, tile(s, item, { at: [-3 + i * (1.6 + SPACE.m), y], width: 1.6, raised: true, size: TYPE.small, key: `${policy}:${item}`, active: i === 0 })));
   parts.add(connector(s, [[-3.9, y - 0.6], [1.9, y - 0.6]]), `${policy}:shelf`);
   return parts.group();
 }
 ```
 
-- `words` sets text at one of the kit's four sizes, `TYPE.small` by default; anything smaller than `MIN_TEXT` is refused, because a phone could not read it.
+- `label` draws a line of words, centred on `at` unless `align` says its start or end, at `TYPE.small` unless given one of the kit's other sizes; anything smaller is refused, because a phone could not read it. Scenes draw words with it, not with the engine's `Text`.
 - `tones(s)` names the stage's colours by role: `soft` for secondary words, `idle` for what is not in use, `ink` for what is.
-- `box` returns two keyed parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
+- `tile` with `raised: true` draws a slot as a structure's body, in use when `active`. Given a `key`, it keys its two parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
 - `connector` draws a line through points, with rounded corners when there are any. It is a `Line`, so `rayner check` fails one that crosses a label.
 
-In the scene, `view(this, (st) => new Group(drawSlots(s, 'LRU', st.lru, 1), drawSlots(s, 'MRU', st.mru, -1)))` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([kit](REFERENCE.md#kit)).
+In the scene, `view(this, (st) => new Group(drawSlots(s, 'LRU', st.lru, 1), drawSlots(s, 'MRU', st.mru, -1)))` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([transitions in beats](REFERENCE.md#transitions-in-beats)).
 
 ## 6. Preview it
 
@@ -355,11 +354,34 @@ npx rayner build lru-mru/scene.ts --out public/lru-mru.html
 
 Two kinds of picture need more than Node, and only in the scenes that draw them ([add-ons](REFERENCE.md#add-ons)):
 
-- A Mermaid diagram, `s.show({ source: 'graph LR\nA --> B' })`, is laid out by Agentic Mermaid in Chromium at build time and pinned in `scene.snapshots/`. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, and Chromium with `npx playwright-core install chromium`. Without them, a command that must capture a diagram fails and prints that install line; committed snapshots replay without Chromium.
+- A Mermaid diagram, `s.show({ source: 'graph LR\nA --> B' })`, is laid out by Agentic Mermaid in Chromium at build time and pinned in `scene.snapshots/`. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`; capture finds Chromium as `review` does, and needs `npx playwright-core install chromium` only if none is found. Without them, a command that must capture a diagram fails and prints that install line; committed snapshots replay without Chromium.
 - Letters the embedded Inter and JetBrains Mono do not have, other scripts, replacement faces, real bold and italic, and maths need a [lettering request](LETTERING.md). Capturing one needs Python and the source fonts; a committed `scene.lettering.json` replays without them.
+
+## Start your own
+
+The tutorial edits a finished explainer. Writing your own is the same loop from the other end: state the question and intent, model the system, test the model against something real, then draw. `init --blank` starts there:
+
+```sh
+npx rayner init --blank sort-as-text --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
+```
+
+It writes the four files of [step 2](#2-generate-the-explainer) with nothing decided. Every part still to write says `TODO:` and what goes there: each line of the script's intent header, the oracle test in `model.test.ts` (it fails until you replace it), and the words of the scene's one step, which draws the stub model's state as text. `model.ts` is a stub to replace with your system's state and rules. `rayner check` then fails with what is left, in the order to write it:
+
+```text
+rayner: This explainer still has placeholders, each marked TODO:. To do, in order:
+1. script.md: fill in the intent header: write Reader, Answer, Changed condition, Reader's own work, Leaves out, Check yourself question 1 and Why this explainer in place of each TODO
+2. script.md: write Checked against and Grounding: the real system model.test.ts compares the model with, and how (live, recorded, read or none, then the system and its version)
+3. model.test.ts fails: the model agrees with the real system (TODO: replace this placeholder with a comparison of the model against something real: a reference implementation run live, published test vectors, or a recorded run of the real system)
+4. scene.ts: step "start" still says TODO in its title, line and caption: draw the model's state and say what the picture shows
+```
+
+Work down the list, rerunning `check`: plan the explainer as in [step 1](#1-plan-on-paper); name what the model is checked against and grade it; write the model and make its test compare it with the real system, as in [step 4](#4-check-the-model-against-the-source); then draw the picture from the model's state, as in [step 5](#5-read-the-scene). Once nothing says `TODO:`, the list is gone and `check` holds the explainer to the same checks as any other: some step must state the answer, the model test must pass, and every picture must read. [The skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) names an example to borrow the picture from.
+
+[Writing your own explainer](WRITING.md) works through this question from the list above to a reviewed page: how to choose a subject and an oracle, what `check` says at each stage, the failures a first draft runs into (a caption over 80 words, a label a phone cannot read, motion squeezed into too short a time), and what explainers have cost to make here.
 
 ## Next
 
+- To write an explainer of your own question, follow [Writing your own explainer](WRITING.md).
 - To explain another kind of subject, start from the nearest example. The [skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) matches subjects such as a protocol, a race, a state machine or a code change to explainers in `scenes/explainers/`.
 - The [reference](REFERENCE.md) covers the stage, card, diagram and check APIs. The [engine map](ENGINE.md) covers camera moves, code diffs, charts and pictures rebuilt from state.
 - [Judging an explainer](EXPLAINER-RUBRIC.md) asks whether a finished explainer teaches a newcomer, and whether it beats the alternative.

@@ -1,7 +1,8 @@
 // Indicate and Flash as the package had them before 0.2.0 cut them (rayner check's resting-picture
 // rules reject transient emphasis, so no scene should reach for one). The engine tests keep them
 // as ordinary there-and-back animations: groups, colours, seeking and successions are tested with them.
-import { Animation, Transform, thereAndBack, linear } from '../../src/index.ts';
+import { Animation, Transform, linear } from '../../src/index.ts';
+import { thereAndBack } from '../../extras/index.ts';
 import type { AnimationOptions, Mobject, TransformOptions } from '../../src/index.ts';
 
 export interface IndicateOptions extends TransformOptions { scaleFactor?: number; color?: string }

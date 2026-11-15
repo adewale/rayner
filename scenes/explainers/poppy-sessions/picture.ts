@@ -2,7 +2,7 @@ import { Circle, Group, Rectangle, VMobject } from '../../../src/index.ts';
 import type { Mobject, Style, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import { MARGIN, PALETTE as KIT_PALETTE, STROKE, TONE, TYPE, certificate, clock as clockFace, key, seal, sheet, words } from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, STROKE, TONE, TYPE, certificate, clock as clockFace, key, seal, sheet, label } from '../lib/poppy-kit.ts';
 import { AGENT_SIGNER, CHECKS, TIME, attempt, clock, genuine, hostOf, ruleOf } from './model.ts';
 import type { CheckId, Request, SealWorld, Tamper } from './model.ts';
 
@@ -218,16 +218,16 @@ function ticketOf(s: Stage, r: Request, foreign: boolean): Group {
   const parts: Mobject[] = [
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: 0.08 }).moveTo(TICKET_AT),
     ...Array.from({ length: 24 }, (_, i) => new Circle({ radius: 0.032, fill: TONE.paperLine, stroke: 'none' }).moveTo([PERF_X, TK.top - 0.2 - i * ((h - 0.4) / 23)])),
-    words(s, r.session!.typ, { at: [WORD_X, HEAD_Y], mono: true, bold: true, color: print }),
+    label(s, r.session!.typ, { at: [WORD_X, HEAD_Y], mono: true, bold: true, color: print, align: 'start' }),
     new Rectangle({ width: TK.right - WORD_X - 0.3, height: 0.04, fill: print, stroke: 'none' }).moveTo([(WORD_X + TK.right - 0.3) / 2, HEAD_Y - 0.4]),
   ];
   for (const row of ROWS) {
-    parts.push(words(s, row.word, { at: [WORD_X, row.y], color: print }));
-    parts.push(words(s, row.id, { at: [CLAIM_X, row.y], mono: true, color: print }));
+    parts.push(label(s, row.word, { at: [WORD_X, row.y], color: print, align: 'start' }));
+    parts.push(label(s, row.id, { at: [CLAIM_X, row.y], mono: true, color: print, align: 'start' }));
     if (row.id === 'ath' && r.session!.ath) {
       parts.push(key(s, { at: [VALUE_X + 0.45, row.y + 0.04], size: 0.42, teeth: 2, onPaper: true }));
-      parts.push(words(s, rows.ath, { at: [VALUE_X + 1.1, row.y], mono: true, bold: true, color: print }));
-    } else parts.push(words(s, rows[row.id], { at: [VALUE_X, row.y], mono: true, bold: rows[row.id] !== 'none', color: print }));
+      parts.push(label(s, rows.ath, { at: [VALUE_X + 1.1, row.y], mono: true, bold: true, color: print, align: 'start' }));
+    } else parts.push(label(s, rows[row.id], { at: [VALUE_X, row.y], mono: true, bold: rows[row.id] !== 'none', color: print, align: 'start' }));
   }
   // Hairlines between the three pairs.
   for (const y of [-0.69, -2.13]) parts.push(new Rectangle({ width: TK.right - WORD_X - 0.3, height: 0.025, fill: TONE.paperLine, stroke: 'none' }).moveTo([(WORD_X + TK.right - 0.3) / 2, y]));
@@ -248,10 +248,10 @@ function tear(y: number, valueWidth: number): Group {
 }
 /** The validator's stamp: when the Company received the ticket, inked in an outlined box. */
 function arrived(s: Stage, t: number): Group {
-  const label = words(s, 'in', { at: [VALUE_X + 0.24, -3.95], color: TONE.print });
-  const time = words(s, clock(t), { at: [VALUE_X + 0.24 + label.width() + 0.24, -3.95], mono: true, bold: true, color: TONE.print });
-  const w = label.width() + time.width() + 0.72;
-  return new Group(new Rectangle({ width: w, height: 0.62, fill: 'none', stroke: TONE.print, strokeWidth: STROKE.fine, cornerRadius: 0.08 }).moveTo([VALUE_X + w / 2, -3.95]), label, time);
+  const lead = label(s, 'in', { at: [VALUE_X + 0.24, -3.95], color: TONE.print, align: 'start' });
+  const time = label(s, clock(t), { at: [VALUE_X + 0.24 + lead.width() + 0.24, -3.95], mono: true, bold: true, color: TONE.print, align: 'start' });
+  const w = lead.width() + time.width() + 0.72;
+  return new Group(new Rectangle({ width: w, height: 0.62, fill: 'none', stroke: TONE.print, strokeWidth: STROKE.fine, cornerRadius: 0.08 }).moveTo([VALUE_X + w / 2, -3.95]), lead, time);
 }
 
 // ------------------------------------------------------------------ the picture
@@ -260,7 +260,7 @@ function arrived(s: Stage, t: number): Group {
 export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
   const parts = keyedParts(), r = requestOf(w), last = w.last, owner = chainOwner(w), published = last?.tamper === 'published';
   const [ink, deep] = owner === 'thief' ? [TONE.pewter, TONE.pewterDeep] : [TONE.ink, TONE.steel];
-  const text = (k: string, value: string, o: Parameters<typeof words>[2]) => parts.add(words(s, value, o), k);
+  const text = (k: string, value: string, o: Parameters<typeof label>[2]) => parts.add(label(s, value, { align: 'start', ...o }), k);
   const name = (k: string, value: string, x: number, soft = false) => text(k, value, { at: [x, LABEL_Y], align: 'middle', color: soft ? TONE.soft : TONE.ink, mono: value.endsWith('.json') });
 
   // Across the top: the chain, as far as the scene has explained it.
@@ -306,7 +306,7 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
       if (state === 'held') parts.add(hole(y), fk(`hole:${on}`));
       if (state === 'broke') {
         const value = on === 'typ' ? r.session!.typ : rowsOf(r)[on];
-        const width = words(s, value, { mono: true }).width() + (on === 'ath' && r.session!.ath ? 1.1 : 0);
+        const width = label(s, value, { mono: true, align: 'start' }).width() + (on === 'ath' && r.session!.ath ? 1.1 : 0);
         emphasised(parts.add(tear(y, width), fk(`tear:${on}`)), `torn at ${on}`);
       }
     }

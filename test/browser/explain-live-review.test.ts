@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Scene } from '../../src/index.ts';
-import { NullSink } from '../../src/output.ts';
+import { NullSink } from '../../src/timeline.ts';
 import { collectProject } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';

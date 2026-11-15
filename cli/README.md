@@ -11,7 +11,7 @@ npx rayner init my-explainer
 
 If npm does not list the version you want yet, build both packages from a clone of the repository, as the [quick start](https://github.com/adewale/rayner#quick-start) shows.
 
-A scene that draws no Mermaid diagram and asks for no lettering needs nothing more to `init`, `check`, `see`, `describe` and `build`. `review` opens the page in Chromium: run `npx playwright-core install chromium` once, or set `CHROMIUM_EXECUTABLE_PATH`.
+A scene that draws no Mermaid diagram and asks for no lettering needs nothing more to `init`, `check`, `see`, `describe` and `build`. `review` opens the page in Chromium, and prints which one: Playwright's own build, another installed Playwright build, or Chrome or Chromium on the machine, whichever launches and renders a page first. Only if none is found, run `npx playwright-core install chromium` once, or set `CHROMIUM_EXECUTABLE_PATH`.
 
 Two add-ons, for the scenes that need them ([add-ons](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#add-ons)):
 

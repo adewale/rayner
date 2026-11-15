@@ -1,7 +1,8 @@
 // How the galton-board explainer draws its board: pegs in a triangle, a bin under each gap, the
 // arcs a ball hops along, and the chart the pile makes. Everything is placed from the model's rows
 // and turns, so a route drawn here is a route the model lists.
-import { ArcBetweenPoints, Axes, Dot, Group, Line, Text, VMobject, keyed } from '../../../src/index.ts';
+import { Axes, Dot, Group, Line, Text, VMobject, keyed } from '../../../src/index.ts';
+import { ArcBetweenPoints } from '../../../extras/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bell } from './model.ts';

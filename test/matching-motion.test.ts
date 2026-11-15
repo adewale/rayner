@@ -1,4 +1,4 @@
-// TransformMatchingText through the motion verifier: a Text is one unit to
+// A Transform matched by 'text', through the motion verifier: a Text is one unit to
 // MotionSink, its box the union of every glyph (faded ones too), so a glyph
 // waiting or fading outside its line would make the line's extent jump.
 //
@@ -8,8 +8,9 @@
 // cases therefore pin authored glyph interpolation and exact endpoints directly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Code, VMobject, TransformMatchingText } from '../src/index.ts';
-import { StringSink, renderFrame } from '../src/output.ts';
+import { Scene, Text, Code, VMobject, Transform } from '../src/index.ts';
+import { StringSink } from '../src/svg.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
@@ -27,7 +28,7 @@ const sceneOf = ({ a, b, size, move, lag, font }: Morph) => class extends Scene 
     await this.step('s');
     const src = new Text(a, { font }).shift([-2, 1]);
     this.add(src);
-    await this.play(new TransformMatchingText(src, new Text(b, { font, fontSize: size }).shift(move), { lagRatio: lag }), { runTime: 1 });
+    await this.play(new Transform(src, new Text(b, { font, fontSize: size }).shift(move), { match: 'text', lagRatio: lag }), { runTime: 1 });
     await this.wait(0.2);
   }
 };
@@ -71,7 +72,7 @@ function assertMorphInterpolation({ a, b, size, move, lag, font }: Morph): void 
   const sourceOpacity = new Map([...before.keys()].map((p) => [p, p.style.opacity]));
   const targetOpacity = new Map([...after.keys()].map((p) => [p, p.style.opacity]));
   const sourceGeometry = geometry(src), targetGeometry = geometry(target), targetFrame = pointSnapshot(target);
-  const animation = new TransformMatchingText(src, target, { lagRatio: lag });
+  const animation = new Transform(src, target, { match: 'text', lagRatio: lag });
   beginAnimation(animation);
   const sourcePartition = [...animation.pairs.map(([s]) => s), ...animation.removed];
   const targetPartition = [...animation.pairs.map(([, t]) => t), ...animation.added];
@@ -168,7 +169,7 @@ test('a Code block morphs without jumps too', async () => {
       override async construct() {
         const src = new Code(a!);
         this.add(src);
-        await this.play(new TransformMatchingText(src, new Code(b!).scale(1.3).shift([0.5, -0.5]), { lagRatio: 0.2 }), { runTime: 1 });
+        await this.play(new Transform(src, new Code(b!).scale(1.3).shift([0.5, -0.5]), { match: 'text', lagRatio: 0.2 }), { runTime: 1 });
         await this.wait(0.2);
       }
     };

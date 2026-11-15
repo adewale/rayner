@@ -15,7 +15,7 @@ import { SCRIPTS, letteringRequest, pageFaces, useProjectLettering } from '../to
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
-import { renderFrame } from '../src/output.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { useLettering, withLettering, takeLetteringMissing } from '../src/lettering.ts';
@@ -36,13 +36,13 @@ const embedded = { sans: shaperFor('sans'), mono: shaperFor('mono') };
 const built = (project: Project, name: string) => buildExplainer(project, join(folder, name + '.html'));
 
 // Catalog policy is metadata; actual page/receipt assertions run in demos:build.
-test('the catalog’s lettering requests are the four it names, each for what its subject needs, and no other explainer asks for any', async () => {
+test('the catalog’s lettering requests are the three it names, each for what its subject needs, and no other explainer asks for any', async () => {
   for (const { id } of EXPLAINERS) {
     const { Scene } = await loadScene(join(ROOT, 'scenes/explainers', id));
     if (id === 'font-metrics') {
       assert.equal(Scene.meta?.lettering?.faces?.sans, 'eb-garamond');
       assert.deepEqual(Scene.meta?.lettering?.styles, ['bold', 'italic']);
-    } else if (id === 'feature-tour') assert.deepEqual(Scene.meta?.lettering, { math: true }, 'the tour’s maths scenario asks for maths and nothing else');
+    }
     // A double as a fraction over a power of two, and the gap between doubles: maths and nothing else.
     else if (id === 'float-sum') assert.deepEqual(Scene.meta?.lettering, { math: true }, 'float-sum sets two formulas');
     // Words in four scripts, taken apart, with real bold for the bytes in use and the headings.

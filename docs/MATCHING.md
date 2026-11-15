@@ -1,29 +1,36 @@
 # Matching transforms
 
-`Transform` pairs the two families by position: the source's third leaf morphs
-into the target's third leaf, whatever they are. When the two sides share
-pieces (a word that grows a letter, code with a line inserted, a diagram that
-keeps two of its nodes), pair the pieces by what they are instead:
+By default a `Transform` pairs the two families by position (`match: 'index'`):
+the source's third leaf morphs into the target's third leaf, whatever they are.
+When the two sides share pieces (a word that grows a letter, code with a line
+inserted, a diagram that keeps two of its nodes), pair the pieces by what they
+are instead, with its `match` option:
 
 ```js
-import { Text, Code, TransformMatchingText, TransformMatchingShapes, TransformMatching } from 'rayner';
+import { Text, Transform } from 'rayner';
 
 // Five letters stay where they are, a d grows in
-await this.play(new TransformMatchingText(new Text('cache'), new Text('cached')));
+await this.play(new Transform(new Text('cache'), new Text('cached'), { match: 'text' }));
 // Shared nodes travel, the rest fade
-await this.play(new TransformMatchingShapes(oldDiagram, newDiagram));
+await this.play(new Transform(oldDiagram, newDiagram, { match: 'shapes' }));
 // Your own key
-await this.play(new TransformMatching(before, after, { key: (part) => part.style.fill }));
+await this.play(new Transform(before, after, { match: (part) => part.style.fill }));
 ```
+
+A matched transform's other options are `ordered`, `staged` and `fadeMismatches`
+([below](#what-unmatched-parts-do)), and its `replace` is on unless you say
+otherwise ([the options](ANIMATIONS.md#transform-and-its-options)). `View.sync()`
+and a machine's views take the same `match` ([views](VIEWS.md#match)).
 
 ## Which key
 
-| | pairs parts that | use for |
+| `match` | pairs parts that | use for |
 |---|---|---|
-| `TransformMatchingText` | are the same character in the same font and weight; anything else by shape. In an explainer with outline lettering, the same whole cluster drawn with the same number of glyphs ([lettering](LETTERING.md#changes-between-strings)) | `Text`, `Code`, groups of them |
-| `TransformMatchingShapes` | have the same `shapeKey()`: same path up to position and size | diagrams, symbols, anything drawn |
-| `TransformMatching` + `key` | map to the same string (`undefined` never matches) | identity you know: a node id, a color, a role |
-| `TransformMatching` + `matchByKey({ fallback?, unkeyed?, text? })` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
+| `'text'` | are the same character in the same font and weight; anything else by shape. In an explainer with outline lettering, the same whole cluster drawn with the same number of glyphs ([lettering](LETTERING.md#changes-between-strings)) | `Text`, `Code`, groups of them |
+| `'shapes'` | have the same `shapeKey()`: same path up to position and size | diagrams, symbols, anything drawn |
+| a function `(part, root) => string \| undefined`, a `MatchKey` | map to the same string (`undefined` never matches) | identity you know: a node id, a color, a role |
+| `'key'`, or `{ by: 'key', fallback?, unkeyed?, text? }`, a `KeyMatch` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
+| `'index'` (the default) | sit at the same position in the two families | two pictures of the same structure |
 
 A part is one drawable piece: a visible `VMobject` with points of its own (a
 glyph, an arrow's line or tip, a node's box). Containers are not parts; a
@@ -34,7 +41,7 @@ reading ancestors at that root.
 ## Keyed components
 
 A picture rebuilt from state names what persists by giving a container a
-`key`: a table cell `cell:${z}`, a state node `state:${id}`. `matchByKey()`
+`key`: a table cell `cell:${z}`, a state node `state:${id}`. `match: 'key'`
 pairs every part under a keyed container with the part at the same place under
 the container of the same key on the other side, so the cell is kept as one
 component wherever it moves and its own parts morph inside it. A keyed part
@@ -42,7 +49,7 @@ component wherever it moves and its own parts morph inside it. A keyed part
 keyed containers nest. A key two containers share pairs by distance, like any
 repeated key.
 
-A keyed `Text` whose words change needs a decision, and `text` makes it. By
+A keyed `Text` whose words change needs a decision, and `{ by: 'key', text }` makes it. By
 place (the default), its glyphs morph place by place and a glyph with no
 counterpart fades inside it: right for a readout whose digits change. Whole,
 it pairs only with a `Text` of the same key and the same words, so a renamed
@@ -50,12 +57,12 @@ state or event fades out and the new name fades in: right where the words are
 the identity. `statecharts` uses `text: 'whole'`.
 
 ```js
-import { TransformMatching, matchByKey } from 'rayner';
-await this.play(new TransformMatching(before, after, { key: matchByKey() }));
+import { Transform } from 'rayner';
+await this.play(new Transform(before, after, { match: 'key' }));
 // A relabelled node's old name fades and the new one grows in
-diagram.sync({ match: matchByKey({ text: 'whole' }) });
+diagram.sync({ match: { by: 'key', text: 'whole' } });
 // Keyed cells keep their identity; the same word elsewhere stays put instead of fading
-table.sync({ match: matchByKey({ fallback: (part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined }) });
+table.sync({ match: { by: 'key', fallback: (part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined } });
 ```
 
 `mobject.find(key)` and `scene.find(key)` return the first part with a key,
@@ -72,19 +79,19 @@ fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one
 component and reduce the morph to matching by index. `View.sync()` matches by
-`matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
-[machine](MACHINES.md)'s views morph unless the machine says otherwise, so the
-parts that stay through an event keep their identity.
+`'key'` unless told otherwise ([views](VIEWS.md#match)), and a
+[machine](MACHINES.md)'s views morph by `{ by: 'key', text: 'whole' }` unless the
+machine says otherwise, so the parts that stay through an event keep their identity.
 
 ## How parts pair
 
-A `TransformMatching` and its two variants pair parts this way:
+A matched transform pairs parts this way:
 
 - A key that occurs once on each side pairs outright.
 - A key that repeats pairs so the total squared distance travelled is least.
   A row of equal boxes that moves as a whole keeps its order; nearest-first
   pairing would swap the ends.
-- `ordered: true` (on by default for text) pairs runs of consecutive equal keys
+- `ordered: true` (on by default for `match: 'text'`) pairs runs of consecutive equal keys
   first, longest first, in reading order, like manim's
   `TransformMatchingStrings`. Lines are then matched by where their glyphs
   went, and a leftover letter pairs only within its own line, so stray letters
@@ -96,13 +103,13 @@ A `TransformMatching` and its two variants pair parts this way:
   with no partner grows from a point and fades in. Both are carried with the
   matched parts of their line (the line's move and font-size change), so a new
   letter grows beside its neighbours and travels with them.
-- In `TransformMatchingText` a removed glyph also ends inside the line it
+- Matched by `'text'`, a removed glyph also ends inside the line it
   becomes, an added glyph starts inside the line it joins, and a glyph whose
   lagged share has not started rides with its line, so each line stays one
   piece for the motion verifier (`test/matching-motion.test.ts`). With a
   `lagRatio` above about 0.25 and large rearrangements, matched glyphs that
   cross a line can still report a teleport in a few frames.
-- `fadeMismatches: false` (a `TransformMatching` option) morphs the unmatched parts into each other instead,
+- `fadeMismatches: false` morphs the unmatched parts into each other instead,
   by index, as manim's `transform_mismatches` does; only the surplus fades.
 - `staged: true` takes the unmatched parts in turn instead of together: the
   source's shrink and fade over the first half, the target's grow and fade in
@@ -115,16 +122,17 @@ A `TransformMatching` and its two variants pair parts this way:
 New parts live in the source while the animation plays: copies of them are
 added to the source's line their target line corresponds to, or to a bare copy
 of the target line when the line is new. play() sees one mobject, and every
-line stays one piece. With `replace: true` (the default) the scene holds the
+line stays one piece. With `replace: true` (a matched transform's default) the scene holds the
 target afterwards. With `replace: false` the source stays, showing the target:
 faded parts left in it invisible, new copies attached, its `text` unchanged.
 
 ## What it reports
 
-Once it has begun (that is, once played), a `TransformMatching` reports what it did
+Once it has begun (that is, once played), a matched transform reports what it did
 with the parts of its source and its `target`:
 
-- `summary()`: a `MatchSummary`, `{ matched, morphed, removed, added }`, counts.
+- `summary()`: a `MatchSummary`, `{ matched, morphed, removed, added }`, counts
+  (`null` for a morph by index).
 - `pairs`, `morphed`: `[sourcePart, targetPart]` in source order; `removed`:
   source parts; `added`: target parts (the originals, not the copies that fade in).
 
@@ -149,14 +157,14 @@ boundary, about 0.02% of copies.
 
 ## Relation to manim
 
-- `TransformMatchingShapes` follows manim's (`Mobject.has_same_shape_as`:
+- `match: 'shapes'` follows manim's `TransformMatchingShapes` (`Mobject.has_same_shape_as`:
   centered, height 1, 1% tolerance). `test/manim.test.ts` holds `shapeKey()` to
   it on a set of shapes, extracted from the pinned checkout. Differences:
   a grid instead of a tolerance (a key must be a string); scaled by the larger
   side, where manim's height-1 scaling divides by zero on a horizontal line;
   closed flags count; and among several same-shaped parts manim pairs the
   first it finds, here the nearest.
-- `TransformMatchingText` follows `TransformMatchingStrings`/`TransformMatchingTex`
+- `match: 'text'` follows manim's `TransformMatchingStrings`/`TransformMatchingTex`
   (longest matching substrings first), on glyphs.
 - manim fades unmatched parts toward the other side's center; here they stay
   with their line.
@@ -169,7 +177,7 @@ boundary, about 0.02% of copies.
   (`test/matching.test.ts`, which also runs the motion verifier).
 - The target is never modified. The source is, as `Transform`'s alignment
   modifies it: matched parts gain curves, new copies are attached.
-- `TransformMatchingText` scans both texts once per matching run it finds, so
+- `match: 'text'` scans both texts once per matching run it finds, so
   beginning is O(runs·N·M). One edit costs little: 42 ms at begin for 40 lines
   of code, 90 ms for 80. Scattered edits (a change on every line) leave many
   short runs: 0.3 s for 40 lines, 1.2 s for 80. Prefer `TransformDiff` for
@@ -207,9 +215,11 @@ await this.play(new TransformDiff(before, after, { hunks: parseUnifiedDiff(patch
   extent of its rewritten line starts (or ends) at the line's nearest edge,
   so the line grows smoothly rather than jumping on the first frame.
 
-It is a `TransformMatching` whose key is that pairing: `pairs`, `removed`,
+It is a matched `Transform` whose key is that pairing: `pairs`, `removed`,
 `added`, `summary()`, `replace` and seeking work as above, and `plan` says
 what each line did, a `LinePlan` (`same`, `changed`, `removed`, `added`, by index).
+`keys` is that pairing once the play has begun: each paired glyph, before and
+after, mapped to the key it shares with its partner; a glyph with no key fades.
 
 ### Hunks are the truth
 
@@ -243,8 +253,8 @@ begins ([fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence)):
 `{ kind: 'match', matched, morphed, removed, added }`, and for `TransformDiff`,
 `{ kind: 'diff', hunks, lines: { unchanged, changed, removed, added }, matched,
 morphed, removed, added }`. A view's sync records its morph's `match` counts, with
-the view's key as `view`. The trace carries evidence per step, and `renderText`
-prints a one-line summary under the frame. The KV-cache explainer morphs its merge request's two texts with
+the view's key as `view`. The trace carries evidence per step, and a step's
+picture drawn as text (`rayner see`, `describeExplainer`) prints a one-line summary under it. The KV-cache explainer morphs its merge request's two texts with
 `TransformDiff`, and its `fidelity.ts` (`scenes/explainers/mr-cache/`) holds the hunks it
 records, in both of its scenarios, to `git diff --no-index --unified=0`, with its
 line counts git's. The same file checks the match evidence behind the counts
@@ -254,9 +264,13 @@ the glyph and git explainers put on screen.
 
 - [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): `TransformDiff`
   on coloured `Code`, with tinted bars placed from `diff.plan`.
-- [`scenes/explainers/glyph/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
+- [`scenes/explainers/glyph/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts): `match: 'shapes'`
   pairing glyphs by outline across sizes and fonts, with lines drawn between `pairs`
-  and counts from `summary()`. It uses no `TransformMatchingText`.
+  and counts from `summary()`. It uses no `match: 'text'`.
+- [`scenes/explainers/float-sum/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts): `match: 'text'`
+  keeping the typed digits in place while the digits the machine keeps grow out of them.
+- [`scenes/explainers/string-length/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/string-length/scene.ts): `match: 'key'`
+  moving each code point's cell, keyed by its place in the word, to its place in its character.
 - [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): no matching transform of its
   own. Its views sync by shape (`match: 'shapes'`, keeping one row whole while another grows in)
   and by index, and the counts it shows are read from the match evidence those syncs record

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
-import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { StringSink, toSvgString } from '../src/svg.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';

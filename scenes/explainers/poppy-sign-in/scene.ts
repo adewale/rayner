@@ -157,7 +157,8 @@ export default class SignIn extends Scene<World, Shown> {
       },
       trick: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
-        return beats(c, flight(c, 'trick', [[-1.4, -4.6]], { move: 0.8 }), { fresh: FRESH, then: ['barrier'] });
+        // Up from below the stage beside the counter, clear of the agent's tag, then across to where it is stopped.
+        return beats(c, flight(c, 'trick', [[-0.25, -4.6], [-0.25, -2.0]], { move: 0.8 }), { fresh: FRESH, then: ['barrier'] });
       },
       thief: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
@@ -178,12 +179,14 @@ export default class SignIn extends Scene<World, Shown> {
     };
     /** The tag goes back to the Company's desk, and the key with it. */
     const giveBack = (t: Transition<World, SignInEvent>) => {
-      const c = t.choreograph(world), from = centre(c, 'tag', 'from'), to: Pt = [FACE_LEFT, DESK[1]];
+      // With Device Sign-In's card lying along the strip at the desk, the tag stops under the card, not on it.
+      const c = t.choreograph(world), from = centre(c, 'tag', 'from'), to: Pt = [FACE_LEFT, c.has('card', 'from') ? -2.25 : DESK[1]];
       // The tag goes back to the Company, stopping with its edge at the counter rather than over the scopes;
       // the key and the cord fade as it sets off: without the tag the agent can get no more keys.
       const going = ['agent:key', 'tag:cord'].filter((k) => c.has(k, 'from') && !c.has(k, 'to'));
       return beats(c, () => {
-        const back = pass(c, 'tag:return', c.from('tag').copy(), [from, [from[0] + 0.4, to[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });
+        // Across, then up: clear of the device card standing at the desk.
+        const back = pass(c, 'tag:return', c.from('tag').copy(), [from, [to[0], from[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });
         return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];
       }, { fresh: FRESH });
     };

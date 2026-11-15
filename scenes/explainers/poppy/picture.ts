@@ -2,10 +2,7 @@ import { Group, Line, Rectangle, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import {
-  MARGIN, PALETTE as KIT_PALETTE, STROKE, TICKET, TONE, TYPE,
-  addAll, aiMark, barrier, padlock, codeSlip, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
-} from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, STROKE, TICKET, TONE, TYPE, addAll, aiMark, barrier, padlock, codeSlip, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, label } from '../lib/poppy-kit.ts';
 import { AGENT, COMPANY, OPERATIONS, SID, THIEF, USER_IDS, ruleOf } from './model.ts';
 import type { Channel, Exchange, Scope, World } from './model.ts';
 
@@ -146,7 +143,7 @@ export function documentToken(s: Stage): Mobject {
  */
 function shopfront(s: Stage, open: boolean, lit: Lane | null): Mobject[] {
   const h = COUNTER_TOP - COUNTER_BOTTOM, cy = (COUNTER_TOP + COUNTER_BOTTOM) / 2;
-  const name = words(s, COMPANY.domain, { mono: true, bold: true, color: TONE.print });
+  const name = label(s, COMPANY.domain, { mono: true, bold: true, color: TONE.print, align: 'start' });
   const boardW = name.width() + 0.56, boardY = LEDGER_TOP;
   const windows = LANES.flatMap((on) => {
     const y = LANE_Y[on], x = STOP_X + 0.36;
@@ -207,7 +204,7 @@ export function drawWorld(w: World, s: Stage): Group {
     const y = STATION[1];
     parts.add(new Line([STATION[0] + STATION_R + 0.12, y], [BARRIER_X - 0.3, y], { stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.16 0.14', fill: 'none' }), 'door:way');
     parts.add(barrier(s, { at: [BARRIER_X, y] }), 'door:barrier');
-    parts.add(words(s, 'no way in yet', { at: [(TRUNK_X + STOP_X) / 2 - 0.4, y + 0.55], size: TYPE.label, color: TONE.soft, align: 'middle' }), 'door:words');
+    parts.add(label(s, 'no way in yet', { at: [(TRUNK_X + STOP_X) / 2 - 0.4, y + 0.55], size: TYPE.label, color: TONE.soft }), 'door:words');
   }
 
   // The last request, as a ticket on its lane: a seal, and a key when it carried a token.
@@ -219,23 +216,23 @@ export function drawWorld(w: World, s: Stage): Group {
 
   // Under the map, on the agent's side: what was asked, and the one object this step is about.
   const shown = exhibitOf(w), markAt: Vec = [MARGIN.left + 1.1, BAND_TOP - 2.27];
-  parts.add(words(s, report ? report.asked : 'you ask your agent', { at: [MARGIN.left, BAND_TOP], color: TONE.soft }), 'exhibit:asked');
+  parts.add(label(s, report ? report.asked : 'you ask your agent', { at: [MARGIN.left, BAND_TOP], color: TONE.soft, align: 'start' }), 'exhibit:asked');
   parts.add(shown.mark(s, markAt), 'exhibit:mark');
-  parts.add(words(s, shown.name, { at: [MARGIN.left + 2.55, markAt[1] + 0.37], bold: true, mono: !!shown.mono }), 'exhibit:name');
-  parts.add(words(s, shown.gloss, { at: [MARGIN.left + 2.55, markAt[1] - 0.37], color: TONE.soft }), 'exhibit:gloss');
+  parts.add(label(s, shown.name, { at: [MARGIN.left + 2.55, markAt[1] + 0.37], bold: true, mono: !!shown.mono, align: 'start' }), 'exhibit:name');
+  parts.add(label(s, shown.gloss, { at: [MARGIN.left + 2.55, markAt[1] - 0.37], color: TONE.soft, align: 'start' }), 'exhibit:gloss');
 
   // On the Company's side, under its ledger: the answer, large. Before anything is sent, the question it will ask.
   const ax = LEDGER_X, numberY = BAND_TOP - 0.4, phraseY = numberY - 1.48, meaningY = phraseY - 0.82;
   if (!report) {
-    parts.add(words(s, '?', { at: [ax - 0.06, numberY], size: TYPE.display, mono: true, bold: true }), 'answer:code');
-    parts.add(words(s, 'Who is asking?', { at: [ax, phraseY], size: TYPE.title, bold: true }), 'answer:phrase');
-    parts.add(words(s, 'a stranger at the door', { at: [ax, meaningY] }), 'answer:meaning');
+    parts.add(label(s, '?', { at: [ax - 0.06, numberY], size: TYPE.display, mono: true, bold: true, align: 'start' }), 'answer:code');
+    parts.add(label(s, 'Who is asking?', { at: [ax, phraseY], size: TYPE.title, bold: true, align: 'start' }), 'answer:phrase');
+    parts.add(label(s, 'a stranger at the door', { at: [ax, meaningY], align: 'start' }), 'answer:meaning');
   } else {
-    if (report.number !== null) parts.add(words(s, report.number, { at: [ax - 0.06, numberY], size: TYPE.display, mono: true, bold: true }), 'answer:code');
+    if (report.number !== null) parts.add(label(s, report.number, { at: [ax - 0.06, numberY], size: TYPE.display, mono: true, bold: true, align: 'start' }), 'answer:code');
     // A sign-in's answer is your account, opened to the agent: the key it cut is the step's object, on the left.
     else parts.add(padlock(s, { at: [ax + 0.55, numberY - 0.05], size: 1.35, open: true }), 'answer:lock');
-    emphasised(parts.add(words(s, report.phrase, { at: [ax, phraseY], size: TYPE.title, bold: true }), 'answer:phrase'), `the answer: ${report.number ?? ''} ${report.phrase}, ${report.outcome}`);
-    parts.add(words(s, report.outcome, { at: [ax, meaningY], mono: /^[a-z_]+$/.test(report.outcome) }), 'answer:meaning');
+    emphasised(parts.add(label(s, report.phrase, { at: [ax, phraseY], size: TYPE.title, bold: true, align: 'start' }), 'answer:phrase'), `the answer: ${report.number ?? ''} ${report.phrase}, ${report.outcome}`);
+    parts.add(label(s, report.outcome, { at: [ax, meaningY], mono: /^[a-z_]+$/.test(report.outcome), align: 'start' }), 'answer:meaning');
   }
 
   // Behind the counter, headed by the shop's sign: what the Company knows. The row the last request changed carries a change bar.
@@ -245,9 +242,9 @@ export function drawWorld(w: World, s: Stage): Group {
     quiet: ['none yet', 'not met yet', 'not linked'].includes(value),
     changed: !!verified && (label === 'account' ? verified.token : label === 'session' && verified.op === 'cart'),
   })), { at: [LEDGER_X, LEDGER_TOP], width: MARGIN.right - LEDGER_X, title: 'knows', key: 'company', rowGap: 0.8 }).filter((m) => m.key !== 'company:title'));
-  parts.add(words(s, 'knows', { at: [STOP_X - 0.1 + boardWidth(s) + 0.28, LEDGER_TOP], bold: true }), 'company:title');
+  parts.add(label(s, 'knows', { at: [STOP_X - 0.1 + boardWidth(s) + 0.28, LEDGER_TOP], bold: true, align: 'start' }), 'company:title');
   return parts.group();
 }
 
 /** The width of the shop's sign board. */
-const boardWidth = (s: Stage) => words(s, COMPANY.domain, { mono: true, bold: true }).width() + 0.56;
+const boardWidth = (s: Stage) => label(s, COMPANY.domain, { mono: true, bold: true, align: 'start' }).width() + 0.56;

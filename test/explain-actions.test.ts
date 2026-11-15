@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Succession, FadeIn, FadeOut, Circle, Rectangle, AnimationGroup } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { stage, Diagram } from '../explain/index.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';

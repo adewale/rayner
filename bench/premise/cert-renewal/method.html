@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When should a short-lived certificate renew?</title>
+<style>
+:root { color-scheme: light; --ink:#1d1d1f; --soft:#6e6e73; --line:#d2d2d7; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.5rem 0; }
+h2 { font-size: 1.15rem; line-height: 1.3; margin: 1rem 0 0.5rem; }
+.intro, .leaves { color: var(--soft); font-size: 0.95rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; }
+.controls label { font-weight: 600; font-size: 0.95rem; }
+select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+button:disabled { opacity: 0.4; }
+.nav { display: flex; align-items: center; gap: 12px; }
+.counter { color: var(--soft); font-size: 0.9rem; }
+.figure { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0; }
+.figure svg { display: block; max-width: 100%; height: auto; }
+.caption { margin: 8px 0 16px; }
+details { border-top: 1px solid var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>When should a short-lived certificate renew?</h1>
+<p class="intro">For someone who configures Certbot or a job like it, with a renewal setting written for 90-day certificates. Pick a lifetime and a rule, then step through. Every date and count is computed from a model tested against Certbot 5.8.0’s and Boulder’s own test vectors and the ARI windows Let’s Encrypt served on 2026-10-25; the yearly counts are the model’s own simulation of twice-daily runs.</p>
+<div id="app"></div>
+<p class="leaves">Leaves out: other ACME clients, other Let’s Encrypt limits, failures of the CA or the challenge, backdating jitter, and any forecast for a real installation.</p>
+</main>
+<script>(() => {
+  // bench/premise/shell.ts
+  var el = (tag, attrs = {}, text2) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text2 !== void 0) e.textContent = text2;
+    return e;
+  };
+  function mount(root, spec) {
+    const values = Object.fromEntries(spec.settings.map((s) => [s.id, s.default]));
+    let index = 0;
+    const controls = el("div", { class: "controls" });
+    for (const s of spec.settings) {
+      const label = el("label", {}, `${s.label} `);
+      const select = el("select", { "aria-label": s.label });
+      for (const o of s.options) {
+        const opt = el("option", { value: o.value }, o.label);
+        if (o.value === s.default) opt.selected = true;
+        select.append(opt);
+      }
+      select.addEventListener("change", () => {
+        values[s.id] = select.value;
+        render();
+      });
+      label.append(select);
+      controls.append(label);
+    }
+    const nav = el("div", { class: "nav" });
+    const prev = el("button", { type: "button" }, "\u2190 Prev");
+    const counter = el("span", { class: "counter", "aria-live": "polite" });
+    const next = el("button", { type: "button" }, "Next \u2192");
+    nav.append(prev, counter, next);
+    const title = el("h2");
+    const figure = el("div", { class: "figure" });
+    const caption = el("p", { class: "caption" });
+    const checks = el("section", { class: "checks" });
+    checks.append(el("h2", {}, "Check yourself"));
+    for (const c of spec.checks) {
+      const d = el("details");
+      d.append(el("summary", {}, c.q), el("p", {}, c.a));
+      checks.append(d);
+    }
+    root.append(controls, nav, title, figure, caption, checks);
+    function render() {
+      const all = spec.steps(values);
+      index = Math.max(0, Math.min(index, all.length - 1));
+      const s = all[index];
+      title.textContent = s.title;
+      figure.innerHTML = s.svg;
+      caption.textContent = s.caption;
+      counter.textContent = `Step ${index + 1} of ${all.length}`;
+      prev.disabled = index === 0;
+      next.disabled = index === all.length - 1;
+      checks.hidden = index !== all.length - 1;
+    }
+    prev.addEventListener("click", () => {
+      index--;
+      render();
+    });
+    next.addEventListener("click", () => {
+      index++;
+      render();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "SELECT") return;
+      if (e.key === "ArrowRight") next.click();
+      if (e.key === "ArrowLeft") prev.click();
+    });
+    render();
+  }
+
+  // scenes/explainers/cert-renewal/model.ts
+  var DAY = 24;
+  var YEAR = 365 * DAY;
+  var LIFETIMES = {
+    "90d": { hours: 90 * DAY, label: "90 days" },
+    "64d": { hours: 64 * DAY, label: "64 days" },
+    "45d": { hours: 45 * DAY, label: "45 days" },
+    "160h": { hours: 160, label: "160 hours" }
+  };
+  var FIXED_INTERVAL = 30 * DAY;
+  function defaultRenewalOffset(lifetimeHours) {
+    return lifetimeHours * 3600 < 10 * 86400 ? lifetimeHours / 2 : lifetimeHours * 2 / 3;
+  }
+  function dueOffset(rule, lifetimeHours) {
+    const c = issue(0, lifetimeHours);
+    return dueAt(rule, c) - c.notBefore;
+  }
+  function dueByInterval(notAfter, now, intervalHours) {
+    return notAfter < now + intervalHours;
+  }
+  function dueByDefault(notBefore, notAfter, now) {
+    return now > notBefore + defaultRenewalOffset(notAfter - notBefore);
+  }
+  var RUN_EVERY = 12;
+  var BACKDATE = 0.9 * (65 / 60);
+  var SECOND = 1 / 3600;
+  function issue(issued, lifetimeHours) {
+    const notBefore = issued - BACKDATE;
+    return { issued, notBefore, notAfter: notBefore + lifetimeHours - SECOND };
+  }
+  function dueAt(rule, c) {
+    return rule === "fraction" ? c.notBefore + defaultRenewalOffset(c.notAfter - c.notBefore) : c.notAfter - FIXED_INTERVAL;
+  }
+  function shouldRenew(rule, c, now) {
+    return rule === "fraction" ? dueByDefault(c.notBefore, c.notAfter, now) : dueByInterval(c.notAfter, now, FIXED_INTERVAL);
+  }
+  var LIMIT = { burst: 5, count: 5, periodHours: 7 * DAY };
+  var EMISSION = LIMIT.periodHours / LIMIT.count;
+  var EMISSION_S = LIMIT.periodHours * 3600 / LIMIT.count;
+  var toS = (hours) => Math.round(hours * 3600);
+  var FQDN_SET = { emissionS: EMISSION_S, burst: LIMIT.burst };
+  function maybeSpend(tat, nowS, limit = FQDN_SET, cost = 1) {
+    const from = tat == null ? nowS : Math.max(nowS, tat), next = from + limit.emissionS * cost, difference = nowS - (next - limit.emissionS * limit.burst);
+    return difference < 0 ? { allowed: false, tat, retryInS: -difference } : { allowed: true, tat: next, retryInS: 0 };
+  }
+  function orderAllowed(tat, nowS, ariExempt = false) {
+    return ariExempt || maybeSpend(tat, nowS).allowed;
+  }
+  function spendAtIssue(tat, nowS) {
+    return maybeSpend(tat, nowS).tat;
+  }
+  function ariWindow(c) {
+    const ns = 1000000000n, issued = BigInt(toS(c.issued)) * ns, expires = BigInt(toS(c.notAfter)) * ns;
+    const validity = expires + ns - issued, offset = validity < 10n * 86400n * ns ? validity / 2n : validity / 3n, ideal = expires - offset, margin = validity / 100n;
+    const toHours = (t) => Number((t - (t % ns + ns) % ns) / ns) / 3600;
+    return { start: toHours(ideal - margin), end: toHours(ideal + margin) };
+  }
+  function ariRuns(rule, c) {
+    const { start, end } = ariWindow(c), out = [];
+    let left = 1;
+    for (let t = c.issued + RUN_EVERY; left > 0; t += RUN_EVERY) {
+      const p = rule === "fixed30" && dueByInterval(c.notAfter, t, FIXED_INTERVAL) ? 1 : Math.min(1, Math.max(0, (t - start) / (end - start)));
+      if (p > 0) out.push({ run: t, p: left * p });
+      left *= 1 - p;
+    }
+    return out;
+  }
+  function simulate(rule, lifetimeHours, horizon, ari) {
+    let current = issue(0, lifetimeHours), tat = spendAtIssue(null, 0);
+    const issued = [0], refused = [];
+    const target = (c) => {
+      const runs = ariRuns(rule, c);
+      return (ari === "earliest" ? runs[0] : runs[runs.length - 1]).run;
+    };
+    let due = ari ? target(current) : 0;
+    for (let now = RUN_EVERY; now < horizon; now += RUN_EVERY) {
+      if (ari ? now < due : !shouldRenew(rule, current, now)) continue;
+      if (!orderAllowed(tat, toS(now))) {
+        refused.push(now);
+        continue;
+      }
+      tat = spendAtIssue(tat, toS(now));
+      issued.push(now);
+      current = issue(now, lifetimeHours);
+      if (ari) due = target(current);
+    }
+    return { issued, refused };
+  }
+  function summarize(rule, key) {
+    const lifetime = LIFETIMES[key].hours, c = issue(0, lifetime), due = Math.max(c.notBefore, dueAt(rule, c));
+    let renewsAt = RUN_EVERY;
+    while (!shouldRenew(rule, c, renewsAt)) renewsAt += RUN_EVERY;
+    const year2 = simulate(rule, lifetime, YEAR);
+    let retries = 0;
+    for (let t = RUN_EVERY; t < c.notAfter; t += RUN_EVERY) if (t > due) retries++;
+    const round = (h) => Math.round(h * 3600) / 3600;
+    return {
+      lifetime,
+      due: round(due - c.notBefore),
+      renewsAt,
+      slack: round(c.notAfter - due),
+      retries,
+      renewalsPerYear: year2.issued.length - 1,
+      refusedPerYear: year2.refused.length,
+      firstRefused: year2.refused[0] ?? null
+    };
+  }
+  function ariSummary(rule, key) {
+    const lifetime = LIFETIMES[key].hours, c = issue(0, lifetime), w = ariWindow(c);
+    const round = (h) => Math.round(h * 3600) / 3600;
+    return {
+      start: round(w.start - c.notBefore),
+      end: round(w.end - c.notBefore),
+      runs: ariRuns(rule, c).map((r) => ({ at: r.run, p: r.p })),
+      perYear: [simulate(rule, lifetime, YEAR, "latest").issued.length - 1, simulate(rule, lifetime, YEAR, "earliest").issued.length - 1]
+    };
+  }
+  function windowFor(key) {
+    return key === "160h" ? 14 * DAY : YEAR;
+  }
+
+  // scenes/explainers/cert-renewal/answers.ts
+  var days = (hours) => +(hours / DAY).toFixed(1);
+  var twenty = 20 * DAY;
+  var year = (r) => simulate(r, twenty, YEAR);
+  var c20 = issue(0, twenty);
+  var shortLived = summarize("fixed30", "160h");
+  var c45 = issue(0, LIFETIMES["45d"].hours);
+  var interval = 10 * DAY;
+  var tenDay = RUN_EVERY;
+  while (!dueByInterval(c45.notAfter, tenDay, interval)) tenDay += RUN_EVERY;
+  var tenDayRetries = 0;
+  for (let at2 = tenDay; at2 < c45.notAfter; at2 += RUN_EVERY) tenDayRetries++;
+  var CHECK = {
+    twenty: {
+      fixed: { renewals: year("fixed30").issued.length - 1, refused: year("fixed30").refused.length, first: year("fixed30").refused[0] },
+      share: { due: dueAt("fraction", c20) - c20.notBefore, renewals: year("fraction").issued.length - 1 },
+      sameAsShort: year("fixed30").issued.length - 1 === shortLived.renewalsPerYear && year("fixed30").refused.length === shortLived.refusedPerYear
+    },
+    tenDay: { at: tenDay, retries: tenDayRetries, fraction: summarize("fraction", "45d") }
+  };
+  var questions = {
+    1: () => `With the 30-day setting, ${CHECK.twenty.fixed.renewals} renewed and ${CHECK.twenty.fixed.refused} runs refused, the first at hour ${CHECK.twenty.fixed.first}${CHECK.twenty.sameAsShort ? ", exactly as for 160-hour certificates" : ""}: any certificate shorter than 30 days is due from issue, so every run asks until the limit refuses. The default renews two thirds of the way through, since 20 days is not under ten: at day ${days(CHECK.twenty.share.due)}, ${CHECK.twenty.share.renewals} times a year.`,
+    2: () => `At day ${days(CHECK.tenDay.at)}, the first twice-daily run within 10 days of expiry, leaving ${CHECK.tenDay.retries} runs to retry. The setting replaces the default rather than adding to it: without it Certbot would renew at day ${days(CHECK.tenDay.fraction.due)} with ${CHECK.tenDay.fraction.retries} runs to spare.`
+  };
+
+  // bench/premise/draw.ts
+  var W = 400;
+  var C = {
+    ink: "#1d1d1f",
+    soft: "#6e6e73",
+    line: "#c7c7cc",
+    good: "#2e7d32",
+    bad: "#c62828",
+    goodFill: "#dcefdc",
+    badFill: "#f6d5d5",
+    a: "#c9d7f2",
+    b: "#f6c17a",
+    c: "#b9e0c4",
+    d: "#ececec",
+    e: "#e4d4f4",
+    hi: "#fff4c2"
+  };
+  var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var svg = (h, body, label) => `<svg viewBox="0 0 ${W} ${Math.ceil(h)}" width="100%" role="img" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">${body}</svg>`;
+  var text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size ?? 13}" fill="${o.fill ?? C.ink}" text-anchor="${o.anchor ?? "start"}"${o.weight ? ` font-weight="${o.weight}"` : ""}${o.mono ? ' font-family="ui-monospace, Menlo, monospace"' : ""}>${esc(s)}</text>`;
+  var rect = (x, y, w, h, fill, o = {}) => `<rect x="${x}" y="${y}" width="${Math.max(0, w)}" height="${Math.max(0, h)}" fill="${fill}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.rx ? ` rx="${o.rx}"` : ""}${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var line = (x1, y1, x2, y2, o = {}) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var swatch = (x, y, fill, label) => rect(x, y, 12, 12, fill) + text(x + 16, y + 11, label, { size: 12 });
+
+  // bench/premise/cert-renewal/method/oracle.ts
+  var LIVE_ARI = [
+    ["caddyserver.com", "2026-10-12T12:02:35Z", "2027-01-10T12:02:34Z", "2026-12-10T14:46:39Z", "2026-12-12T09:57:28Z"],
+    ["certbot.eff.org", "2026-10-22T20:00:53Z", "2027-01-20T20:00:52Z", "2026-12-20T22:44:57Z", "2026-12-22T17:55:47Z"],
+    ["community.letsencrypt.org", "2026-10-17T00:01:41Z", "2027-01-15T00:01:40Z", "2026-12-15T02:45:45Z", "2026-12-16T21:56:35Z"],
+    ["eff.org", "2026-10-01T18:44:08Z", "2026-12-30T18:44:07Z", "2026-11-29T21:28:12Z", "2026-12-01T16:39:02Z"],
+    ["kernel.org", "2026-10-14T10:52:45Z", "2027-01-12T10:52:44Z", "2026-12-12T13:36:49Z", "2026-12-14T08:47:39Z"],
+    ["letsdebug.net", "2026-09-30T08:56:16Z", "2026-12-29T08:56:15Z", "2026-11-28T11:40:20Z", "2026-11-30T06:51:10Z"],
+    ["letsencrypt.org", "2026-09-04T14:34:32Z", "2026-12-03T14:34:31Z", "2026-11-02T17:18:36Z", "2026-11-04T12:29:25Z"],
+    ["valid-isrgrootx1.letsencrypt.org", "2026-10-21T17:38:33Z", "2027-01-19T17:38:32Z", "2026-12-19T20:22:37Z", "2026-12-21T15:33:27Z"],
+    ["valid-isrgrootx2.letsencrypt.org", "2026-10-15T17:38:33Z", "2027-01-13T17:38:32Z", "2026-12-13T20:22:37Z", "2026-12-15T15:33:26Z"],
+    ["www.debian.org", "2026-10-01T00:37:05Z", "2026-12-30T00:37:04Z", "2026-11-29T03:21:09Z", "2026-11-30T22:31:58Z"]
+  ];
+  var BR = [
+    { from: null, days: 398 },
+    { from: "2026-03-15", days: 200 },
+    { from: "2027-03-15", days: 100 },
+    { from: "2029-03-15", days: 47 }
+  ];
+  var LETS_ENCRYPT = [
+    { date: "2026-05-13", profile: "tlsserver", days: 45 },
+    { date: "2027-02-10", profile: "classic", days: 64 },
+    { date: "2028-02-16", profile: "classic", days: 45 }
+  ];
+
+  // bench/premise/cert-renewal/method/page.ts
+  var KEYS = Object.keys(LIFETIMES);
+  var DEFAULT = { lifetime: "160h", rule: "fixed30" };
+  var RULE_NAME = { fraction: "Certbot 4.1+ default", fixed30: "30 days before expiry" };
+  var days2 = (h) => +(h / DAY).toFixed(1);
+  var short = (k) => LIFETIMES[k].hours < 10 * DAY;
+  var at = (k, h) => short(k) ? `hour ${+h.toFixed(1)}` : `day ${days2(h)}`;
+  var pct = (x) => `${Math.round(x * 100)}%`;
+  var adj = (k) => LIFETIMES[k].label.replace(/ days$/, "-day").replace(/ hours$/, "-hour");
+  var other = (r) => r === "fraction" ? "fixed30" : "fraction";
+  function policySvg(phases, title, note) {
+    const x0 = 8, w = (W - 16) / phases.length, base = 200, scale = 160 / 398;
+    let body = text(8, 16, title, { size: 12.5, weight: "600" });
+    phases.forEach((p, i) => {
+      const h = p.days * scale;
+      body += rect(x0 + i * w + 6, base - h, w - 12, h, C.a, { stroke: C.line });
+      body += text(x0 + i * w + w / 2, base - h - 6, `${p.days} days`, { size: 13, anchor: "middle", weight: "600" });
+      body += text(x0 + i * w + w / 2, base + 18, p.label, { size: 12, anchor: "middle" });
+    });
+    body += text(8, base + 40, note, { size: 11.5, fill: C.soft });
+    return svg(base + 48, body, `${title}: ${phases.map((p) => `${p.days} days ${p.label}`).join(", ")}`);
+  }
+  function marginSvg(key, show) {
+    const span = 90 * DAY + 30 * DAY, x = (h2) => 8 + (h2 + 30 * DAY) / span * (W - 70);
+    const expiry = 90 * DAY;
+    let body = text(8, 16, "Each bar: issue to expiry, lined up at expiry", { size: 12.5, weight: "600" });
+    const cut = expiry - 30 * DAY;
+    KEYS.forEach((k, i) => {
+      const L = LIFETIMES[k].hours, y = 32 + i * 34;
+      body += rect(x(expiry - L), y, x(expiry) - x(expiry - L), 20, k === key ? C.b : "#f8e1bd", { stroke: k === key ? C.ink : C.line, sw: k === key ? 1.5 : 1 });
+      body += text(W - 8, y + 15, LIFETIMES[k].label, { size: 12, anchor: "end", weight: k === key ? "600" : void 0 });
+      if (show === "both") {
+        const due = expiry - L + defaultRenewalOffset(L);
+        body += `<path d="M${x(due)},${y - 3} l5,-6 h-10 z" fill="${C.good}"/>`;
+      }
+      const fixedDue = Math.max(expiry - L, cut);
+      body += `<path d="M${x(fixedDue)},${y + 23} l5,6 h-10 z" fill="${C.bad}"/>`;
+    });
+    body += line(x(cut), 26, x(cut), 32 + KEYS.length * 34, { stroke: C.bad, sw: 1.5, dash: true });
+    body += text(x(cut) + 4, 32 + KEYS.length * 34 + 12, "30 days before expiry", { size: 12, fill: C.bad });
+    let h = 32 + KEYS.length * 34 + 22;
+    body += swatch(8, h, C.bad, "\u25BC 30-day rule falls due");
+    if (show === "both") body += swatch(200, h, C.good, "\u25B2 Certbot 4.1 default");
+    h += 20;
+    return svg(h, body, `Lifetimes lined up at expiry; the 30-day rule and ${show === "both" ? "the default" : "no other rule"} marked`);
+  }
+  function strip(y, key, rule, label) {
+    const win = windowFor(key), run = simulate(rule, LIFETIMES[key].hours, win);
+    const x = (h) => 8 + h / win * (W - 16);
+    let body = text(8, y, `${label}: ${run.issued.length - 1} renewals${run.refused.length ? `, ${run.refused.length} refused` : ""}`, { size: 12.5, weight: "600" });
+    body += line(8, y + 30, W - 8, y + 30, { stroke: C.line });
+    for (const t of run.issued) body += line(x(t), y + 10, x(t), y + 30, { stroke: C.ink, sw: 1.5 });
+    for (const t of run.refused) body += line(x(t), y + 32, x(t), y + 40, { stroke: C.bad, sw: 1.5 });
+    return body;
+  }
+  function yearSvg(key, rule, both) {
+    let body = strip(16, key, rule, RULE_NAME[rule]);
+    let h = 64;
+    if (both) {
+      body += strip(h + 16, key, other(rule), RULE_NAME[other(rule)]);
+      h += 64;
+    }
+    body += text(8, h + 4, key === "160h" ? "Two weeks from a first certificate; runs every 12 hours." : "One year from a first certificate; runs every 12 hours.", { size: 11.5, fill: C.soft });
+    return svg(h + 12, body, `Renewals over ${key === "160h" ? "two weeks" : "a year"} for ${LIFETIMES[key].label}`);
+  }
+  function slackSvg(key, rule) {
+    const s = summarize(rule, key), L = s.lifetime;
+    const x = (h) => 8 + h / L * (W - 16);
+    let body = text(8, 16, `${LIFETIMES[key].label}, ${RULE_NAME[rule]}`, { size: 12.5, weight: "600" });
+    body += rect(8, 30, W - 16, 22, "#f8e1bd", { stroke: C.line });
+    body += rect(x(s.due), 30, x(L) - x(s.due), 22, C.goodFill, { stroke: C.good });
+    for (let t = RUN_EVERY; t < L; t += RUN_EVERY) if (t > s.due) body += line(x(t), 54, x(t), 62, { stroke: C.ink });
+    body += text(x(s.due), 80, `due at ${at(key, s.due)}`, { size: 12, anchor: s.due > L * 0.7 ? "end" : "start" });
+    body += text(8, 102, `${short(key) ? `${+s.slack.toFixed(1)} hours` : `${days2(s.slack)} days`} left, ${s.retries} runs to retry`, { size: 12.5 });
+    return svg(112, body, `A renewal falls due at ${at(key, s.due)} with ${s.retries} runs left`);
+  }
+  function limitSvg(key) {
+    const run = simulate("fixed30", LIFETIMES[key].hours, 10 * DAY + 1);
+    const x = (h) => 8 + h / (10 * DAY) * (W - 16);
+    let body = text(8, 16, `${LIMIT.count} certificates per ${LIMIT.periodHours / DAY} days for the same names; one back every ${EMISSION} hours`, { size: 12, weight: "600" });
+    body += line(8, 60, W - 8, 60, { stroke: C.line });
+    for (const t of run.issued) body += line(x(t), 36, x(t), 60, { stroke: C.ink, sw: 1.5 });
+    for (const t of run.refused) body += line(x(t), 62, x(t), 72, { stroke: C.bad, sw: 1.5 });
+    body += swatch(8, 84, C.ink, `issued (${run.issued.length})`) + swatch(130, 84, C.bad, `refused (${run.refused.length})`);
+    body += text(8, 116, "First ten days, runs every 12 hours.", { size: 11.5, fill: C.soft });
+    return svg(124, body, `Under the limit: issued at hours ${run.issued.join(", ")}; refused at ${run.refused.join(", ")}`);
+  }
+  function replacesSvg() {
+    let body = text(8, 16, "Certbot 5.8\u2019s new order", { size: 12.5, weight: "600" });
+    body += rect(8, 26, 180, 84, "#fafafa", { stroke: C.line, rx: 6 });
+    body += text(20, 50, "identifiers \u2713", { size: 13, mono: true }) + text(20, 72, "profile \u2713", { size: 13, mono: true }) + text(20, 94, "replaces \u2014", { size: 13, mono: true, fill: C.bad });
+    body += text(212, 16, "Boulder skips the limit only if", { size: 12.5, weight: "600" });
+    body += text(212, 44, "1. replaces names the", { size: 12.5 }) + text(212, 62, "certificate it replaces, and", { size: 12.5 });
+    body += text(212, 84, "2. the order arrives inside", { size: 12.5 }) + text(212, 102, "that certificate\u2019s ARI window", { size: 12.5 });
+    body += text(8, 134, "No predecessor named, so every Certbot renewal is checked against the limit.", { size: 12, fill: C.soft });
+    return svg(144, body, "Certbot\u2019s order names no predecessor, so Boulder checks the limit");
+  }
+  function ariSvg(key, rule) {
+    const a = ariSummary(rule, key);
+    const lo = Math.min(a.start, ...a.runs.map((r) => r.at)) - 24, hi = Math.max(a.end, ...a.runs.map((r) => r.at)) + 24;
+    const x = (h2) => 8 + (h2 - lo) / (hi - lo) * (W - 16);
+    let body = text(8, 16, `ARI window for ${LIFETIMES[key].label}: ${at(key, a.start)} to ${at(key, a.end)}`, { size: 12.5, weight: "600" });
+    body += rect(x(a.start), 30, x(a.end) - x(a.start), 26, C.goodFill, { stroke: C.good });
+    for (const r of a.runs) {
+      body += line(x(r.at), 26, x(r.at), 62, { stroke: C.ink, sw: 1.5 });
+      body += text(x(r.at), 78, r.p < 0.01 ? "<1%" : pct(r.p), { size: 12, anchor: "middle", mono: true });
+    }
+    let h = 92;
+    body += text(8, h, `Runs that may renew, with the chance each is the one${rule === "fixed30" ? " (the 30-day setting renews on its own)" : ""}.`, { size: 11.5, fill: C.soft });
+    if (key === "90d") {
+      const s = (iso) => Date.parse(iso) / 1e3;
+      const starts = LIVE_ARI.map((r) => (s(r[3]) - s(r[1])) / 86400), ends = LIVE_ARI.map((r) => (s(r[4]) - s(r[1])) / 86400);
+      h += 22;
+      const span = (xs) => Math.min(...xs).toFixed(2) === Math.max(...xs).toFixed(2) ? Math.min(...xs).toFixed(2) : `${Math.min(...xs).toFixed(2)}\u2013${Math.max(...xs).toFixed(2)}`;
+      body += text(8, h, `Recorded 2026-10-25, ten live 90-day certificates: every window`, { size: 12 });
+      body += text(8, h + 18, `opens at day ${span(starts)} and closes at day ${span(ends)} after notBefore.`, { size: 12 });
+      h += 18;
+    }
+    return svg(h + 10, body, `ARI window ${a.start} to ${a.end} hours; runs ${a.runs.map((r) => r.at).join(", ")}`);
+  }
+  function steps(key, rule) {
+    const L = LIFETIMES[key].hours, label = LIFETIMES[key].label;
+    const fixed = summarize("fixed30", key), share = summarize("fraction", key), mine = summarize(rule, key), theirs = summarize(other(rule), key);
+    const fixedOffset = dueOffset("fixed30", L);
+    const out = [];
+    out.push({
+      id: "limit",
+      title: "Public certificates shrink from 398 days to 47",
+      caption: `The CA/Browser Forum's Baseline Requirements cap a public TLS certificate's lifetime: ${BR[0].days} days before ${BR[1].from}, ${BR[1].days} from then, ${BR[2].days} from ${BR[2].from} and ${BR[3].days} from ${BR[3].from}. A renewal margin that was a small part of a long lifetime can become longer than the whole lifetime. What should a renewal job do then?`,
+      svg: policySvg(BR.map((p) => ({ label: p.from ? `from ${p.from.slice(0, 7)}` : "until 2026-03", days: p.days })), "Maximum lifetime of a public TLS certificate", "Baseline Requirements 2.3.1, section 6.3.2.")
+    });
+    out.push({
+      id: "letsencrypt",
+      title: "Let\u2019s Encrypt\u2019s default reaches 45 days in 2028",
+      caption: `Let's Encrypt's opt-in tlsserver profile has issued ${LETS_ENCRYPT[0].days}-day certificates since ${LETS_ENCRYPT[0].date}. Its default classic profile goes from 90 days to ${LETS_ENCRYPT[1].days} on ${LETS_ENCRYPT[1].date} and to ${LETS_ENCRYPT[2].days} on ${LETS_ENCRYPT[2].date}. Its opt-in shortlived profile issues 160-hour certificates.`,
+      svg: policySvg([{ label: "classic today", days: 90 }, ...LETS_ENCRYPT.map((d) => ({ label: `${d.profile} ${d.date.slice(0, 7)}`, days: d.days }))], "Let\u2019s Encrypt lifetimes", "Let\u2019s Encrypt\u2019s announced schedule; shortlived (160 hours) not drawn.")
+    });
+    out.push({
+      id: "old-rule",
+      title: "Certbot 3.3 renews 30 days before expiry",
+      caption: `Certbot 3.3 renews when the certificate expires within renew_before_expiry, 30 days unless the renewal file sets another value. Its documented cron line runs certbot renew twice a day. Let's Encrypt backdates notBefore by 58.5 minutes, so a 90-day certificate falls due just before the run at day 60. Predict: when does a 30-day margin renew a ${adj(key)} certificate?`,
+      svg: marginSvg(key, "fixed")
+    });
+    out.push({
+      id: "margin",
+      title: fixedOffset < 0 ? `Answer: 30 days before expiry is ${days2(-fixedOffset)} days before issue` : `Answer: 30 days before expiry is day ${Math.round(days2(fixedOffset))}, ${pct(fixedOffset / L)} of the way through`,
+      caption: fixedOffset < 0 ? `A ${adj(key)} certificate is shorter than the 30-day margin: the margin begins ${Math.round(-fixedOffset)} hours before it is issued, so every certificate, even a fresh replacement, is due from issue, and the first run, at hour ${fixed.renewsAt}, renews it.` : `Counting 30 days back from expiry, a ${adj(key)} certificate falls due at day ${Math.round(days2(fixedOffset))}, with ${pct(1 - fixedOffset / L)} of its life left. On a 90-day certificate that is day 60, a third left: the lifetime the 30-day margin was written for.`,
+      svg: marginSvg(key, "fixed")
+    });
+    out.push({
+      id: "new-rule",
+      title: `Certbot 4.1 renews ${short(key) ? "half way" : "two thirds of the way"} through a ${adj(key)} certificate`,
+      caption: `Certbot 4.1 renews at a share of the life instead: with renew_before_expiry unset, two thirds of the way through, or half way for certificates under ten days, unless the CA's ARI answer (RFC 9773) sets the window. On a ${adj(key)} certificate that is ${at(key, share.due)}${share.renewsAt !== Math.round(share.due) ? `, renewed by the run at ${at(key, share.renewsAt)}` : ""}; the 30-day rule renews at ${at(key, fixed.renewsAt)}.`,
+      svg: marginSvg(key, "both")
+    });
+    const ratio = fixed.renewalsPerYear / share.renewalsPerYear;
+    const win = windowFor(key), run = simulate(rule, L, win);
+    out.push({
+      id: "year",
+      title: `${label} under the ${rule === "fraction" ? "default rule" : "30-day rule"}: ${run.issued.length - 1} renewals in ${key === "160h" ? "two weeks" : "a year"}`,
+      caption: rule === "fixed30" && fixedOffset < 0 ? `Every certificate is due from issue, so every twice-daily run renews until the run at hour ${fixed.firstRefused}, when Let's Encrypt's limit starts refusing most runs. After that, renewals come 24 to 36 hours apart.` : `Each certificate falls due at ${at(key, mine.due)} and the next twice-daily run, ${mine.renewsAt - mine.due < 1 ? "under an hour later" : `at ${at(key, mine.renewsAt)}`}, replaces it.`,
+      svg: yearSvg(key, rule, false)
+    });
+    out.push({
+      id: "other-rule",
+      title: mine.renewalsPerYear === theirs.renewalsPerYear ? `${RULE_NAME[other(rule)]}: the same ${theirs.renewalsPerYear} a year` : `${RULE_NAME[other(rule)]}: ${theirs.renewalsPerYear} a year instead of ${mine.renewalsPerYear}`,
+      caption: `Over 365 days the 30-day rule renews ${fixed.renewalsPerYear} times and the default ${share.renewalsPerYear}${ratio === 1 ? "" : `: ${ratio === 2 ? "twice" : `${ratio.toFixed(1)} times`} as often`}${fixed.refusedPerYear ? `, and the limit refuses ${fixed.refusedPerYear} of the 30-day rule's runs` : ""}.`,
+      svg: yearSvg(key, rule, true)
+    });
+    out.push(
+      rule === "fixed30" && fixedOffset < 0 ? {
+        id: "slack",
+        title: `Renewing at every run, Let\u2019s Encrypt refuses at hour ${fixed.firstRefused}`,
+        caption: `Let's Encrypt allows ${LIMIT.count} certificates for the same names in ${LIMIT.periodHours / DAY} days and gives one back every ${EMISSION} hours. After ${simulate("fixed30", L, fixed.firstRefused).issued.length - 1} renewals the run at hour ${fixed.firstRefused} is refused; in 365 days ${fixed.refusedPerYear} runs are refused and ${fixed.renewalsPerYear} renew. A refused order costs nothing, and the certificate in place keeps working.`,
+        svg: limitSvg(key)
+      } : {
+        id: "slack",
+        title: `A failed renewal leaves ${short(key) ? `${+mine.slack.toFixed(1)} hours` : `${days2(mine.slack)} days`} to retry`,
+        caption: `When the renewal falls due the certificate still has ${short(key) ? `${+mine.slack.toFixed(1)} hours` : `${days2(mine.slack)} days`} to run: ${mine.retries} twice-daily runs to try again if the CA or the challenge fails. The ${rule === "fraction" ? "30-day rule" : "default rule"} leaves ${short(key) ? `${+theirs.slack.toFixed(1)} hours` : `${days2(theirs.slack)} days`}${rule === "fraction" && fixedOffset < 0 ? `, but renews at every run until Let's Encrypt refuses it at hour ${fixed.firstRefused}` : ""}.`,
+        svg: slackSvg(key, rule)
+      }
+    );
+    out.push({
+      id: "replaces",
+      title: "Certbot\u2019s renewals still count against the limit",
+      caption: `Boulder skips the ${LIMIT.count}-in-${LIMIT.periodHours / DAY}-days check only for an order that names the certificate it replaces and arrives inside that certificate's ARI window. Certbot 5.8's new order carries identifiers and a profile and names no predecessor, so its renewals are checked. A refused order spends nothing; an issued certificate spends a token.`,
+      svg: replacesSvg()
+    });
+    const a = ariSummary(rule, key);
+    const fires = rule === "fixed30" && a.runs.length === 1 && a.runs[0].p === 1 && a.runs[0].at < a.start;
+    out.push({
+      id: "ari",
+      title: `Let\u2019s Encrypt\u2019s ARI window: ${at(key, a.start)} to ${at(key, a.end)}`,
+      caption: `Certbot 4.1 and later ask Let's Encrypt when to renew. Its answer is a window 1% of the lifetime either side of ${short(key) ? "half way" : "two thirds"}. ${fires ? `The 30-day setting still renews on its own, at ${at(key, a.runs[0].at)}, before the window opens, so the answer changes nothing until the setting is removed.` : a.runs.length === 1 ? `No run falls inside it, so the first run after it, at ${at(key, a.runs[0].at)}, renews.` : `Each run draws a random time in it and renews once that time has passed: ${a.runs.map((r) => `${at(key, r.at)} (${r.p < 0.01 ? "under 1%" : pct(r.p)})`).join(", ")}; ${a.perYear[0] === a.perYear[1] ? a.perYear[0] : `${a.perYear[0]} or ${a.perYear[1]}`} renewals in 365 days.`}`,
+      svg: ariSvg(key, rule)
+    });
+    return out;
+  }
+  var CHECKS = [
+    { q: "A CA issues 20-day certificates, and Certbot keeps renew_before_expiry at 30 days. How many certificates does it get in a year, and how many would the 4.1 default get?", a: questions[1]() },
+    { q: "For 45-day certificates, someone sets renew_before_expiry to 10 days. When does Certbot 4.1 renew, and how long is left to retry?", a: questions[2]() },
+    {
+      q: "A client renews at a random time inside Let\u2019s Encrypt\u2019s ARI window. Is that order exempt from the 5-in-7-days limit?",
+      a: "Not by its timing alone. Boulder exempts an order only when it names the certificate it replaces and arrives inside that certificate\u2019s window. Certbot 5.8\u2019s orders name no predecessor, so they are counted even when they follow the window."
+    }
+  ];
+
+  // bench/premise/cert-renewal/method/main.ts
+  mount(document.getElementById("app"), {
+    settings: [
+      { id: "lifetime", label: "Certificate lifetime", default: DEFAULT.lifetime, options: KEYS.map((k) => ({ value: k, label: LIFETIMES[k].label })) },
+      { id: "rule", label: "Renewal rule", default: DEFAULT.rule, options: ["fraction", "fixed30"].map((r) => ({ value: r, label: RULE_NAME[r] })) }
+    ],
+    steps: (v) => steps(v.lifetime, v.rule),
+    checks: CHECKS
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,16 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/lib/explain-init.ts';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { BLANK_FILES, MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/lib/explain-init.ts';
+import { parseIntent } from '../explain/intent.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { DOCS, docBlocks } from '../tools/repo/lib/docs-code.ts';
 import type { Picture } from '../explain/trace.ts';
 import { assertStepState, assertSteps } from '../explain/testing.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
+import { withoutNodeWarnings } from './lib/writing-guide.ts';
 // The tutorials' own model tests (Wikipedia's worked LRU and MRU examples, every door event from every
 // state, no Hanoi route shorter than 7 or 15 moves) run beside them: npm test runs scenes/*/*/*.test.ts,
 // and rayner check runs each folder's model.test.ts.
@@ -54,6 +56,124 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
     assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is an option of rayner init alone/);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+/** `rayner check` on a folder, as a reader of its output sees it: the exit status and what it printed. */
+const checkFolder = (dir: string, out: string) => {
+  const { status, stdout, stderr } = spawnSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', out], { encoding: 'utf8' });
+  return { status, stdout, stderr: withoutNodeWarnings(stderr) };
+};
+/** The labels of a script's intent header, in order. */
+const labels = (script: string) => [...script.matchAll(/^- \*\*([^*:]+):\*\*/gm)].map((m) => m[1]);
+const BLANK_HEADER = ['Reader', 'Answer', 'Changed condition', "Reader's own work", 'Checked against', 'Grounding', 'Leaves out'];
+/** What `rayner check` lists to do on a fresh `rayner init --blank`, in order. */
+const BLANK_TODO = [
+  "script.md: fill in the intent header: write the # question, Reader, Answer, Changed condition, Reader's own work, Leaves out, Check yourself question 1 and Why this explainer in place of each TODO",
+  'script.md: write Checked against and Grounding: the real system model.test.ts compares the model with, and how (live, recorded, read or none, then the system and its version)',
+  'model.test.ts fails: the model agrees with the real system (TODO: replace this placeholder with a comparison of the model against something real: a reference implementation run live, published test vectors, or a recorded run of the real system)',
+  'scene.ts: step "start" still says TODO in its title, line and caption: draw the model\'s state and say what the picture shows',
+];
+/** The failure `rayner check` prints for these to-do items, numbered from 1. */
+const todoOutput = (items: readonly string[]) =>
+  ['rayner: This explainer still has placeholders, each marked TODO:. To do, in order:', ...items.map((item, i) => `${i + 1}. ${item}`)].join('\n') + '\n';
+
+test('`rayner init --blank` writes an explainer to write: an unfilled intent header, a model stub, a failing oracle test and a one-step scene', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-init-blank-'));
+  try {
+    const dir = join(folder, 'mine');
+    const said = execFileSync(process.execPath, ['tools/explain.ts', 'init', '--blank', dir], { encoding: 'utf8' });
+    assert.match(said, /the script's intent header, its Checked against and Grounding lines, the model's oracle test, then the picture/);
+    assert.deepEqual((await readdir(dir)).sort(), [...BLANK_FILES].sort());
+    const read = (file: string) => readFileSync(join(dir, file), 'utf8');
+    // Every labelled line of the header is there, and says what to write instead of saying it.
+    const script = read('script.md');
+    assert.deepEqual(labels(script), BLANK_HEADER);
+    const intent = parseIntent(script)!;
+    assert.match(intent.question, /^TODO: /);
+    for (const label of BLANK_HEADER) assert.match(intent.fields[label]!, /^TODO: \S/, label);
+    assert.match(intent.questions[0]!.question + intent.questions[0]!.answer, /^TODO: .+TODO: /);
+    // The oracle test fails, saying what to do; the scene imports the package and draws the model's state.
+    assert.match(read('model.test.ts'), /assert\.fail\('TODO: replace this placeholder with a comparison of the model against something real/);
+    assert.match(read('scene.ts'), /^import \{ Scene, Text \} from 'rayner';\nimport \{ stage, view \} from 'rayner\/explain';\nimport \{ start, type State \} from '\.\/model\.ts';/);
+    // --question seeds the title.
+    const asked = join(folder, 'asked');
+    execFileSync(process.execPath, ['tools/explain.ts', 'init', '--blank', '--question', 'Why does [10, 9, 1].sort() give [1, 10, 9]?', asked], { stdio: 'pipe' });
+    assert.match(readFileSync(join(asked, 'script.md'), 'utf8'), /^# Why does \[10, 9, 1\]\.sort\(\) give \[1, 10, 9\]\?\n\n- \*\*Reader:\*\* TODO: /);
+    // Options of init --blank alone, and not with --machine; a refused option writes nothing.
+    const refused = (args: string[], message: RegExp) => {
+      const run = spawnSync(process.execPath, ['tools/explain.ts', ...args], { encoding: 'utf8' });
+      assert.equal(run.status, 1, args.join(' '));
+      assert.match(run.stderr, message);
+    };
+    refused(['init', '--blank', '--machine', join(folder, 'both')], /takes --blank or --machine, not both/);
+    refused(['init', '--question', 'Why?', join(folder, 'tutorial')], /--question is an option of rayner init --blank alone/);
+    refused(['init', '--blank', '--question', ' ', join(folder, 'empty')], /--question takes the reader's question as one line of text/);
+    refused(['check', join(dir, 'scene.ts'), '--blank'], /--blank is an option of rayner init alone/);
+    assert.deepEqual((await readdir(folder)).sort(), ['asked', 'mine']);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('`rayner check` fails a fresh blank explainer with what is left to write, in order, and passes it once every placeholder is filled with a real subject', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-init-blank-check-'));
+  try {
+    const dir = join(folder, 'sort-as-text'), out = join(folder, 'checks');
+    execFileSync(process.execPath, ['tools/explain.ts', 'init', '--blank', dir], { stdio: 'pipe' });
+    const blankScript = readFileSync(join(dir, 'script.md'), 'utf8'), blankTest = readFileSync(join(dir, 'model.test.ts'), 'utf8');
+    // The fixture fills every placeholder: Array.prototype.sort with no compare function, its model
+    // checked live against Node's own sort.
+    const filled = (file: string) => packageImports(readFileSync(join('test/fixtures/blank-filled', file), 'utf8'));
+    const fill = (file: string, text = filled(file)) => writeFile(join(dir, file), text);
+    assert.deepEqual(labels(filled('script.md')), labels(blankScript), 'the fixture fills the blank header line by line');
+
+    let run = checkFolder(dir, out);
+    assert.equal(run.status, 1);
+    assert.equal(run.stderr, todoOutput(BLANK_TODO));
+    // The header written, but not yet what the model is checked against: the evidence comes next.
+    const line = (script: string, label: string) => script.split('\n').find((l) => l.startsWith(`- **${label}:**`))!;
+    let script = filled('script.md');
+    for (const label of ['Checked against', 'Grounding']) script = script.replace(line(script, label), line(blankScript, label));
+    await fill('script.md', script);
+    assert.equal(checkFolder(dir, out).stderr, todoOutput(BLANK_TODO.slice(1)));
+    // Then the model's oracle test, then the picture.
+    await fill('script.md');
+    assert.equal(checkFolder(dir, out).stderr, todoOutput(BLANK_TODO.slice(2)));
+    await fill('model.ts');
+    await fill('model.test.ts');
+    assert.equal(checkFolder(dir, out).stderr, todoOutput(BLANK_TODO.slice(3)));
+    // A filled picture over the placeholder oracle test still fails, by the model test.
+    await fill('scene.ts');
+    await fill('model.test.ts', blankTest);
+    run = checkFolder(dir, out);
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /^rayner: The model test fails \(.*model\.test\.ts\): the model agrees with the real system \(TODO: replace this placeholder with a comparison of the model against something real/);
+    // Every placeholder filled: check passes, with the oracle test run and the answer stated.
+    await fill('model.test.ts');
+    run = checkFolder(dir, out);
+    assert.equal(run.status, 0, run.stderr);
+    const report = JSON.parse(run.stdout);
+    assert.deepEqual([report.model.tests, report.model.passed], [1, 1]);
+    assert.deepEqual(report.scenarios[0].script.answer, { step: 'start', at: 1 });
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('the tutorial\'s "Start your own" prints its command and the to-do list `rayner check` gives for it', async () => {
+  const doc = readFileSync('docs/TUTORIAL.md', 'utf8');
+  const section = doc.slice(doc.indexOf('## Start your own\n'), doc.indexOf('\n## Next'));
+  const [, dir, question] = /^npx rayner init --blank (\S+) --question "([^"]+)"$/m.exec(section)!;
+  const printed = /```text\n([\s\S]*?)```/.exec(section)![1];
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-init-blank-doc-'));
+  try {
+    execFileSync(process.execPath, ['tools/explain.ts', 'init', '--blank', join(folder, dir!), '--question', question!], { stdio: 'pipe' });
+    assert.equal(checkFolder(join(folder, dir!), join(folder, 'checks')).stderr, printed);
+    // The README's command is the tutorial's.
+    assert.ok(readFileSync('README.md', 'utf8').includes(`npx rayner init --blank ${dir} --question "${question}"\nnpx rayner check ${dir}/scene.ts\n`));
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

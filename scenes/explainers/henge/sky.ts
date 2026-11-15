@@ -1,4 +1,4 @@
-// Henge's 3D pictures: New York's sky as a sphere around the observer, seen from outside (the dome)
+// Henge's idealised 3D pictures: the place's sky as a sphere around the observer, seen from outside (the dome)
 // and from its centre (the street), and Earth seen from beside its orbit. Every direction on them
 // comes from the ERFA-checked model in ./model.ts: a day's path is the model's sky() swept
 // through the hour angle, ending at the model's own sunset hour angle. The dome and the street are
@@ -10,12 +10,13 @@ import { Group, Rectangle, Polygon, Circle, VMobject, Arrow, keyed } from '../..
 import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/geo.ts';
 import { seenFrom, project, circleOn, greatArc } from '../../../explain/geo.ts';
 import type { Vec, Text } from '../../../src/index.ts';
-import { label } from '../../../explain/drawing.ts';
+import { TYPE, label } from '../../../explain/drawing.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { sky, LATITUDE } from './model.ts';
+import { sky } from './model.ts';
 
 export const INK = '#1e293b', SUN = '#c77900', SUMMER = '#a03b22', WINTER = '#235d9b', MUTED = '#64748b', ROAD = '#eef2f6';
-const SKY = '#dcebf7', GROUND = '#e4dccb', WALL = '#d8e0e8', NIGHT = '#33415c';
+export const WALL = '#d8e0e8';
+const SKY = '#dcebf7', GROUND = '#e4dccb', NIGHT = '#33415c';
 const rad = Math.PI / 180;
 
 /**
@@ -34,10 +35,10 @@ export const azAlt = (azimuth: number, altitude: number, side: Side): Vec3 =>
 /** The viewpoint facing an azimuth and altitude: seenFrom's yaw is the model longitude there. */
 export const facing = (kind: Viewpoint['kind'], azimuth: number, altitude: number, side: Side, extra: Partial<Viewpoint> = {}): Viewpoint =>
   ({ kind, yaw: side === 'outside' ? 90 - azimuth : azimuth - 90, pitch: altitude, ...extra });
-/** A day's path, by the model's sky() from hour angle `from` to `to` (degrees, west positive), a point at least every `step`. */
-export function dayPath(declination: number, from: number, to: number, side: Side, step = 2): Vec3[] {
+/** A day's path at a latitude, by the model's sky() from hour angle `from` to `to` (degrees, west positive), a point at least every `step`. */
+export function dayPath(latitude: number, declination: number, from: number, to: number, side: Side, step = 2): Vec3[] {
   const n = Math.max(1, Math.ceil(Math.abs(to - from) / step));
-  return Array.from({ length: n + 1 }, (_, i) => onSphere(sky(LATITUDE, declination, from + ((to - from) * i) / n), side));
+  return Array.from({ length: n + 1 }, (_, i) => onSphere(sky(latitude, declination, from + ((to - from) * i) / n), side));
 }
 /** The street's vertical circle above the ground: from the horizon at its bearing, over the zenith, to its other end. */
 export function streetCircle(bearing: number, side: Side): Vec3[] {
@@ -48,8 +49,8 @@ export function streetCircle(bearing: number, side: Side): Vec3[] {
 const marker = (key: string, p: Vec3, color: string, size: number, fillOpacity = 1): Part =>
   ({ kind: 'face', key, rings: [circleOn(p, size / 2, 1, 12)], fill: color, fillOpacity, stroke: color, width: 0.012, hidden: 'behind' });
 
-/** One day on the sky sphere: its declination and the model's sunset hour angle for it. */
-export interface Day { declination: number; hourAngle: number }
+/** One day on the sky sphere at a latitude: its declination and the model's sunset hour angle for it. */
+export interface Day { latitude: number; declination: number; hourAngle: number }
 /**
  * A day's path in two parts: the day, sunrise to sunset, strong, dashed where the dome hides it;
  * and the night below the horizon, faint and dashed. Each part keeps some of itself in sight from
@@ -58,14 +59,14 @@ export interface Day { declination: number; hourAngle: number }
  */
 function dayParts(key: string, d: Day, color: string, side: Side, width = 0.06): Part[] {
   return [
-    { kind: 'path', key: `${key}:night`, lines: [dayPath(d.declination, d.hourAngle, 360 - d.hourAngle, side)], color, width: 0.02, opacity: 0.5, dashArray: '0.09 0.07' },
-    { kind: 'path', key: `${key}:day`, lines: [dayPath(d.declination, -d.hourAngle, d.hourAngle, side)], color, width, hidden: 'dashed' },
+    { kind: 'path', key: `${key}:night`, lines: [dayPath(d.latitude, d.declination, d.hourAngle, 360 - d.hourAngle, side)], color, width: 0.02, opacity: 0.5, dashArray: '0.09 0.07' },
+    { kind: 'path', key: `${key}:day`, lines: [dayPath(d.latitude, d.declination, -d.hourAngle, d.hourAngle, side)], color, width, hidden: 'dashed' },
   ];
 }
 /** The sunset point of a day: where the model's sky() puts the Sun at its sunset hour angle, on the horizon. */
-export const sunsetOf = (d: Day, side: Side): Vec3 => onSphere(sky(LATITUDE, d.declination, d.hourAngle), side);
-/** The celestial pole: the model's sky() at declination 90°, LATITUDE degrees above the north point. */
-const poleOf = (side: Side): Vec3 => onSphere(sky(LATITUDE, 90, 0), side);
+export const sunsetOf = (d: Day, side: Side): Vec3 => onSphere(sky(d.latitude, d.declination, d.hourAngle), side);
+/** The celestial pole: the model's sky() at declination 90°, the latitude's degrees above the north point. */
+export const poleOf = (latitude: number, side: Side): Vec3 => onSphere(sky(latitude, 90, 0), side);
 
 // ---------------------------------------------------------------- the dome, seen from outside
 const DOME_BODY = { radius: 1, fill: SKY, fillOpacity: 0.3, stroke: MUTED, strokeWidth: 0.03, key: 'henge-dome:body' };
@@ -89,9 +90,11 @@ const street = (bearing: number): Part => ({ kind: 'path', key: 'henge-dome:stre
  * The celestial pole, which every day's path circles, and the axis to it from the observer at the
  * centre, seen through the dome (it stops just short of the sphere, so it is a line through the body).
  */
-const pole = marker('henge-dome:pole', poleOf('outside'), INK, 3.4);
-const [px, py, pz] = poleOf('outside');
-const axis: Part = { kind: 'path', key: 'henge-dome:axis', lines: [[[0, 0, 0], [px * 0.995, py * 0.995, pz * 0.995]]], color: INK, width: 0.03, hidden: 'dashed' };
+const pole = (latitude: number) => marker('henge-dome:pole', poleOf(latitude, 'outside'), INK, 3.4);
+function axis(latitude: number): Part {
+  const [px, py, pz] = poleOf(latitude, 'outside');
+  return { kind: 'path', key: 'henge-dome:axis', lines: [[[0, 0, 0], [px * 0.995, py * 0.995, pz * 0.995]]], color: INK, width: 0.03, hidden: 'dashed' };
+}
 
 /**
  * The dome is seen from outside, west of it and above, facing the western sky where every sunset
@@ -101,11 +104,11 @@ const axis: Part = { kind: 'path', key: 'henge-dome:axis', lines: [[[0, 0, 0], [
 export const DOME_VIEW: Viewpoint = facing('orthographic', 282, 28, 'outside');
 export const DOME: SeenOptions = { at: [-1.6, -0.6], scale: 2.95 };
 
-export interface SkyState { bearing: number; days: (Day & { azimuth: number })[] }
+export interface SkyState { bearing: number; latitude: number; city: string; days: (Day & { azimuth: number })[] }
 const DAY_NAMES = ['December', 'Equinox', 'June'];
 const DAY_COLORS = [WINTER, MUTED, SUN];
 /** A label beside a point on the dome, drawn from the same viewpoint. */
-function nameAt(s: Stage, text: string, p: Vec3, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color: string, size = 0.52): Text {
+function nameAt(s: Stage, text: string, p: Vec3, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color: string, size = TYPE.small): Text {
   const { at } = project(p, vp, 1, o);
   return label(s, text, { color, size }).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
 }
@@ -114,7 +117,7 @@ function compass(s: Stage, vp: Viewpoint, o: SeenOptions, side: Side): Text[] {
   const c = project([0, 0, 0], vp, 1, o).at;
   return ([['N', 0], ['S', 180], ['W', 270]] as const).map(([name, az]) => {
     const p = project(azAlt(az, 0, side), vp, 1, o).at, dx = p[0] - c[0], dy = p[1] - c[1], h = Math.hypot(dx, dy) || 1;
-    return label(s, name, { at: [p[0] + (dx / h) * 0.36, p[1] + (dy / h) * 0.36], color: MUTED, size: 0.52 });
+    return label(s, name, { at: [p[0] + (dx / h) * 0.36, p[1] + (dy / h) * 0.36], color: MUTED, size: TYPE.small });
   });
 }
 /** Where the horizon's name goes: beside the horizon's southern end, outside the dome. */
@@ -128,20 +131,20 @@ export function dome(st: SkyState, s: Stage): Group {
   const vp = DOME_VIEW, side: Side = 'outside';
   const parts: Part[] = [ground, horizon];
   st.days.forEach((d, i) => parts.push(...dayParts(`henge-dome:${DAY_NAMES[i]!.toLowerCase()}`, d, DAY_COLORS[i]!, side)));
-  parts.push(street(st.bearing), axis, pole);
+  parts.push(street(st.bearing), axis(st.latitude), pole(st.latitude));
   st.days.forEach((d, i) => parts.push(marker(`henge-dome:sunset:${i}`, sunsetOf(d, side), DAY_COLORS[i]!, 3.6)));
   const picture = seenFrom({ body: DOME_BODY, parts }, vp, { ...DOME, key: 'henge-dome:seen' });
   const g = new Group(picture, ...compass(s, vp, DOME, side));
   // Each path is named beside its highest point, noon.
-  st.days.forEach((d, i) => g.add(nameAt(s, DAY_NAMES[i]!, onSphere(sky(LATITUDE, d.declination, 0), side), vp, DOME, [0.2, 0.3], -1, DAY_COLORS[i]!)));
+  st.days.forEach((d, i) => g.add(nameAt(s, DAY_NAMES[i]!, onSphere(sky(d.latitude, d.declination, 0), side), vp, DOME, [0.2, 0.3], -1, DAY_COLORS[i]!)));
   g.add(streetName(s, st.bearing, 'henge-dome-street'),
-    nameAt(s, 'Pole', poleOf(side), vp, DOME, [-0.18, 0], 1, INK, 0.52),
-    keyed(new Group(label(s, 'New York’s horizon', { color: INK, size: 0.52 }).moveTo(horizonLabelAt(), [-1, 0])), 'henge-dome-horizon'));
+    nameAt(s, 'Pole', poleOf(st.latitude, side), vp, DOME, [-0.18, 0], 1, INK, TYPE.small),
+    keyed(new Group(label(s, `${st.city}’s horizon`, { color: INK, size: TYPE.small }).moveTo(horizonLabelAt(), [-1, 0])), 'henge-dome-horizon'));
   return keyed(g, 'henge-dome');
 }
 
 // ---------------------------------------------------------------- the year: one day's path, turned by the declination
-export interface YearState { bearing: number; longitude: number; start: number; crossings: number[] }
+export interface YearState { bearing: number; latitude: number; longitude: number; start: number; crossings: number[] }
 /** The day at an orbital longitude, through the model: its declination, sunset hour angle and sunset azimuth. */
 export type DayAt = (longitude: number) => Day & { azimuth: number };
 /** How far along the horizon the sunsets have reached between `start` and `longitude`: the southmost and northmost azimuths. */
@@ -168,15 +171,15 @@ export function year(st: YearState, dayAt: DayAt, s: Stage): Group {
   // The crossing's marker fills over the next few degrees of the orbit, rather than in one frame.
   const fill = Math.max(0, ...st.crossings.filter((c) => c > st.start).map((c) => Math.min(1, (st.longitude - c) / 6)));
   const trail: Part = { kind: 'path', key: 'henge-year:trail', lines: [Array.from({ length: steps + 1 }, (_, i) => azAlt(lo + ((hi - lo) * i) / steps, 0, side))], color: SUN, width: 0.16, opacity: 0.45, hidden: 'behind' };
-  const parts: Part[] = [ground, horizon, trail, ...dayParts('henge-year:today', today, SUN, side, 0.07), street(st.bearing), axis, pole,
+  const parts: Part[] = [ground, horizon, trail, ...dayParts('henge-year:today', today, SUN, side, 0.07), street(st.bearing), axis(st.latitude), pole(st.latitude),
     marker('henge-year:crossing', azAlt(st.bearing, 0, side), SUMMER, 6, fill),
     marker('henge-year:sunset', sunsetOf(today, side), SUN, 3.6)];
   const picture = seenFrom({ body: DOME_BODY, parts }, vp, { ...DOME, key: 'henge-year:seen' });
   return keyed(new Group(picture, ...compass(s, vp, DOME, side), streetName(s, st.bearing, 'henge-year-street'),
-    nameAt(s, 'Pole', poleOf(side), vp, DOME, [-0.18, 0], 1, INK, 0.52),
-    keyed(new Group(label(s, 'Gold band:', { color: SUN, size: 0.52 }).moveTo([2.3, -1.65], [-1, 0]),
-      label(s, 'the sunsets so far', { color: SUN, size: 0.52 }).moveTo([2.3, -2.3], [-1, 0]),
-      label(s, `Street crossings: ${crossed}`, { color: SUMMER, size: 0.52 }).moveTo([2.3, -3.25], [-1, 0])), 'henge-year-count'),
+    nameAt(s, 'Pole', poleOf(st.latitude, side), vp, DOME, [-0.18, 0], 1, INK, TYPE.small),
+    keyed(new Group(label(s, 'Gold band:', { color: SUN, size: TYPE.small }).moveTo([2.3, -1.65], [-1, 0]),
+      label(s, 'the sunsets so far', { color: SUN, size: TYPE.small }).moveTo([2.3, -2.3], [-1, 0]),
+      label(s, `Street crossings: ${crossed}`, { color: SUMMER, size: TYPE.small }).moveTo([2.3, -3.25], [-1, 0])), 'henge-year-count'),
   ), 'henge-year');
 }
 
@@ -188,7 +191,8 @@ export const WINDOW = { left: -5.9, right: 5.9, bottom: -3.0, top: 2.75 };
 const CENTRE: Vec = [0, 0];
 export const lookView = (bearing: number, pitch: number): Viewpoint => facing('gnomonic', bearing, pitch, 'inside', { limit: 80 });
 /** The street in the observer's frame, in metres: half its width, the walls' height and far end, the eye's height. */
-const CANYON = { half: 15, height: 14, near: 2, far: 80, eye: 1.7 };
+export interface Canyon { half: number; height: number; near: number; far: number; eye: number }
+const CANYON: Canyon = { half: 15, height: 14, near: 2, far: 80, eye: 1.7 };
 /** The view's axes, as seenFrom's gnomonic lens has them. */
 function axes(vp: Viewpoint) {
   const p = vp.pitch * rad, l = vp.yaw * rad;
@@ -203,12 +207,12 @@ const dot3 = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
  * A point in front of the eye placed as the gnomonic view places it: the camera at the sphere's
  * centre is a pinhole, so the same rule draws the buildings, which are nearer than the sky and hide it.
  */
-function pinhole(p: Vec3, vp: Viewpoint, o: { at: Vec; scale: number }): Vec {
+export function pinhole(p: Vec3, vp: Viewpoint, o: { at: Vec; scale: number }): Vec {
   const { toward, right, up } = axes(vp), k = o.scale / dot3(p, toward);
   return [o.at[0] + k * dot3(p, right), o.at[1] + k * dot3(p, up)];
 }
 /** A flat polygon in the observer's frame, cut where it passes behind the eye, as the pinhole draws it. */
-function flat(corners: Vec3[], vp: Viewpoint, o: { at: Vec; scale: number }): Vec[] {
+export function flat(corners: Vec3[], vp: Viewpoint, o: { at: Vec; scale: number }): Vec[] {
   const { toward } = axes(vp);
   const depth = (p: Vec3) => dot3(p, toward) - 0.5;
   const kept: Vec3[] = [];
@@ -220,17 +224,17 @@ function flat(corners: Vec3[], vp: Viewpoint, o: { at: Vec; scale: number }): Ve
   return kept.map((p) => pinhole(p, vp, o));
 }
 /** The canyon's surfaces in the model's (inside) frame: the road, then each wall. */
-function canyon(bearing: number) {
+export function canyon(bearing: number, c: Canyon = CANYON) {
   const along = azAlt(bearing, 0, 'inside'), across = azAlt(bearing + 90, 0, 'inside');
   const at = (d: number, x: number, z: number): Vec3 => [along[0] * d + across[0] * x, along[1] * d + across[1] * x, along[2] * d + z];
-  const { half, height, near, far, eye } = CANYON;
+  const { half, height, near, far, eye } = c;
   return {
     road: [at(near, -half * 0.55, -eye), at(far * 60, -half * 0.55, -eye), at(far * 60, half * 0.55, -eye), at(near, half * 0.55, -eye)],
     walls: [-1, 1].map((s) => [at(near, s * half, -eye), at(far, s * half, -eye), at(far, s * half, height - eye), at(near, s * half, height - eye)]),
   };
 }
 /** A polygon, or an unseen one where the eye sees none of it, so the picture keeps its shape from frame to frame. */
-const shape = (points: Vec[], style: ConstructorParameters<typeof Polygon>[1]) =>
+export const shape = (points: Vec[], style: ConstructorParameters<typeof Polygon>[1]) =>
   (points.length > 2 ? new Polygon(points, style) : new Polygon([[0, 0], [0.01, 0], [0, 0.01]], { ...style, opacity: 0 }));
 
 /** The disc's drawn radius: enlarged, as on the street views (the Sun is 0.53° across). */
@@ -245,7 +249,7 @@ export function look(st: LookState, paper: string, names: { day: string }, s: St
   const parts: Part[] = [
     { kind: 'path', key: 'henge-look:horizon', lines: [circleOn([0, 0, 1], 90)], closed: true, color: INK, width: 0.035 },
     { kind: 'path', key: 'henge-look:street', lines: [circleOn(azAlt(st.bearing + 90, 0, side), 90)], closed: true, color: SUMMER, width: 0.045 },
-    { kind: 'path', key: 'henge-look:day', lines: [dayPath(st.day.declination, -st.day.hourAngle, st.day.hourAngle, side)], color: SUN, width: 0.075 },
+    { kind: 'path', key: 'henge-look:day', lines: [dayPath(st.day.latitude, st.day.declination, -st.day.hourAngle, st.day.hourAngle, side)], color: SUN, width: 0.075 },
   ];
   const sky3 = seenFrom({ body: { radius: 1, fill: 'none', stroke: 'none', key: 'henge-look:body' }, parts }, vp, { ...o, key: 'henge-look:seen' });
   // The Sun's disc, centred where the day's path meets the horizon: half Sun.
@@ -269,28 +273,28 @@ export function look(st: LookState, paper: string, names: { day: string }, s: St
     .moveTo([(WINDOW.left + WINDOW.right) / 2, (WINDOW.top + WINDOW.bottom) / 2]), 'henge-look-window');
   // From the centre, looking along the street, its circle is the vertical line through the middle at every pitch.
   const legend = keyed(new Group(
-    label(s, 'Street', { color: SUMMER, size: 0.52 }).moveTo([CENTRE[0] + 0.2, WINDOW.top - 0.4], [-1, 0]),
-    label(s, `Gold: a ${names.day} evening’s path`, { color: SUN, size: 0.52 }).moveTo([CENTRE[0], WINDOW.bottom - 0.45]),
+    label(s, 'Street', { color: SUMMER, size: TYPE.small }).moveTo([CENTRE[0] + 0.2, WINDOW.top - 0.4], [-1, 0]),
+    label(s, `Gold: a ${names.day} evening’s path`, { color: SUN, size: TYPE.small }).moveTo([CENTRE[0], WINDOW.bottom - 0.45]),
   ), 'henge-look-legend');
   // Facing the street's western end, south is on the left and north on the right.
-  const sides = keyed(new Group(label(s, '← south', { color: MUTED, size: 0.52 }).moveTo([WINDOW.left + 0.25, WINDOW.bottom + 0.4], [-1, 0]),
-    label(s, 'north →', { color: MUTED, size: 0.52 }).moveTo([WINDOW.right - 0.25, WINDOW.bottom + 0.4], [1, 0])), 'henge-look-sides');
+  const sides = keyed(new Group(label(s, '← south', { color: MUTED, size: TYPE.small }).moveTo([WINDOW.left + 0.25, WINDOW.bottom + 0.4], [-1, 0]),
+    label(s, 'north →', { color: MUTED, size: TYPE.small }).moveTo([WINDOW.right - 0.25, WINDOW.bottom + 0.4], [1, 0])), 'henge-look-sides');
   return keyed(new Group(sky3, keyed(new Group(disc), 'henge-look-sun'), ground, roadShape, ...wallShapes, mask, border, legend, sides), 'henge-look');
 }
 
 // ---------------------------------------------------------------- Earth beside its orbit
-/** The tilt step's state: the tilt, New York's latitude, and the model's sunset hour angle at each solstice. */
-export interface GlobeState { tilt: number; latitude: number; june: Day; december: Day }
+/** The tilt step's state: the tilt, the place's latitude and city, and the model's sunset hour angle at each solstice. */
+export interface GlobeState { tilt: number; latitude: number; city: string; june: Day; december: Day }
 /** Both Earths are seen from one viewpoint, beside the orbit and above it, so the axis is drawn leaning the same way in each. */
 const GLOBE_VIEW: Viewpoint = { kind: 'orthographic', yaw: -82, pitch: 32 };
 /**
- * New York's daily circle on one Earth, in a frame fixed to the orbit: model z is the orbit's
+ * The place's daily circle on one Earth, in a frame fixed to the orbit: model z is the orbit's
  * north, x points along the orbit toward the December side, and the axis leans `tilt` degrees
  * toward +x all year. `sun` points from this Earth to the Sun (+x for June's, left of the Sun;
  * -x for December's), and `atHour(h)` is the point of the circle where the Sun's hour angle is h
  * (degrees, west positive): noon faces the Sun as far as the axis allows, and Earth turns east.
  */
-function newYorkCircle(side: 1 | -1, st: Pick<GlobeState, 'tilt' | 'latitude'>) {
+function dailyCircle(side: 1 | -1, st: Pick<GlobeState, 'tilt' | 'latitude'>) {
   const t = st.tilt * rad, axis: Vec3 = [Math.sin(t), 0, Math.cos(t)];
   const sun: Vec3 = [side, 0, 0];
   const k = dot3(sun, axis), v: Vec3 = [sun[0] - k * axis[0], sun[1] - k * axis[1], sun[2] - k * axis[2]], n = Math.hypot(...v);
@@ -304,11 +308,11 @@ function newYorkCircle(side: 1 | -1, st: Pick<GlobeState, 'tilt' | 'latitude'>) 
   return { axis, sun, atHour };
 }
 /**
- * Earth at one solstice. New York's daily circle is cut where the model's sunset hour angle puts
+ * Earth at one solstice. The place's daily circle is cut where the model's sunset hour angle puts
  * its sunset and sunrise: the gold arc is in daylight, the dark one in night.
  */
 function earth(s: Stage, side: 1 | -1, st: GlobeState, at: Vec, key: string): Group {
-  const { axis, sun, atHour } = newYorkCircle(side, st);
+  const { axis, sun, atHour } = dailyCircle(side, st);
   const d = side === 1 ? st.june : st.december;
   const arc = (from: number, to: number) => { const n = Math.ceil(Math.abs(to - from) / 3); return Array.from({ length: n + 1 }, (_, i) => atHour(from + ((to - from) * i) / n)); };
   const north: Vec3 = [axis[0] * 1.55, 0, axis[2] * 1.55], south: Vec3 = [-axis[0] * 1.45, 0, -axis[2] * 1.45];
@@ -328,7 +332,7 @@ function earth(s: Stage, side: 1 | -1, st: GlobeState, at: Vec, key: string): Gr
   const o: SeenOptions = { at, scale: 1.3 };
   const g = seenFrom({ body: { radius: 1, fill: '#e0edf7', fillOpacity: 0.6, stroke: WINTER, strokeWidth: 0.03, key: `${key}:body` }, parts }, GLOBE_VIEW, { ...o, key: `${key}:seen` });
   const n = project(north, GLOBE_VIEW, 1, o).at;
-  return new Group(g, label(s, 'N', { at: [n[0] + 0.14, n[1] + 0.32], color: INK, size: 0.52 }));
+  return new Group(g, label(s, 'N', { at: [n[0] + 0.14, n[1] + 0.32], color: INK, size: TYPE.small }));
 }
 /** The tilt step: June's Earth left of the Sun, December's right, one axis direction for both. */
 export function globes(st: GlobeState, s: Stage): Group {
@@ -337,7 +341,7 @@ export function globes(st: GlobeState, s: Stage): Group {
   g.add(earth(s, 1, st, [-4.3, 0], 'henge-earth:june'), earth(s, -1, st, [4.3, 0], 'henge-earth:december'),
     label(s, 'June', { at: [-4.3, 2.45], color: INK, size: 0.58 }), label(s, 'December', { at: [4.3, 2.45], color: INK, size: 0.58 }),
     label(s, 'North sunward', { at: [-4.3, -2.05], color: INK, size: 0.58 }), label(s, 'North away', { at: [4.3, -2.05], color: INK, size: 0.58 }),
-    keyed(new Group(label(s, 'Red dot: New York at noon, on its daily circle', { at: [0, -2.85], color: SUMMER, size: 0.52 }),
-      label(s, 'Gold: the circle in daylight; dark: in night', { at: [0, -3.5], color: INK, size: 0.52 })), 'henge-earth-legend'));
+    keyed(new Group(label(s, `Red dot: ${st.city} at noon, on its daily circle`, { at: [0, -2.85], color: SUMMER, size: TYPE.small }),
+      label(s, 'Gold: the circle in daylight; dark: in night', { at: [0, -3.5], color: INK, size: TYPE.small })), 'henge-earth-legend'));
   return keyed(g, 'henge-orbit');
 }

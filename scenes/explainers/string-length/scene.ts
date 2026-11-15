@@ -1,4 +1,4 @@
-import { Scene, Group, Text, FadeIn, FadeOut, SurroundingRectangle, TransformMatching, matchByKey, keyed } from '../../../src/index.ts';
+import { Scene, Group, Text, FadeIn, FadeOut, SurroundingRectangle, keyed, Transform } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, answerOf, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
@@ -99,7 +99,7 @@ export default class StringLength extends Scene<LengthState, {}> {
     await this.play(...fade(named, stored));
     const closeX = grouped(hi, 1.3), together = cells(s, hi, closeX, 0.2, 'cp');
     // The cells are keyed by their place in the word, so each travels to its place in its character.
-    await this.play(new TransformMatching(row, together, { key: matchByKey(), runTime: 1.3 }));
+    await this.play(new Transform(row, together, { match: 'key', runTime: 1.3 }));
     s.keep(together, { describe: `The same ${count(hi.points)} cells, drawn together where they make one character: ${hi.read.map((c) => clusters(c)[0]!.length).join(', ')} cells` });
     const frames = hi.read.map((_, k) => {
       const mine = hi.parts.filter((p) => p.cluster === k), x0 = closeX[mine[0]!.index]! - CELL / 2, x1 = closeX[mine.at(-1)!.index]! + CELL / 2;

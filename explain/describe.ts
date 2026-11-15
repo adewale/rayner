@@ -4,7 +4,7 @@
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
 import { groundingLabel, groundingSentence } from './grounding.ts';
 import type { Grounding } from './grounding.ts';
-import { renderText } from '../src/output.ts';
+import { renderText } from '../src/ascii.ts';
 import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
 import { canonicalJson } from '../src/json.ts';

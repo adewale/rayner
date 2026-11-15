@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf } from '../lib/hash.ts';
-import { typeCheckAuthored } from './lib/authored-types.ts';
+import { options as authoredOptions, typeCheckAuthored } from './lib/authored-types.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
 async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
@@ -77,7 +77,8 @@ try {
   // Nothing else: the compiled modules behind the entry points are not importable, by an export
   // pattern or by the private specifier rayner-cli's own resolve hook answers (tools/installed.ts).
   const unreachable = async (cwd: string) => {
-    for (const [specifier, code] of [['rayner/internal/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/dist/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['#rayner/src/scene.js', 'ERR_PACKAGE_IMPORT_NOT_DEFINED']] as const) {
+    // rayner/kit was folded into rayner/drawing before any release, so it is not an entry point either.
+    for (const [specifier, code] of [['rayner/internal/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/dist/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/kit', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['#rayner/src/scene.js', 'ERR_PACKAGE_IMPORT_NOT_DEFINED']] as const) {
       const tried = await run(process.execPath, ['--input-type=module', '-e', `try{await import(${JSON.stringify(specifier)});console.log('imported')}catch(e){console.log(e.code)}`], { cwd });
       assert.equal(tried.stdout.trim(), code, `an outside project imports ${specifier}`);
     }
@@ -168,7 +169,7 @@ try {
   await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
   const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
   assert.equal(recipeTrace.steps.find((s: {step: string}) => s.step === 'result').after.destination, 'cache');
-  assert.match(await readFile(join(folder, 'recipe-output/continuous.txt'), 'utf8'), /1\.57/);
+  assert.ok(Math.abs(JSON.parse(await readFile(join(folder, 'recipe-output/continuous.state.json'), 'utf8')).angle - Math.PI / 2) < 1e-9);
   const choreographyTrace = JSON.parse(await readFile(join(folder, 'recipe-output/choreography.trace.json'), 'utf8'));
   assert.equal(choreographyTrace.steps.at(-1).after.count, 9);
   assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
@@ -177,8 +178,8 @@ try {
   // The same names the checkout's kit exports (test/drawing.test.ts pins those), 3D included.
   const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
   assert.equal(kit.stdout.trim(), sourceKit);
-  // So do the output and testing entry points, with the checkout's names.
-  for (const [entry, source] of [['rayner/kit', 'explain/kit.ts'], ['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+  // So do the extras and testing entry points, with the checkout's names.
+  for (const [entry, source] of [['rayner/extras', 'extras/index.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
@@ -203,6 +204,15 @@ try {
   await writeFile(starter, (await readFile(starter, 'utf8')).replace('static meta = {',
     `static meta = { claims: [{ says: 'LRU evicts the item used longest ago', test: "first/model.test.ts: LRU matches Wikipedia" }],`));
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
+  // The blank starter: its files type-check against the packed declarations, and check fails it with
+  // its to-do list, the script first and the picture last.
+  await run(process.execPath, [cli, 'init', '--blank', 'blank'], { cwd: folder });
+  await writeFile(join(folder, 'blank/tsconfig.json'), JSON.stringify({
+    compilerOptions: { ...authoredOptions, types: ['node'], typeRoots: [join(ROOT, 'node_modules/@types')] }, include: ['*.ts'],
+  }));
+  await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'blank/tsconfig.json'], { cwd: folder });
+  const blankCheck = await run(process.execPath, [cli, 'check', 'blank'], { cwd: folder }).then(() => ({ stderr: 'passed' }), (error: { stderr: string }) => error);
+  assert.match(blankCheck.stderr, /To do, in order:\n1\. script\.md: fill in the intent header[^\n]*\n2\. script\.md: write Checked against and Grounding[^\n]*\n3\. model\.test\.ts fails: [^\n]*TODO: replace this placeholder[^\n]*\n4\. scene\.ts: step "start" still says TODO/);
   if (process.env.EXPLAIN_BROWSER) {
     await run(bin, ['snapshots', 'first', '--refresh'], { cwd: folder });
     // The starter draws no diagrams, so it keeps no snapshots.
@@ -420,7 +430,7 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{Scene}from'rayner';import{NullSink}from'rayner/output';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
+      `import{Scene}from'rayner';import{stage}from'rayner/explain';const scene=new Scene({skipUntil:Infinity,async frame(){}});await scene.run();stage(scene);console.log(scene.mobjects.length);`,
     ],
     { cwd: folder },
   );
@@ -448,7 +458,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with PNG authoring and without the diagram add-on, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with PNG authoring and without the diagram add-on, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, the blank starter type-checked and its to-do list, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',

@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
-import { stage, palette } from '../explain/index.ts';
+import { stage } from '../explain/index.ts';
+import { palette } from '../explain/palettes.ts';
 import type { LayoutDirection } from '../explain/index.ts';
 import { Card } from '../explain/panels.ts';
 import { card } from '../explain/drawing.ts';

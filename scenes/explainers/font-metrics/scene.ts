@@ -1,4 +1,4 @@
-import { Scene, ItalicText, Text } from '../../../src/index.ts';
+import { Scene, Text } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
@@ -117,7 +117,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
     const CUTS = ['Regular', 'Bold', 'Italic'] as const;
     const word = (cut: (typeof CUTS)[number]) =>
       cut === 'Italic'
-        ? new ItalicText(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping })
+        ? new Text(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping, italic: true })
         : new Text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal', shaping: this.textShaping });
     await this.step('cuts', {
       title: 'Bold and italic are faces of their own, with their own advances',

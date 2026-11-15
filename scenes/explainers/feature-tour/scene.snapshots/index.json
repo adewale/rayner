@@ -1,7 +1,0 @@
-{
-  "version": 2,
-  "renderer": "agentic-mermaid@0.5.1",
-  "diagrams": {
-    "[\"graph LR\\nA[Start] --> B[Finish]\",\"github-dark\"]": "a215c6fc9c5f12cc.json"
-  }
-}

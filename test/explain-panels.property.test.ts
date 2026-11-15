@@ -3,9 +3,9 @@
 // finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, VMobject } from '../src/index.ts';
-import type { Mobject, TransformMatching } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { Scene, Text, VMobject, Transform } from '../src/index.ts';
+import type { Mobject } from '../src/index.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Box, Vec } from '../src/index.ts';
 import { Card, CodeBlock } from '../explain/panels.ts';
@@ -143,10 +143,10 @@ test('lit refuses any line that is not an index into the code, with the document
 });
 
 /** Play a keyed, staged sync of `v`, as a view of state is synced; the matching it played, or null when the picture did not change. */
-async function keyedSync(sc: Scene, v: View): Promise<TransformMatching | null> {
+async function keyedSync(sc: Scene, v: View): Promise<Transform | null> {
   const sync = new ViewSync(v);
   await sc.play(sync);
-  return sync.inner as TransformMatching | null;
+  return sync.inner as Transform | null;
 }
 /** The member of `among` that `part` is, or is inside. */
 const within = (part: Mobject, among: ReadonlySet<Mobject>): Mobject | null => {
@@ -159,7 +159,7 @@ const draws = (t: Text) => t.family().some((m) => m instanceof VMobject && (m.st
  * Which of `old`'s texts the matching kept (their glyphs paired, each with a glyph of a new text that
  * `partner` accepts) and which it faded (their glyphs removed). A picture that did not change kept all.
  */
-function keptAndFaded(matching: TransformMatching | null, old: readonly Text[], now: readonly Text[], partner: (was: Text, is: Text) => boolean) {
+function keptAndFaded(matching: Transform | null, old: readonly Text[], now: readonly Text[], partner: (was: Text, is: Text) => boolean) {
   const olds = new Set<Mobject>(old), news = new Set<Mobject>(now);
   if (!matching) return { kept: new Set(old), faded: new Set<Text>() };
   const kept = new Set<Text>(), faded = new Set<Text>();

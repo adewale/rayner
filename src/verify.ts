@@ -18,7 +18,7 @@
 // A cut-out and cut-in in the same frame with matching boxes is a seamless
 // handoff and is not reported, nor is a cut-in over a leaf that stays, in about
 // the same place and no more opaque, when it was copied from that leaf
-// (TransformFromCopy) or every part of it looks like a part of that leaf (same
+// (a fromCopy Transform) or every part of it looks like a part of that leaf (same
 // shape and paints: a copy, or a piece of one, laid over its source). Every
 // event carries the step it happened in.
 
@@ -35,7 +35,7 @@ import { pad } from './box.ts';
  * leaf of a frame in which some leaf appears, also `look` (each part's shape,
  * as VMobject.shapeKey(), and which of fill and stroke show; the parts of a
  * merged run like a Text are its glyphs) and, for a leaf of a
- * TransformFromCopy's copy, `from`: the id of the source leaf it copies.
+ * a fromCopy Transform's copy, `from`: the id of the source leaf it copies.
  */
 interface LeafSample { cx: number; cy: number; w: number; h: number; a: number; box: Box; look?: string[]; from?: number }
 
@@ -306,7 +306,7 @@ export function analyzeMotion(sink: MotionSink): MotionEvent[] {
       else ev('cut-out', f, oid, op.a, `vanished at alpha ${op.a.toFixed(2)}`);
     }
     // A leaf appearing over one that was and still is drawn there, no more opaque,
-    // changes nothing a viewer sees when it is a copy of that leaf (TransformFromCopy)
+    // changes nothing a viewer sees when it is a copy of that leaf (a fromCopy Transform)
     // or its parts look like that leaf's. A filled shape inside an outline is a cut-in.
     const overStaying = (s: LeafSample): boolean => {
       for (const [id, q] of cur) if (prev.has(id) && q.a + 0.02 >= s.a && iou(q.box, s.box) >= LIMITS.handoffIoU && (s.from === id || partsOf(s.look, q.look))) return true;

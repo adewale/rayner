@@ -25,6 +25,39 @@ const PAGES = [
     leaves:
       'Leaves out: 32-bit builds, nulls and the null bitmap, updates and dead tuples, TOAST, text needing a four-byte length header, other column orders, and storage beyond heap pages.',
   },
+  // Round 3: the round-2 topics and the round-3 trio's topic, built the same way.
+  {
+    dir: 'ext4-space',
+    title: 'Where does an empty ext4 filesystem’s space go?',
+    intro:
+      'For someone who formats disks and has seen df report less space than the disk holds. Pick a disk size and a root reserve, then step through. Every number on this page is computed from a model of mkfs.ext4 1.47.3 that is tested against mkfs.ext4 1.47.3 runs and a mounted Linux 6.8.0’s statfs; the first and last steps show those recorded values.',
+    leaves:
+      'Leaves out: every other mkfs option, block sizes other than 4 KiB, disks that are not whole 128 MiB block groups, quotas, and the space a working filesystem later uses.',
+  },
+  {
+    dir: 'isdigit',
+    title: 'Does isdigit guarantee int can parse it?',
+    intro:
+      'For a Python programmer who guards int(s) with s.isdigit(). Pick a character and a check, then step through. Every answer on this page is computed from a model of CPython 3.15.1 and Unicode 17.0.0 that is tested against CPython 3.15.1’s recorded answers; the lineup and the counts are those recorded values.',
+    leaves:
+      'Leaves out: whole strings (signs, underscores, surrounding spaces and the rest of int()’s grammar), other bases, and other Python and Unicode versions.',
+  },
+  {
+    dir: 'cert-renewal',
+    title: 'When should a short-lived certificate renew?',
+    intro:
+      'For someone who configures Certbot or a job like it, with a renewal setting written for 90-day certificates. Pick a lifetime and a rule, then step through. Every date and count is computed from a model tested against Certbot 5.8.0’s and Boulder’s own test vectors and the ARI windows Let’s Encrypt served on 2026-10-25; the yearly counts are the model’s own simulation of twice-daily runs.',
+    leaves:
+      'Leaves out: other ACME clients, other Let’s Encrypt limits, failures of the CA or the challenge, backdating jitter, and any forecast for a real installation.',
+  },
+  {
+    dir: 'poppy-browser',
+    title: 'How does the agent’s browser join the Session without ever carrying the key?',
+    intro:
+      'For a developer who knows the seal (the Session header: who is asking) and the key (the access token: what the account allows). Pick how your agent stands with the shop, then step through. Every step replays a model of the Personal Agent Protocol draft 1.0 (as published on 2026-11-13), section 6, which is tested against the draft’s rules and examples; there is no reference implementation to run it against.',
+    leaves:
+      'Leaves out: time (the code’s and cookie’s 60-second life), real randomness and signatures, how a real browser enforces SameSite and the page headers, and Mediated Sign-In.',
+  },
 ];
 
 const CSS = `

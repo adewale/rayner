@@ -130,7 +130,8 @@ export default class PoppyBrowser extends Scene<World, Shown> {
             new AnimationGroup([c.enter(`row:${id}:stub`, {}, { runTime: 0.3 }), c.enter(`row:${id}:ring`, {}, { runTime: 0.3 })]),
             ...flight(c, 'page:stub', [[COUNTER_X - 1.2, ROAD_B], PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
             ...flight(c, 'shelf:join', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
-          ], { fresh: FRESH, lead: BROWSER_ROAD });
+            // A failed form's error page goes before the new code comes into the page, not under it.
+          ], { fresh: [...FRESH, 'page:error'], lead: BROWSER_ROAD });
         },
         // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
         // pressed on the Company's stub only once the ticket lands, and covers the ring.

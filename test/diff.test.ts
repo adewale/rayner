@@ -8,11 +8,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
-  diffLines, parseUnifiedDiff, keyed,
-} from '../src/index.ts';
-import { StringSink, renderText, renderFrame } from '../src/output.ts';
+import { Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, VMobject, diffLines, parseUnifiedDiff, keyed, Transform } from '../src/index.ts';
+import { StringSink } from '../src/svg.ts';
+import { renderText } from '../src/ascii.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
@@ -325,14 +324,14 @@ test('evidence: the trace and the text frame carry what each transform paired, a
 
 test('every matching transform records its counts when it begins in a scene', async () => {
   await loadFonts();
-  const t = new TransformMatchingText(new Text('cache'), new Text('cached'));
+  const t = new Transform(new Text('cache'), new Text('cached'), { match: 'text' });
   const s = await new (class extends Scene {
     override async construct() { await this.step('a'); await this.play(new LaggedStart([t])); }
   })(new StringSink()).run();
   assert.deepEqual(s.steps[0]!.evidence, [{ kind: 'match', matched: 5, morphed: 0, removed: 0, added: 1 }]);
   assert.deepEqual(s.evidence, s.steps[0]!.evidence);
   // Outside a scene there is nowhere to record: begin() still works, and evidence() reads the counts
-  const free = new TransformMatchingText(new Text('ab'), new Text('abc'));
+  const free = new Transform(new Text('ab'), new Text('abc'), { match: 'text' });
   beginAnimation(free);
   assert.deepEqual(free.evidence(), { kind: 'match', matched: 2, morphed: 0, removed: 0, added: 1 });
   // record() copies as JSON
@@ -358,7 +357,7 @@ test('every animation that decides something records it as it begins: nested in 
       this.add(readout, plain, dot);
       this.state = { word: 'cached' };
       await this.play(new AnimationGroup([
-        new TransformMatchingText(new Text('ab'), new Text('abc')),
+        new Transform(new Text('ab'), new Text('abc'), { match: 'text' }),
         new Succession([
           readout.sync({ match: 'text', runTime: 0.2 }),
           new Follow({ from: 1, to: 2, draw: (x) => new Dot().moveTo([x, 0]) }, { targets: [dot], runTime: 0.2, rateFunc: linear }),

@@ -1,0 +1,708 @@
+{
+ "topic": "cert-renewal",
+ "oracle": "Certbot v5.8.0's renewal test vectors and the Certbot 3.3, 4.1 and 5.8 lines cited in scenes/explainers/cert-renewal/model.ts; Boulder's GCRA TestDecide vector and RenewalInfoSimple; the ARI windows Let's Encrypt served for ten sites on 2026-10-25; the Baseline Requirements and Let's Encrypt lifetime tables; all in scenes/explainers/cert-renewal/model.test.ts. The year-long renewal counts are the model's own simulation of twice-daily runs (scenes/explainers/cert-renewal/model.ts simulate).",
+ "pages": {
+  "plain": {
+   "file": "bench/premise/cert-renewal/plain.html",
+   "round": 2,
+   "how": "Written by a fresh session with no repository from the question and Reader line (bench/premise/README.md, round 2)."
+  },
+  "rayner": {
+   "file": "scenes/explainers/cert-renewal (rayner describe at 5e9d07d4)",
+   "round": 2,
+   "how": "The catalogued explainer; text read from `rayner describe`."
+  },
+  "method": {
+   "file": "bench/premise/cert-renewal/method.html",
+   "round": 3,
+   "how": "Method-only page (bench/premise/cert-renewal/method/), built for round 3 with the model and oracle and no engine."
+  }
+ },
+ "rules": "Grade each claim against the evidence only. right: agrees with a recorded value, with the tested model on an input of the same shape as a recorded one, with a source file the model pins, or is plain arithmetic. wrong: contradicted by a recorded value or a pinned source. unverifiable: nothing in the evidence decides it; do not guess, even where the claim is well known. A claim with count n stands for n claims of the same kind graded together.",
+ "claims": [
+  {
+   "id": "cert-renewal-plain-01",
+   "page": "plain",
+   "count": 1,
+   "claim": "Public certificates are heading for 47 days",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-02",
+   "page": "plain",
+   "count": 1,
+   "claim": "Some are as short as six days",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:17-23 (Let's Encrypt docs/profiles.md: classic 90 days, shortlived 160 hours)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-03",
+   "page": "plain",
+   "count": 1,
+   "claim": "Recent Certbot releases renew at a share of the lifetime when renew_before_expiry is unset: with a third left, or at half under about ten days",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:11-22 (Certbot v5.8.0 renewal_test.py:272-280: 8- and 18-day certificates renew at day 4 and day 12; under 10 days half, else two thirds; renewal.py:425-429)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-04",
+   "page": "plain",
+   "count": 1,
+   "claim": "ARI is ACME Renewal Information, RFC 9773",
+   "evidence": "scenes/explainers/cert-renewal/scene.ts:187 (the scene's sources cite https://www.rfc-editor.org/rfc/rfc9773.html#section-4.2 for the ARI window)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-05",
+   "page": "plain",
+   "count": 1,
+   "claim": "renew_before_expiry = 30 days fixes the margin in days",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-06",
+   "page": "plain",
+   "count": 1,
+   "claim": "Lifetimes stayed at 90 days for years",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. (history)",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-07",
+   "page": "plain",
+   "count": 1,
+   "claim": "A fixed 30 days renews 90-, 64- and 47-day certificates at day 60, 34 and 17; a certificate of 30 days or less is due from issue",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:91-111 (30 days back from expiry: 2160-720, 1536-720, 1080-720 hours, and 160-720 = 560 hours before notBefore); scenes/explainers/cert-renewal/model.test.ts:240-269 (properties: due from issue exactly when the lifetime is at most 30 days; the 30-day rule renews at least as often as the default exactly up to 90 days)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-plain-08",
+   "page": "plain",
+   "count": 1,
+   "claim": "On 47-day certificates the fixed rule issues about twice as many as needed",
+   "evidence": "scenes/explainers/cert-renewal/model.ts simulate: 21 against 11 a year for 47 days",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-plain-09",
+   "page": "plain",
+   "count": 1,
+   "claim": "A certificate born inside the window is renewed at every run",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:24-51 (Certbot v5.8.0 renew_before_expiry vectors on a 7-day certificate); scenes/explainers/cert-renewal/model.test.ts:146-152 (160 h under the 30-day rule: issued at hours 0,12,24,36,48,60,72,108,144,168,204,240; refused 84,96,120,...)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-10",
+   "page": "plain",
+   "count": 1,
+   "claim": "With a twice-daily timer that is about 730 issuances a year",
+   "evidence": "scenes/explainers/cert-renewal/model.ts simulate: 729 runs ask in a year; scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model; the page then says the CA limits them"
+  },
+  {
+   "id": "cert-renewal-plain-11",
+   "page": "plain",
+   "count": 1,
+   "claim": "Let's Encrypt limits certificates for the same set of names per week",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-12",
+   "page": "plain",
+   "count": 1,
+   "claim": "\"Then renewals start failing, and once they keep failing the certificate expires\" (and the simulator's verdict: \"renewals will fail, and the certificate will then expire\")",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488); scenes/explainers/cert-renewal/model.test.ts:146-152 (160 h under the 30-day rule: issued at hours 0,12,24,36,48,60,72,108,144,168,204,240; refused 84,96,120,...); scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465) (160 h under the 30-day rule: 264 issued, 465 refused a year; every lifetime from 6 to 30 days gives the same)",
+   "grade": "wrong",
+   "note": "renewals keep getting through every 24 to 36 hours"
+  },
+  {
+   "id": "cert-renewal-plain-13",
+   "page": "plain",
+   "count": 1,
+   "claim": "The setting looks fine until the lifetime drops to the margin, then renews at every run",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:240-269 (properties: due from issue exactly when the lifetime is at most 30 days; the 30-day rule renews at least as often as the default exactly up to 90 days)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-plain-14",
+   "page": "plain",
+   "count": 1,
+   "claim": "A calendar job every 60 days on 47-day certificates leaves 13 days expired",
+   "evidence": "Arithmetic: 60 - 47 = 13",
+   "grade": "right",
+   "note": "arithmetic"
+  },
+  {
+   "id": "cert-renewal-plain-15",
+   "page": "plain",
+   "count": 1,
+   "claim": "Simulator default (47 days, 30-day margin, twice a day): day 17 (36%), 30 days of margin, 60 tries, about 21 a year",
+   "evidence": "scenes/explainers/cert-renewal/model.ts summarize on 47 days, fixed30",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-plain-16",
+   "page": "plain",
+   "count": 1,
+   "claim": "Certbot's default timer runs twice a day",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:67 (using.rst:965, \"0 0,12 * * *\")",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-17",
+   "page": "plain",
+   "count": 1,
+   "claim": "Caddy renews with a third left",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-18",
+   "page": "plain",
+   "count": 1,
+   "claim": "cert-manager renews at two thirds by default; renewBeforePercentage",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-19",
+   "page": "plain",
+   "count": 1,
+   "claim": "CAs offering six-day certificates recommend renewing around half way",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:154-165 (Boulder RenewalInfoSimple worked by hand: 45 days 2,554,324-2,632,013 s; 160 h 284,029-295,478 s after notBefore)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-20",
+   "page": "plain",
+   "count": 1,
+   "claim": "Table: the fixed rule's renewal day for 398, 200, 100, 90, 64, 47, 45 and 6 days",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:91-111 (30 days back from expiry: 2160-720, 1536-720, 1080-720 hours, and 160-720 = 560 hours before notBefore) (lifetime - 30 days; from issue at 30 days or less)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-plain-21",
+   "page": "plain",
+   "count": 1,
+   "claim": "398, 200, 100 and 47 days are the CA/Browser Forum caps, in steps from 2026 to 2029",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-22",
+   "page": "plain",
+   "count": 1,
+   "claim": "90, 64 and 45 days are typical ACME defaults in the transition",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16); scenes/explainers/cert-renewal/model.ts:17-23 (Let's Encrypt docs/profiles.md: classic 90 days, shortlived 160 hours)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-23",
+   "page": "plain",
+   "count": 1,
+   "claim": "Six-day certificates are already offered",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:17-23 (Let's Encrypt docs/profiles.md: classic 90 days, shortlived 160 hours)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-24",
+   "page": "plain",
+   "count": 1,
+   "claim": "With ARI the CA answers with a window and the client picks a random time in it",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-25",
+   "page": "plain",
+   "count": 1,
+   "claim": "The window normally sits around two thirds",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:154-165 (Boulder RenewalInfoSimple worked by hand: 45 days 2,554,324-2,632,013 s; 160 h 284,029-295,478 s after notBefore); scenes/explainers/cert-renewal/model.test.ts:167-194 (ARI windows Let's Encrypt served on 2026-10-25 for ten 90-day certificates: each opens 59.11 days and closes 60.91 days after notBefore)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-26",
+   "page": "plain",
+   "count": 1,
+   "claim": "The CA can move the window earlier before a revocation",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-27",
+   "page": "plain",
+   "count": 1,
+   "claim": "ARI spreads renewals and lets the CA ask for early replacement",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-28",
+   "page": "plain",
+   "count": 1,
+   "claim": "Some CAs exempt ARI-guided renewals from rate limits",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:103-160 (Boulder: an order skips the new-order limits only when replaces names a certificate of the account, not replaced before, arriving inside its ARI window, wfe2/wfe.go:2258-2297, 2488; a refused order spends nothing; issuing spends a token) and scenes/explainers/cert-renewal/model.ts:218-229 (Certbot 5.8.0 new order carries identifiers and profile only, acme/client.py:115-135); scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488)",
+   "grade": "right",
+   "note": "loosely: Boulder also requires the order to name the certificate it replaces"
+  },
+  {
+   "id": "cert-renewal-plain-29",
+   "page": "plain",
+   "count": 1,
+   "claim": "Certbot's file paths and commands (renewal/<name>.conf, cli.ini, --dry-run, the systemd timer)",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-30",
+   "page": "plain",
+   "count": 1,
+   "claim": "Deleting renew_before_expiry lets the proportional default and ARI apply on a current Certbot",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482); scenes/explainers/cert-renewal/model.test.ts:11-22 (Certbot v5.8.0 renewal_test.py:272-280: 8- and 18-day certificates renew at day 4 and day 12; under 10 days half, else two thirds; renewal.py:425-429)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-plain-31",
+   "page": "plain",
+   "count": 1,
+   "claim": "acme.sh, lego and scripts often use 30 days",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-rayner-01",
+   "page": "rayner",
+   "count": 1,
+   "claim": "BR caps of 398, 200, 100 and 47 days, with their dates",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16)",
+   "grade": "right",
+   "note": "published table"
+  },
+  {
+   "id": "cert-renewal-rayner-02",
+   "page": "rayner",
+   "count": 2,
+   "claim": "Let's Encrypt: tlsserver 45 days since May 2026; classic 90, 64 from February 2027, 45 from February 2028; shortlived 160 hours",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16); scenes/explainers/cert-renewal/model.ts:17-23 (Let's Encrypt docs/profiles.md: classic 90 days, shortlived 160 hours)",
+   "grade": "right",
+   "note": "published dates"
+  },
+  {
+   "id": "cert-renewal-rayner-03",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Certbot 3.3 renews within renew_before_expiry, 30 days unless set",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": "cited source"
+  },
+  {
+   "id": "cert-renewal-rayner-04",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Let's Encrypt dates a certificate 58.5 minutes before issuing it",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:64-71 (notBefore backdated 58.5 minutes; validity one second short)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-rayner-05",
+   "page": "rayner",
+   "count": 1,
+   "claim": "A 90-day certificate falls due just before the run at day 60",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:53-62; scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-rayner-06",
+   "page": "rayner",
+   "count": 4,
+   "claim": "30 days before expiry is day 60 (67%), day 34 (53%), day 15 (33%), and 23.3 days (560 hours) before issue for 160 hours",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:91-111 (30 days back from expiry: 2160-720, 1536-720, 1080-720 hours, and 160-720 = 560 hours before notBefore)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-rayner-07",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Certbot 4.1's default: two thirds, half under ten days, unless ARI sets the window (RFC 9773)",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:11-22 (Certbot v5.8.0 renewal_test.py:272-280: 8- and 18-day certificates renew at day 4 and day 12; under 10 days half, else two thirds; renewal.py:425-429); scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482); scenes/explainers/cert-renewal/scene.ts:187 (RFC 9773 cited)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-rayner-08",
+   "page": "rayner",
+   "count": 4,
+   "claim": "The default renews at day 60, 42.7 (run at 43), 30, and hour 80 (run at 84)",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:11-22 (Certbot v5.8.0 renewal_test.py:272-280: 8- and 18-day certificates renew at day 4 and day 12; under 10 days half, else two thirds; renewal.py:425-429); scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model on Certbot's vectors"
+  },
+  {
+   "id": "cert-renewal-rayner-09",
+   "page": "rayner",
+   "count": 5,
+   "claim": "Renewals a year: 6 and 6, 8 and 10, 12 and 24, 104 and 264 with 465 refused; 3 and 13 in two weeks",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model simulation"
+  },
+  {
+   "id": "cert-renewal-rayner-10",
+   "page": "rayner",
+   "count": 4,
+   "claim": "Margin left when renewal falls due, and the runs it allows (30 days/60 runs, 21.3 days/42, 15 days/30, 80 hours/7)",
+   "evidence": "scenes/explainers/cert-renewal/model.ts summarize; scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-rayner-11",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Boulder skips the limit only for an order naming the certificate it replaces, inside its window; Certbot 5.8's order names none; a refused order costs nothing, an issued one takes a token",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:103-160 (Boulder: an order skips the new-order limits only when replaces names a certificate of the account, not replaced before, arriving inside its ARI window, wfe2/wfe.go:2258-2297, 2488; a refused order spends nothing; issuing spends a token) and scenes/explainers/cert-renewal/model.ts:218-229 (Certbot 5.8.0 new order carries identifiers and profile only, acme/client.py:115-135); scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488)",
+   "grade": "right",
+   "note": "cited source"
+  },
+  {
+   "id": "cert-renewal-rayner-12",
+   "page": "rayner",
+   "count": 5,
+   "claim": "ARI windows: day 59.1 to 60.9, 42 to 43.3, 29.6 to 30.5, hour 78.9 to 82.1; 1% of the life either side of two thirds or half",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:154-165 (Boulder RenewalInfoSimple worked by hand: 45 days 2,554,324-2,632,013 s; 160 h 284,029-295,478 s after notBefore); scenes/explainers/cert-renewal/model.test.ts:167-194 (ARI windows Let's Encrypt served on 2026-10-25 for ten 90-day certificates: each opens 59.11 days and closes 60.91 days after notBefore)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-rayner-13",
+   "page": "rayner",
+   "count": 4,
+   "claim": "Run probabilities and renewal counts under ARI",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-rayner-14",
+   "page": "rayner",
+   "count": 1,
+   "claim": "An explicit 30-day setting renews before the window opens, so the ARI answer changes nothing",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84); scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-rayner-15",
+   "page": "rayner",
+   "count": 1,
+   "claim": "160 hours with 30 days: every run renews until hour 84, then most are refused; later renewals 24 to 36 hours apart",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:146-152 (160 h under the 30-day rule: issued at hours 0,12,24,36,48,60,72,108,144,168,204,240; refused 84,96,120,...)",
+   "grade": "right",
+   "note": "model; tested sequence"
+  },
+  {
+   "id": "cert-renewal-rayner-16",
+   "page": "rayner",
+   "count": 1,
+   "claim": "5 per 7 days, one back every 33.6 hours",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488); scenes/explainers/cert-renewal/model.test.ts:113-123 (Boulder ratelimits/gcra_test.go TestDecide vector)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-rayner-17",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 1: 20-day certificates, 264 renewed and 465 refused from hour 84; the default at day 13.3, 27 a year",
+   "evidence": "scenes/explainers/cert-renewal/answers.ts (from scenes/explainers/cert-renewal/model.ts simulate); scenes/explainers/cert-renewal/model.test.ts:240-269 (properties: due from issue exactly when the lifetime is at most 30 days; the 30-day rule renews at least as often as the default exactly up to 90 days)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-rayner-18",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 2: a 10-day setting renews 45-day certificates at day 35 with 20 runs left, replacing the default (day 30, 30 runs)",
+   "evidence": "scenes/explainers/cert-renewal/answers.ts; scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": "model; cited source"
+  },
+  {
+   "id": "cert-renewal-rayner-19",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 3: an ARI-timed order is exempt only if it names its predecessor",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:103-160 (Boulder: an order skips the new-order limits only when replaces names a certificate of the account, not replaced before, arriving inside its ARI window, wfe2/wfe.go:2258-2297, 2488; a refused order spends nothing; issuing spends a token) and scenes/explainers/cert-renewal/model.ts:218-229 (Certbot 5.8.0 new order carries identifiers and profile only, acme/client.py:115-135)",
+   "grade": "right",
+   "note": "cited Boulder"
+  },
+  {
+   "id": "cert-renewal-rayner-20",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Certbot 4.1 and later ask Let's Encrypt when to renew",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84) (renewal.py:378-392)",
+   "grade": "right",
+   "note": "cited source"
+  },
+  {
+   "id": "cert-renewal-rayner-21",
+   "page": "rayner",
+   "count": 1,
+   "claim": "The documented cron runs at 00:00 and 12:00",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:67 (using.rst:965, \"0 0,12 * * *\")",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-method-01",
+   "page": "method",
+   "count": 1,
+   "claim": "BR caps of 398, 200, 100 and 47 days, with their dates",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16)",
+   "grade": "right",
+   "note": "published table"
+  },
+  {
+   "id": "cert-renewal-method-02",
+   "page": "method",
+   "count": 2,
+   "claim": "Let's Encrypt: tlsserver 45 days since May 2026; classic 90, 64 from February 2027, 45 from February 2028; shortlived 160 hours",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:211-238 (Baseline Requirements 2.3.1 6.3.2: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15; Let's Encrypt: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16); scenes/explainers/cert-renewal/model.ts:17-23 (Let's Encrypt docs/profiles.md: classic 90 days, shortlived 160 hours)",
+   "grade": "right",
+   "note": "published dates"
+  },
+  {
+   "id": "cert-renewal-method-03",
+   "page": "method",
+   "count": 1,
+   "claim": "Certbot 3.3 renews within renew_before_expiry, 30 days unless set",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": "cited source"
+  },
+  {
+   "id": "cert-renewal-method-04",
+   "page": "method",
+   "count": 1,
+   "claim": "Let's Encrypt dates a certificate 58.5 minutes before issuing it",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:64-71 (notBefore backdated 58.5 minutes; validity one second short)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-method-05",
+   "page": "method",
+   "count": 1,
+   "claim": "A 90-day certificate falls due just before the run at day 60",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:53-62; scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-method-06",
+   "page": "method",
+   "count": 4,
+   "claim": "30 days before expiry is day 60 (67%), day 34 (53%), day 15 (33%), and 23.3 days (560 hours) before issue for 160 hours",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:91-111 (30 days back from expiry: 2160-720, 1536-720, 1080-720 hours, and 160-720 = 560 hours before notBefore)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-method-07",
+   "page": "method",
+   "count": 1,
+   "claim": "Certbot 4.1's default: two thirds, half under ten days, unless ARI sets the window (RFC 9773)",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:11-22 (Certbot v5.8.0 renewal_test.py:272-280: 8- and 18-day certificates renew at day 4 and day 12; under 10 days half, else two thirds; renewal.py:425-429); scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482); scenes/explainers/cert-renewal/scene.ts:187 (RFC 9773 cited)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-method-08",
+   "page": "method",
+   "count": 4,
+   "claim": "The default renews at day 60, 42.7 (run at 43), 30, and hour 80 (run at 84)",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:11-22 (Certbot v5.8.0 renewal_test.py:272-280: 8- and 18-day certificates renew at day 4 and day 12; under 10 days half, else two thirds; renewal.py:425-429); scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model on Certbot's vectors"
+  },
+  {
+   "id": "cert-renewal-method-09",
+   "page": "method",
+   "count": 5,
+   "claim": "Renewals a year: 6 and 6, 8 and 10, 12 and 24, 104 and 264 with 465 refused; 3 and 13 in two weeks",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model simulation"
+  },
+  {
+   "id": "cert-renewal-method-10",
+   "page": "method",
+   "count": 4,
+   "claim": "Margin left when renewal falls due, and the runs it allows (30 days/60 runs, 21.3 days/42, 15 days/30, 80 hours/7)",
+   "evidence": "scenes/explainers/cert-renewal/model.ts summarize; scenes/explainers/cert-renewal/model.test.ts:73-89 (model: [run that renews, renewals in 365 days, refused]: 90d 1440h/6/0 both; 64d 43d/8/0 and 34d/10/0; 45d 30d/12/0 and 15d/24/0; 160h 84/104/0 and 12/264/465)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-method-11",
+   "page": "method",
+   "count": 3,
+   "claim": "Boulder skips the limit only for an order naming the certificate it replaces, inside its window; Certbot 5.8's order names none; a refused order costs nothing, an issued one takes a token",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:103-160 (Boulder: an order skips the new-order limits only when replaces names a certificate of the account, not replaced before, arriving inside its ARI window, wfe2/wfe.go:2258-2297, 2488; a refused order spends nothing; issuing spends a token) and scenes/explainers/cert-renewal/model.ts:218-229 (Certbot 5.8.0 new order carries identifiers and profile only, acme/client.py:115-135); scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488)",
+   "grade": "right",
+   "note": "cited source"
+  },
+  {
+   "id": "cert-renewal-method-12",
+   "page": "method",
+   "count": 5,
+   "claim": "ARI windows: day 59.1 to 60.9, 42 to 43.3, 29.6 to 30.5, hour 78.9 to 82.1; 1% of the life either side of two thirds or half",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:154-165 (Boulder RenewalInfoSimple worked by hand: 45 days 2,554,324-2,632,013 s; 160 h 284,029-295,478 s after notBefore); scenes/explainers/cert-renewal/model.test.ts:167-194 (ARI windows Let's Encrypt served on 2026-10-25 for ten 90-day certificates: each opens 59.11 days and closes 60.91 days after notBefore)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-method-13",
+   "page": "method",
+   "count": 4,
+   "claim": "Run probabilities and renewal counts under ARI",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-method-14",
+   "page": "method",
+   "count": 1,
+   "claim": "An explicit 30-day setting renews before the window opens, so the ARI answer changes nothing",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84); scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-method-15",
+   "page": "method",
+   "count": 1,
+   "claim": "160 hours with 30 days: every run renews until hour 84, then most are refused; later renewals 24 to 36 hours apart",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:146-152 (160 h under the 30-day rule: issued at hours 0,12,24,36,48,60,72,108,144,168,204,240; refused 84,96,120,...)",
+   "grade": "right",
+   "note": "model; tested sequence"
+  },
+  {
+   "id": "cert-renewal-method-16",
+   "page": "method",
+   "count": 1,
+   "claim": "5 per 7 days, one back every 33.6 hours",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:125-144 (5 per 168 h, one token every 33.6 h; a refused order spends nothing; an ARI-exempt order skips the check, wfe.go:2297, 2488); scenes/explainers/cert-renewal/model.test.ts:113-123 (Boulder ratelimits/gcra_test.go TestDecide vector)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-method-17",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 1: 20-day certificates, 264 renewed and 465 refused from hour 84; the default at day 13.3, 27 a year",
+   "evidence": "scenes/explainers/cert-renewal/answers.ts (from scenes/explainers/cert-renewal/model.ts simulate); scenes/explainers/cert-renewal/model.test.ts:240-269 (properties: due from issue exactly when the lifetime is at most 30 days; the 30-day rule renews at least as often as the default exactly up to 90 days)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "cert-renewal-method-18",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 2: a 10-day setting renews 45-day certificates at day 35 with 20 runs left, replacing the default (day 30, 30 runs)",
+   "evidence": "scenes/explainers/cert-renewal/answers.ts; scenes/explainers/cert-renewal/model.test.ts:53-62 (Certbot 3.3 constants.py:155 \"30 days\", storage.py:1010) and scenes/explainers/cert-renewal/model.ts:31-43 (4.1+ uses renew_before_expiry only when set, renewal.py:475-482)",
+   "grade": "right",
+   "note": "model; cited source"
+  },
+  {
+   "id": "cert-renewal-method-19",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 3: an ARI-timed order is exempt only if it names its predecessor",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:103-160 (Boulder: an order skips the new-order limits only when replaces names a certificate of the account, not replaced before, arriving inside its ARI window, wfe2/wfe.go:2258-2297, 2488; a refused order spends nothing; issuing spends a token) and scenes/explainers/cert-renewal/model.ts:218-229 (Certbot 5.8.0 new order carries identifiers and profile only, acme/client.py:115-135)",
+   "grade": "right",
+   "note": "cited Boulder"
+  },
+  {
+   "id": "cert-renewal-method-20",
+   "page": "method",
+   "count": 1,
+   "claim": "Certbot 4.1 and later ask Let's Encrypt when to renew",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:196-209 (Certbot client.py:365-368 uniform draw; a run at t renews with chance (t - start)/(end - start); 45d runs 720 and 732 h, 11 or 12 a year; 30-day setting at day 15 first; 160 h renews at 84) (renewal.py:378-392)",
+   "grade": "right",
+   "note": "cited source"
+  },
+  {
+   "id": "cert-renewal-method-21",
+   "page": "method",
+   "count": 1,
+   "claim": "Certbot's documented cron line runs certbot renew twice a day",
+   "evidence": "scenes/explainers/cert-renewal/model.ts:67 (using.rst:965, \"0 0,12 * * *\")",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "cert-renewal-method-22",
+   "page": "method",
+   "count": 1,
+   "claim": "ARI step at 90 days: the ten live windows recorded on 2026-10-25 all open at day 59.11 and close at day 60.91 after notBefore",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:167-194 (ARI windows Let's Encrypt served on 2026-10-25 for ten 90-day certificates: each opens 59.11 days and closes 60.91 days after notBefore)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "cert-renewal-method-23",
+   "page": "method",
+   "count": 1,
+   "claim": "Limit picture (160 hours, 30-day rule): in the first ten days 12 certificates are issued and 9 runs refused",
+   "evidence": "scenes/explainers/cert-renewal/model.test.ts:146-152 (160 h under the 30-day rule: issued at hours 0,12,24,36,48,60,72,108,144,168,204,240; refused 84,96,120,...)",
+   "grade": "right",
+   "note": "tested sequence"
+  },
+  {
+   "id": "cert-renewal-method-24",
+   "page": "method",
+   "count": 1,
+   "claim": "Intro: dates and counts come from a model tested against Certbot 5.8.0's and Boulder's test vectors and the ARI windows of 2026-10-25; the yearly counts are the model's own simulation",
+   "evidence": "bench/premise/cert-renewal/method/oracle.ts (copied from scenes/explainers/cert-renewal/model.test.ts); bench/premise/cert-renewal/method/method.test.ts",
+   "grade": "right",
+   "note": ""
+  }
+ ]
+}

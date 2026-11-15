@@ -1,14 +1,16 @@
 {
   "version": 2,
   "subjects": [
-    { "step": "street", "opening": true, "targets": [{ "key": "henge-street" }] },
+    { "step": "street", "opening": true, "targets": [{ "key": "henge-view-window:0" }, { "key": "henge-view-name:aligned" }, { "key": "henge-view-legend" }] },
+    { "step": "evenings", "opening": true, "targets": [{ "key": "henge-view-window:0" }, { "key": "henge-view-name:before" }, { "key": "henge-view-name:aligned" }, { "key": "henge-view-name:after" }, { "key": "henge-view-aside" }] },
     { "step": "overhead", "opening": true, "targets": [{ "key": "henge-map-street" }, { "key": "henge-map-sun" }, { "text": "Sunset" }, { "text": "Sunrise" }] },
-    { "step": "tilt", "opening": true, "targets": [{ "key": "henge-orbit" }, { "text": "June" }, { "text": "December" }, { "text": "Red dot: New York at noon, on its daily circle" }, { "text": "Gold: the circle in daylight; dark: in night" }] },
+    { "step": "globe", "opening": true, "targets": [{ "key": "henge-globe:seen" }, { "key": "henge-globe-here" }, { "key": "henge-globe-sun:aligned" }, { "key": "henge-globe-key" }] },
+    { "step": "tilt", "opening": true, "targets": [{ "key": "henge-orbit" }, { "text": "June" }, { "text": "December" }, { "key": "henge-earth-legend" }] },
     { "step": "sky", "opening": true, "targets": [{ "key": "henge-dome" }, { "text": "December" }, { "text": "Equinox" }, { "text": "June" }, { "key": "henge-dome-horizon" }, { "key": "henge-dome-street" }] },
     { "step": "sweep", "opening": true, "targets": [{ "key": "henge-year" }, { "key": "henge-year-street" }, { "text": "Gold band:" }, { "text": "Street crossings: 2" }] },
-    { "step": "crossings", "settings": { "street": "manhattan" }, "opening": true, "targets": [{ "key": "henge-annual" }, { "text": "May" }, { "text": "July" }] },
-    { "step": "crossings", "settings": { "street": "west" }, "opening": true, "targets": [{ "key": "henge-annual" }, { "text": "March" }, { "text": "September" }] },
+    { "step": "crossings", "settings": { "place": "manhattan" }, "opening": true, "targets": [{ "key": "henge-annual" }, { "text": "25 May" }, { "text": "16 July" }, { "key": "henge-annual-street" }] },
+    { "step": "crossings", "settings": { "place": "chicago" }, "opening": true, "targets": [{ "key": "henge-annual" }, { "text": "18 March" }, { "text": "23 September" }, { "key": "henge-annual-street" }] },
     { "step": "look", "opening": true, "targets": [{ "key": "henge-look-window" }, { "key": "henge-look-sun" }, { "key": "henge-look-legend" }, { "key": "henge-look-sides" }] },
-    { "step": "disc", "opening": true, "targets": [{ "key": "henge-disc" }, { "text": "Half Sun" }, { "text": "Full Sun" }, { "text": "Centre on horizon" }, { "text": "Bottom on horizon" }] }
+    { "step": "disc", "opening": true, "targets": [{ "key": "henge-close-window:0" }, { "key": "henge-close-window:1" }, { "key": "henge-close-words:0" }, { "key": "henge-close-words:1" }] }
   ]
 }

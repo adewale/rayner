@@ -1,0 +1,1258 @@
+{
+ "cert-renewal-method-01": {
+  "grade": "right",
+  "why": "BR_PHASES: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15."
+ },
+ "cert-renewal-method-02": {
+  "grade": "right",
+  "why": "LE_DATES: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16; classic 90 and shortlived 160 h in profiles.md."
+ },
+ "cert-renewal-method-03": {
+  "grade": "right",
+  "why": "Certbot 3.3.0 constants.py:155 \"30 days\"; storage.py:1010 renews inside the interval."
+ },
+ "cert-renewal-method-04": {
+  "grade": "right",
+  "why": "Test: notBefore is 58.5 minutes before issue and validity one second short."
+ },
+ "cert-renewal-method-05": {
+  "grade": "right",
+  "why": "90 d: due 1439.9997 h, first run that renews is hour 1440 (day 60)."
+ },
+ "cert-renewal-method-06": {
+  "grade": "right",
+  "why": "dueOffset: 1440 h (66.7%), 816 h = day 34 (53%), 360 h = day 15 (33%), 160-720 = -560 h = 23.3 days."
+ },
+ "cert-renewal-method-07": {
+  "grade": "right",
+  "why": "defaultRenewalOffset: two thirds, half under 10 days; renewal.py:475-482 and ARI per RFC 9773 cite."
+ },
+ "cert-renewal-method-08": {
+  "grade": "right",
+  "why": "summarize fraction: 90d due day 60; 64d due 42.67 d (run 1032 h = day 43); 45d day 30; 160h due 80 h (run 84)."
+ },
+ "cert-renewal-method-09": {
+  "grade": "right",
+  "why": "Test table: 6/6, 8/10, 12/24, 104/264 with 465 refused; two weeks 3 vs 13 by simulate."
+ },
+ "cert-renewal-method-10": {
+  "grade": "right",
+  "why": "summarize slack/retries: 720 h/60, 512 h (21.3 d)/42, 360 h/30, 80 h/7."
+ },
+ "cert-renewal-method-11": {
+  "grade": "right",
+  "why": "orderAllowed/ariExempt, simulate comments and orderAllowed: refused orders spend nothing, issuing spends a token; Certbot 5.8 sends no replaces."
+ },
+ "cert-renewal-method-12": {
+  "grade": "right",
+  "why": "ariWindow offsets: day 59.11-60.91, 42.04-43.32, 29.56-30.46, hour 78.9-82.1; margin = validity/100."
+ },
+ "cert-renewal-method-13": {
+  "grade": "right",
+  "why": "ariSummary matches test: 45d runs 720/732 with 11 or 12 a year, 160 h run at 84."
+ },
+ "cert-renewal-method-14": {
+  "grade": "right",
+  "why": "In the scene (45-day certificate) fixed30 renews at hour 360 with p=1, before the window opens at 709.5 h (for 90 days the setting is not always first)."
+ },
+ "cert-renewal-method-15": {
+  "grade": "right",
+  "why": "Test: issued 0..72 every 12 h, refused 84 and 96, then issued 108,144,168,204,240 (24-36 h apart)."
+ },
+ "cert-renewal-method-16": {
+  "grade": "right",
+  "why": "LIMIT 5 per 168 h; EMISSION 33.6 h."
+ },
+ "cert-renewal-method-17": {
+  "grade": "right",
+  "why": "simulate 20 d fixed30: 264 renewals, 465 refused, first refused hour 84; default due at 13.3 days, 27 a year."
+ },
+ "cert-renewal-method-18": {
+  "grade": "right",
+  "why": "10-day interval renews 45 d cert at run 840 h (day 35) with 20 runs left; default day 30 with 30 runs."
+ },
+ "cert-renewal-method-19": {
+  "grade": "right",
+  "why": "Exemption needs replaces naming the predecessor (wfe.go:2258-2297); Certbot 5.8 order names none."
+ },
+ "cert-renewal-method-20": {
+  "grade": "right",
+  "why": "Certbot renewal.py:378-392 fetches the ARI answer for each run (4.1 and later)."
+ },
+ "cert-renewal-method-21": {
+  "grade": "right",
+  "why": "using.rst:965 \"0 0,12 * * *\" is twice a day."
+ },
+ "cert-renewal-method-22": {
+  "grade": "right",
+  "why": "Test: ten live windows start exactly (end 0-1 s later) at 59.11 and 60.91 days after notBefore."
+ },
+ "cert-renewal-method-23": {
+  "grade": "right",
+  "why": "Test list: 12 issued (0..240) and 9 refused (84,96,120,132,156,180,192,216,228) within ten days."
+ },
+ "cert-renewal-method-24": {
+  "grade": "right",
+  "why": "oracle.ts copies the model.test.ts vectors (Boulder windows 2,554,324.. etc.); yearly counts are the model simulation."
+ },
+ "cert-renewal-plain-01": {
+  "grade": "right",
+  "why": "BR_PHASES: 47 days from 2029-03-15."
+ },
+ "cert-renewal-plain-02": {
+  "grade": "right",
+  "why": "Shortlived profile is 160 hours (6.7 days), the \"six-day\" profile; rounding is loose but it is that profile."
+ },
+ "cert-renewal-plain-03": {
+  "grade": "right",
+  "why": "Certbot v5.8.0 vectors: 8-day and 18-day certs renew at day 4 and day 12 (half under 10 days, else two thirds)."
+ },
+ "cert-renewal-plain-04": {
+  "grade": "right",
+  "why": "scene.ts cites RFC 9773 section 4.2 for the ARI window (the expansion of the acronym itself is not in the copy)."
+ },
+ "cert-renewal-plain-05": {
+  "grade": "right",
+  "why": "Certbot 3.3 constants \"30 days\"; dueByInterval renews when notAfter < now + interval."
+ },
+ "cert-renewal-plain-06": {
+  "grade": "unverifiable",
+  "why": "History of lifetimes is not covered by the oracle."
+ },
+ "cert-renewal-plain-07": {
+  "grade": "right",
+  "why": "dueOffset: 2160-720, 1536-720, 1080-720 hours (47 d: 17 days) and 160-720 < 0 so due from issue; property lifetime <= 30 days."
+ },
+ "cert-renewal-plain-08": {
+  "grade": "right",
+  "why": "simulate over 365 days: 47-day certs get 21 renewals with the 30-day rule against 11 by default."
+ },
+ "cert-renewal-plain-09": {
+  "grade": "right",
+  "why": "Test: 160 h under the 30-day rule issues at hours 0,12,...,72, every run finds it due."
+ },
+ "cert-renewal-plain-10": {
+  "grade": "right",
+  "why": "Twice daily over 365 days is 729 runs that ask; model has 729 requests (264 issued, 465 refused) for a 160 h cert."
+ },
+ "cert-renewal-plain-11": {
+  "grade": "right",
+  "why": "LIMIT: 5 per 168 hours for the exact set of identifiers."
+ },
+ "cert-renewal-plain-12": {
+  "grade": "wrong",
+  "why": "In the model the refused renewals only throttle: 160 h certs keep being reissued every 24-36 h (issued 108,144,168,204,240...), well inside 160 h, so the certificate never expires."
+ },
+ "cert-renewal-plain-13": {
+  "grade": "right",
+  "why": "Property: due from issue exactly when lifetime <= 30 days, so every run renews."
+ },
+ "cert-renewal-plain-14": {
+  "grade": "right",
+  "why": "Arithmetic: 60 - 47 = 13."
+ },
+ "cert-renewal-plain-15": {
+  "grade": "right",
+  "why": "Model on 47 days, fixed30: renews day 17 (17/47 = 36%), slack 720 h, 60 retries, 21 a year."
+ },
+ "cert-renewal-plain-16": {
+  "grade": "right",
+  "why": "using.rst:965 documented cron \"0 0,12 * * *\" (RUN_EVERY = 12 h)."
+ },
+ "cert-renewal-plain-17": {
+  "grade": "unverifiable",
+  "why": "Caddy behaviour is not in the oracle."
+ },
+ "cert-renewal-plain-18": {
+  "grade": "unverifiable",
+  "why": "cert-manager behaviour is not in the oracle."
+ },
+ "cert-renewal-plain-19": {
+  "grade": "right",
+  "why": "Boulder RenewalInfoSimple centres the 160 h window at half (284,029-295,478 s of 575,999 s)."
+ },
+ "cert-renewal-plain-20": {
+  "grade": "right",
+  "why": "dueOffset = lifetime - 720 h for 398-45 days and negative (from issue) for 6 days/160 h."
+ },
+ "cert-renewal-plain-21": {
+  "grade": "right",
+  "why": "BR_PHASES: 398, 200, 100, 47 days stepping 2026-03-15, 2027-03-15, 2029-03-15."
+ },
+ "cert-renewal-plain-22": {
+  "grade": "right",
+  "why": "LE_DATES and profiles: classic 90 days, 64 from 2027-02-10, 45 from 2028-02-16 (and tlsserver 45)."
+ },
+ "cert-renewal-plain-23": {
+  "grade": "right",
+  "why": "Shortlived 160 h profile exists in docs/profiles.md (\"six-day\" is a loose label for 160 h)."
+ },
+ "cert-renewal-plain-24": {
+  "grade": "right",
+  "why": "ariTime draws uniformly in the window (client.py:365-368) and the run renews once that time has passed."
+ },
+ "cert-renewal-plain-25": {
+  "grade": "right",
+  "why": "ARI window is validity/100 either side of notAfter minus a third (two thirds point): live windows open 59.11 and close 60.91 days of 90."
+ },
+ "cert-renewal-plain-26": {
+  "grade": "unverifiable",
+  "why": "Moving the window before a revocation is not modelled or recorded."
+ },
+ "cert-renewal-plain-27": {
+  "grade": "unverifiable",
+  "why": "Early replacement requests by the CA are not covered by the oracle."
+ },
+ "cert-renewal-plain-28": {
+  "grade": "right",
+  "why": "Boulder wfe.go:2297/2488 skips new-order limits for an order replacing a cert inside its ARI window."
+ },
+ "cert-renewal-plain-29": {
+  "grade": "unverifiable",
+  "why": "Certbot paths and commands are not in the oracle."
+ },
+ "cert-renewal-plain-30": {
+  "grade": "right",
+  "why": "Certbot 4.1+ uses renew_before_expiry only when set (renewal.py:475-482); otherwise two-thirds default (and ARI)."
+ },
+ "cert-renewal-plain-31": {
+  "grade": "unverifiable",
+  "why": "acme.sh/lego defaults are not in the oracle."
+ },
+ "cert-renewal-rayner-01": {
+  "grade": "right",
+  "why": "BR_PHASES: 398 until 2026-03-15, 200, 100 from 2027-03-15, 47 from 2029-03-15."
+ },
+ "cert-renewal-rayner-02": {
+  "grade": "right",
+  "why": "LE_DATES: tlsserver 45 from 2026-05-13, classic 64 from 2027-02-10, 45 from 2028-02-16; classic 90 and shortlived 160 h in profiles.md."
+ },
+ "cert-renewal-rayner-03": {
+  "grade": "right",
+  "why": "Certbot 3.3.0 constants.py:155 \"30 days\"; storage.py:1010 renews inside the interval."
+ },
+ "cert-renewal-rayner-04": {
+  "grade": "right",
+  "why": "Test: notBefore is 58.5 minutes before issue and validity one second short."
+ },
+ "cert-renewal-rayner-05": {
+  "grade": "right",
+  "why": "90 d: due 1439.9997 h, first run that renews is hour 1440 (day 60)."
+ },
+ "cert-renewal-rayner-06": {
+  "grade": "right",
+  "why": "dueOffset: 1440 h (66.7%), 816 h = day 34 (53%), 360 h = day 15 (33%), 160-720 = -560 h = 23.3 days."
+ },
+ "cert-renewal-rayner-07": {
+  "grade": "right",
+  "why": "defaultRenewalOffset: two thirds, half under 10 days; renewal.py:475-482 and ARI per RFC 9773 cite."
+ },
+ "cert-renewal-rayner-08": {
+  "grade": "right",
+  "why": "summarize fraction: 90d due day 60; 64d due 42.67 d (run 1032 h = day 43); 45d day 30; 160h due 80 h (run 84)."
+ },
+ "cert-renewal-rayner-09": {
+  "grade": "right",
+  "why": "Test table: 6/6, 8/10, 12/24, 104/264 with 465 refused; two weeks 3 vs 13 by simulate."
+ },
+ "cert-renewal-rayner-10": {
+  "grade": "right",
+  "why": "summarize slack/retries: 720 h/60, 512 h (21.3 d)/42, 360 h/30, 80 h/7."
+ },
+ "cert-renewal-rayner-11": {
+  "grade": "right",
+  "why": "orderAllowed/ariExempt, simulate comments and orderAllowed: refused orders spend nothing, issuing spends a token; Certbot 5.8 sends no replaces."
+ },
+ "cert-renewal-rayner-12": {
+  "grade": "right",
+  "why": "ariWindow offsets: day 59.11-60.91, 42.04-43.32, 29.56-30.46, hour 78.9-82.1; margin = validity/100."
+ },
+ "cert-renewal-rayner-13": {
+  "grade": "right",
+  "why": "ariSummary matches test: 45d runs 720/732 with 11 or 12 a year, 160 h run at 84."
+ },
+ "cert-renewal-rayner-14": {
+  "grade": "right",
+  "why": "In the scene (45-day certificate) fixed30 renews at hour 360 with p=1, before the window opens at 709.5 h (for 90 days the setting is not always first)."
+ },
+ "cert-renewal-rayner-15": {
+  "grade": "right",
+  "why": "Test: issued 0..72 every 12 h, refused 84 and 96, then issued 108,144,168,204,240 (24-36 h apart)."
+ },
+ "cert-renewal-rayner-16": {
+  "grade": "right",
+  "why": "LIMIT 5 per 168 h; EMISSION 33.6 h."
+ },
+ "cert-renewal-rayner-17": {
+  "grade": "right",
+  "why": "simulate 20 d fixed30: 264 renewals, 465 refused, first refused hour 84; default due at 13.3 days, 27 a year."
+ },
+ "cert-renewal-rayner-18": {
+  "grade": "right",
+  "why": "10-day interval renews 45 d cert at run 840 h (day 35) with 20 runs left; default day 30 with 30 runs."
+ },
+ "cert-renewal-rayner-19": {
+  "grade": "right",
+  "why": "Exemption needs replaces naming the predecessor (wfe.go:2258-2297); Certbot 5.8 order names none."
+ },
+ "cert-renewal-rayner-20": {
+  "grade": "right",
+  "why": "Certbot renewal.py:378-392 fetches the ARI answer for each run (4.1 and later)."
+ },
+ "cert-renewal-rayner-21": {
+  "grade": "right",
+  "why": "RUN_EVERY = 12 h from using.rst:965 \"0 0,12 * * *\"."
+ },
+ "ext4-space-method-01": {
+  "grade": "right",
+  "why": "Model/recorded ratios root/metadata 1.01, 2.99, 12.41."
+ },
+ "ext4-space-method-02": {
+  "grade": "right",
+  "why": "Recorded block counts 262144, 268435456, 5368709120."
+ },
+ "ext4-space-method-03": {
+  "grade": "right",
+  "why": "f_bavail shares 88.5/93.3/94.6%; unavailable 118.05 MiB, 68.36 GiB, 1106.5 GiB = 1.08 TiB ~ 1.1 TiB."
+ },
+ "ext4-space-method-04": {
+  "grade": "right",
+  "why": "Evidence takes df Avail as statfs f_bavail, consistent with recorded statfs."
+ },
+ "ext4-space-method-05": {
+  "grade": "right",
+  "why": "Recorded reserved 13107, 13421772, 268435456."
+ },
+ "ext4-space-method-06": {
+  "grade": "right",
+  "why": "blocks-f_bfree = 13019, 4495258, 21625887 = 5.0%, 1.7%, 0.40%."
+ },
+ "ext4-space-method-07": {
+  "grade": "right",
+  "why": "f_bfree-f_bavail = reserve + 4096 and users = free - both reserves, per model and recorded statfs."
+ },
+ "ext4-space-method-08": {
+  "grade": "right",
+  "why": "Model sizeType/INODE_RATIO: 16 KiB under 4 TiB, 32 KiB under 16 TiB, 64 KiB above; recorded inodes agree."
+ },
+ "ext4-space-method-09": {
+  "grade": "right",
+  "why": "Model inode counts 65536, 67108864, 335544320 and tables/shares match recorded counts."
+ },
+ "ext4-space-method-10": {
+  "grade": "right",
+  "why": "Journal table test: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB."
+ },
+ "ext4-space-method-11": {
+  "grade": "right",
+  "why": "Recorded journal sectors give 32 MiB, 1 GiB, 1 GiB."
+ },
+ "ext4-space-method-12": {
+  "grade": "right",
+  "why": "Model superGroups: 5 of 8, 19 of 8192, 25 of 163840 groups."
+ },
+ "ext4-space-method-13": {
+  "grade": "right",
+  "why": "Recorded reserved GDT 127 (1 GiB) and 1024 (1 TiB)."
+ },
+ "ext4-space-method-14": {
+  "grade": "right",
+  "why": "Model bitmaps = 2 x groups matches recorded overhead."
+ },
+ "ext4-space-method-15": {
+  "grade": "right",
+  "why": "Model other = 731, 38810, 392223; files 70, 519, 518 match debugfs counts."
+ },
+ "ext4-space-method-16": {
+  "grade": "right",
+  "why": "Model users at -m 5/1/0 equal recorded f_bavail for all three disks."
+ },
+ "ext4-space-method-17": {
+  "grade": "right",
+  "why": "Metadata share 5.0%, 1.7%, 0.40% with journal capped at 1 GiB and inode ratio 16/32/64 KiB; consistent with model and recorded runs."
+ },
+ "ext4-space-method-18": {
+  "grade": "right",
+  "why": "20 TiB: 268435456 blocks = 1 TiB, 12.41x; 1% = 53687091 blocks = 204.8 GiB, 2.48x."
+ },
+ "ext4-space-method-19": {
+  "grade": "right",
+  "why": "Recorded -m 1 reserved 2621/2684354/53687091 and f_bavail 242408/261251748/5293392046; gains follow."
+ },
+ "ext4-space-method-20": {
+  "grade": "right",
+  "why": "-m 0 recorded reserved 0; f_bavail = free - 4096 and the gains follow."
+ },
+ "ext4-space-method-21": {
+  "grade": "right",
+  "why": "Recorded -m 0 reserved block count 0, so no root-only reserve remains."
+ },
+ "ext4-space-method-22": {
+  "grade": "right",
+  "why": "2 GiB run: reserved 26214, blocks-free = 26284 (0.997x); journal 131072 sectors = 64 MiB, double 1 GiB."
+ },
+ "ext4-space-method-23": {
+  "grade": "right",
+  "why": "4 TiB metadata 8750621 vs 17138715 at 4194176M; f_bavail diff 8419223 blocks = 32.1 GiB."
+ },
+ "ext4-space-method-24": {
+  "grade": "right",
+  "why": "1 TiB -m 0 vs -m 5 f_bavail differ by 13421772 blocks = 51.2 GiB; 4495258+4096 remain."
+ },
+ "ext4-space-method-25": {
+  "grade": "unverifiable",
+  "why": "Only mkfs -m 0 was recorded, not tune2fs on an existing filesystem."
+ },
+ "ext4-space-method-26": {
+  "grade": "right",
+  "why": "Reserved blocks are counted in f_bfree (free) but withheld from f_bavail."
+ },
+ "ext4-space-method-27": {
+  "grade": "right",
+  "why": "inode_size 256 and recorded fixed inode counts set at mkfs."
+ },
+ "ext4-space-method-28": {
+  "grade": "right",
+  "why": "oracle.ts RUNS copy the model.test.ts RUNS values; method.test.ts requires the model to agree with them."
+ },
+ "ext4-space-plain-01": {
+  "grade": "right",
+  "why": "Model at 7,452/7,453 groups gives Size 915.8-915.9 GiB and Avail 869.2-869.3 GiB, which df -h rounds up to 916G/870G (df=statfs per the evidence)."
+ },
+ "ext4-space-plain-02": {
+  "grade": "right",
+  "why": "Model gives structures 1.685% of blocks, units 6.9%, root reserve 5%."
+ },
+ "ext4-space-plain-03": {
+  "grade": "right",
+  "why": "1e12/2^30=931.3, 1-0.9313=6.9%."
+ },
+ "ext4-space-plain-04": {
+  "grade": "unverifiable",
+  "why": "Evidence says no recorded value or pinned source covers df -h/-H units."
+ },
+ "ext4-space-plain-05": {
+  "grade": "right",
+  "why": "DEFAULT_RESERVE=5 (mke2fs.c:2375-2378); 1 TiB -m 5 run reserved 13421772 = 5%."
+ },
+ "ext4-space-plain-06": {
+  "grade": "unverifiable",
+  "why": "Nothing in the oracle covers resuid/resgid."
+ },
+ "ext4-space-plain-07": {
+  "grade": "right",
+  "why": "Evidence takes df Size/Used/Avail as statfs f_blocks, f_blocks-f_bfree, f_bavail, consistent with the recorded statfs values."
+ },
+ "ext4-space-plain-08": {
+  "grade": "right",
+  "why": "1 TiB run: f_bfree 263940198 includes reserved 13421772 but f_bavail 250514330 excludes it, so Size-Used != Avail."
+ },
+ "ext4-space-plain-09": {
+  "grade": "right",
+  "why": "5% of the 1 TB drive is 46.575 GiB (46.6 with the 16 MiB kernel reserve), about 47."
+ },
+ "ext4-space-plain-10": {
+  "grade": "unverifiable",
+  "why": "Only mkfs runs were recorded; nothing on tune2fs -m/-r or mounted changes."
+ },
+ "ext4-space-plain-11": {
+  "grade": "right",
+  "why": "Model structures are 1.685% of the label at 1 TB."
+ },
+ "ext4-space-plain-12": {
+  "grade": "right",
+  "why": "67108864 inodes x 256 B = 4194304 blocks of 268435456 = 1.56% (14.55/931.3 at the 1 TB drive)."
+ },
+ "ext4-space-plain-13": {
+  "grade": "right",
+  "why": "1 TiB run: journal 2097160 sectors = 262144 blocks + 1 extent block = 1 GiB."
+ },
+ "ext4-space-plain-14": {
+  "grade": "right",
+  "why": "Model: superblocks+descriptors+bitmaps 143 MiB = 0.015% of the label."
+ },
+ "ext4-space-plain-15": {
+  "grade": "right",
+  "why": "Model: 61,046,784 inodes and 14.55 GiB of inode tables at 7,452 groups."
+ },
+ "ext4-space-plain-16": {
+  "grade": "right",
+  "why": "Model: 143 MiB total = 19 copies x 1142 blocks (84.8 MiB) + bitmaps 58.2 MiB."
+ },
+ "ext4-space-plain-17": {
+  "grade": "right",
+  "why": "Model: root reserve 46.575 GiB + kernel 16 MiB = 46.59-46.60 GiB."
+ },
+ "ext4-space-plain-18": {
+  "grade": "unverifiable",
+  "why": "Partition table/alignment is outside the filesystem and the oracle."
+ },
+ "ext4-space-plain-19": {
+  "grade": "wrong",
+  "why": "Recorded f_blocks-f_bfree is 519 blocks (~2.0 MiB) at 1 TiB and 70 at 1 GiB, not 5 blocks (20K)."
+ },
+ "ext4-space-plain-20": {
+  "grade": "right",
+  "why": "Reserve 5.00% plus structures 1.685% = 6.685% ~ 6.7%."
+ },
+ "ext4-space-plain-21": {
+  "grade": "right",
+  "why": "1 TiB run: f_blocks 263940717 = blocks 268435456 - overhead 4494739."
+ },
+ "ext4-space-plain-22": {
+  "grade": "unverifiable",
+  "why": "No evidence on the minixdf mount option."
+ },
+ "ext4-space-plain-23": {
+  "grade": "right",
+  "why": "Overhead (everything the page calls metadata: tables, journal, superblocks, bitmaps) is subtracted from f_blocks, so blocks minus Size gives it; only the 519 file blocks (root, lost+found, orphan) appear in Used. Borderline on \"never\"."
+ },
+ "ext4-space-plain-24": {
+  "grade": "right",
+  "why": "f_bfree-f_bavail = 13,425,868 = root reserve + 4096 blocks (16 MiB), and kernel reserve = min(2%,4096)."
+ },
+ "ext4-space-plain-25": {
+  "grade": "unverifiable",
+  "why": "Evidence gives the 4096-block mount reserve but not that it is for delayed allocation."
+ },
+ "ext4-space-plain-26": {
+  "grade": "unverifiable",
+  "why": "Nothing recorded on Use% over 100% or root writing to a full disk."
+ },
+ "ext4-space-plain-27": {
+  "grade": "unverifiable",
+  "why": "df Use% formula is not covered by the oracle."
+ },
+ "ext4-space-plain-28": {
+  "grade": "right",
+  "why": "BLOCKS_PER_GROUP = 32768 (initialize.c:266); 32768x4096 = 128 MiB."
+ },
+ "ext4-space-plain-29": {
+  "grade": "right",
+  "why": "Model gives 7,452 groups for the 1 TB drive."
+ },
+ "ext4-space-plain-30": {
+  "grade": "right",
+  "why": "Recorded inodes per group 8192 x 256 B = 2 MiB = 1/64 of 128 MiB."
+ },
+ "ext4-space-plain-31": {
+  "grade": "right",
+  "why": "Two bitmap blocks per group = 8 KiB; matches recorded overhead."
+ },
+ "ext4-space-plain-32": {
+  "grade": "right",
+  "why": "Test: superGroups(130) = [0,1,3,5,7,9,25,27,49,81,125]; closefs.c sparse_super."
+ },
+ "ext4-space-plain-33": {
+  "grade": "right",
+  "why": "Model: 19 copies of 1+117+1024 blocks = 4.46 MiB each, with 1024 reserved GDT blocks."
+ },
+ "ext4-space-plain-34": {
+  "grade": "unverifiable",
+  "why": "Nothing in the oracle covers flex_bg packing of 16 groups."
+ },
+ "ext4-space-plain-35": {
+  "grade": "right",
+  "why": "inode_size=256 in mke2fs.conf.in; inode tables are counted in recorded overhead at format time."
+ },
+ "ext4-space-plain-36": {
+  "grade": "wrong",
+  "why": "Recorded runs show 32 KiB per inode at 4 TiB and 64 KiB at 20 TiB, so \"16 KiB (default) at every size\" is false."
+ },
+ "ext4-space-plain-37": {
+  "grade": "right",
+  "why": "Test table: journal 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; 64G run 512 MiB, 128G run 1 GiB."
+ },
+ "ext4-space-plain-38": {
+  "grade": "unverifiable",
+  "why": "Journal purpose is not covered by the oracle."
+ },
+ "ext4-space-plain-39": {
+  "grade": "unverifiable",
+  "why": "Nothing recorded on adding inodes, ENOSPC or df -i."
+ },
+ "ext4-space-plain-40": {
+  "grade": "unverifiable",
+  "why": "ext4lazyinit is not covered by the oracle."
+ },
+ "ext4-space-plain-41": {
+  "grade": "unverifiable",
+  "why": "Reserve purposes are not covered by the oracle."
+ },
+ "ext4-space-plain-42": {
+  "grade": "wrong",
+  "why": "Evidence quotes mke2fs.conf.in largefile inode_ratio = 1048576 (1 MiB), not 64 KiB (file itself not in the copy)."
+ },
+ "ext4-space-plain-43": {
+  "grade": "wrong",
+  "why": "Evidence quotes mke2fs.conf.in largefile4 inode_ratio = 4194304 (4 MiB), not 1 MiB (file itself not in the copy)."
+ },
+ "ext4-space-plain-44": {
+  "grade": "right",
+  "why": "Evidence quotes small and news inode_ratio = 4096 (conf file itself not in the copy)."
+ },
+ "ext4-space-plain-45": {
+  "grade": "right",
+  "why": "mke2fs.conf.in lines 2-14 as cited at model.ts:7-9: blocksize 4096, inode_size 256, features 64bit, flex_bg, sparse_super, resize_inode."
+ },
+ "ext4-space-plain-46": {
+  "grade": "unverifiable",
+  "why": "No evidence on commonly-sold drive capacities."
+ },
+ "ext4-space-rayner-01": {
+  "grade": "right",
+  "why": "Model/recorded ratios root/metadata 1.01, 2.99, 12.41."
+ },
+ "ext4-space-rayner-02": {
+  "grade": "right",
+  "why": "Recorded block counts 262144, 268435456, 5368709120."
+ },
+ "ext4-space-rayner-03": {
+  "grade": "right",
+  "why": "f_bavail/blocks = 88.5%, 93.3%, 94.6%; unavailable 118.05 MiB, 68.36 GiB, 1106.5 GiB."
+ },
+ "ext4-space-rayner-04": {
+  "grade": "right",
+  "why": "Evidence takes df Avail as statfs f_bavail, consistent with recorded statfs."
+ },
+ "ext4-space-rayner-05": {
+  "grade": "right",
+  "why": "Recorded reserved 13107, 13421772, 268435456."
+ },
+ "ext4-space-rayner-06": {
+  "grade": "right",
+  "why": "blocks-f_bfree = 13019, 4495258, 21625887 = 5.0%, 1.7%, 0.40%."
+ },
+ "ext4-space-rayner-07": {
+  "grade": "right",
+  "why": "f_bfree-f_bavail = reserve + 4096 and users = free - both reserves, per model and recorded statfs."
+ },
+ "ext4-space-rayner-08": {
+  "grade": "right",
+  "why": "Model sizeType/INODE_RATIO: 16 KiB under 4 TiB, 32 KiB under 16 TiB, 64 KiB above; recorded inodes agree."
+ },
+ "ext4-space-rayner-09": {
+  "grade": "right",
+  "why": "Model inode counts 65536, 67108864, 335544320 and tables/shares match recorded counts."
+ },
+ "ext4-space-rayner-10": {
+  "grade": "right",
+  "why": "Journal table test: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB."
+ },
+ "ext4-space-rayner-11": {
+  "grade": "right",
+  "why": "Recorded journal sectors give 32 MiB, 1 GiB, 1 GiB."
+ },
+ "ext4-space-rayner-12": {
+  "grade": "right",
+  "why": "Model superGroups: 5 of 8, 19 of 8192, 25 of 163840 groups."
+ },
+ "ext4-space-rayner-13": {
+  "grade": "right",
+  "why": "Recorded reserved GDT 127 (1 GiB) and 1024 (1 TiB)."
+ },
+ "ext4-space-rayner-14": {
+  "grade": "right",
+  "why": "Model bitmaps = 2 x groups matches recorded overhead."
+ },
+ "ext4-space-rayner-15": {
+  "grade": "right",
+  "why": "Model other = 731, 38810, 392223; files 70, 519, 518 match debugfs counts."
+ },
+ "ext4-space-rayner-16": {
+  "grade": "right",
+  "why": "Model users at -m 5/1/0 equal recorded f_bavail for all three disks."
+ },
+ "ext4-space-rayner-17": {
+  "grade": "right",
+  "why": "Metadata share 5.0%, 1.7%, 0.40% with journal capped at 1 GiB and inode ratio 16/32/64 KiB; consistent with model and recorded runs."
+ },
+ "ext4-space-rayner-18": {
+  "grade": "right",
+  "why": "20 TiB: 268435456 blocks = 1 TiB, 12.41x; 1% = 53687091 blocks = 204.8 GiB, 2.48x."
+ },
+ "ext4-space-rayner-19": {
+  "grade": "right",
+  "why": "Recorded -m 1 reserved 2621/2684354/53687091 and f_bavail 242408/261251748/5293392046; gains follow."
+ },
+ "ext4-space-rayner-20": {
+  "grade": "right",
+  "why": "-m 0 recorded reserved 0; f_bavail = free - 4096 and the gains follow."
+ },
+ "ext4-space-rayner-21": {
+  "grade": "unverifiable",
+  "why": "Only mkfs runs were recorded; nothing on tune2fs."
+ },
+ "ext4-space-rayner-22": {
+  "grade": "right",
+  "why": "Recorded -m 0 reserved block count 0, so no root-only reserve remains."
+ },
+ "ext4-space-rayner-23": {
+  "grade": "right",
+  "why": "2 GiB run: reserved 26214, blocks-free = 26284 (0.997x); journal 131072 sectors = 64 MiB, double 1 GiB."
+ },
+ "ext4-space-rayner-24": {
+  "grade": "right",
+  "why": "4 TiB metadata 8750621 vs 17138715 at 4194176M; f_bavail diff 8419223 blocks = 32.1 GiB."
+ },
+ "ext4-space-rayner-25": {
+  "grade": "right",
+  "why": "1 TiB -m 0 vs -m 5 f_bavail differ by 13421772 blocks = 51.2 GiB; 4495258+4096 remain."
+ },
+ "ext4-space-rayner-26": {
+  "grade": "unverifiable",
+  "why": "Only mkfs -m 0 was recorded, not tune2fs on an existing filesystem."
+ },
+ "ext4-space-rayner-27": {
+  "grade": "right",
+  "why": "Reserved blocks are counted in f_bfree (free) but withheld from f_bavail."
+ },
+ "ext4-space-rayner-28": {
+  "grade": "right",
+  "why": "inode_size 256 and recorded fixed inode counts set at mkfs."
+ },
+ "isdigit-method-01": {
+  "grade": "right",
+  "why": "Recorded: ² isdigit True, int ValueError."
+ },
+ "isdigit-method-02": {
+  "grade": "right",
+  "why": "Recorded int() values and ValueError rows."
+ },
+ "isdigit-method-03": {
+  "grade": "right",
+  "why": "Recorded rows give ٣ T,T,T; ² F,T,T; ½ F,F,T; Ⅻ F,F,T; 三 F,F,T."
+ },
+ "isdigit-method-04": {
+  "grade": "right",
+  "why": "Recorded int: ٣ -> 3, others ValueError."
+ },
+ "isdigit-method-05": {
+  "grade": "right",
+  "why": "Model rewrite (unicodeobject.c:9536-9553) and tests: U+3000 -> space, ٣ -> 3, ² -> ?."
+ },
+ "isdigit-method-06": {
+  "grade": "right",
+  "why": "Recorded: first four (3 ٣ ३ ３) pass int and isdecimal, ² adds isdigit, all eight isnumeric."
+ },
+ "isdigit-method-07": {
+  "grade": "right",
+  "why": "Fields 6/7/8 and makeunicodedata.py:595-603 masks as cited in model.ts:6-16."
+ },
+ "isdigit-method-08": {
+  "grade": "right",
+  "why": "UnicodeData rows: 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 ;;;; and Unihan kPrimaryNumeric 3."
+ },
+ "isdigit-method-09": {
+  "grade": "right",
+  "why": "Source: DIGIT_MASK from field 7, DECIMAL_MASK from field 6; int() rewrite uses field 6."
+ },
+ "isdigit-method-10": {
+  "grade": "right",
+  "why": "Scan counts 770, 898, 2023."
+ },
+ "isdigit-method-11": {
+  "grade": "right",
+  "why": "Nesting asserted by scan (isdecimal => isdigit => isnumeric)."
+ },
+ "isdigit-method-12": {
+  "grade": "right",
+  "why": "int count 770 equals isdecimal count and every int-accepted character was decimal."
+ },
+ "isdigit-method-13": {
+  "grade": "right",
+  "why": "Differences 770-770=0, 898-770=128, 2023-770=1253 from the recorded counts."
+ },
+ "isdigit-method-14": {
+  "grade": "right",
+  "why": "int count equals isdecimal count (770) while isdigit and isnumeric differ."
+ },
+ "isdigit-method-15": {
+  "grade": "right",
+  "why": "Test: int(U+3000 + \"7\") = 7."
+ },
+ "isdigit-method-16": {
+  "grade": "unverifiable",
+  "why": "Signs are outside the model; nothing recorded."
+ },
+ "isdigit-method-17": {
+  "grade": "unverifiable",
+  "why": "Underscores are outside the model; nothing recorded."
+ },
+ "isdigit-method-18": {
+  "grade": "right",
+  "why": "Test: U+3000 7 has isdigit False and int 7."
+ },
+ "isdigit-method-19": {
+  "grade": "right",
+  "why": "U+3000 is category Zs (UnicodeData line 11279) and the rewrite turns whitespace into a space."
+ },
+ "isdigit-method-20": {
+  "grade": "right",
+  "why": "Test: float(\"٣.5\") rewrites to \"3.5\" (3.5) and float(\"2.²\") rewrites to \"2.?\", python3 error \"could not convert string to float: '2.²'\"."
+ },
+ "isdigit-method-21": {
+  "grade": "right",
+  "why": "Test UNICODE_DATA lines 1598, 179, 190, 7719, 12349 and UNIHAN_LINE 29 match."
+ },
+ "isdigit-method-22": {
+  "grade": "right",
+  "why": "oracle.ts copies CPYTHON rows and counts 770/898/2023/770 from model.test.ts; model tested against them."
+ },
+ "isdigit-plain-01": {
+  "grade": "right",
+  "why": "Recorded CPython 3.15.1: ² -> isdigit True, int ValueError."
+ },
+ "isdigit-plain-02": {
+  "grade": "right",
+  "why": "Test: U+3000 then 7 has isdigit False but int() gives 7 (python3 rerun)."
+ },
+ "isdigit-plain-03": {
+  "grade": "right",
+  "why": "Scan counts isdecimal 770 <= isdigit 898 <= isnumeric 2023, int 770 = isdecimal; nesting asserted."
+ },
+ "isdigit-plain-04": {
+  "grade": "right",
+  "why": "Recorded: ٣ ३ ３ and 3 are True,True,True with int 3."
+ },
+ "isdigit-plain-05": {
+  "grade": "right",
+  "why": "Fixture of the 128 isdigit-not-isdecimal points lists U+00B2, 2082, 2083, 2460, 2461, 277C."
+ },
+ "isdigit-plain-06": {
+  "grade": "unverifiable",
+  "why": "Fixture lists Ethiopic/Kharoshthi/Brahmi digits but \"not positional\" use is not in the oracle."
+ },
+ "isdigit-plain-07": {
+  "grade": "right",
+  "why": "Recorded ½, Ⅻ, 三 are False,False,True; 五 has the same Unihan kPrimaryNumeric shape as 三."
+ },
+ "isdigit-plain-08": {
+  "grade": "unverifiable",
+  "why": "Nothing in the oracle covers why int() refuses ²."
+ },
+ "isdigit-plain-09": {
+  "grade": "right",
+  "why": "Test: int(U+3000 + \"7\") is 7, so surrounding whitespace is stripped."
+ },
+ "isdigit-plain-10": {
+  "grade": "unverifiable",
+  "why": "Signs are outside the model and no recorded value covers them."
+ },
+ "isdigit-plain-11": {
+  "grade": "unverifiable",
+  "why": "Underscores are outside the model and no recorded value covers them."
+ },
+ "isdigit-plain-12": {
+  "grade": "right",
+  "why": "Whitespace, sign and underscore have no field 7 (isdigit False for U+3000 7), so isdigit rejects them."
+ },
+ "isdigit-plain-13": {
+  "grade": "right",
+  "why": "Model rules and the recorded rows give the stated results for all listed inputs (fixture covers ① ₃ ፫ ² as isdigit-only; ٤٢ ３ 𝟕𝟕 decimal; 1² rewrites to \"?\"; \" 7 \" int 7)."
+ },
+ "isdigit-plain-14": {
+  "grade": "unverifiable",
+  "why": "int() grammar for \"3.5\" and \"\" is outside the model; no recorded value."
+ },
+ "isdigit-plain-15": {
+  "grade": "unverifiable",
+  "why": "Digit limit is outside the model."
+ },
+ "isdigit-plain-16": {
+  "grade": "unverifiable",
+  "why": "Regex \\d equivalence is not in the oracle."
+ },
+ "isdigit-plain-17": {
+  "grade": "right",
+  "why": "\"-\" and \" \" have no field 6, so isdecimal is False for \"-5\" and \" 5\"."
+ },
+ "isdigit-plain-18": {
+  "grade": "unverifiable",
+  "why": "isascii() is not in the oracle."
+ },
+ "isdigit-plain-19": {
+  "grade": "right",
+  "why": "Model: int() accepts exactly the decimals, rewriting each non-ASCII decimal to its field 6 digit, so an all-decimal string parses."
+ },
+ "isdigit-plain-20": {
+  "grade": "unverifiable",
+  "why": "Only the exception, not its message text, was recorded for strings of this form."
+ },
+ "isdigit-rayner-01": {
+  "grade": "right",
+  "why": "Recorded: ² isdigit True, int ValueError."
+ },
+ "isdigit-rayner-02": {
+  "grade": "right",
+  "why": "Recorded int() values and ValueError rows."
+ },
+ "isdigit-rayner-03": {
+  "grade": "right",
+  "why": "Recorded rows give ٣ T,T,T; ² F,T,T; ½ F,F,T; Ⅻ F,F,T; 三 F,F,T."
+ },
+ "isdigit-rayner-04": {
+  "grade": "right",
+  "why": "Recorded int: ٣ -> 3, others ValueError."
+ },
+ "isdigit-rayner-05": {
+  "grade": "right",
+  "why": "Model rewrite (unicodeobject.c:9536-9553) and tests: U+3000 -> space, ٣ -> 3, ² -> ?."
+ },
+ "isdigit-rayner-06": {
+  "grade": "right",
+  "why": "Recorded: first four (3 ٣ ३ ３) pass int and isdecimal, ² adds isdigit, all eight isnumeric."
+ },
+ "isdigit-rayner-07": {
+  "grade": "right",
+  "why": "Fields 6/7/8 and makeunicodedata.py:595-603 masks as cited in model.ts:6-16."
+ },
+ "isdigit-rayner-08": {
+  "grade": "right",
+  "why": "UnicodeData rows: 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 ;;;; and Unihan kPrimaryNumeric 3."
+ },
+ "isdigit-rayner-09": {
+  "grade": "right",
+  "why": "Source: DIGIT_MASK from field 7, DECIMAL_MASK from field 6; int() rewrite uses field 6."
+ },
+ "isdigit-rayner-10": {
+  "grade": "right",
+  "why": "Scan counts 770, 898, 2023."
+ },
+ "isdigit-rayner-11": {
+  "grade": "right",
+  "why": "Nesting asserted by scan (isdecimal => isdigit => isnumeric)."
+ },
+ "isdigit-rayner-12": {
+  "grade": "right",
+  "why": "int count 770 equals isdecimal count and every int-accepted character was decimal."
+ },
+ "isdigit-rayner-13": {
+  "grade": "right",
+  "why": "Differences 770-770=0, 898-770=128, 2023-770=1253 from the recorded counts."
+ },
+ "isdigit-rayner-14": {
+  "grade": "right",
+  "why": "int count equals isdecimal count (770) while isdigit and isnumeric differ."
+ },
+ "isdigit-rayner-15": {
+  "grade": "right",
+  "why": "Test: int(U+3000 + \"7\") = 7."
+ },
+ "isdigit-rayner-16": {
+  "grade": "unverifiable",
+  "why": "Signs are outside the model; nothing recorded."
+ },
+ "isdigit-rayner-17": {
+  "grade": "unverifiable",
+  "why": "Underscores are outside the model; nothing recorded."
+ },
+ "isdigit-rayner-18": {
+  "grade": "right",
+  "why": "Test: U+3000 7 has isdigit False and int 7."
+ },
+ "isdigit-rayner-19": {
+  "grade": "right",
+  "why": "U+3000 is category Zs (UnicodeData line 11279) and the rewrite turns whitespace into a space."
+ },
+ "isdigit-rayner-20": {
+  "grade": "right",
+  "why": "Test: float(\"٣.5\") rewrites to \"3.5\" (3.5) and float(\"2.²\") rewrites to \"2.?\", python3 error \"could not convert string to float: '2.²'\"."
+ },
+ "poppy-browser-method-01": {
+  "grade": "right",
+  "why": "Test 5.2: pageFetch carries the Session header with token null, so signed out even when signed in."
+ },
+ "poppy-browser-method-02": {
+  "grade": "unverifiable",
+  "why": "Evidence says the draft gives no numbers for redirect/error; 303 and 400 are the model's own choices, and 200 for other pages is the model's."
+ },
+ "poppy-browser-method-03": {
+  "grade": "right",
+  "why": "model.ts header: a browser sends cookies, not the agent's headers, so it needs its own way into the Session."
+ },
+ "poppy-browser-method-04": {
+  "grade": "right",
+  "why": "load(): the page holds a fresh code and sets the join cookie tying the code to the browser."
+ },
+ "poppy-browser-method-05": {
+  "grade": "right",
+  "why": "Join cookie is HttpOnly (pinned), so page scripts cannot read it."
+ },
+ "poppy-browser-method-06": {
+  "grade": "right",
+  "why": "Agent authorizes the code in its own request; submit succeeds only with the matching join cookie."
+ },
+ "poppy-browser-method-07": {
+  "grade": "right",
+  "why": "authorize(): checks Session header, scope poppy:browser-sign-in, code, then 204 recording Session, account and scopes."
+ },
+ "poppy-browser-method-08": {
+  "grade": "right",
+  "why": "Test: the token never appears in any browser state."
+ },
+ "poppy-browser-method-09": {
+  "grade": "right",
+  "why": "submit(): cookie must fit, code authorized and unused; first submission uses the code whatever the result; then Session cookie set."
+ },
+ "poppy-browser-method-10": {
+  "grade": "right",
+  "why": "Signed-in story: browse gives account A with the token's scopes; a join with a token replaces any earlier login."
+ },
+ "poppy-browser-method-11": {
+  "grade": "right",
+  "why": "Test 207-222: unscoped website, browser-sign-in allows everything the account can do, approved and flagged, issuer sets web.unscoped."
+ },
+ "poppy-browser-method-12": {
+  "grade": "right",
+  "why": "joinEffect table: no token leaves the login, a token replaces it, and after sign-in ends the earlier login does not come back."
+ },
+ "poppy-browser-method-13": {
+  "grade": "right",
+  "why": "Test 141-156: forged cross-site post carries no join cookie; __Host- prefix stops another host planting one."
+ },
+ "poppy-browser-method-14": {
+  "grade": "right",
+  "why": "Test: without the prefix the hijack works and browse gives the attacker's Session and account M."
+ },
+ "poppy-browser-method-15": {
+  "grade": "right",
+  "why": "Test 158-171: Company cannot tell a message-sourced code; agent declines; attacker's submission fails (no agent authorized the code)."
+ },
+ "poppy-browser-method-16": {
+  "grade": "right",
+  "why": "authorize without a token gives 204 with account null; browse after join shows no account."
+ },
+ "poppy-browser-method-17": {
+  "grade": "right",
+  "why": "Signed-out join: browse gives the Session with account null; signing in needs poppy:browser-sign-in (403 otherwise)."
+ },
+ "poppy-browser-method-18": {
+  "grade": "right",
+  "why": "Test: token without poppy:browser-sign-in gets 403 insufficient_scope; same code then authorized without token (204)."
+ },
+ "poppy-browser-method-19": {
+  "grade": "right",
+  "why": "Each of the five answers matches tests: forged form no cookie, message code declined/400, 403 then signed out, B->A signed in then out, fetch with Session header alone."
+ },
+ "poppy-browser-method-20": {
+  "grade": "right",
+  "why": "Test 40-44: ENDPOINT https://example.com/poppy/browser-session, AUTHORIZE_URL = endpoint + /authorize."
+ },
+ "poppy-browser-method-21": {
+  "grade": "right",
+  "why": "PAGE_RESPONSE cookie: __Host-poppy_join, HttpOnly, Secure, SameSite=Strict, maxAge 60."
+ },
+ "poppy-browser-method-22": {
+  "grade": "right",
+  "why": "SESSION_COOKIE = __Host-sb_session, the draft example's name."
+ },
+ "poppy-browser-method-23": {
+  "grade": "right",
+  "why": "Test: loading changes no Session and only the join cookie."
+ },
+ "poppy-browser-method-24": {
+  "grade": "right",
+  "why": "Test file header: draft read, not run, no reference implementation; tests pin the model to the draft's rules and examples."
+ },
+ "poppy-browser-plain-01": {
+  "grade": "unverifiable",
+  "why": "Nothing in the model or tests covers which things exist only as web pages."
+ },
+ "poppy-browser-plain-02": {
+  "grade": "right",
+  "why": "model.ts:5-14 and the test that no browser state ever holds the access token: the browser joins the Session, never gets the token."
+ },
+ "poppy-browser-plain-03": {
+  "grade": "wrong",
+  "why": "In the draft/model the Company mints the code on the browser-session page; the agent only authorizes it at {endpoint}/authorize (204), it is not minted for the agent via a join-code POST."
+ },
+ "poppy-browser-plain-04": {
+  "grade": "unverifiable",
+  "why": "Time is left out of the model; only the join cookie Max-Age 60 is pinned, not the code lifetime."
+ },
+ "poppy-browser-plain-05": {
+  "grade": "right",
+  "why": "Code authorized for a Session (grant sid), used once by first submitter, and fails without the matching join cookie (tests 86-140)."
+ },
+ "poppy-browser-plain-06": {
+  "grade": "right",
+  "why": "Step 3 test: submit with code and cookie gives 303 and a Session cookie whose grant is the same Session (SID)."
+ },
+ "poppy-browser-plain-07": {
+  "grade": "right",
+  "why": "browse(): the Session cookie makes requests the Session's, with its account and scopes, which the Company holds."
+ },
+ "poppy-browser-plain-08": {
+  "grade": "unverifiable",
+  "why": "Browser exposure and bearer-token properties are not pinned by the draft model."
+ },
+ "poppy-browser-plain-09": {
+  "grade": "right",
+  "why": "model.ts header: a browser sends cookies, not the agent's headers, so the web side joins via a cookie."
+ },
+ "poppy-browser-plain-10": {
+  "grade": "unverifiable",
+  "why": "Nothing pins that the API rejects cookies or the web ignores tokens."
+ },
+ "poppy-browser-plain-11": {
+  "grade": "unverifiable",
+  "why": "Session record contents (limits, audit log, end switch) are not in the model."
+ },
+ "poppy-browser-plain-12": {
+  "grade": "right",
+  "why": "Step 1 test: GET page, join cookie __Host-poppy_join HttpOnly Secure SameSite=Strict, no Session started or changed."
+ },
+ "poppy-browser-plain-13": {
+  "grade": "wrong",
+  "why": "The model's page shows the code itself; the Company pairs it with the join cookie, there is no hash challenge C = hash(J)."
+ },
+ "poppy-browser-plain-14": {
+  "grade": "right",
+  "why": "Same-site submit carries the join cookie and joins; a cross-site form carries none and fails (tests 113-156)."
+ },
+ "poppy-browser-plain-15": {
+  "grade": "right",
+  "why": "Step 3: checks cookie match, authorized and not submitted, marks code used, clears join cookie, sets Session cookie."
+ },
+ "poppy-browser-plain-16": {
+  "grade": "right",
+  "why": "browse(): the Session cookie maps the browser's requests to the Session."
+ },
+ "poppy-browser-plain-17": {
+  "grade": "right",
+  "why": "Test: access token never appears in any browser state; step 3 request is only cookie and code."
+ },
+ "poppy-browser-plain-18": {
+  "grade": "right",
+  "why": "Join cookie attributes HttpOnly, Secure, SameSite=Strict pinned; cross-site form carries no cookie (test 141-156)."
+ },
+ "poppy-browser-plain-19": {
+  "grade": "wrong",
+  "why": "Step 2 accepts the Session header alone (204, account null): the key (token) is not required to authorize a code."
+ },
+ "poppy-browser-plain-20": {
+  "grade": "unverifiable",
+  "why": "Only the cookie name __Host-sb_session is pinned; Lax and the other attributes are not."
+ },
+ "poppy-browser-plain-21": {
+  "grade": "right",
+  "why": "Browser.session holds a value the Company maps to the grant; no token or permissions in the browser."
+ },
+ "poppy-browser-plain-22": {
+  "grade": "unverifiable",
+  "why": "URL leakage of the code is not covered by the model."
+ },
+ "poppy-browser-plain-23": {
+  "grade": "right",
+  "why": "Test: a code submitted without its join cookie fails (400 \"the browser sent no join cookie\")."
+ },
+ "poppy-browser-plain-24": {
+  "grade": "unverifiable",
+  "why": "Scope of a copied Session cookie (website only, not API) is not pinned by the model tests."
+ },
+ "poppy-browser-plain-25": {
+  "grade": "unverifiable",
+  "why": "localStorage token risk is not covered by the model."
+ },
+ "poppy-browser-plain-26": {
+  "grade": "unverifiable",
+  "why": "SameSite=Lax on the Session cookie and CSRF on purchases are not pinned."
+ },
+ "poppy-browser-plain-27": {
+  "grade": "right",
+  "why": "Test: an attacker's authorized code posted from evil.example carries no join cookie and fails (400)."
+ },
+ "poppy-browser-plain-28": {
+  "grade": "unverifiable",
+  "why": "Audit logging under one Session is not covered by the model."
+ },
+ "poppy-browser-plain-29": {
+  "grade": "wrong",
+  "why": "Test: where the website cannot apply scopes, poppy:browser-sign-in allows everything the account can do (orders:write allowed with a read-only token), so the web side can get more than the key's scopes."
+ },
+ "poppy-browser-plain-30": {
+  "grade": "right",
+  "why": "SIGN_IN_ENDS (Session ends, User disconnects the agent...): the cookie stops acting for the account and the browser is signed out; no earlier login returns."
+ },
+ "poppy-browser-rayner-01": {
+  "grade": "right",
+  "why": "Test 5.2: pageFetch carries the Session header with token null, so signed out even when signed in."
+ },
+ "poppy-browser-rayner-02": {
+  "grade": "unverifiable",
+  "why": "Evidence says the draft gives no numbers for redirect/error; 303 and 400 are the model's own choices, and 200 for other pages is the model's."
+ },
+ "poppy-browser-rayner-03": {
+  "grade": "right",
+  "why": "model.ts header: a browser sends cookies, not the agent's headers, so it needs its own way into the Session."
+ },
+ "poppy-browser-rayner-04": {
+  "grade": "right",
+  "why": "web.disabled is a SHOULD NOT the protocol cannot enforce (browsingPlan comment and test)."
+ },
+ "poppy-browser-rayner-05": {
+  "grade": "right",
+  "why": "load(): the page holds a fresh code and sets the join cookie tying the code to the browser."
+ },
+ "poppy-browser-rayner-06": {
+  "grade": "right",
+  "why": "Join cookie is HttpOnly (pinned), so page scripts cannot read it."
+ },
+ "poppy-browser-rayner-07": {
+  "grade": "right",
+  "why": "Agent authorizes the code in its own request; submit succeeds only with the matching join cookie."
+ },
+ "poppy-browser-rayner-08": {
+  "grade": "right",
+  "why": "authorize(): checks Session header, scope poppy:browser-sign-in, code, then 204 recording Session, account and scopes."
+ },
+ "poppy-browser-rayner-09": {
+  "grade": "right",
+  "why": "Test: the token never appears in any browser state."
+ },
+ "poppy-browser-rayner-10": {
+  "grade": "right",
+  "why": "submit(): cookie must fit, code authorized and unused; first submission uses the code whatever the result; then Session cookie set."
+ },
+ "poppy-browser-rayner-11": {
+  "grade": "right",
+  "why": "Signed-in story: browse gives account A with the token's scopes; a join with a token replaces any earlier login."
+ },
+ "poppy-browser-rayner-12": {
+  "grade": "right",
+  "why": "Test 207-222: unscoped website, browser-sign-in allows everything the account can do, approved and flagged, issuer sets web.unscoped."
+ },
+ "poppy-browser-rayner-13": {
+  "grade": "right",
+  "why": "joinEffect table: no token leaves the login, a token replaces it, and after sign-in ends the earlier login does not come back."
+ },
+ "poppy-browser-rayner-14": {
+  "grade": "right",
+  "why": "Test 141-156: forged cross-site post carries no join cookie; __Host- prefix stops another host planting one."
+ },
+ "poppy-browser-rayner-15": {
+  "grade": "right",
+  "why": "Test: without the prefix the hijack works and browse gives the attacker's Session and account M."
+ },
+ "poppy-browser-rayner-16": {
+  "grade": "right",
+  "why": "Test 158-171: Company cannot tell a message-sourced code; agent declines; attacker's submission fails (no agent authorized the code)."
+ },
+ "poppy-browser-rayner-17": {
+  "grade": "right",
+  "why": "authorize without a token gives 204 with account null; browse after join shows no account."
+ },
+ "poppy-browser-rayner-18": {
+  "grade": "right",
+  "why": "Signed-out join: browse gives the Session with account null; signing in needs poppy:browser-sign-in (403 otherwise)."
+ },
+ "poppy-browser-rayner-19": {
+  "grade": "right",
+  "why": "Test: token without poppy:browser-sign-in gets 403 insufficient_scope; same code then authorized without token (204)."
+ },
+ "poppy-browser-rayner-20": {
+  "grade": "right",
+  "why": "Each of the five answers matches tests: forged form no cookie, message code declined/400, 403 then signed out, B->A signed in then out, fetch with Session header alone."
+ }
+}

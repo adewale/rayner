@@ -444,8 +444,69 @@ export class Animation extends AnimationTiming {
 /** A path's structure: its subpaths and their closed flags. */
 interface PathShape { subpaths: Float32Array[]; closed: boolean[] }
 
+/**
+ * How a Transform pairs the parts of its two pictures (see docs/MATCHING.md):
+ *
+ * - `'index'` (the default): the families pair by position, leaf for leaf, and each pair morphs.
+ * - `'key'`: by the keys the pictures' parts carry (`keyed()`), with the defaults of `{ by: 'key' }`.
+ * - `'text'`: glyphs by character, font and weight, in reading order first; any other part by shape.
+ * - `'shapes'`: parts with the same `shapeKey()`, the same path up to position and size.
+ * - `{ by: 'key', text?, unkeyed?, fallback? }`: by key, saying what a keyed Text whose words
+ *   change and what lies under no key do (see KeyMatch).
+ * - a function: your own key for each part (see MatchKey).
+ *
+ * Any match but 'index' pairs parts by what they are: a part with no partner fades out or in.
+ */
+export type Match = 'index' | 'key' | 'text' | 'shapes' | KeyMatch | MatchKey;
+
+/** Matching by the keys the pictures' parts carry, as `match: 'key'` does, with its choices spelled out. */
+export interface KeyMatch {
+  by: 'key';
+  /**
+   * A keyed Text whose words change: 'by-place' (default) morphs its glyphs place by
+   * place, as a readout's digits should; 'whole' pairs it only with the same words, so a
+   * relabelled part fades out and in, as a renamed state or event should.
+   */
+  text?: 'by-place' | 'whole';
+  /**
+   * Parts under no key below the root, without a fallback: 'fade' (default) pairs them with
+   * nothing, so they fade out and in; 'by-place' pairs each with the part at the same place in
+   * the other picture, as if the whole picture were one keyed component.
+   */
+  unkeyed?: 'fade' | 'by-place';
+  /** How parts under no key below the root pair, when given; it takes precedence over `unkeyed`. */
+  fallback?: MatchKey;
+}
+
 export interface TransformOptions extends AnimationOptions {
+  /**
+   * The scene holds `target` afterwards. Default false for a morph by index; true when parts are
+   * matched (the source ends holding faded parts and copies of the target's new ones) and with
+   * `fromCopy`, which refuses false.
+   */
   replace?: boolean;
+  /** How parts pair: by position in the family (`'index'`, the default) or by what they are (see Match). */
+  match?: Match;
+  /**
+   * A matched transform: pair runs of consecutive equal keys first, longest first, in family order
+   * (reading order for Text and Code). Default true for `match: 'text'`, false otherwise: text is
+   * where order is meaning; shapes in a diagram have no order and pair by distance alone.
+   */
+  ordered?: boolean;
+  /**
+   * A matched transform: unmatched parts in turn instead of together. The source's go over the first
+   * half, the target's come over the second, while matched parts morph throughout, so a part that
+   * leaves and one that takes its place (a word replaced by another) never overlap. Default false.
+   */
+  staged?: boolean;
+  /** A matched transform: unmatched parts fade (default). false: morph them into each other by index, fading only the leftovers. */
+  fadeMismatches?: boolean;
+  /**
+   * A copy of the mobject morphs into `target`, and the mobject stays where it is, unchanged; the
+   * scene holds `target` at the end. The copy is taken when the play begins, before any animation in
+   * the play begins, so it is the mobject as the play found it whatever the argument order. Default false.
+   */
+  fromCopy?: boolean;
 }
 
 /**
@@ -458,6 +519,10 @@ const UNKNOWN: KnownTarget = { owned: false, same: false };
 const OWN_COPY: KnownTarget = { owned: true, same: true };
 /** The key of what a Transform knows of its target as it begins: what it was made knowing, or what an engine subclass answers. */
 const knownAtBegin = Symbol('knownAtBegin');
+/** @internal The key of what a matched Transform's frames write (see MatchRows), fixed as it begins. */
+export const matchRows = Symbol('matchRows');
+/** The key of how a Transform pairs parts (see Matching). */
+const matching = Symbol('matching');
 
 /**
  * @internal A Transform the engine makes knowing its target (see KnownTarget): a target built for it
@@ -465,22 +530,72 @@ const knownAtBegin = Symbol('knownAtBegin');
  * either; each copies its target and aligns it.
  */
 export let knownTransform: (mobject: Mobject, target: Mobject, k: Partial<KnownTarget>, opts?: TransformOptions) => Transform;
+/** Take a fromCopy Transform's copy of its mobject now, for its next begin; a second call before it keeps the first copy. Nothing for any other Transform. */
+let takeCopyOf: (t: Transform) => void;
 
-/** Blend `mobject` into `target`. With replace=true, the scene keeps `target` afterwards. */
+/** @internal How a matched Transform pairs parts, fixed when it is made; null for a morph by index. */
+interface Matching { kind: Match; key: MatchKey; ordered: boolean; staged: boolean; fadeMismatches: boolean }
+
+/**
+ * Blend `mobject` into `target`: by default the two families pair leaf for leaf and each pair
+ * morphs; with `match`, parts pair by what they are, and a part with no partner fades (see Match and
+ * docs/MATCHING.md). With `replace`, the scene holds `target` afterwards. With `fromCopy`, a copy of
+ * `mobject` morphs and `mobject` stays. With `'saved'` as the target, `mobject` returns to the state
+ * `saveState()` stored, read as the play begins:
+ *
+ *   box.saveState();
+ *   await this.play(box.animate.setFill(look.bad).scale(1.5));
+ *   await this.play(new Transform(box, 'saved'));
+ *
+ * When that play ends (with a rate function that ends at 1), the mobject equals the saved state
+ * exactly, in points, style and structure, as `restore()` would leave it.
+ *
+ * A matched transform reports what it paired once it has begun: `pairs`, `morphed`, `removed`,
+ * `added` and `summary()`, and records them as the step's `match` evidence.
+ */
 export class Transform extends Animation {
   target: Mobject;
   readonly replace: boolean;
+  /** How it pairs parts: 'index', unless made with another `match`. */
+  readonly match: Match;
+  // Set by begin() when parts are matched, in source order: [source part, target part]
+  /** Parts paired by key. */
+  pairs!: Array<[Mobject, Mobject]>;
+  /** Unmatched parts morphed by index (fadeMismatches: false). */
+  morphed!: Array<[Mobject, Mobject]>;
+  /** Source parts that fade out. */
+  removed!: Mobject[];
+  /** Target parts that fade in (as copies inside the source). */
+  added!: Mobject[];
+  /** @internal What a matched transform's frames write, fixed as it begins. */
+  [matchRows]!: MatchRows;
+  /** @internal How parts pair, or null for a morph by index. */
+  readonly [matching]: Matching | null;
   /** What the engine that made it knows of its target (see knownTransform). */
   #known: KnownTarget = UNKNOWN;
   /** The target it morphs toward, fixed as it begins: the target itself when owned, else a copy. */
   #targetCopy!: Mobject;
   /** Path structure of the mobject and target families before alignment, restored as it finishes. */
   #shapes: WeakMap<Mobject, PathShape> | null = null;
+  /** With fromCopy: the mobject whose copy morphs, and the copy taken for the next begin, or null. */
+  readonly #source: Mobject | null;
+  #taken: Mobject | null = null;
+  /** With 'saved': whether it returns to the saved state; the state this run returns to and whether nothing structural changed since the save, read as it begins. */
+  readonly #toSaved: boolean;
+  #state!: Mobject;
+  #same = false;
 
-  constructor(mobject: Mobject, target: Mobject, { replace = false, ...opts }: TransformOptions = {}) {
-    super(mobject, opts);
-    this.target = target;
-    this.replace = replace;
+  constructor(mobject: Mobject, target: Mobject | 'saved', { replace, match = 'index', ordered, staged = false, fadeMismatches = true, fromCopy = false, ...opts }: TransformOptions = {}) {
+    super(fromCopy ? new Group() : mobject, opts);
+    const key = keyOfMatch(match);
+    this.#toSaved = target === 'saved';
+    if (this.#toSaved && (key || fromCopy || replace)) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop ${key ? '`match`' : fromCopy ? '`fromCopy`' : '`replace`'}`);
+    if (fromCopy && replace === false) throw new Error('new Transform(): with fromCopy the copy hands over to the target, so the scene holds the target; drop `replace: false`');
+    this.target = target === 'saved' ? mobject : target;
+    this.replace = replace ?? (key !== null || fromCopy);
+    this.match = match;
+    this[matching] = key && { kind: match, key, ordered: ordered ?? match === 'text', staged, fadeMismatches };
+    this.#source = fromCopy ? mobject : null;
   }
   static {
     knownTransform = (mobject, target, k, opts) => {
@@ -488,20 +603,49 @@ export class Transform extends Animation {
       t.#known = { ...UNKNOWN, ...k };
       return t;
     };
+    takeCopyOf = (t) => {
+      if (!t.#source || t.#taken) return;
+      t.#taken = t.#source.copy();
+      const from = t.#source.family();
+      t.#taken.family().forEach((m, i) => { if (from[i]) copiedFrom.set(m, from[i]); });
+    };
   }
 
-  /** @internal What it knows of its target as it begins: what it was made knowing, unless an engine subclass that builds its target says otherwise. */
-  [knownAtBegin](): KnownTarget { return this.#known; }
+  /** @internal What it knows of its target as it begins: what it was made knowing, unless an engine subclass that builds its target says otherwise. A fresh copy of the saved state is its own, and needs no alignment if nothing structural changed since the save. */
+  [knownAtBegin](): KnownTarget { return this.#toSaved ? { owned: true, same: this.#same } : this.#known; }
 
   /** @internal */ override [paintTargets](): Mobject[] { return [this.mobject, this.target]; }
 
+  /** What a matched transform paired, once begun: how many parts were matched, morphed, faded out and faded in. null for a morph by index. */
+  summary(): MatchSummary | null {
+    if (!this[matching]) return null;
+    return { matched: this.pairs.length, morphed: this.morphed.length, removed: this.removed.length, added: this.added.length };
+  }
+
+  /** What play() records once a matched transform has begun: the counts, as `match` evidence. None for a morph by index. */
+  override evidence(): Evidence | null {
+    const summary = this.summary();
+    return summary && { kind: 'match', ...summary };
+  }
+
   protected override doBegin(): void {
+    if (this.#source) {
+      takeCopyOf(this);
+      this.mobject = this.#taken!; this.#taken = null;
+    }
+    if (this.#toSaved) {
+      const saved = savedState(this.mobject), api = "new Transform(m, 'saved')";
+      if (!saved) throw new Error(`${api}: ${mobjectName(this.mobject)} has no saved state; call m.saveState() first`);
+      this.#state = saved;
+      this.target = saved.copy(); this.#same = this.mobject.sameShapeAs(saved, true);
+    }
+    this.#shapes = null;
+    if (this[matching]) { beginMatching(this, this[matching]); return; }
     // An animation that built its own target (FadeIn, .animate) hands it
     // over as is: nothing else holds it, so copying it again is pure cost. And a
     // target that is a copy of the mobject needs no alignment: same structure.
     const { owned, same } = this[knownAtBegin]();
     const copy = this.#targetCopy = owned ? this.target : this.target.copy();
-    this.#shapes = null;
     if (!same) {
       // Families first, so the shapes recorded include any path alignFamily moved into a child of its own
       this.mobject[alignFamily](copy);
@@ -516,15 +660,28 @@ export class Transform extends Animation {
     super.doBegin();
   }
 
+  protected override doInterpolate(alpha: number): void {
+    if (this[matching]) interpolateMatching(this, alpha);
+    else super.doInterpolate(alpha);
+  }
+
   /**
    * Alignment pads paths with point-sized subpaths and extra curves so both ends
    * interpolate. Finishing exactly on an end gives each path that end's own
    * structure back: the same geometry, with no zero-length subpaths left over
-   * (a stroked one draws a dot with round caps).
+   * (a stroked one draws a dot with round caps). A return to the saved state
+   * ends on the saved data itself: same picture, exact data.
    */
   protected override doFinish(alpha?: number): void {
     const a = alpha ?? this.rateFunc(1);
     super.doFinish(a);
+    this.#restoreShapes(a);
+    // Alignment may have subdivided curves or added null children on the way back: end on the saved data itself.
+    if (this.#toSaved && a === 1) adoptState(this.mobject, this.#state);
+  }
+
+  /** Give each path the structure of the end it finished on, `a` (see doFinish). */
+  #restoreShapes(a: number): void {
     const shapes = this.#shapes;
     if (!shapes || (a !== 1 && a !== 0)) return;
     const unrestored: FamilyRow[] = [];
@@ -578,7 +735,7 @@ function fromAnimateBuilder(builder: AnimateBuilderBase): Transform {
   return knownTransform(builder.mobject, builder.buildTarget(), { owned: true });
 }
 
-export interface FadeOptions extends TransformOptions { shift?: Vec | null; scale?: number }
+export interface FadeOptions extends AnimationOptions { replace?: boolean; shift?: Vec | null; scale?: number }
 
 export class FadeIn extends Transform {
   readonly #shift: Vec | null;
@@ -628,32 +785,6 @@ export class FadeOut extends Transform {
     if (isRemover(this)) { super.doFinish(0); return; }
     super.doFinish(alpha);
     for (const [m, start] of this[families]) m!.style.opacity = start!.style.opacity;
-  }
-}
-
-export interface GrowFromEdgeOptions extends AnimationOptions {
-  /** Nonzero by default to keep the starting path nondegenerate; in [0, 1]. */
-  initialScale?: number;
-}
-
-/** Fade in while expanding along one axis from a fixed cardinal edge. */
-export class GrowFromEdge extends FadeIn {
-  readonly edge: Vec;
-  readonly #axis: 0 | 1;
-  readonly #initialScale: number;
-
-  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOptions = {}) {
-    if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
-      Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
-      throw new TypeError('new GrowFromEdge(): the edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
-    if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
-      throw new RangeError('new GrowFromEdge(): initialScale must be a number from 0 to 1');
-    super(mobject, opts);
-    this.edge = [edge[0], edge[1]]; this.#axis = edge[0] === 0 ? 1 : 0; this.#initialScale = initialScale;
-  }
-
-  /** @internal */ override [startingCopy](): Mobject {
-    return super[startingCopy]().stretch(this.#initialScale, this.#axis, { aboutEdge: this.edge });
   }
 }
 
@@ -906,35 +1037,6 @@ export class MoveAlongPath extends Animation {
   }
 }
 
-/** Travel along a fixed route while fading in and out; remove the token by default. */
-export class PulseAlongPath extends MoveAlongPath {
-  readonly #sourcePath: VMobject;
-
-  constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOptions = {}) {
-    super(mobject, path, { rateFunc: linear, remover: true, ...opts });
-    this.#sourcePath = path;
-  }
-
-  protected override doBegin(): void {
-    // The path, like the starting geometry, is fixed when the play begins.
-    this.path = this.#sourcePath.copy();
-    super.doBegin();
-  }
-
-  protected override doInterpolate(alpha: number): void {
-    super.doInterpolate(alpha);
-    const opacity = Math.sin(Math.PI * alpha);
-    for (const [sub, start] of this[families]) sub!.style.opacity = start!.style.opacity * opacity;
-  }
-
-  /** @internal */
-  override [cleanUp](scene: Scene): void {
-    super[cleanUp](scene);
-    // A removed token can be used again without inheriting its invisible end.
-    if (isRemover(this)) for (const [sub, start] of this[families]) sub!.style.opacity = start!.style.opacity;
-  }
-}
-
 // ---- emphasis ----
 
 export interface CircumscribeOptions extends AnimationOptions {
@@ -1036,95 +1138,19 @@ function circleAround(target: Mobject | Box, buff: number, style: { stroke?: str
   return new Circle({ radius, fill: 'none', ...style }).shift(center(b));
 }
 
-// ---- restore, copies, sequencing ----
+// ---- copies, sequencing ----
 
-/**
- * Transform a mobject back to the state saveState() stored:
- *
- *   box.saveState();
- *   await this.play(box.animate.setFill(RED).scale(1.5));
- *   await this.play(new Restore(box));
- *
- * The saved state is read when the play begins. When it ends (with a rate
- * function that ends at 1), the mobject equals the saved state exactly, in
- * points, style and structure, as restore() would leave it.
- */
-export class Restore extends Transform {
-  /** The saved state this run returns to, read as it begins. */
-  #state!: Mobject;
-  /** Whether nothing structural changed since the save, read as it begins. */
-  #same = false;
-
-  constructor(mobject: Mobject, opts: Omit<TransformOptions, 'replace'> = {}) { super(mobject, mobject, opts); }
-
-  /** @internal A fresh copy is this animation's alone; it needs no alignment if nothing structural changed since the save. */
-  override [knownAtBegin](): KnownTarget { return { owned: true, same: this.#same }; }
-
-  protected override doBegin(): void {
-    const saved = savedState(this.mobject);
-    if (!saved) throw new Error(`new Restore(): ${mobjectName(this.mobject)} has no saved state; call m.saveState() first`);
-    this.#state = saved;
-    this.target = saved.copy(); this.#same = this.mobject.sameShapeAs(saved, true);
-    super.doBegin();
-  }
-
-  protected override doFinish(): void {
-    super.doFinish();
-    // Alignment may have subdivided curves or added null children on the way: end
-    // on the saved data itself. Same picture, exact data.
-    if (this.rateFunc(1) === 1) adoptState(this.mobject, this.#state);
-  }
-}
-
-/** The key of TransformFromCopy's copy of its source, taken before anything in its play begins (see takeCopies). */
-const takeCopy = Symbol('takeCopy');
-
-/**
- * A copy of `source` morphs into `target`: `source` stays where it is,
- * unchanged, and the scene holds `target` at the end (the copy hands over to
- * it, as with `replace`). The copy is made when the play begins, before any
- * animation in the play begins (see takeCopies), so it is `source` as the
- * play found it whatever the argument order; until then `mobject` is an empty
- * placeholder, so the copy, a different mobject from `source`, conflicts with
- * nothing: `play(new TransformFromCopy(a, b), a.animate.scale(1.2))` and
- * `play(new Create(a), new TransformFromCopy(a, b))` are fine.
- */
-export class TransformFromCopy extends Transform {
-  readonly source: Mobject;
-  /** The copy taken for the next begin, or null. */
-  #taken: Mobject | null = null;
-
-  constructor(source: Mobject, target: Mobject, opts: Omit<TransformOptions, 'replace'> = {}) {
-    super(new Group(), target, { ...opts, replace: true });
-    this.source = source;
-  }
-
-  /** @internal Copy the source now, for the next begin; a second call before it keeps the first copy. */
-  [takeCopy](): void {
-    if (this.#taken) return;
-    this.#taken = this.source.copy();
-    const from = this.source.family();
-    this.#taken.family().forEach((m, i) => { if (from[i]) copiedFrom.set(m, from[i]); });
-  }
-
-  protected override doBegin(): void {
-    this[takeCopy]();
-    this.mobject = this.#taken!; this.#taken = null;
-    super.doBegin();
-  }
-}
-
-/** Each part of a TransformFromCopy's copy, to the part of the source it copies: the motion verifier's provenance. */
+/** Each part of a fromCopy Transform's copy, to the part of the source it copies: the motion verifier's provenance. */
 export const copiedFrom = new WeakMap<Mobject, Mobject>();
 
 /**
- * Make every TransformFromCopy's copy in `anims` (nested in groups too, and a
+ * Make every fromCopy Transform's copy in `anims` (nested in groups too, and a
  * Succession's first member, which begins with the play) before any of them
  * begins: another animation's begin() may change the source (Create hides it).
  */
 export function takeCopies(anims: readonly ScheduledAnimation[]): void {
   for (const a of anims) {
-    if (a instanceof TransformFromCopy) a[takeCopy]();
+    if (a instanceof Transform) takeCopyOf(a);
     else if (a instanceof Succession) takeCopies(membersOf(a).slice(0, 1));
     else if (a instanceof AnimationGroup) takeCopies(membersOf(a));
   }
@@ -1838,23 +1864,6 @@ import type { Evidence } from './scene.ts';
  */
 export type MatchKey = (part: Mobject, root: Mobject) => string | undefined;
 
-export interface MatchByKeyOptions {
-  /** How parts under no key below the root pair, when given; it takes precedence over `unkeyed`. */
-  fallback?: MatchKey;
-  /**
-   * Parts under no key below the root, without a fallback: 'fade' (default) pairs them with
-   * nothing, so they fade out and in; 'by-place' pairs each with the part at the same place in
-   * the other picture, as if the whole picture were one keyed component.
-   */
-  unkeyed?: 'fade' | 'by-place';
-  /**
-   * A keyed Text whose words change: 'by-place' (default) morphs its glyphs place by
-   * place, as a readout's digits should; 'whole' pairs it only with the same words, so a
-   * relabelled part fades out and in, as a renamed state or event should.
-   */
-  text?: 'by-place' | 'whole';
-}
-
 /**
  * Pair parts by the keys their author gave (`mobject.key`). A part inside a
  * keyed container pairs with the part at the same place inside the container
@@ -1864,9 +1873,9 @@ export interface MatchByKeyOptions {
  * Anything under no key below the root pairs by `fallback`, by default not at
  * all. The root's own key, and keys above it, are not read: they would make
  * every part the same component. A key two containers share pairs by distance,
- * as any repeated key does. `View.sync({ match: 'key' })` uses the defaults.
+ * as any repeated key does. `match: 'key'` uses the defaults.
  */
-export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: MatchByKeyOptions = {}): MatchKey {
+function keyMatcher({ fallback, unkeyed = 'fade', text = 'by-place' }: Omit<KeyMatch, 'by'>): MatchKey {
   return (part, root) => {
     const path: number[] = [];
     let under = false;
@@ -1884,26 +1893,18 @@ export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: Ma
   };
 }
 
-export interface MatchingOptions extends TransformOptions {
-  /** Unmatched parts fade (default). false: morph them into each other by index, fading only the leftovers. */
-  fadeMismatches?: boolean;
-  /**
-   * Pair runs of consecutive equal keys first, longest first, in family order
-   * (reading order for Text and Code). For text, where order is meaning; shapes
-   * in a diagram have no order and pair by distance alone.
-   */
-  ordered?: boolean;
-  /**
-   * Unmatched parts in turn instead of together: the source's go over the first half, the
-   * target's come over the second, while matched parts morph throughout. A part that leaves and
-   * one that takes its place (a word replaced by another) never overlap. Default false.
-   */
-  staged?: boolean;
+/** The key a match pairs parts by, or null for 'index'; refuses anything that is not a Match. */
+function keyOfMatch(match: Match): MatchKey | null {
+  if (match === 'index') return null;
+  if (match === 'key') return keyMatcher({});
+  if (match === 'text') return textKeyOf;
+  if (match === 'shapes') return shapeKeyOf;
+  if (typeof match === 'function') return match;
+  if (match !== null && typeof match === 'object' && match.by === 'key') return keyMatcher(match);
+  throw new RangeError(`new Transform(): match is ${typeof match === 'string' ? JSON.stringify(match) : String(match)}; give 'index', 'key', 'text', 'shapes', { by: 'key', ... } or a function from a part to its key`);
 }
 
-export interface TransformMatchingOptions extends MatchingOptions { key: MatchKey }
-
-/** What a TransformMatching did with each part; see TransformMatching.summary(). */
+/** What a matched Transform did with each part; see Transform.summary(). */
 export interface MatchSummary { matched: number; morphed: number; removed: number; added: number }
 
 /** A matched (or morphed) part: it blends from `start` into `end`, both fixed at begin(). */
@@ -1911,7 +1912,7 @@ interface MoveRow { sub: Mobject; start: Mobject; end: Mobject }
 /**
  * An unmatched part, scaled between its full size (`pts`) and the point
  * (tx, ty) as it fades: where it shrinks to, or grows from. With `ride`, its
- * center at full size (a glyph of a Text line, in TransformMatchingText), the
+ * center at full size (a glyph of a Text line, matched by 'text'), the
  * center rides with the line instead, between that center and (tx, ty) as the
  * whole animation runs, and the part scales about it as its own (lagged) share
  * runs: a lagged glyph waits inside its line, not where the line was.
@@ -1922,23 +1923,7 @@ interface FrameRow { node: Mobject; from: Float32Array[]; to: Float32Array[]; st
 /** Where a source frame's contents go: p -> k * p + (bx, by). */
 interface Carry { k: number; bx: number; by: number }
 
-/**
- * A Transform that pairs parts by key instead of by position in the family.
- * The parts of each side are its drawable pieces: every visible VMobject that
- * has points (a Text's glyphs, an Arrow's line and tip; not a Text's advance
- * box). Parts with equal keys pair up, by least total distance when a key
- * occurs more than once, and each pair morphs like a Transform. A source part
- * with no partner shrinks and fades out, a target part with no partner grows
- * and fades in, both carried along with the matched parts around them.
- *
- * One animation of the source: the pairing is computed at begin(), and the
- * target's unmatched parts are copied into the source (into the container that
- * corresponds to theirs), so play() sees one mobject and the scene draws
- * everything that moves. With `replace` (the default) the scene holds `target`
- * afterwards, as with manim's TransformMatchingShapes. The target is never
- * modified. See docs/MATCHING.md.
- */
-/** What a TransformMatching's frames write, fixed as it begins. */
+/** What a matched Transform's frames write, fixed as it begins. */
 interface MatchRows {
   moves: MoveRow[];
   fadesOut: FadeRow[];
@@ -1947,209 +1932,178 @@ interface MatchRows {
   /** The source family after the copies were attached: whose boxes go stale each frame. */
   touched: Mobject[];
 }
-/** @internal The key of what a TransformMatching's frames write (see MatchRows), fixed as it begins. */
-export const matchRows = Symbol('matchRows');
-
-export class TransformMatching extends Animation {
-  readonly target: Mobject;
-  key: MatchKey;
-  readonly #fadeMismatches: boolean;
-  readonly ordered: boolean;
-  readonly replace: boolean;
-  readonly staged: boolean;
-  // Set by begin(), in source order: [source part, target part]
-  /** Parts paired by key. */
-  pairs!: Array<[Mobject, Mobject]>;
-  /** Unmatched parts morphed by index (fadeMismatches: false). */
-  morphed!: Array<[Mobject, Mobject]>;
-  /** Source parts that fade out. */
-  removed!: Mobject[];
-  /** Target parts that fade in (as copies inside the source). */
-  added!: Mobject[];
-  /** @internal What its frames write, fixed as it begins. */
-  [matchRows]!: MatchRows;
-
-  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, replace = true, staged = false, ...opts }: TransformMatchingOptions) {
-    super(mobject, opts);
-    this.target = target; this.key = key; this.#fadeMismatches = fadeMismatches; this.ordered = ordered;
-    this.replace = replace; this.staged = staged;
-  }
-
-  /** @internal */ override [paintTargets](): Mobject[] { return [this.mobject, this.target]; }
-
-  /** How many parts were matched, morphed, faded out and faded in. */
-  summary(): MatchSummary {
-    return { matched: this.pairs.length, morphed: this.morphed.length, removed: this.removed.length, added: this.added.length };
-  }
-
-  /** What play() records once this has begun: the counts, as `match` evidence. */
-  override evidence(): Evidence { return { kind: 'match', ...this.summary() }; }
-
-  protected override doBegin(): void {
-    const src = this.mobject, tgt = this.target;
-    const sParts = partsOf(src), tParts = partsOf(tgt);
-    // Containers with points of their own (Text, whose advance box is a point
-    // array) are frames: a glyph belongs to its line. Each target frame takes
-    // the source frame most of its matched parts come from, so a line's advance
-    // box travels with its glyphs and a new glyph joins the line it ends up in.
-    const sFrames = framesOf(src), tFrames = framesOf(tgt);
-    const frameOfS = (p: Mobject) => frameOf(p, src), frameOfT = (p: Mobject) => frameOf(p, tgt);
-    const sIndex = new Map(sFrames.map((f, i) => [f, i])), tIndex = new Map(tFrames.map((f, i) => [f, i]));
-    const sf = Int32Array.from(sParts, (p) => sIndex.get(frameOfS(p))!), tf = Int32Array.from(tParts, (p) => tIndex.get(frameOfT(p))!);
-    const toSource = new Map<Mobject, Mobject>([[tgt, src]]);
-    const mapFrames = (pairOf: Int32Array): void => {
-      const votes = new Map<number, number>();
-      pairOf.forEach((j, i) => { if (j >= 0) { const k = sf[i]! * tFrames.length + tf[j]!; votes.set(k, (votes.get(k) ?? 0) + 1); } });
-      const mapped = new Set<Mobject>(toSource.values());
-      for (const [k] of [...votes].sort((a, b) => b[1] - a[1] || a[0] - b[0])) {
-        const fs = sFrames[Math.floor(k / tFrames.length)]!, ft = tFrames[k % tFrames.length]!;
-        if (!toSource.has(ft) && !mapped.has(fs)) { toSource.set(ft, fs); mapped.add(fs); }
-      }
-    };
-    // Ordered: runs pair first and decide which line is which; a lone leftover
-    // then pairs only within its own line, so stray letters do not fly across
-    // the text (and each line stays one piece, the way MotionSink sees a Text)
-    const pairOf = matchParts(sParts, tParts, [src, tgt], this.key, this.ordered, (runs) => {
-      mapFrames(runs);
-      return [sf, Int32Array.from(tf, (f) => sIndex.get(toSource.get(tFrames[f]!)!) ?? -1)];
-    });
-    if (!this.ordered) mapFrames(pairOf);
-    const taken = new Set(pairOf), removed = sParts.filter((_, i) => pairOf[i]! < 0), added = tParts.filter((_, j) => !taken.has(j));
-    const m = this.#fadeMismatches ? 0 : Math.min(removed.length, added.length);
-    this.pairs = sParts.flatMap((s, i): Array<[Mobject, Mobject]> => (pairOf[i]! >= 0 ? [[s, tParts[pairOf[i]!]!]] : []));
-    this.morphed = removed.slice(0, m).map((s, i) => [s, added[i]!]);
-    this.removed = removed.slice(m);
-    this.added = added.slice(m);
-    // A frame follows morphed contents too. With no equal glyph shapes (for
-    // example, an anisotropically compressed label), matched-only votes leave
-    // its transform metadata behind while its glyphs move to the target.
-    if (m) {
-      const withMorphs = pairOf.slice();
-      for (const [s, t] of this.morphed) withMorphs[sParts.indexOf(s)] = tParts.indexOf(t);
-      mapFrames(withMorphs);
-    }
-    const linked = [...this.pairs, ...this.morphed];
-    // Where each source frame's contents go: scaled as its advance box scales
-    // (a font size change), translated by the median move of its matched parts
-    const carry = new Map<Mobject, Carry>();
-    for (const [ft, fs] of toSource) {
-      const hs = ownHeight(fs), ht = ownHeight(ft);
-      const k = hs > 1e-9 && ht > 1e-9 && !(fs instanceof VMobjectClass) ? ht / hs : 1;
-      const ds = linked.filter(([s, t]) => frameOfS(s) === fs && frameOfT(t) === ft).map(([s, t]) => {
-        const a = ownCenter(s), b = ownCenter(t);
-        return [b[0] - k * a[0], b[1] - k * a[1]] as Vec;
-      });
-      const [bx, by] = ds.length ? median(ds) : V.sub(ft.center(), V.mul(fs.center(), k));
-      carry.set(fs, { k, bx, by });
-    }
-
-    // Endpoints. Copies only of single parts and frames, never of subtrees.
-    const fadesOut = this.removed.map((s): FadeRow => {
-      const c = ownCenter(s), { k, bx, by } = carry.get(frameOfS(s)) ?? IDENTITY;
-      return { sub: s, pts: s.pointArrays().map((a) => a.slice()), opacity: s.style.opacity, tx: k * c[0] + bx, ty: k * c[1] + by };
-    });
-    const moves = linked.map(([s, t]): MoveRow => {
-      const end = bare(t);
-      s[alignData](end);
-      return { sub: s, start: bare(s), end };
-    });
-    const frames: FrameRow[] = [];
-    for (const [ft, fs] of toSource) {
-      if (fs instanceof VMobjectClass || ft instanceof VMobjectClass) continue; // a path's points are a part's
-      const targetFrame = ft[matchingFrameFor](fs);
-      const from = fs.pointArrays(), to = targetFrame.pointArrays();
-      if (fs.pointKind() !== targetFrame.pointKind()) {
-        // A metadata-only source may explicitly normalize another frame kind.
-        // Native geometry never treats an unrelated equal-length array as a box.
-        if (!fs.boundingPointArrays().length && from.length)
-          frames.push({ node: fs, from: [], to: [], start: bare(fs), end: bare(targetFrame) });
-        continue;
-      }
-      if (from.length === to.length && from.every((a, i) => a.length === to[i]!.length)) {
-        frames.push({ node: fs, from: from.map((a) => a.slice()), to: to.map((a) => a.slice()) });
-      }
-    }
-    // A target frame no source frame took (a new line) gets a bare copy of
-    // itself in the source, where its new parts grow in place
-    for (const ft of tFrames) {
-      if (toSource.has(ft)) continue;
-      const stage = bare(ft);
-      toSource.get(frameOfT(ft))!.add(stage);
-      toSource.set(ft, stage);
-    }
-    const fadesIn = this.added.map((t): FadeRow => {
-      const sub = bare(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
-      home.add(sub);
-      return { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k };
-    });
-    this[matchRows] = { moves, fadesOut, fadesIn, frames, touched: src.family() };
-    this.doInterpolate(0);
-  }
-
-  protected override doInterpolate(alpha: number): void {
-    const { moves, fadesOut, fadesIn, frames, touched } = this[matchRows], lag = this.lagRatio;
-    const n = moves.length + fadesOut.length + fadesIn.length;
-    let i = 0;
-    for (const { sub, start, end } of moves) sub.interpolate(start, end, staggered(lag, alpha, i++, n));
-    // Staged: what leaves is gone by halfway, and what comes starts there.
-    const out = this.staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
-      into = this.staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
-    for (const r of fadesOut) fade(r, 1 - out(staggered(lag, alpha, i++, n)), alpha, true);
-    for (const r of fadesIn) fade(r, into(staggered(lag, alpha, i++, n)), alpha, false);
-    for (const { node, from, to, start, end } of frames) {
-      if (start && end) { node[interpolateData](start, end, alpha); continue; }
-      const mine = node.pointArrays();
-      for (let j = 0; j < mine.length; j++) {
-        const m = mine[j]!, x = from[j]!, y = to[j]!;
-        if (alpha >= 1) m.set(y);
-        else if (alpha <= 0) m.set(x);
-        else for (let q = 0; q < m.length; q++) m[q] = x[q]! + (y[q]! - x[q]!) * alpha;
-      }
-      node.touchPoints();
-    }
-    for (const m of touched) dropBox(m);
-    this.mobject.invalidateBox();
-  }
-
-  /** @internal */
-  override [cleanUp](scene: Scene): void {
-    super[cleanUp](scene);
-    if (this.replace) scene.replace(this.mobject, this.target);
-  }
-}
-
-/** Parts that look the same regardless of position and size pair up: VMobject.shapeKey(). */
-export class TransformMatchingShapes extends TransformMatching {
-  constructor(mobject: Mobject, target: Mobject, opts: MatchingOptions = {}) { super(mobject, target, { ...opts, key: shapeKeyOf }); }
-}
 
 /**
- * Glyphs pair with glyphs of the same character in the same font and weight,
- * in reading order first, so 'cache' -> 'cached' keeps its five letters and
- * grows a d, and an inserted line of code leaves the others in place. Works
- * on Text, Code and groups of them; any other part matches by shape. A glyph
- * that fades stays inside its line (fadeInsideLines), so a line's extent
- * never jumps.
+ * How a matched Transform plays. The parts of each side are its drawable pieces:
+ * every visible VMobject that has points (a Text's glyphs, an Arrow's line and
+ * tip; not a Text's advance box). Parts with equal keys pair up, by least total
+ * distance when a key occurs more than once, and each pair morphs like a
+ * Transform. A source part with no partner shrinks and fades out, a target part
+ * with no partner grows and fades in, both carried along with the matched parts
+ * around them.
  *
- * Cost: one scan of both texts per matching run found (longestRuns), so one
- * edit is cheap but scattered edits over many lines cost seconds at begin();
- * for code, prefer TransformDiff.
+ * One animation of the source: the pairing is computed at begin(), and the
+ * target's unmatched parts are copied into the source (into the container that
+ * corresponds to theirs), so play() sees one mobject and the scene draws
+ * everything that moves. With `replace` (the default for a matched transform)
+ * the scene holds `target` afterwards, as with manim's TransformMatchingShapes.
+ * The target is never modified. See docs/MATCHING.md.
+ *
+ * Begin it: pair its parts by `m`'s key, fix every endpoint and draw frame 0. By 'text', glyphs
+ * of lettered Text pair by their clusters, and a fading glyph stays inside its line
+ * (fadeInsideLines).
  */
-export class TransformMatchingText extends TransformMatching {
-  constructor(mobject: Mobject, target: Mobject, opts: MatchingOptions = {}) { super(mobject, target, { ordered: true, ...opts, key: textKeyOf }); }
-
-  protected override doBegin(): void {
-    const plain = this.key;
-    const texts = [...this.mobject.family(), ...this.target.family()].filter(m => 'text' in m && m.children.length > 0);
-    if (texts.length && texts.every(m => m instanceof Text && matchesClusters(m)))
-      this.key = (part, root) => {
+function beginMatching(t: Transform, m: Matching): void {
+  let key = m.key;
+  if (m.kind === 'text') {
+    const plain = key;
+    const texts = [...t.mobject.family(), ...t.target.family()].filter(x => 'text' in x && x.children.length > 0);
+    if (texts.length && texts.every(x => x instanceof Text && matchesClusters(x)))
+      key = (part, root) => {
         const cluster = (part as Mobject & {cluster?: number}).cluster, parent = part.parent;
         return cluster == null || !(parent instanceof Text) ? plain(part, root) : clusterKeyOf(parent, cluster) ?? plain(part, root);
       };
-    try { super.doBegin(); } finally { this.key = plain; }
-    fadeInsideLines(this, true);
-    this.doInterpolate(0);
   }
+  pairParts(t, key, m);
+  if (m.kind === 'text') {
+    fadeInsideLines(t, true);
+    interpolateMatching(t, 0);
+  }
+}
+
+/** Pair a matched Transform's parts by `key` and fix every endpoint (see beginMatching). */
+function pairParts(self: Transform, key: MatchKey, m: Matching): void {
+  const src = self.mobject, tgt = self.target;
+  const sParts = partsOf(src), tParts = partsOf(tgt);
+  // Containers with points of their own (Text, whose advance box is a point
+  // array) are frames: a glyph belongs to its line. Each target frame takes
+  // the source frame most of its matched parts come from, so a line's advance
+  // box travels with its glyphs and a new glyph joins the line it ends up in.
+  const sFrames = framesOf(src), tFrames = framesOf(tgt);
+  const frameOfS = (p: Mobject) => frameOf(p, src), frameOfT = (p: Mobject) => frameOf(p, tgt);
+  const sIndex = new Map(sFrames.map((f, i) => [f, i])), tIndex = new Map(tFrames.map((f, i) => [f, i]));
+  const sf = Int32Array.from(sParts, (p) => sIndex.get(frameOfS(p))!), tf = Int32Array.from(tParts, (p) => tIndex.get(frameOfT(p))!);
+  const toSource = new Map<Mobject, Mobject>([[tgt, src]]);
+  const mapFrames = (pairOf: Int32Array): void => {
+    const votes = new Map<number, number>();
+    pairOf.forEach((j, i) => { if (j >= 0) { const k = sf[i]! * tFrames.length + tf[j]!; votes.set(k, (votes.get(k) ?? 0) + 1); } });
+    const mapped = new Set<Mobject>(toSource.values());
+    for (const [k] of [...votes].sort((a, b) => b[1] - a[1] || a[0] - b[0])) {
+      const fs = sFrames[Math.floor(k / tFrames.length)]!, ft = tFrames[k % tFrames.length]!;
+      if (!toSource.has(ft) && !mapped.has(fs)) { toSource.set(ft, fs); mapped.add(fs); }
+    }
+  };
+  // Ordered: runs pair first and decide which line is which; a lone leftover
+  // then pairs only within its own line, so stray letters do not fly across
+  // the text (and each line stays one piece, the way MotionSink sees a Text)
+  const pairOf = matchParts(sParts, tParts, [src, tgt], key, m.ordered, (runs) => {
+    mapFrames(runs);
+    return [sf, Int32Array.from(tf, (f) => sIndex.get(toSource.get(tFrames[f]!)!) ?? -1)];
+  });
+  if (!m.ordered) mapFrames(pairOf);
+  const taken = new Set(pairOf), removed = sParts.filter((_, i) => pairOf[i]! < 0), added = tParts.filter((_, j) => !taken.has(j));
+  const n = m.fadeMismatches ? 0 : Math.min(removed.length, added.length);
+  self.pairs = sParts.flatMap((s, i): Array<[Mobject, Mobject]> => (pairOf[i]! >= 0 ? [[s, tParts[pairOf[i]!]!]] : []));
+  self.morphed = removed.slice(0, n).map((s, i) => [s, added[i]!]);
+  self.removed = removed.slice(n);
+  self.added = added.slice(n);
+  // A frame follows morphed contents too. With no equal glyph shapes (for
+  // example, an anisotropically compressed label), matched-only votes leave
+  // its transform metadata behind while its glyphs move to the target.
+  if (n) {
+    const withMorphs = pairOf.slice();
+    for (const [s, t] of self.morphed) withMorphs[sParts.indexOf(s)] = tParts.indexOf(t);
+    mapFrames(withMorphs);
+  }
+  const linked = [...self.pairs, ...self.morphed];
+  // Where each source frame's contents go: scaled as its advance box scales
+  // (a font size change), translated by the median move of its matched parts
+  const carry = new Map<Mobject, Carry>();
+  for (const [ft, fs] of toSource) {
+    const hs = ownHeight(fs), ht = ownHeight(ft);
+    const k = hs > 1e-9 && ht > 1e-9 && !(fs instanceof VMobjectClass) ? ht / hs : 1;
+    const ds = linked.filter(([s, t]) => frameOfS(s) === fs && frameOfT(t) === ft).map(([s, t]) => {
+      const a = ownCenter(s), b = ownCenter(t);
+      return [b[0] - k * a[0], b[1] - k * a[1]] as Vec;
+    });
+    const [bx, by] = ds.length ? median(ds) : V.sub(ft.center(), V.mul(fs.center(), k));
+    carry.set(fs, { k, bx, by });
+  }
+
+  // Endpoints. Copies only of single parts and frames, never of subtrees.
+  const fadesOut = self.removed.map((s): FadeRow => {
+    const c = ownCenter(s), { k, bx, by } = carry.get(frameOfS(s)) ?? IDENTITY;
+    return { sub: s, pts: s.pointArrays().map((a) => a.slice()), opacity: s.style.opacity, tx: k * c[0] + bx, ty: k * c[1] + by };
+  });
+  const moves = linked.map(([s, t]): MoveRow => {
+    const end = bare(t);
+    s[alignData](end);
+    return { sub: s, start: bare(s), end };
+  });
+  const frames: FrameRow[] = [];
+  for (const [ft, fs] of toSource) {
+    if (fs instanceof VMobjectClass || ft instanceof VMobjectClass) continue; // a path's points are a part's
+    const targetFrame = ft[matchingFrameFor](fs);
+    const from = fs.pointArrays(), to = targetFrame.pointArrays();
+    if (fs.pointKind() !== targetFrame.pointKind()) {
+      // A metadata-only source may explicitly normalize another frame kind.
+      // Native geometry never treats an unrelated equal-length array as a box.
+      if (!fs.boundingPointArrays().length && from.length)
+        frames.push({ node: fs, from: [], to: [], start: bare(fs), end: bare(targetFrame) });
+      continue;
+    }
+    if (from.length === to.length && from.every((a, i) => a.length === to[i]!.length)) {
+      frames.push({ node: fs, from: from.map((a) => a.slice()), to: to.map((a) => a.slice()) });
+    }
+  }
+  // A target frame no source frame took (a new line) gets a bare copy of
+  // itself in the source, where its new parts grow in place. New frames and
+  // new parts join the source in the target's drawing order, so a new shape
+  // drawn under a new line in the target (a card under its words) is drawn
+  // under it while it fades in too, not over it until the morph ends.
+  const newFrame = new Set(tFrames.filter((ft) => !toSource.has(ft))), adding = new Set(self.added);
+  const fadeRows = new Map<Mobject, FadeRow>();
+  for (const t of tgt.family()) {
+    if (newFrame.has(t)) {
+      const stage = bare(t);
+      toSource.get(frameOfT(t))!.add(stage);
+      toSource.set(t, stage);
+    } else if (adding.has(t)) {
+      const sub = bare(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
+      home.add(sub);
+      fadeRows.set(t, { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k });
+    }
+  }
+  const fadesIn = self.added.map((t) => fadeRows.get(t)!);
+  self[matchRows] = { moves, fadesOut, fadesIn, frames, touched: src.family() };
+  interpolateMatching(self, 0);
+}
+
+/** A matched Transform's frame at `alpha`: a pure function of alpha over the endpoints fixed as it began. */
+function interpolateMatching(t: Transform, alpha: number): void {
+  const { moves, fadesOut, fadesIn, frames, touched } = t[matchRows], lag = t.lagRatio;
+  const n = moves.length + fadesOut.length + fadesIn.length;
+  let i = 0;
+  for (const { sub, start, end } of moves) sub.interpolate(start, end, staggered(lag, alpha, i++, n));
+  // Staged: what leaves is gone by halfway, and what comes starts there.
+  const staged = t[matching]!.staged;
+  const out = staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
+    into = staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
+  for (const r of fadesOut) fade(r, 1 - out(staggered(lag, alpha, i++, n)), alpha, true);
+  for (const r of fadesIn) fade(r, into(staggered(lag, alpha, i++, n)), alpha, false);
+  for (const { node, from, to, start, end } of frames) {
+    if (start && end) { node[interpolateData](start, end, alpha); continue; }
+    const mine = node.pointArrays();
+    for (let j = 0; j < mine.length; j++) {
+      const m = mine[j]!, x = from[j]!, y = to[j]!;
+      if (alpha >= 1) m.set(y);
+      else if (alpha <= 0) m.set(x);
+      else for (let q = 0; q < m.length; q++) m[q] = x[q]! + (y[q]! - x[q]!) * alpha;
+    }
+    node.touchPoints();
+  }
+  for (const m of touched) dropBox(m);
+  t.mobject.invalidateBox();
 }
 
 /**
@@ -2165,7 +2119,7 @@ export class TransformMatchingText extends TransformMatching {
  * Parts not in a Text line are untouched. Runs as it begins, after the rows are fixed; the caller
  * draws frame 0 again.
  */
-function fadeInsideLines(t: TransformMatching, ride: boolean): void {
+function fadeInsideLines(t: Transform, ride: boolean): void {
   const { frames, fadesIn, fadesOut } = t[matchRows];
   const edges = new Map(frames.map((f) => [f.node, f]));
   // A Text's advance box is a point array (four corners since the reader pass; two before):
@@ -2368,7 +2322,7 @@ import type { Code, CodeSpan } from './text.ts';
 import { diffLines, diffTokens, hunkHeader } from './diff.ts';
 import type { Hunk } from './diff.ts';
 
-export interface TransformDiffOptions extends Omit<MatchingOptions, 'ordered'> {
+export interface TransformDiffOptions extends AnimationOptions, Pick<TransformOptions, 'replace' | 'staged' | 'fadeMismatches'> {
   /**
    * The diff to animate, as unified-diff hunks (diffLines, or parseUnifiedDiff
    * of `git diff` output). They are the truth: the animation follows them even
@@ -2399,11 +2353,11 @@ export interface LinePlan { same: Array<[number, number]>; changed: Array<[numbe
  * the hunk fades out or grows in. Nothing pairs across lines the diff does not
  * relate, so the picture cannot show a change the diff does not contain.
  *
- * A TransformMatching with the pairing as its key: `pairs`, `removed`,
+ * A matched Transform with the pairing as its key: `pairs`, `removed`,
  * `added`, `summary()` and replace work as there. In a scene, begin() records
  * `{ kind: 'diff', hunks, lines, ...summary() }` (see Scene.record).
  */
-export class TransformDiff extends TransformMatching {
+export class TransformDiff extends Transform {
   readonly before: Code;
   readonly after: Code;
   /** The hunks given to the constructor, or null to compute them. */
@@ -2417,7 +2371,7 @@ export class TransformDiff extends TransformMatching {
 
   constructor(before: Code, after: Code, { hunks, ...opts }: TransformDiffOptions = {}) {
     const keys = new Map<Mobject, string>();
-    super(before, after, { ...opts, ordered: false, key: (p) => keys.get(p) });
+    super(before, after, { ...opts, ordered: false, match: (p) => keys.get(p) });
     this.before = before; this.after = after;
     this.#given = hunks ?? null;
     this.keys = keys;
@@ -2449,6 +2403,9 @@ export class TransformDiff extends TransformMatching {
     fadeInsideLines(this, false);
     this.doInterpolate(0);
   }
+
+  /** What it did with each glyph, once begun: how many were matched, morphed, faded out and faded in. */
+  override summary(): MatchSummary { return super.summary()!; }
 
   override evidence(): Evidence {
     const { same, changed, removed, added } = this.plan;

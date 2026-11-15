@@ -1,6 +1,6 @@
 # Rayner
 
-Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review. It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.
+Rayner makes an explanation of what this version of this system does, drawn from a model checked against that system where it can be, with a short receipt the person who commissioned it can review. It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.
 
 The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is one HTML page of steps and a transcript, with no runtime network requests.
 
@@ -10,7 +10,7 @@ A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 e
 
 [![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
 
-How closely a model matches its subject varies from explainer to explainer. Each page's receipt, and the table below, say what it was checked against and how: **live** (the model's tests run the system each time), **recorded** (the system was run once and its answers frozen), **read** (a specification or source was read, not run) or **none** (only the model's own tests).
+How closely a model matches its subject varies from explainer to explainer. Each page's receipt, and the table below, say what it was checked against and how: **live** (the model's tests run the system each time), **recorded** (the system was run once and its answers frozen), **read** (a specification or source was read, not run) or **none** (only the model's own tests). In a [premise test](https://github.com/adewale/rayner/blob/main/bench/premise/README.md), every claim on pages for six catalogued topics was compared with these oracles: plain pages a model wrote from memory made 12 errors in 235 claims, and the Rayner pages none in 253. Most errors were in secondary details; on a protocol newer than the model, two were in the mechanism the question asked about. A second, blind grader agreed on 311 of the 314 claim items it regraded.
 
 | Explainer | Its model is checked against | How |
 |---|---|---|
@@ -21,6 +21,8 @@ How closely a model matches its subject varies from explainer to explainer. Each
 | [Which address should Express call the client?](https://oshineye.dev/projects/rayner/trust-proxy) | Express 5.3.0, run once over a real HTTP connection | recorded |
 | [Where does an empty ext4 filesystem’s space go?](https://oshineye.dev/projects/rayner/ext4-space) | mkfs.ext4 1.47.3 on Linux 6.8.0, for 22 filesystem sizes | recorded |
 | [How does a token bucket let a burst through but refuse a flood?](https://oshineye.dev/projects/rayner/token-bucket) | Go’s `golang.org/x/time/rate` v0.15.0 limiter | recorded |
+| [Why is 0.1 + 0.2 not 0.3?](https://oshineye.dev/projects/rayner/float-sum) | CPython’s floats and JavaScript’s own numbers, run by the model’s tests | live |
+| [Why does a patch still apply after the file has changed?](https://oshineye.dev/projects/rayner/unified-diff) | Git’s own `git diff` and `git apply` | live |
 | [What is a statechart, and why use one instead of a state machine?](https://oshineye.dev/projects/rayner/statecharts) | The states and transitions XState 5.33.3 reaches | recorded |
 | [Does isdigit guarantee int can parse it?](https://oshineye.dev/projects/rayner/isdigit) | CPython 3.15.1’s answers and Unicode 17.0.0’s data files | recorded |
 | [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | An independent FNV-1a hash in CPython 3.12; the filter is a teaching model, not a production one | live |
@@ -51,14 +53,25 @@ Rayner is two packages at one version. `rayner` is what scenes import: the vocab
 
 `init` writes the tutorial’s explainer of LRU and MRU cache replacement: the script (`script.md`), the model (`model.ts`), the model’s test (`model.test.ts`) and the scene (`scene.ts`). Open the URL `preview` prints (port 5174 by default) and switch between **A B C D again** and **C D C D**. Edit `my-explainer/scene.ts` and reload to see the rebuilt page.
 
-When the explanation is ready, review every scenario and save the page. Review opens the page in Chromium, so install it once first (or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have):
+When the explanation is ready, review every scenario and save the page. Review opens the page in Chromium: Playwright's own build if it is installed, otherwise another Playwright build or the Chrome or Chromium already on the machine, and it prints which one it used. Only if none is found, install Playwright's once (or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have):
 
 ```sh
-npx playwright-core install chromium
 npx rayner review my-explainer/scene.ts --out public/my-explainer.html
+npx playwright-core install chromium   # only if review finds no Chromium
 ```
 
 `review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, a response-header recipe and its loader. [The tutorial](docs/TUTORIAL.md) builds a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it. `npx rayner init --machine` writes the other starter, a door that locks, for explainers a reader drives with events.
+
+### Start your own
+
+The starters above are finished explainers to edit. To write one about your own question, start blank:
+
+```sh
+npx rayner init --blank sort-as-text --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
+npx rayner check sort-as-text/scene.ts
+```
+
+`init --blank` writes the same four files with nothing decided: every part still to write says `TODO:` and what goes there. `check` fails and lists those parts in the order to write them: the script's intent header (who is asking, the answer, the reader questions and the rest); its **Checked against** and **Grounding** lines, which name the real system the model is compared with; the oracle test in `model.test.ts`, which fails until it compares the model with something real (a reference implementation run live, published test vectors or a recorded run); then the picture, one step drawn from the model's state. [Writing your own explainer](docs/WRITING.md) walks this question from that list to a reviewed page: choosing a subject and an oracle, what `check` says at each stage and the failures a first draft hits, and what explainers in this repository have cost to make.
 
 ## A complete explainer
 
@@ -211,28 +224,27 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 
 ## Drawing pictures
 
-A picture is drawn from the model's state by a function you write, with [`rayner/kit`](docs/REFERENCE.md#kit): a type scale whose smallest size reads on a phone (`TYPE`, `MIN_TEXT`), spacing and strokes, the stage's colours by role (`tones(s)`), and `words`, `box`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `words` refuses a size under the phone floor. [`rayner/drawing`](docs/REFERENCE.md#drawing-kit) adds ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
+A picture is drawn from the model's state by a function you write, with the [drawing kit](docs/REFERENCE.md#drawing-kit), `rayner/drawing`: a type scale whose smallest size reads on a phone (`TYPE`), spacing and strokes, the stage's colours by role (`tones(s)`), and `label`, `tile`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `label` refuses a size under the phone floor. The same module has ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
 
 ```ts
-import { keyedParts } from 'rayner/drawing';
-import { addAll, box, connector, words } from 'rayner/kit';
+import { TYPE, addAll, connector, keyedParts, label, tile } from 'rayner/drawing';
 
 const cache = view(this, (st) => {
   const parts = keyedParts();
-  st.slots.forEach((item, i) => addAll(parts, box(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, key: `slot:${item}`, active: item === st.used })));
+  st.slots.forEach((item, i) => addAll(parts, tile(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
   parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
-  parts.add(words(s, `${st.hits} hits`, { at: [0, -2], align: 'middle' }), 'hits');
+  parts.add(label(s, `${st.hits} hits`, { at: [0, -2] }), 'hits');
   return parts.group();
 });
 ```
 
-The Poppy chapters draw with `rayner/kit`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, words and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
+The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, words and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
 
 ## Add-ons: diagrams and lettering
 
 A scene that draws no Mermaid diagram and asks for no lettering needs nothing but Node to `init`, `check`, `see`, `describe` and `build`. Two kinds of picture need more, and only for the scenes that draw them ([add-ons](docs/REFERENCE.md#add-ons)):
 
-- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0` and Chromium with `npx playwright-core install chromium`. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
+- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`; capture uses the same Chromium as `review`, so `npx playwright-core install chromium` is needed only if none is found. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
 - **Lettering.** Text is drawn with the embedded Inter and JetBrains Mono. Letters outside them, other scripts, replacement faces, real bold and italic, and typeset maths need a [lettering request](docs/LETTERING.md) (`meta.lettering`); capturing one needs Python and the source fonts, and a committed `scene.lettering.json` replays without them. Every command fails on text the embedded fonts cannot draw unless the scene asks for it.
 
 ## How Rayner compares
@@ -248,8 +260,8 @@ Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes)
 
 ## Guides
 
-- **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers “how do I write that?” for 29 features: each opens at **Recipe**, the lines an author writes, and **Result** shows the picture before and after they run. The [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
-- **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [kit](docs/REFERENCE.md#kit) (`rayner/kit`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of; the [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) builds tables, bars, callouts, dimension lines, pins and legends from state.
+- **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [writing your own explainer](docs/WRITING.md) from a blank start, [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). To answer “how do I write that?”, [the feature index](docs/FEATURE-TOUR.md) gives each authoring feature, the code an author writes for it and an explainer whose source uses it, and the setup some features need.
+- **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of, and builds tables, bars, callouts, dimension lines, pins and legends from state. [Extending Rayner](docs/EXTENDING.md) walks through writing an animation, shape or easing of your own on the public API, after `rayner/extras`, whose animations, shape and easings are built that way.
 - **Agents:** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 
 ## Scope and limits
@@ -271,7 +283,7 @@ Build the full local gallery when developing or reviewing Rayner itself:
 ```sh
 git clone https://github.com/adewale/rayner && cd rayner
 npm ci
-npx playwright-core install chromium
+npx playwright-core install chromium   # only if no Chromium is found (docs/TESTING.md)
 npm run demos:build
 npm run demos:serve
 ```

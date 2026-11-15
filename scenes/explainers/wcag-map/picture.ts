@@ -40,9 +40,9 @@ function lists(st: Lists, s: Stage) {
     const at = cols.flatMap((c, i) => (c.level === l ? [i] : []));
     const a = x(at[0]!) - pitch / 2,
       b = x(at.at(-1)!) + pitch / 2;
-    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.look.ink, strokeWidth: 0.03 }), label(s, l, { at: [(a + b) / 2, 2.25] }));
+    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.look.ink, strokeWidth: 0.03 }), label(s, l, { at: [(a + b) / 2, 2.25], size: 0.6 }));
   }
-  g.add(label(s, 'Criteria', { at: [6.45, 2.25] }));
+  g.add(label(s, 'Criteria', { at: [6.45, 2.25], size: 0.6 }));
   VERSIONS.forEach((v, r) => {
     const y = rowY(r);
     g.add(label(s, v, { at: [-5.85, y], size: 0.62 }), label(s, st.totals[r]!, { at: [6.45, y], size: 0.62 }));
@@ -62,11 +62,11 @@ function lists(st: Lists, s: Stage) {
   const below = rowY(VERSIONS.length - 1) - 0.4;
   g.add(
     new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.look.bad, strokeWidth: 0.03 }),
-    label(s, '4.1.1 Parsing', { at: [x(parsing), below - 0.95], color: s.look.bad }),
+    label(s, '4.1.1 Parsing', { at: [x(parsing), below - 0.95], color: s.look.bad, size: 0.6 }),
   );
   // The key: each cell's colour names the version that added its criterion, and the dashed outline the gap 2.2 left.
   // The strip carries its own key so the colours read with the caption hidden.
-  const lead = label(s, 'Added in').moveTo([0, 0], [-1, 0]);
+  const lead = label(s, 'Added in', { size: 0.6 }).moveTo([0, 0], [-1, 0]);
   const swatches = legend(
     s,
     [

@@ -4,11 +4,11 @@
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
 import type { AudioClip, ScoreNote, StepAudio } from 'rayner/explain';
-import { TransformFromCopy, Restore } from 'rayner';
-import { StringSink, renderFrame } from 'rayner/output';
+import { StringSink, renderFrame } from 'rayner';
 import { traceScene } from 'rayner/testing';
-import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
-import type { GrowFromEdgeOptions } from 'rayner';
+import { Line, Dot } from 'rayner';
+import { GrowFromEdge, PulseAlongPath, rushInto, rushFrom, thereAndBack, ArcBetweenPoints } from 'rayner/extras';
+import type { GrowFromEdgeOptions } from 'rayner/extras';
 
 export function choreography(scene: Scene<{count: number}>) {
   const opts: GrowFromEdgeOptions = { initialScale: 0.01, runTime: 0.5 };
@@ -20,20 +20,16 @@ export function choreography(scene: Scene<{count: number}>) {
   return [grow, pulse];
 }
 import type { AnimationOptions, TextOptions } from 'rayner';
-import { jsonObject } from 'rayner/testing';
-const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
+const serializedState: import('rayner').JsonObject = {count: 1};
 void serializedState;
-import { TransformMatching, TransformMatchingText } from 'rayner';
-import type { MatchingOptions, MatchSummary } from 'rayner';
+import type { TransformOptions, Match, KeyMatch, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
-import { renderElements } from 'rayner/output';
 import type { Hunk, TransformDiffOptions, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
-import type { RenderOptions } from 'rayner/output';
+import type { SvgOptions } from 'rayner';
 import type { StepRecord } from 'rayner/testing';
-import { Frame, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession } from 'rayner';
-import type { FrameFitOptions, AxesOptions, NumberLineOptions, PlotOptions, BraceOptions, CircumscribeOptions } from 'rayner';
+import { Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession } from 'rayner';
+import type { AxesOptions, NumberLineOptions, PlotOptions, BraceOptions, CircumscribeOptions } from 'rayner';
 import type { SyncOptions } from 'rayner/explain';
-import { palette } from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
 const scoreClip: AudioClip = {id: 'a', label: 'Middle C', bpm: 96, beats: 4, notes: [middleC]};
 const stepScore: StepAudio = {clips: [scoreClip]};
@@ -69,13 +65,18 @@ export async function run(): Promise<number> {
   return sink.frames.length + tr.steps.length + still.length;
 }
 
-// Matching transforms: options, keys and the pairing report are public types
+// Matching transforms: a Transform's options, its matches and the pairing report are public types
 export function matching(): number {
-  const opts: MatchingOptions = { fadeMismatches: false, replace: false, runTime: 2 };
-  const text = new TransformMatchingText(new Text('cache'), new Text('cached'), opts);
-  const fills = new TransformMatching(new Text('a'), new Text('b'), { key: (part) => part.style.fill });
-  const report = (m: TransformMatching): MatchSummary => m.summary();
-  return text.runTime + fills.runTime + report.length;
+  const opts: TransformOptions = { fadeMismatches: false, replace: false, runTime: 2 };
+  const text = new Transform(new Text('cache'), new Text('cached'), { match: 'text', ...opts });
+  const fills = new Transform(new Text('a'), new Text('b'), { match: (part) => part.style.fill });
+  const keys: KeyMatch = { by: 'key', text: 'whole', unkeyed: 'by-place' };
+  const all: Match[] = ['index', 'key', 'text', 'shapes', keys];
+  // @ts-expect-error A match is one of the named ways, a KeyMatch or a function.
+  void new Transform(new Text('a'), new Text('b'), { match: 'glyphs' });
+  const back = new Transform(new Text('a'), 'saved', { runTime: 0.5 });
+  const report = (m: Transform): MatchSummary | null => m.summary();
+  return text.runTime + fills.runTime + back.runTime + report.length + all.length;
 }
 
 // Diff-driven transforms and evidence: hunks, options, colour spans and trace records are public types
@@ -92,11 +93,11 @@ export function diffDriven(): number {
 export class Tour extends Scene {
   override async construct() {
     this.state = { n: 1 };
-    const fit: FrameFitOptions = { margin: 0.4 };
+    const fit = { margin: 0.4 };
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
-    const frame: Frame = this.frame;
-    const s = stage(this, { palette: palette('github-dark'), heading: false });
+    const frame = this.frame;
+    const s = stage(this, { style: 'github-dark', heading: false });
     const readout: View<Card> = view(this, (st) => card(s, [['n', st.n]], { panel: false, key: 'n' }), { place: false });
     const sync: SyncOptions = { runTime: 0.5 };
     this.state = { n: 2 };
@@ -113,15 +114,15 @@ export class Tour extends Scene {
     const span: CodeSpan = code.token(0, 'n');
     await this.play(span.animate.setFill('#5cd0b3'));
     code.saveState();
-    await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
+    await this.play(new Succession([new Transform(code, new Code(['n = 2;']).shift([0, -1]), { fromCopy: true }), new Transform(code, 'saved')]));
     this.onStep((s: Step) => s.name);
     this.addJson(() => ({ frame: frame.width() }));
   }
 }
 
-export function cameraRecords(scene: Scene): number {
-  const opts: RenderOptions = { relative: false, cull: true };
-  return renderElements(scene, opts).length;
+export function cameraStill(scene: Scene): number {
+  const opts: SvgOptions = { width: 640, cull: true };
+  return toSvgString(scene, opts).length;
 }
 
 // The optional outline request and maths mobject are public exports too.
@@ -171,7 +172,7 @@ function authorContracts() {
 
 
 // The drawing kit, as an author imports it.
-import { label, tile, table, flow, bars, stat, segment, dot } from 'rayner/drawing';
+import { label, tile, table, flow, bars, stat } from 'rayner/drawing';
 import type { TableColumns, Card, CodeBlock, CodeBlockOptions, CardOptions, CardRow } from 'rayner/drawing';
 export function drawingKit(scene: Scene) {
   const s = stage(scene);
@@ -180,7 +181,7 @@ export function drawingKit(scene: Scene) {
     keyed(label(s, 'hit', { at: [0, 1], color: s.look.ink }), 'hit'), tile(s, 'D1', { width: 2, height: 1, active: true, key: 'db' }),
     table(s, ['Key', 'Slot'], [['a', 1]], { columns: spread, key: 'slots' }), table(s, ['Key'], [['a']], { columns: { left: 0, gap: 1 }, at: [0, -1], key: 'keys' }),
     flow(s, ['Request', 'Cache', 'Database'], { key: 'request' }), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2, { at: [0, -2], key: 'reads' }),
-    stat(s, 'Reads', 1, { at: [3, 0], key: 'read-count' }), segment(s, [0, 0], [1, 1], { color: s.look.soft, strokeWidth: 0.03 }), dot(s, 'A', { at: [-3, 0], active: true }),
+    stat(s, 'Reads', 1, { at: [3, 0], key: 'read-count' }),
   ];
   // @ts-expect-error a table's columns are centres or an edge with a right edge or a gap
   table(s, ['Key'], [['a']], { columns: { right: 2 }, key: 'bad' });
@@ -192,8 +193,8 @@ export function drawingKit(scene: Scene) {
 
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
-import { Diagram, diagramResolverOf } from 'rayner/explain';
-import type { DiagramResolver, Look } from 'rayner/explain';
+import { Diagram } from 'rayner/explain';
+import type { Look } from 'rayner/explain';
 import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
@@ -209,8 +210,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
   const constructed = () => new Card();
   void [listing, direction, constructed];
   const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
-  const resolver: DiagramResolver = diagramResolverOf(scene);
-  const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
+  const plan: Diagram = await Diagram.measure(scene, spec, { box: 'main' });
   // A diagram part's shapes and labels, addressed by the part's id rather than by child index.
   const outline = plan.shapes('A')[0], words: string | undefined = plan.labels('A')[0]?.text;
   const look: Look = s.look;
@@ -219,17 +219,15 @@ export async function publicCollection(scene: Scene): Promise<void> {
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside
 // author writes them. Every view draws from its state.
-import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor, keyed } from 'rayner';
+import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, FadeOut, LaggedStart, Animation, linear, smooth, shaperFor, keyed } from 'rayner';
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
 import { callout, dimension, pin, legend, keyedParts } from 'rayner/drawing';
-import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
+import { Machine, refuse, isRefusal, answerOf, settingsOf, regionBox, mermaid } from 'rayner/explain';
 import type { Refusal, Transition, Choreography, Side, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
-import { MoveAlongPath, ArcBetweenPoints } from 'rayner';
+import { MoveAlongPath } from 'rayner';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
-import { NullSink, renderText, toSvgString } from 'rayner/output';
-import { InvariantSink } from 'rayner/testing';
-import type { InvariantFailure } from 'rayner/testing';
+import { toSvgString } from 'rayner';
 
 /** A custom animation: it overrides the public hooks, as a recipe's does. */
 class Pulse extends Animation {
@@ -260,9 +258,8 @@ export class Collection extends Scene<CollectionModel> {
   override async construct() {
     const s: Stage = stage(this);
     const values = settingsOf(this);
-    const resolved = resolveSettings(Collection, values);
     const answer: string = answerOf(this);
-    await this.step('shapes', { title: 'Shapes', caption: `${answer} ${resolved.case}` });
+    await this.step('shapes', { title: 'Shapes', caption: `${answer} ${values.case}` });
     const box: Box = regionBox('main', { top: 3 });
     const at: Vec = [box[0], box[3]];
     const parts = keyedParts();
@@ -273,7 +270,7 @@ export class Collection extends Scene<CollectionModel> {
     parts.add(new CurvedArrow([0, 0], [1, 1]), 'curve');
     parts.add(new BraceLabel(ring, 'r', [0, -1]), 'brace');
     parts.add(new DecimalNumber(3.14, { decimals: 2 }), 'pi');
-    parts.add(new ItalicText('aside'), 'aside');
+    parts.add(new Text('aside', { italic: true }), 'aside');
     const picture: Group = parts.group();
     const shapes: readonly Mobject[] = picture.children;
     const path: VMobject = new Circle({ radius: 1 });
@@ -285,7 +282,7 @@ export class Collection extends Scene<CollectionModel> {
     picture.key = 'other';
     const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
     await this.play(...all);
-    await this.play(new FadeOut(picture, fade), new TransformFromCopy(new Text('done'), new Text('done!')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
+    await this.play(new FadeOut(picture, fade), new Transform(new Text('done'), new Text('done!'), { fromCopy: true }), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
     await s.clear();
 
     await this.step('kit', { title: 'The kit', caption: 'A callout, a dimension, a pin and a legend.' });
@@ -319,7 +316,7 @@ export class Collection extends Scene<CollectionModel> {
     const count = view(this, (st) => card(s, [['Count', st.count]], opts), { place: false });
     await s.enter(count);
     this.state.count = rows.length;
-    await this.play(count.sync(), new TransformMatchingShapes(new Text('n'), new Text('n + 1'), { runTime: 0.5 }));
+    await this.play(count.sync(), new Transform(new Text('n'), new Text('n + 1'), { match: 'shapes', runTime: 0.5 }));
     void panel.marks;
 
     await this.step('diagram', { title: 'A diagram', caption: 'A diagram drawn from the state.' });
@@ -358,15 +355,15 @@ export async function globe(scene: Scene): Promise<number> {
 export async function hostPage(Explainer: SceneClass): Promise<string> {
   const door = (await traceScene(Explainer)).steps.find((s) => s.step === 'door');
   const frame = door?.frame1 ?? 0;
-  const sink: Sink = new NullSink();
+  const sink: Sink = { skipUntil: Infinity, async frame() {} };
   const scene = new Explainer(sink);
   await scene.run();
-  const invariants = new InvariantSink();
-  const failures: InvariantFailure[] = invariants.failures;
-  const key: MatchKey = matchByKey({ text: 'whole' });
+  const key: MatchKey = (part) => part.key;
+  const match: Match = { by: 'key', text: 'whole', fallback: key };
+  void new Transform(scene.mobjects[0]!, scene.mobjects[0]!.copy(), { match });
   const state: SceneState = scene.state;
   const font: FontName = 'mono';
-  return `${frame} ${renderText(scene).length} ${toSvgString(scene).length} ${failures.length} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
+  return `${frame} ${toSvgString(scene).length} ${scene.invariants.size} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
 }
 
 export function colours(palette: Palette): string {
@@ -403,19 +400,19 @@ export class Composed extends Scene {
   }
 }
 
-import { TYPE, MIN_TEXT, SPACE, addAll, beats, box, connector, flight, plate, tones, words as kitWords } from 'rayner/kit';
-import type { Tones, WordsOptions, Beat } from 'rayner/kit';
+import { TYPE, SPACE, addAll, beats, connector, flight, plate, tones } from 'rayner/drawing';
+import type { Tones, LabelOptions, Beat, Parts } from 'rayner/drawing';
 
-/** A picture drawn with the kit, and a transition between two of them in beats. */
+/** A picture drawn with the drawing kit's measures and parts, and a transition between two of them in beats. */
 export function kitPicture(s: Stage, used: string) {
-  const t: Tones = tones(s), parts = keyedParts();
-  const options: WordsOptions = { size: TYPE.title, bold: true, color: t.soft };
-  parts.add(kitWords(s, used, options), 'used');
-  addAll(parts, box(s, 'cache', { key: 'cache', at: [0, SPACE.l], active: true }));
+  const t: Tones = tones(s), parts: Parts = keyedParts();
+  const options: LabelOptions = { size: TYPE.title, bold: true, color: t.soft };
+  parts.add(label(s, used, { align: 'start', ...options }), 'used');
+  addAll(parts, tile(s, 'cache', { key: 'cache', at: [0, SPACE.l], raised: true, active: true }));
   addAll(parts, plate(s, 'lane', { key: 'lane', at: [-2, 0] }));
   parts.add(connector(s, [[-3, 0], [3, 0]]), 'line');
-  // @ts-expect-error box needs the key its parts are keyed under.
-  box(s, 'unkeyed', {});
-  return { picture: parts.group(), floor: MIN_TEXT };
+  // @ts-expect-error plate needs the key its parts are keyed under.
+  plate(s, 'unkeyed', { at: [0, 0] });
+  return { picture: parts.group(), floor: TYPE.small };
 }
 export const kitTransition = (c: Choreography): Beat => beats(c, flight(c, 'token', [[-6, 0]]), { fresh: ['token'] });

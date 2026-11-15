@@ -1,6 +1,6 @@
-import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, matchByKey, CurvedArrow } from '../../../src/index.ts';
+import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, CurvedArrow } from '../../../src/index.ts';
 import type { Transition, ExplainerMeta } from '../../../explain/index.ts';
-import type { MatchKey, Box, Mobject, Arrow } from '../../../src/index.ts';
+import type { Match, Box, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, regionBox, view, having, Machine } from '../../../explain/index.ts';
 import { CONTROLS, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
 import type { StateNode, Driven } from './model.ts';
@@ -8,7 +8,7 @@ import { PLAYBACK, VOLUME, SUBTITLES, cellKey, cellOf, FLAT, CHART, TRACE, COFFE
 import type { Drawn } from './picture.ts';
 
 /** Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the same word. */
-const byKey: MatchKey = matchByKey({ text: 'whole' });
+const byKey: Match = { by: 'key', text: 'whole' };
 type Chapter = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
 // The picture is a function of the model and of which picture is shown. The model, for the two
 // charts a reader could drive, is their configuration (`config`) and the boxes it is in

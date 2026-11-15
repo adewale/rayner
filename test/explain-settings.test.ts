@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { traceScene } from '../explain/testing.ts';
-import { resolveSettings, settingsOf } from '../explain/index.ts';
+import { resolveSettings, settingsOf } from '../explain/settings.ts';
 import { withSettings } from '../explain/testing.ts';
 import { scenariosOf, scenarioName } from '../explain/internal.ts';
 import type { Setting, ExplainerMeta, ExplainerClass } from '../explain/index.ts';
@@ -199,7 +199,7 @@ test('the innermost withSettings binding wins, and two bindings never share stat
 
 test('static meta takes the keys ExplainerMeta names, and refuses any other, naming it and the keys it takes', () => {
   const full: ExplainerMeta = {
-    id: 'a', title: 'A', lang: 'en', sources: [], lettering: { scripts: ['Grek'] }, textContext: 'explicit', scenarioNavigation: 'first',
+    id: 'a', title: 'A', lang: 'en', sources: [], lettering: { scripts: ['Grek'] }, textContext: 'explicit',
     player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: { n: 'N' },
     answer: 'Yes', questions: [{ question: 'Q?', answer: 'A' }], checkedAgainst: 'model.test.ts', claims: [{ says: 'x', shown: true }],
   };

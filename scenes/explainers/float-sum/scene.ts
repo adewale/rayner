@@ -1,4 +1,5 @@
-import { Scene, Group, ArcBetweenPoints, Brace, MathTex, Create, FadeIn, MoveAlongPath, TransformFromCopy, TransformMatchingText, keyed } from '../../../src/index.ts';
+import { Scene, Group, Brace, MathTex, Create, FadeIn, MoveAlongPath, Transform, keyed } from '../../../src/index.ts';
+import { ArcBetweenPoints } from '../../../extras/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta, Setting } from '../../../explain/index.ts';
@@ -75,7 +76,7 @@ export default class FloatSum extends Scene<SumState, {}> {
     await s.enter(typedFirst, head);
     // The typed digits stay where they are and the digits the machine keeps grow out of them.
     const keptFirst = keyed(digitsAt(s, first.digits, [left, rowY[0]]), 'kept:0');
-    await this.play(new TransformMatchingText(typedFirst, keptFirst, { runTime: 1.4 }));
+    await this.play(new Transform(typedFirst, keptFirst, { match: 'text', runTime: 1.4 }));
     s.keep(keptFirst);
     const rest = m.stored.slice(1).map((v, i) => keyed(digitsAt(s, v.digits, [left, rowY[i + 1]!]), `kept:${i + 1}`));
     const notes = m.stored.map((v, i) => startAt(s, v.high ? 'high' : 'low', [5.2, rowY[i]!], { soft: true }));
@@ -107,7 +108,7 @@ export default class FloatSum extends Scene<SumState, {}> {
     await s.enter(typedMark, typedFlag, { describe: `A ring at ${expected} exactly as typed, ${fraction(m.expectedAt % 1)} of the way across a gap` });
     // The typed value stays where it is; a copy of its mark settles on the nearer double.
     const keptMark = keyed(stored(s, at(m.expectedTick)), 'mark:kept');
-    await this.play(new TransformFromCopy(typedMark, keptMark, { runTime: 0.9 }));
+    await this.play(new Transform(typedMark, keptMark, { fromCopy: true, runTime: 0.9 }));
     s.keep(keptMark, { describe: `A dot on the tick ${expected} is kept as, the one that prints as ${prints[m.expectedTick]}` });
 
     // 4. The exact sum of the two kept numbers, and the question.
@@ -157,7 +158,7 @@ export default class FloatSum extends Scene<SumState, {}> {
     const shorten = (long: typeof longSum, short: string, y: number, key: string) => {
       const from = long.copy(), to = keyed(startAt(s, short, [digitsX, y], { size: DIGITS, mono: true, bold: true }), key);
       this.add(from);
-      return { play: new TransformMatchingText(from, to, { runTime: 1.2 }), to };
+      return { play: new Transform(from, to, { match: 'text', runTime: 1.2 }), to };
     };
     const shortSum = shorten(longSum, m.prints, rows[1], 'sum:printed'), shortExpected = shorten(longExpected, m.expectedPrints, rows[3], 'expected:printed');
     await this.play(shortSum.play, shortExpected.play, new FadeIn(names[1]!, { runTime: 0.6 }), new FadeIn(names[3]!, { runTime: 0.6 }));

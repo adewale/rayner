@@ -1,10 +1,6 @@
 {
   "names": {
     "rayner": {
-      "Frame": {
-        "guide": "docs/CAMERA.md#what-it-is",
-        "test": "test/camera.test.ts"
-      },
       "MathTex": {
         "check": "Glyphs: a formula the lettering snapshot does not hold fails every command"
       },
@@ -20,16 +16,7 @@
       "Transform": {
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
-      "TransformMatchingShapes": {
-        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
-      },
-      "TransformMatchingText": {
-        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
-      },
       "keyed": {
-        "check": "Keys: two parts on the stage with one key at the end of a step fail"
-      },
-      "matchByKey": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       }
     },
@@ -54,11 +41,51 @@
       }
     },
     "rayner/drawing": {
+      "MARGIN": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "PLATE_HEIGHT": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "RADIUS": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "SPACE": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "STROKE": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "TYPE": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "addAll": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "beats": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
       "card": {
         "check": "Views: a card drawn from state is compared part by part, its lit row included, with a fresh draw"
       },
       "code": {
         "check": "Views: a code panel drawn from state is compared part by part, its lit bar included, with a fresh draw"
+      },
+      "connector": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "flight": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
       },
       "keyedParts": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
@@ -66,8 +93,24 @@
       "legend": {
         "check": "Looks: a caption or line naming a colour or pattern that no word on the stage says fails; a legend that keys the look answers it"
       },
+      "pass": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "plate": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "route": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
       "table": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "tones": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
       }
     },
     "rayner/geo": {
@@ -75,106 +118,7 @@
         "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
     },
-    "rayner/kit": {
-      "MARGIN": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "MIN_TEXT": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "PLATE_HEIGHT": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "RADIUS": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "SPACE": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "STROKE": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "TYPE": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "addAll": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "beats": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "box": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "connector": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "flight": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "pass": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "plate": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "route": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "tones": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "words": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      }
-    },
-    "rayner/output": {
-      "DomSink": {
-        "tooling": "a host page that plays a scene into its own live SVG element, as the player's zoom view does (docs/SCENE-OUTPUTS.md)"
-      },
-      "NullSink": {
-        "tooling": "a test or tool that runs a scene for its state, steps or invariants and draws nothing (the recipes, rayner check)"
-      },
-      "StopScene": {
-        "tooling": "a host page or tool with its own sink, which throws it to stop a run and must rethrow it from a catch"
-      },
-      "StringSink": {
-        "tooling": "a tool that collects every frame of a run as SVG strings (the render recipe)"
-      },
-      "renderFrame": {
-        "tooling": "a host page or tool that draws a step's resting picture, or any frame, by the frame number a trace records (the player, the build's poster and rayner check's seeks)"
-      },
-      "renderElements": {
-        "tooling": "a tool that reads a frame as element records, with each part's box, paint and text (the render recipe)"
-      },
-      "renderText": {
-        "tooling": "a tool or test that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe)"
-      },
-      "toSvgString": {
-        "tooling": "a host page or tool that serializes the scene's current picture as one SVG document, such as a step's still from the scene renderFrame returns (the render recipe)"
-      }
-    },
     "rayner/testing": {
-      "InvariantSink": {
-        "tooling": "an author's test that checks every frame of a run against the scene's invariants (the invariants recipe)"
-      },
       "TraceSink": {
         "tooling": "an author's test or tool that records each step's timing, state and evidence while it runs a scene its own way"
       },
@@ -195,9 +139,6 @@
       },
       "diagramOf": {
         "tooling": "an author's test that reads a pinned diagram's words or parts (pg-page, traffic-policy, gnome-files, tailwind-gamut and gtfs)"
-      },
-      "jsonObject": {
-        "tooling": "an author's test or tool that validates and clones state under the trace's JSON rules (the document recipe)"
       },
       "loadFonts": {
         "tooling": "an author's test or tool that draws text outside a scene's run, and so loads the embedded fonts first"
@@ -228,20 +169,24 @@
   "features": [
     {
       "feature": "Matching transforms",
-      "uses": "`TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added`",
+      "uses": "`new Transform(a, b, { match })`: `'text'`, `'shapes'` (`shapeKey()`), `'key'` or `{ by: 'key', text, unkeyed, fallback }` (keyed components), or your own key; `summary()`, `pairs`, `removed`, `added`",
       "guide": "[Matching](MATCHING.md)",
       "items": [
         {
-          "name": "TransformMatchingText"
+          "label": "match: 'text'",
+          "pattern": "match: 'text'"
         },
         {
-          "name": "TransformMatchingShapes"
+          "label": "match: 'shapes'",
+          "pattern": "match: 'shapes'"
         },
         {
-          "name": "TransformMatching"
+          "label": "match: 'key'",
+          "pattern": "match: 'key'|by: 'key'"
         },
         {
-          "name": "matchByKey"
+          "label": "summary()",
+          "pattern": "\\.summary\\(\\)"
         }
       ]
     },
@@ -267,13 +212,9 @@
     },
     {
       "feature": "Camera",
-      "uses": "`this.frame.animate.fit(...)`, `.reset()`; `s.focus`",
+      "uses": "`s.focus(target)`, `s.focus('all')`",
       "guide": "[Camera](CAMERA.md)",
       "items": [
-        {
-          "label": "this.frame.animate",
-          "pattern": "frame\\.animate"
-        },
         {
           "label": "s.focus",
           "pattern": "\\bs\\.focus\\("
@@ -377,8 +318,8 @@
       ]
     },
     {
-      "feature": "Restore, copies, sequencing",
-      "uses": "`saveState()` and `Restore`, `TransformFromCopy`, `Succession`",
+      "feature": "Saved states, copies, sequencing",
+      "uses": "`saveState()` and `new Transform(m, 'saved')`, `new Transform(a, b, { fromCopy: true })`, `Succession`",
       "guide": "[Animations](ANIMATIONS.md)",
       "items": [
         {
@@ -386,14 +327,16 @@
           "pattern": "\\.saveState\\("
         },
         {
-          "name": "Restore"
+          "label": "Transform(m, 'saved')",
+          "pattern": "'saved'"
         },
         {
           "label": "restore()",
           "pattern": "\\.restore\\("
         },
         {
-          "name": "TransformFromCopy"
+          "label": "fromCopy",
+          "pattern": "\\bfromCopy: true"
         },
         {
           "name": "Succession"
@@ -421,15 +364,6 @@
       "names": [
         "TransformDiff"
       ]
-    },
-    {
-      "explaining": "Authoring feature reference",
-      "start": "`feature-tour`",
-      "shows": "Choose a feature scenario: the recipe step shows the author-written API, the result step runs it. See [scope and specialized APIs](../../docs/FEATURE-TOUR.md)",
-      "scenes": [
-        "feature-tour"
-      ],
-      "names": []
     },
     {
       "explaining": "A protocol or request flow",
@@ -467,7 +401,7 @@
     {
       "explaining": "A state machine",
       "start": "`state-machine`",
-      "shows": "A state diagram driven by the real reducer as a `Machine`, code spans boxed from the row it read",
+      "shows": "A state diagram driven as a `Machine` by a model run against the real client (Node’s WebSocket), and code spans of its real `send()` boxed from the branch it ran",
       "scenes": [
         "state-machine"
       ],
@@ -525,7 +459,7 @@
     {
       "explaining": "Identity, hashing or text that changes",
       "start": "`exgit`, `glyph`",
-      "shows": "`exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: `TransformMatchingShapes` pairs letters by their outlines",
+      "shows": "`exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: a `Transform` with `match: 'shapes'` pairs letters by their outlines",
       "scenes": [
         "exgit",
         "glyph"
@@ -533,20 +467,25 @@
       "names": [
         "view",
         "BraceLabel",
-        "TransformMatchingShapes"
-      ]
+        "Transform"
+      ],
+      "patterns": {
+        "match: 'shapes'": "match: 'shapes'"
+      }
     },
     {
       "explaining": "Keyed cells or nodes rearranged between pictures of the same state",
       "start": "`periodic-groups`",
-      "shows": "`view(...).sync()`, which matches by key; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
+      "shows": "`view(...).sync()`, which matches by key; `match: { by: 'key', fallback }` for unkeyed parts that should stay put, `text: 'whole'` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
       "scenes": [
         "periodic-groups"
       ],
       "names": [
-        "view",
-        "matchByKey"
-      ]
+        "view"
+      ],
+      "patterns": {
+        "by: 'key'": "by: 'key'"
+      }
     },
     {
       "explaining": "A real tool's behaviour, checked against it",
@@ -628,6 +567,381 @@
         "layout-direction"
       ],
       "names": []
+    }
+  ],
+  "lookup": [
+    {
+      "feature": "A step with its own link and resting picture",
+      "uses": "`this.step(id, { title, caption })`, then `s.enter(...)` for its picture",
+      "guide": "[Scene](REFERENCE.md#scene)",
+      "scenes": [
+        "token-bucket"
+      ],
+      "names": [],
+      "patterns": {
+        "this.step": "\\bthis\\.step\\(",
+        "s.enter": "\\bs\\.enter\\("
+      }
+    },
+    {
+      "feature": "Scenarios a reader chooses between",
+      "uses": "`static settings = [...]`, `settingsOf(this)`",
+      "guide": "[Settings](REFERENCE.md#settings)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "settingsOf"
+      ],
+      "patterns": {
+        "static settings": "\\bstatic settings\\b"
+      }
+    },
+    {
+      "feature": "A captured diagram, an edge walked and left marked",
+      "uses": "`s.show({ source })`, `d.walk(...)`, `s.diagramView(d, ...)` with `d.trail(...)`",
+      "guide": "[Diagrams](REFERENCE.md#diagrams)",
+      "scenes": [
+        "oauth-pkce"
+      ],
+      "names": [],
+      "patterns": {
+        "s.show": "\\bs\\.show\\(\\{",
+        "d.walk": "\\.walk\\(",
+        "s.diagramView": "\\bs\\.diagramView\\(",
+        "d.trail": "\\.trail\\("
+      }
+    },
+    {
+      "feature": "One line of code lit",
+      "uses": "a `view` of `code(s, lines, { lit })`, synced when `lit` changes",
+      "guide": "[Code spans](CODE.md)",
+      "scenes": [
+        "trust-proxy"
+      ],
+      "names": [
+        "view",
+        "code"
+      ],
+      "patterns": {
+        "lit": "\\blit:"
+      }
+    },
+    {
+      "feature": "Edited code, the new lines marked",
+      "uses": "a `view` of `code(s, lines, { added })`, synced after the edit",
+      "guide": "[Code spans](CODE.md), [native diff](MATCHING.md#diff-driven)",
+      "scenes": [
+        "ical-recurrence"
+      ],
+      "names": [
+        "view",
+        "code"
+      ],
+      "patterns": {
+        "added": "\\badded:"
+      }
+    },
+    {
+      "feature": "A patch you already have, animated",
+      "uses": "`parseUnifiedDiff`, `new TransformDiff(before, after, { hunks })`; `diffLines` for a diff of your own",
+      "guide": "[Diff-driven](MATCHING.md#diff-driven)",
+      "scenes": [
+        "unified-diff",
+        "ical-recurrence"
+      ],
+      "names": [
+        "parseUnifiedDiff",
+        "TransformDiff",
+        "diffLines"
+      ],
+      "patterns": {
+        "hunks": "\\bhunks:"
+      }
+    },
+    {
+      "feature": "One shape turning into another",
+      "uses": "`new Transform(m, target)`",
+      "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
+      "scenes": [
+        "galton-board"
+      ],
+      "names": [
+        "Transform"
+      ]
+    },
+    {
+      "feature": "A label changed, its shared letters kept",
+      "uses": "`new Transform(before, after, { match: 'text' })`",
+      "guide": "[Matching](MATCHING.md)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [],
+      "patterns": {
+        "match: 'text'": "match: 'text'"
+      }
+    },
+    {
+      "feature": "Items reordered, each travelling whole",
+      "uses": "`new Transform(before, after, { match: 'key' })`",
+      "guide": "[Keyed components](MATCHING.md#keyed-components)",
+      "scenes": [
+        "string-length"
+      ],
+      "names": [],
+      "patterns": {
+        "match: 'key'": "match: 'key'"
+      }
+    },
+    {
+      "feature": "An object put back where it was",
+      "uses": "`m.saveState()`, then `new Transform(m, 'saved')`",
+      "guide": "[Saved states](ANIMATIONS.md#back-to-a-saved-state-come-back-exactly)",
+      "scenes": [
+        "unified-diff"
+      ],
+      "names": [],
+      "patterns": {
+        "saveState": "\\.saveState\\(\\)",
+        "Transform(m, 'saved')": "'saved'"
+      }
+    },
+    {
+      "feature": "A new shape made from a copy, the original kept",
+      "uses": "`new Transform(source, result, { fromCopy: true })`",
+      "guide": "[fromCopy](ANIMATIONS.md#fromcopy-derive-one-thing-from-another)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [],
+      "patterns": {
+        "fromCopy": "\\bfromCopy: true"
+      }
+    },
+    {
+      "feature": "A shape drawn in, part after part",
+      "uses": "`new Create(m, { lagRatio })`",
+      "guide": "[Stage](REFERENCE.md#stage)",
+      "scenes": [
+        "cert-renewal"
+      ],
+      "names": [
+        "Create"
+      ],
+      "patterns": {
+        "lagRatio": "\\blagRatio:"
+      }
+    },
+    {
+      "feature": "A token sent along a curved route",
+      "uses": "`ArcBetweenPoints` (`rayner/extras`), `new MoveAlongPath(token, route)`",
+      "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
+      "scenes": [
+        "galton-board",
+        "float-sum"
+      ],
+      "names": [
+        "ArcBetweenPoints",
+        "MoveAlongPath"
+      ]
+    },
+    {
+      "feature": "How a move speeds up and slows down",
+      "uses": "`rateFunc`: `smooth`, and `rushInto`, `rushFrom`, `thereAndBack` from `rayner/extras`",
+      "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
+      "scenes": [
+        "galton-board",
+        "latest-search",
+        "token-bucket"
+      ],
+      "names": [
+        "smooth",
+        "rushInto",
+        "rushFrom",
+        "thereAndBack"
+      ],
+      "patterns": {
+        "rateFunc": "\\brateFunc:"
+      }
+    },
+    {
+      "feature": "Emphasis left in the resting picture",
+      "uses": "`new Circumscribe(m, { keep: true })`",
+      "guide": "[Circumscribe](EMPHASIS.md#circumscribe)",
+      "scenes": [
+        "mr-cache"
+      ],
+      "names": [
+        "Circumscribe"
+      ],
+      "patterns": {
+        "keep: true": "\\bkeep:\\s*true"
+      }
+    },
+    {
+      "feature": "A span marked as one",
+      "uses": "`Brace` with `brace.putAtTip(label)`, or `BraceLabel`",
+      "guide": "[The shapes](EMPHASIS.md#the-shapes)",
+      "scenes": [
+        "float-sum",
+        "glyph"
+      ],
+      "names": [
+        "Brace",
+        "BraceLabel"
+      ],
+      "patterns": {
+        "brace.putAtTip": "\\.putAtTip\\("
+      }
+    },
+    {
+      "feature": "A point named in the picture",
+      "uses": "`s.enter(pin(s, point, { label }))`",
+      "guide": "[Drawing kit](REFERENCE.md#drawing-kit)",
+      "scenes": [
+        "great-circle"
+      ],
+      "names": [
+        "pin"
+      ]
+    },
+    {
+      "feature": "A line drawn as if by hand",
+      "uses": "`s.sketch(path, { tool: 'pen' })`",
+      "guide": "[Stage](REFERENCE.md#stage)",
+      "scenes": [
+        "seasons",
+        "pen-and-pencil"
+      ],
+      "names": [],
+      "patterns": {
+        "s.sketch": "\\bs\\.sketch\\("
+      }
+    },
+    {
+      "feature": "A closer view, the subject unmoved",
+      "uses": "`s.focus(subject)`, `s.focus('all')`",
+      "guide": "[Camera](CAMERA.md)",
+      "scenes": [
+        "lantern"
+      ],
+      "names": [],
+      "patterns": {
+        "s.focus": "\\bs\\.focus\\("
+      }
+    },
+    {
+      "feature": "The model's numbers plotted",
+      "uses": "`new Axes({ xRange, yRange })`, `axes.lineGraph(points)`",
+      "guide": "[Axes](GRAPHING.md#axes)",
+      "scenes": [
+        "token-bucket"
+      ],
+      "names": [
+        "Axes"
+      ],
+      "patterns": {
+        "axes.lineGraph": "\\.lineGraph\\("
+      }
+    },
+    {
+      "feature": "A value placed on a scale",
+      "uses": "`new NumberLine({ range })`, `line.n2p(value)`",
+      "guide": "[NumberLine](GRAPHING.md#numberline)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "NumberLine"
+      ],
+      "patterns": {
+        "line.n2p": "\\.n2p\\("
+      }
+    },
+    {
+      "feature": "Values compared on one scale",
+      "uses": "`bars(s, rows, max)`",
+      "guide": "[Drawing kit](REFERENCE.md#drawing-kit)",
+      "scenes": [
+        "galton-board",
+        "string-length"
+      ],
+      "names": [
+        "bars"
+      ]
+    },
+    {
+      "feature": "A number counting up to its new value",
+      "uses": "`DecimalNumber`, morphed with `Transform`",
+      "guide": "[Graphing](GRAPHING.md#animating)",
+      "scenes": [
+        "galton-board"
+      ],
+      "names": [
+        "DecimalNumber",
+        "Transform"
+      ]
+    },
+    {
+      "feature": "A picture that follows the model's state",
+      "uses": "`this.state`, `view(this, draw)`, then `.sync()` after the state changes",
+      "guide": "[Views](VIEWS.md)",
+      "scenes": [
+        "ring-buffer"
+      ],
+      "names": [
+        "view"
+      ],
+      "patterns": {
+        "this.state": "\\bthis\\.state\\b",
+        ".sync()": "\\.sync\\("
+      }
+    },
+    {
+      "feature": "Panels placed for a right-to-left page",
+      "uses": "`stage(this, { direction })`, a card `at: 'start'`",
+      "guide": "[Spatial direction](REFERENCE.md#spatial-direction)",
+      "scenes": [
+        "layout-direction"
+      ],
+      "names": [
+        "stage"
+      ],
+      "patterns": {
+        "direction": "stage\\(this, \\{[^}]*\\bdirection\\b",
+        "at: 'start'": "at: 'start'"
+      }
+    },
+    {
+      "feature": "A formula set from TeX",
+      "uses": "`lettering: { math: true }` in `static meta`, `new MathTex(tex)`",
+      "guide": "[Maths](REFERENCE.md#maths)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "MathTex"
+      ],
+      "patterns": {
+        "math: true": "\\bmath:\\s*true"
+      }
+    },
+    {
+      "feature": "A globe turned to face another place",
+      "uses": "`seenFrom(model, between(a, b, t))` in a view, `view.tween(...)`",
+      "guide": "[3D](REFERENCE.md#3d-seenfrommodel-viewpoint)",
+      "scenes": [
+        "great-circle"
+      ],
+      "names": [
+        "seenFrom",
+        "between",
+        "view"
+      ],
+      "patterns": {
+        "view.tween": "\\.tween\\("
+      }
     }
   ]
 }

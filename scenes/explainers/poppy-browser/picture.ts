@@ -2,10 +2,7 @@ import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import {
-  MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE,
-  addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, seal, station, stationExit, stationHolds, stop, ticket, words,
-} from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE, addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, seal, station, stationExit, stationHolds, stop, ticket, label } from '../lib/poppy-kit.ts';
 import { AGENT, SID } from '../poppy/model.ts';
 import { ACCOUNT, ATTACKER, ATTACK_CODE, CODES, PHISH_CODE, joinEffect } from './model.ts';
 import type { CodeRecord, SignIn, Visit, World } from './model.ts';
@@ -113,7 +110,7 @@ const tearPoints = (code: string, edge: number, top: number, h: number): Vec[] =
 export function stub(s: Stage, { at, code, width, stampRoom = false, h = SLIP_H }: { at: Vec; code: string; width: number; stampRoom?: boolean; h?: number }): Group {
   const [x, y] = at, l = x - width / 2, r = x + width / 2, t = y + h / 2, b = y - h / 2, k = RADIUS.ticket;
   const outline: Vec[] = [[l + k, t], ...tearPoints(code, r, t, h), [l + k, b], [l, b + k], [l, t - k]];
-  const text = words(s, shortCode(code), { mono: true, bold: true, color: TONE.print, at: stampRoom ? [l + 0.95, y] : [x - 0.1, y], align: stampRoom ? 'start' : 'middle' });
+  const text = label(s, shortCode(code), { mono: true, bold: true, color: TONE.print, at: stampRoom ? [l + 0.95, y] : [x - 0.1, y], align: stampRoom ? 'start' : 'middle' });
   return new Group(new Polygon(outline, { fill: TONE.paper, stroke: 'none' }), text);
 }
 
@@ -237,14 +234,14 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
     parts.add(new Rectangle({ width: 1.5, height: 0.36, fill: TONE.steel, stroke: 'none', cornerRadius: 0.18 }).moveTo([PAGE_AT[0], 0.0]), 'page:button');
   } else if (w.browser.session) {
     const g = w.browser.session.grant, signedIn = !!g.account;
-    parts.add(words(s, signedIn ? `account ${g.account}` : 'signed out', { at: [WIN[0] - 2.5, 0.95], size: TYPE.label, bold: true }), 'page:who');
-    parts.add(words(s, 'Session', { at: [WIN[0] - 2.5, 0.15], color: TONE.soft }), 'page:session');
-    parts.add(words(s, g.sid, { at: [WIN[0] - 2.5 + words(s, 'Session').width() + 0.2, 0.15], color: TONE.soft, mono: true }), 'page:sid');
-  } else if (last?.event === 'submit') parts.add(words(s, 'error page', { at: [WIN[0], 0.6], size: TYPE.label, color: TONE.soft, align: 'middle' }), 'page:error');
+    parts.add(label(s, signedIn ? `account ${g.account}` : 'signed out', { at: [WIN[0] - 2.5, 0.95], size: TYPE.label, bold: true, align: 'start' }), 'page:who');
+    parts.add(label(s, 'Session', { at: [WIN[0] - 2.5, 0.15], color: TONE.soft, align: 'start' }), 'page:session');
+    parts.add(label(s, g.sid, { at: [WIN[0] - 2.5 + label(s, 'Session', { align: 'start' }).width() + 0.2, 0.15], color: TONE.soft, mono: true, align: 'start' }), 'page:sid');
+  } else if (last?.event === 'submit') parts.add(label(s, 'error page', { at: [WIN[0], 0.6], size: TYPE.label, color: TONE.soft }), 'page:error');
 
   // Its cookie shelf: the join cookie half until a join clears it (a failed one leaves it), the Session's cookie once joined.
   parts.add(new Rectangle({ width: WIN_W - 0.3, height: 0.1, fill: TONE.steel, stroke: 'none', cornerRadius: 0.05 }).moveTo([WIN[0], SHELF_Y]), 'shelf');
-  parts.add(words(s, 'cookies', { at: [WIN[0] - WIN_W / 2 + 0.15, SHELF_Y + 0.42], color: TONE.soft }), 'shelf:name');
+  parts.add(label(s, 'cookies', { at: [WIN[0] - WIN_W / 2 + 0.15, SHELF_Y + 0.42], color: TONE.soft, align: 'start' }), 'shelf:name');
   const open = w.company.codes.find((r) => r.cookie === w.browser.join);
   if (open) parts.add(cookieHalf(s, { left: JOIN_AT[0] - HALF_W / 2, y: JOIN_AT[1], code: open.code }), 'shelf:join');
   if (w.browser.session) {
@@ -252,35 +249,35 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
   }
 
   // Behind the counter: the codes example.com issued, as the stubs it keeps.
-  parts.add(words(s, 'example.com', { at: [RACK_X, 3.85], mono: true, bold: true }), 'rack:title');
+  parts.add(label(s, 'example.com', { at: [RACK_X, 3.85], mono: true, bold: true, align: 'start' }), 'rack:title');
   const records = w.company.codes.filter((r) => shown.attacker || (r.code !== ATTACK_CODE && r.code !== PHISH_CODE));
   const ordered = [...records.filter((r) => r.code !== ATTACK_CODE && r.code !== PHISH_CODE), ...records.filter((r) => r.code === ATTACK_CODE || r.code === PHISH_CODE)];
-  if (!ordered.length) parts.add(words(s, 'no codes yet', { at: [RACK_X, ROW_Y[0]], size: TYPE.label, color: TONE.soft }), 'rack:none');
+  if (!ordered.length) parts.add(label(s, 'no codes yet', { at: [RACK_X, ROW_Y[0]], size: TYPE.label, color: TONE.soft, align: 'start' }), 'rack:none');
   ordered.forEach((r, i) => row(s, parts, r, ROW_Y[i]!));
 
   // A code that came in a message: it lies outside the station, declined.
   if (last?.event === 'phish') {
     parts.add(codeSlip(s, { at: MESSAGE_AT, code: shortCode(last.code) }), 'message');
-    parts.add(words(s, 'declined', { at: [MESSAGE_AT[0], MESSAGE_AT[1] - 0.82], color: TONE.soft, align: 'middle' }), 'message:note');
+    parts.add(label(s, 'declined', { at: [MESSAGE_AT[0], MESSAGE_AT[1] - 0.82], color: TONE.soft }), 'message:note');
   }
 
   // Lower right: the attacker's browser once it is on stage; before that, what the stamps mean.
   if (shown.attacker) {
     parts.add(browserWindow(s, { at: EVIL, width: 5.9, height: 2.2, host: ATTACKER.site, lines: 0 }), 'evil');
-    parts.add(words(s, 'cookies', { at: [EVIL_HALF_AT[0] + 0.75, EVIL_HALF_AT[1]], color: TONE.soft }), 'evil:shelf');
+    parts.add(label(s, 'cookies', { at: [EVIL_HALF_AT[0] + 0.75, EVIL_HALF_AT[1]], color: TONE.soft, align: 'start' }), 'evil:shelf');
     // A browser sends a copy of a cookie and keeps it: the half stays on its shelf.
     if (w.attacker.join) parts.add(cookieHalf(s, { left: EVIL_HALF_AT[0] - HALF_W / 2, y: EVIL_HALF_AT[1], code: PHISH_CODE }), 'evil:half');
   } else {
     // Your own browser: on the same website, never joined; the agent joins only a browser it controls (6).
     parts.add(browserWindow(s, { at: EVIL, width: 5.9, height: 2.2, lines: 0 }), 'yours');
     parts.add(person(s, { at: [EVIL[0] - 2.05, EVIL[1] - 0.5], size: 0.62 }), 'yours:person');
-    parts.add(words(s, 'your browser', { at: [EVIL[0] - 1.45, EVIL[1] - 0.45], color: TONE.soft }), 'yours:name');
+    parts.add(label(s, 'your browser', { at: [EVIL[0] - 1.45, EVIL[1] - 0.45], color: TONE.soft, align: 'start' }), 'yours:name');
     // Right under the rows, so the marks are named beside the stubs that carry them.
     const y0 = ROW_Y[1] + 0.1; // the story shows at most one row before the attacker comes, so the legend never moves
     parts.add(seal(s, { at: [RACK_X + 0.5, y0], r: 0.32 }), 'legend:stamp');
-    parts.add(words(s, 'agent stamped', { at: [RACK_X + 1.1, y0], color: TONE.soft }), 'legend:stamp:name');
+    parts.add(label(s, 'agent stamped', { at: [RACK_X + 1.1, y0], color: TONE.soft, align: 'start' }), 'legend:stamp:name');
     parts.add(new Circle({ radius: 0.28, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.12 0.08' }).moveTo([RACK_X + 0.5, y0 - 0.85]), 'legend:ring');
-    parts.add(words(s, 'not stamped', { at: [RACK_X + 1.1, y0 - 0.85], color: TONE.soft }), 'legend:ring:name');
+    parts.add(label(s, 'not stamped', { at: [RACK_X + 1.1, y0 - 0.85], color: TONE.soft, align: 'start' }), 'legend:ring:name');
   }
 
   // Under the browser: what was asked, and what came back.
@@ -289,7 +286,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
       at: [MARGIN.left, -1.82], asked: report.asked, number: report.number, phrase: PHRASE[Number(report.number)]!, meaning: report.meaning,
       emphasis: `the answer: ${report.number} ${PHRASE[Number(report.number)]}, ${report.meaning}`,
     }));
-  else parts.add(words(s, 'nothing sent yet', { at: [MARGIN.left, -3.0], size: TYPE.label, color: TONE.soft }), 'answer:code');
+  else parts.add(label(s, 'nothing sent yet', { at: [MARGIN.left, -3.0], size: TYPE.label, color: TONE.soft, align: 'start' }), 'answer:code');
   return parts.group();
 }
 
@@ -305,16 +302,16 @@ const COLUMN_X = [-5.55, -1.95, 1.75, 5.45] as const;
 const TABLE_ROW_Y = [2.45, 0.95, -0.55, -2.05] as const;
 
 /** A small browser window holding an account tag, or nothing: a login, or none. */
-function miniWindow(s: Stage, at: Vec, cell: Cell, label?: string): Group {
+function miniWindow(s: Stage, at: Vec, cell: Cell, name?: string): Group {
   const [x, y] = at, w = 2.5, h = 1.15;
   const items: Mobject[] = [
     new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel }).moveTo(at),
     new Rectangle({ width: w - 0.06, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([x, y + h / 2 - 0.3]),
     ...[0, 1, 2].map((i) => new Circle({ radius: 0.05, fill: TONE.steel, stroke: 'none' }).moveTo([x - w / 2 + 0.2 + i * 0.16, y + h / 2 - 0.15])),
   ];
-  const text = label ?? cell.tag;
-  if (text) items.push(words(s, text, { at: [x - (cell.scoped ? 0.45 : 0), y - 0.12], size: TYPE.label, mono: true, bold: true, align: 'middle' }));
-  else items.push(words(s, 'none', { at: [x, y - 0.12], color: TONE.soft, align: 'middle' }));
+  const text = name ?? cell.tag;
+  if (text) items.push(label(s, text, { at: [x - (cell.scoped ? 0.45 : 0), y - 0.12], size: TYPE.label, mono: true, bold: true }));
+  else items.push(label(s, 'none', { at: [x, y - 0.12], color: TONE.soft }));
   if (cell.scoped) items.push(key(s, { at: [x + 0.55, y - 0.12], size: 0.36, teeth: 3 }));
   return new Group(...items);
 }
@@ -322,7 +319,7 @@ function miniWindow(s: Stage, at: Vec, cell: Cell, label?: string): Group {
 /** The spec's table as four rows of windows, computed from the model's joinEffect. */
 export function drawLogins(s: Stage): Group {
   const parts = keyedParts();
-  ['before', 'join', 'while joined', 'sign-in ends'].forEach((head, i) => parts.add(words(s, head, { at: [COLUMN_X[i]!, 3.75], bold: true, align: 'middle' }), `logins:head:${i}`));
+  ['before', 'join', 'while joined', 'sign-in ends'].forEach((head, i) => parts.add(label(s, head, { at: [COLUMN_X[i]!, 3.75], bold: true }), `logins:head:${i}`));
   ROWS.forEach((r, i) => {
     const y = TABLE_ROW_Y[i]!, effect = joinEffect(r.before, r.key);
     parts.add(miniWindow(s, [COLUMN_X[0], y], { tag: r.before, scoped: false }, i === 3 ? 'A or B' : undefined), `logins:${i}:before`);
@@ -330,7 +327,7 @@ export function drawLogins(s: Stage): Group {
     parts.add(miniWindow(s, [COLUMN_X[2], y], cellOf(effect.whileJoined)), `logins:${i}:while`);
     parts.add(miniWindow(s, [COLUMN_X[3], y], cellOf(effect.afterSignInEnds)), `logins:${i}:after`);
   });
-  parts.add(words(s, 'a key replaces the old login; no key leaves it', { at: [0, -3.55], color: TONE.soft, align: 'middle' }), 'logins:rule');
+  parts.add(label(s, 'a key replaces the old login; no key leaves it', { at: [0, -3.55], color: TONE.soft }), 'logins:rule');
   return parts.group();
 }
 

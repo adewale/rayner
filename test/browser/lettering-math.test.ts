@@ -10,8 +10,9 @@ import { mkdtemp, readFile, writeFile, rm, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { Scene, MathTex, TransformMatchingShapes, TransformMatchingText } from '../../src/index.ts';
-import { NullSink, renderFrame, renderElements } from '../../src/output.ts';
+import { Scene, MathTex, Transform } from '../../src/index.ts';
+import { NullSink, renderFrame } from '../../src/timeline.ts';
+import { renderElements } from '../../src/svg.ts';
 import { SnapshotSink } from '../../src/svg.ts';
 import type { Mobject, VMobject } from '../../src/index.ts';
 import { bindLettering, snapshotProvider, unpackLettering } from '../../src/lettering-outlines.ts';
@@ -144,16 +145,16 @@ test('a display formula is typeset once, in display style', async () => {
   for (const b of built) assert.ok(Math.abs(b.middle) < 1e-6, JSON.stringify(b));
 });
 
-test('morphs: TransformMatchingShapes and TransformMatchingText both pair a formula\'s glyphs by shape', async () => {
+test('morphs: a Transform matched by shapes and one matched by text both pair a formula\'s glyphs by shape', async () => {
   const results: Record<string, unknown> = {};
   class Morphs extends Scene {
     override async construct() {
       const half = new MathTex('\\frac{1}{2}+x^2'), swapped = new MathTex('x^2+\\frac{1}{2}'), grown = new MathTex('x^2+\\frac{1}{2}+y^2');
-      for (const [name, Kind, from, to] of [['shapes', TransformMatchingShapes, half, swapped], ['text', TransformMatchingText, swapped.copy(), grown]] as const) {
+      for (const [name, from, to] of [['shapes', half, swapped], ['text', swapped.copy(), grown]] as const) {
         const index = new Map<Mobject, number>([...from.children.map((g, i) => [g, i] as const), ...to.children.map((g, i) => [g, i] as const)]);
         const key = new Map<Mobject, string>([...from.children, ...to.children].map((g) => [g, (g as VMobject).shapeKey()]));
         this.add(from);
-        const t = new Kind(from, to);
+        const t = new Transform(from, to, { match: name });
         beginAnimation(t);
         results[name] = { ...t.summary(), sameShapes: t.pairs.every(([a, b]) => key.get(a) === key.get(b)), pairs: t.pairs.map(([a, b]) => [index.get(a), index.get(b)]) };
         this.remove(from);

@@ -1,4 +1,4 @@
-import { Scene, FadeIn, Text, matchByKey } from '../../../src/index.ts';
+import { Scene, FadeIn, Text } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Stage, StagedStep, ExplainerMeta } from '../../../explain/index.ts';
@@ -114,7 +114,7 @@ export default class PythonDict extends Scene<DictState, {}> {
         next: dictNext,
         views: [pictures],
         // A slot's entry, a cell or a panel line whose words change is replaced in place, not morphed glyph by glyph.
-        match: matchByKey({ text: 'whole' }),
+        match: { by: 'key', text: 'whole' },
         runTime: ({ event }) => (event.startsWith('del ') ? 1 : 0.8),
       });
       s.keep(pictures, { describe: () => words(pictures.current) });

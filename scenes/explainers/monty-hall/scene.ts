@@ -1,6 +1,6 @@
-import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, matchByKey, keyed } from '../../../src/index.ts';
+import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, keyed } from '../../../src/index.ts';
 import type { Choreography, Transition, ExplainerMeta } from '../../../explain/index.ts';
-import type { ScheduledAnimation, Mobject, MatchKey } from '../../../src/index.ts';
+import type { ScheduledAnimation, Mobject, Match } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view, having } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
 import type { Host, Opener, Round, RoundEvent } from './model.ts';
@@ -15,7 +15,7 @@ const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random
  * Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the
  * same word, and anything unkeyed by its place in the picture.
  */
-const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
+const byKey: Match = { by: 'key', text: 'whole', unkeyed: 'by-place' };
 /** Which picture is shown: the round, the strips, the odds, the copy or the worlds. */
 type Chapter = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
 /** What the later steps record: the odds and the strips' cells, then the door opened and what it leaves, then every world. */
@@ -298,7 +298,8 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
               const { before, after } = t, c = t.choreograph(main);
               const from = roundDoor(round(before))!,
                 to = roundDoor(round(after))!;
-              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!;
+              // The outline alone, unfilled: a filled copy of the door's box would hide the doors' words it passes over.
+              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!.copy().setStyle({ fill: 'none' });
               const at = (i: number, lift: number) => outline.copy().moveTo([DOOR_X(i), DOOR_Y + lift]);
               const yours = c.insert('monty-yours', outline);
               return new Succession([

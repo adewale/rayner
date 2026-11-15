@@ -88,7 +88,8 @@ const layerOf = (path: string) => (path.startsWith('explain/') ? ORDER.find((l) 
 /** The rules, each true of an import that breaks it. */
 const RULES: Record<string, (i: Import) => boolean> = {
   engine: (i) => i.from.startsWith('src/') && !i.to.startsWith('src/') && i.to !== 'vendor/glyph.js',
-  explain: (i) => i.from.startsWith('explain/') && !i.to.startsWith('src/') && !i.to.startsWith('explain/'),
+  // The explainer layer builds on the engine, itself and rayner/extras (by its entry, extras/index.ts), which is built on the engine's entry point alone.
+  explain: (i) => i.from.startsWith('explain/') && !i.to.startsWith('src/') && !i.to.startsWith('explain/') && i.to !== 'extras/index.ts',
   layers: (i) => {
     const from = layerOf(i.from), to = layerOf(i.to);
     if (!from || !to || from === to) return false;
@@ -102,7 +103,7 @@ const RULES: Record<string, (i: Import) => boolean> = {
   command: (i) => isCommand(i.from) && i.local && !/^(src|explain|app|integrations|vendor)\//.test(i.to) && !(i.to.startsWith('tools/') && isCommand(i.to)),
   // What ships above the library reaches it as an outside project does, through its entry points, and
   // beyond them only through the internal barrels.
-  through: (i) => isAbove(i.from) && /^(src|explain)\//.test(i.to) && !ENTRIES.includes(i.to) && !BARRELS.includes(i.to),
+  through: (i) => isAbove(i.from) && /^(src|explain|extras)\//.test(i.to) && !ENTRIES.includes(i.to) && !BARRELS.includes(i.to),
 };
 const broken = (rule: string, imports: Import[]) => imports.filter(RULES[rule]!).map(show);
 
@@ -131,7 +132,7 @@ test('the engine imports nothing outside src/ but its vendored shaper', () => {
   assert.deepEqual(broken('engine', importsIn('src')), []);
 });
 
-test('the explainer layer imports only the engine and itself', () => {
+test('the explainer layer imports only the engine, itself and rayner/extras', () => {
   assert.deepEqual(broken('explain', importsIn('explain')), [], 'no player, command, tests, scenes, capture or packages');
 });
 
@@ -161,6 +162,7 @@ test('the player, the command and diagram capture import the library through its
  */
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },
+  'Machine.defaultPlay': { files: ['tools/lib/explain-check.ts'], why: "check plays an event with no authored transition, the views' own morph, to judge its motion" },
   'Machine.lastPlayedIn': { files: ['tools/lib/explain-check.ts'], why: 'check explores a machine on the step it last played in' },
   'Machine.identity': { files: ['tools/lib/explain-check.ts'], why: "check tells a scene's machines apart across runs" },
   'Machine.model': { files: ['tools/lib/explain-check.ts'], why: 'check asks the model alone whether an event beyond the story is refused' },
@@ -321,6 +323,8 @@ test('each rule rejects a seeded break and allows what the layers allow', () => 
     at('explain/diagrams.ts', 'explain/look.ts')])
     assert.ok(!RULES.layers!(i), show(i));
   assert.ok(RULES.explain!(at('explain/diagrams.ts', 'integrations/agentic-mermaid/index.ts')), 'diagram capture');
+  assert.ok(RULES.explain!(at('explain/diagrams.ts', 'extras/animations.ts')), 'an extra by its own module, not the entry');
+  assert.ok(!RULES.explain!(at('explain/diagrams.ts', 'extras/index.ts')), 'rayner/extras by its entry');
   assert.ok(RULES.player!(at('app/embed.ts', 'integrations/agentic-mermaid/index.ts')), 'diagram capture');
   for (const i of [at('tools/lib/explain-check.ts', 'src/scene.ts', true), at('integrations/agentic-mermaid/index.ts', 'explain/diagram-snapshot.ts')]) assert.ok(RULES.through!(i), show(i));
   for (const i of [at('app/embed.ts', 'explain/internal.ts'), at('tools/lib/explain-check.ts', 'src/index.ts'), at('tools/lib/x.ts', 'explain/testing.ts'), at('test/x.test.ts', 'explain/look.ts')])

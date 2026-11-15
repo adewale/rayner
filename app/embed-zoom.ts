@@ -5,11 +5,11 @@
  * pointer, double-click about the point clicked. Once zoomed, a drag pans, and
  * so does a click or tap, which centres the point under it (no drag needed).
  */
-import { DomSink } from '../src/output.ts';
+import { DomSink } from '../src/internal.ts';
 import { VIEWBOX, applyRecords } from '../src/internal.ts';
 import { withoutHeading } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
-import type { ElementRecord } from '../src/output.ts';
+import type { ElementRecord } from '../src/internal.ts';
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;

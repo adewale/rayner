@@ -14,7 +14,7 @@ import { buildExplainer, buildLoader } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { publishedPage } from '../../tools/lib/explain-share.ts';
 import { fc, params } from '../lib/pbt.ts';
-import { resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/settings.ts';
 import type { Settings } from '../../explain/index.ts';
 import { settingsProblem } from '../../explain/settings.ts';
 import { pictureHtml, pictureSummary, stepWords } from '../../explain/trace.ts';
@@ -47,7 +47,7 @@ before(async () => {
   host = `http://127.0.0.1:${(hostServer.address() as { port: number }).port}`;
   // quotient-familial is the one scene in French (meta.lang 'fr'); token-bucket,
   // mr-cache and quotient-familial watch state for readers (meta.watch).
-  for (const name of ['mr-cache', 'oauth-pkce', 'exgit', 'lantern', 'send-sync', 'quotient-familial', 'feature-tour', 'token-bucket']) {
+  for (const name of ['mr-cache', 'oauth-pkce', 'exgit', 'lantern', 'send-sync', 'quotient-familial', 'float-sum', 'token-bucket']) {
     const project = await collectProject(`scenes/explainers/${name}`, { write: false });
     projects.set(name, project);
     await buildExplainer(project, join(folder, name + '.html'));
@@ -308,25 +308,22 @@ test('Next is on screen at load', options, async () => {
   }
 });
 
-readerTest('feature-tour scenario navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
-    assert.equal(new URL(page.url()).searchParams.get('step'), 'result', 'a direct result permalink remains valid');
-    const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
-    assert.equal(links.length, 29, 'each authoring scenario offers one entry link');
-    assert.deepEqual([...new Set(links)], ['recipe'], 'entry links start at the code, not the result');
-    await page.locator('fieldset.scenario input[value="state"]').check();
-    await page.waitForURL(/feature=state&step=recipe/);
-    assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'recipe');
-    await page.locator('.stepper button[aria-label="Next step"]').click();
-    await page.waitForURL(/feature=state&step=result/);
-    await page.goBack();
-    await page.waitForURL(/feature=state&step=recipe/);
-    await page.goBack();
-    await page.waitForURL(/feature=camera&step=result/);
-    assert.equal(new URL(page.url()).searchParams.get('feature'), 'camera');
-    assert.equal(new URL(page.url()).searchParams.get('step'), 'result');
-    await visitReader(page, embed + '/mr-cache.html?request=hit&step=request');
+readerTest('a scenario change keeps the reader\'s step by name, each transcript step links its scenario, and Back returns through the change', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/mr-cache.html?request=hit&step=diff', async page => {
+    // Every step of every scenario is a link in the transcript, to that scenario at that step.
+    const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => { const q = new URL((a as HTMLAnchorElement).href).searchParams; return `${q.get('request')}:${q.get('step')}`; }));
+    const project = projects.get('mr-cache')!;
+    assert.deepEqual(links, project.scenarios.flatMap(({ values, trace }) => trace.steps.map((s) => `${values.request}:${s.step}`)));
     await page.locator('fieldset.scenario input[value="miss"]').check();
-    await page.waitForURL(/request=miss&step=request/);
+    await page.waitForURL(/request=miss&step=diff/);
+    assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'diff');
+    await page.locator('.stepper button[aria-label="Next step"]').click();
+    await page.waitForURL(/request=miss&step=after/);
+    await page.goBack();
+    await page.waitForURL(/request=miss&step=diff/);
+    await page.goBack();
+    await page.waitForURL(/request=hit&step=diff/);
+    assert.equal(new URL(page.url()).searchParams.get('request'), 'hit');
+    assert.equal(new URL(page.url()).searchParams.get('step'), 'diff');
     });
 
 readerTest('fullscreen keeps the stepper row reachable when the player overflows', {viewport: {width: 1280, height: 800}, reducedMotion: 'reduce'}, () => embed + '/mr-cache.html?step=before&request=hit', async page => {
@@ -365,7 +362,7 @@ readerTest('phone: the stepper row follows the picture, the words follow it, and
     });
 // Shell-wide assertions also run in every catalog story scenario. These fixtures keep the
 // independent language and hosting boundaries without rebuilding the whole collection.
-const shellFixtures = ['mr-cache', 'quotient-familial', 'feature-tour', 'lantern'];
+const shellFixtures = ['mr-cache', 'quotient-familial', 'float-sum', 'lantern'];
 test('the shared tile preserves English/French chrome and headings, standalone, in a raw iframe and in the loader', options, async () => {
   const { PRODUCT } = await import('../../scenes/explainers/catalog.ts');
 
@@ -3425,15 +3422,13 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
   }
 });
 
-test('source tours show the token-cap calculation and terminal rejection in every scenario', options, async () => {
+test('source tours show the token-cap calculation and send()’s answer in every scenario', options, async () => {
   const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
   const {storyFrames,reviewStoryScenario,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
     'token-bucket': ['request:R9','name:R9','arrival:R9','request:R10','name:R10','arrival:R10','balance:refill:R10',
       'balance:found:R10','balance:spend:R10','balance:cap','balance:label','balance:value'],
-    'state-machine': ['reducer:idle:CONNECT','reducer:connecting:OPENED','reducer:connecting:ERROR',
-      'reducer:open:CLOSE','reducer:throw','reducer:throw-box','closed','session:ring:closed',
-      'State','session:state','Event','session:event','Returns','session:returns'],
+    'state-machine': ['readyState','socket:ready','Event','socket:event','Result','socket:result'],
   };
   const page = await browser.newPage();
   let scenarios=0,stepWidths=0,authoredSteps=0,labelChecks=0;
@@ -3441,9 +3436,9 @@ test('source tours show the token-cap calculation and terminal rejection in ever
     for(const id of ['token-bucket','state-machine'] as const){
       const project = projects.get(id) ?? await collectProject(`scenes/explainers/${id}`,{write:false});
       assert.deepEqual(project.scenarios.map(v=>v.values),id==='token-bucket'?
-        [{rate:'1'},{rate:'2'},{rate:'4'}]:[{events:'success'},{events:'failure'}]);
+        [{rate:'1'},{rate:'2'},{rate:'4'}]:[{when:'connecting'},{when:'closing'}]);
       if(!projects.has(id))await buildExplainer(project,join(folder,`${id}.html`));
-      const sourceStep = id==='token-bucket'?'later':'terminal';
+      const sourceStep = id==='token-bucket'?'later':'answer';
       const companion = await reviewSubjects(project);
       assert.deepEqual(companion.filter(c=>c.step===sourceStep&&!c.settings).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
       const claims = await reviewSubjects(project);
@@ -3473,17 +3468,15 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
             assert.equal(scene.state.tokens,after);
           }else{
-            for(const [key,value] of [
-              ['idle:CONNECT',"  'idle:CONNECT':      'connecting',"],
-              ['connecting:OPENED',"  'connecting:OPENED': 'open',"],
-              ['connecting:ERROR',"  'connecting:ERROR':  'closed',"],
-              ['open:CLOSE',"  'open:CLOSE':        'closed',"],
-              ['throw','  if (!result) throw new InvalidTransition();'],
-            ])text(`reducer:${key}`,value!);
-            text('session:state','closed');text('session:event','OPENED');text('session:returns','InvalidTransition');
-            const ring=keyed('session:ring:closed').box()!,closed=keyed('closed').box()!;
-            assert.ok(ring[0]<=closed[0]&&ring[1]<=closed[1]&&ring[2]>=closed[2]&&ring[3]>=closed[3]);
-            assert.equal(scene.state.session,'closed');
+            // A send() on a new socket throws; one after close() returns without sending.
+            const early=scenario.values.when==='connecting', ready=early?'CONNECTING':'CLOSING';
+            text('socket:ready',ready);text('socket:event','send()');
+            text('socket:result',early?'throws InvalidStateError':'returns, sends nothing');
+            const ring=keyed(`socket:ring:${ready}`).box()!,state=keyed(ready).box()!;
+            assert.ok(ring[0]<=state[0]&&ring[1]<=state[1]&&ring[2]>=state[2]&&ring[3]>=state[3]);
+            const box=keyed(`send:box:${early?'throw':'return'}`).box()!;
+            assert.ok(box[2]>box[0]&&box[3]>box[1]);
+            assert.equal(scene.state.ready,ready);
           }
           nativeChecked=true;
         }}).run();
@@ -3500,7 +3493,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         const frame=(await storyFrames(scenario.Scene,applicable)).get(sourceStep)!;
         const indices=new Set(frame.targets.filter(t=>roles[id].includes(t.name)).flatMap(t=>t.indices));
         const labels=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
-        assert.equal(labels.length,id==='token-bucket'?9:12,'exact caption-label inventory');
+        assert.equal(labels.length,id==='token-bucket'?9:6,'exact caption-label inventory');
         const readable=new Set<number>();
         await page.setViewportSize({width:390,height:844});
         await page.goto(`${embed}/${id}.html?${new URLSearchParams({...scenario.values,step:sourceStep})}`);
@@ -3529,7 +3522,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
     }
   }finally{await page.close();}
   // Every step of every scenario at both widths, whatever each scene's step count.
-  assert.equal(scenarios,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,51);
+  assert.equal(scenarios,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,39);
 });
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {

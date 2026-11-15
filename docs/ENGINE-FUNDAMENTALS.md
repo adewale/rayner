@@ -3,9 +3,8 @@
 Read this to draw, animate, inspect or extend a scene without the publishing
 workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
 [extension recipes](EXTENDING.md) give runnable examples. Every name below is a
-public export of `rayner` unless another entry point is shown: sinks, seeking and
-other ways to draw frames are `rayner/output`; traces, frame checks and profiling
-are `rayner/testing`; and `view` is `rayner/explain`.
+public export of `rayner` unless another entry point is shown: traces and sampling an
+animation are `rayner/testing`, and `view` is `rayner/explain`.
 
 ## The model
 
@@ -21,7 +20,7 @@ so changing the sink changes the output and leaves the scene alone.
 | `Text`, `Code`, `DecimalNumber` | Text and numbers, rendered with glyph outlines |
 | `Animation` | A time-dependent operation on a mobject; extension point for new motion |
 | `Scene` | Admission, ordering, named steps, model state and one fixed-rate clock |
-| `Frame` | The scene's camera, used as the SVG viewBox rather than drawn |
+| `scene.frame` | The scene's camera, used as the SVG viewBox rather than drawn; reached through the scene, not imported |
 | `Sink` | A consumer of frames and optional step-boundary notifications |
 
 The shapes are `Line`, `Arrow`, `CurvedArrow`, `Arc` (`{ center, radius, startAngle, angle }`,
@@ -168,7 +167,7 @@ does. If it stores named child references, override the protected hook
 Override `copyData(source)`, also protected, for mutable data inside a field (its own points,
 the objects an array holds) that the copy must not share.
 
-`saveState()` stores a copy. `restore()` restores immediately; `Restore`
+`saveState()` stores a copy. `restore()` restores immediately; `new Transform(m, 'saved')`
 does it as an animation. A generic transform can align or replace child structure, so retain
 references only to parts whose identity your operation promises to preserve.
 See [restoration and sequencing](ANIMATIONS.md).
@@ -239,7 +238,7 @@ given. Landing finishes what has begun, as the end of its play would, and begins
 more: a `Succession`'s later members never begin, and an action's running beat lands (with its
 `after`, if its animations had begun) while no later beat is made and its `end` does not run.
 Each landed animation can play again; an action, which plays once, cannot: awaiting it again
-gives the same failure, and playing it again throws. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
+gives the same failure, and playing it again throws. A stop is not a failure: a scene stopped by a seek is stopped
 for good, and its picture stays as the stopping frame drew it.
 
 A run time and a lag ratio are finite and not negative, given to the constructor, to
@@ -376,17 +375,18 @@ of the two.
 when its play begins and morphs to it. That suits discrete updates; it does not
 evaluate a relationship between the two endpoints, which a [view's tween](CHOREOGRAPHY.md#following-one-number) does.
 
-`renderFrame(SceneClass, frame, sink)` (`rayner/output`) reruns the scene up to one frame by its
+`renderFrame(SceneClass, frame, sink)` reruns the scene up to one frame by its
 number (or the final frame if past the end), skipping the interpolations of plays without
 updaters. A seek is a replay with skipping, not an index into a precompiled timeline. The
 number is the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's
 resting picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a
 frame to a time.
 
-A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
+A seek stops its run once it has drawn its frame, by throwing a stop of the engine's own from
+inside the run. Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
 scene. Handle known model errors before animating. The engine limits the damage:
-a `StopScene` from a sink sets `scene.phase` to `'stopped'`, and from then on `play()`, `wait()`,
+the stop sets `scene.phase` to `'stopped'`, and from then on `play()`, `wait()`,
 `step()` and every frame rethrow it before doing anything, so a swallowed stop emits
 no further frame. Plain code between the catch and the next scene call (a `shift()`,
 a write to `this.state`) still runs, which is why `rayner check` fails the pattern.

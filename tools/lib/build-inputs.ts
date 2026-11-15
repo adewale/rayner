@@ -21,7 +21,7 @@ export async function buildInputs(root: string, library = resolve(root) === reso
       for (const entry of found) if (entry.isFile()) add(base, prefix, join(entry.parentPath, entry.name));
     }
   };
-  const runtime = ['src', 'explain', 'vendor'], built = ['dist/src', 'dist/explain', 'dist/vendor'];
+  const runtime = ['src', 'explain', 'extras', 'vendor'], built = ['dist/src', 'dist/explain', 'dist/extras', 'dist/vendor'];
   if (library === root) await scan(root, '', ['package.json', 'LICENSE'], [...runtime, 'app', 'integrations', ...(compiled ? [...built, 'dist/app', 'dist/tools'] : [])]);
   else {
     await scan(root, '', ['package.json', 'LICENSE'], ['app', 'integrations', 'vendor', ...(compiled ? ['dist/tools'] : [])]);

@@ -2,10 +2,7 @@ import { Circle, Group, Line, Polygon, Rectangle, VMobject, keyed } from '../../
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import {
-  MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, STROKE, TICKET, TONE, TYPE,
-  addAll, barrier, certificate, clock, counter, key, lane, laneRoute, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
-} from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, STROKE, TICKET, TONE, TYPE, addAll, barrier, certificate, clock, counter, key, lane, laneRoute, person, seal, sheet, station, stationExit, stationHolds, ticket, label } from '../lib/poppy-kit.ts';
 import { SID } from '../poppy/model.ts';
 import { OPS, opFor, pending, sayReply, temptation } from './model.ts';
 import type { Fix, Reply, Trouble, World } from './model.ts';
@@ -75,8 +72,8 @@ const CLOCK_AT: Vec = [STOP_X, 0.2];
 const CLOCK_R = 0.38;
 /** A key's way from the Company's counter back along the lane into the agent's station, passing under the lane's name. */
 export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [NAME_X + 1.3, y], [NAME_X + 1.0, y - 0.55], [STATION[0] + STATION_R + 0.4, y - 0.55], KEY_AT];
-/** A fresh poppy.json's way, from the counter to the agent. */
-export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [STATION[0] + 0.3, STATION[1] - 0.1]];
+/** A fresh poppy.json's way, from the counter to the agent, passing under the lane's name as a key does. */
+export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [NAME_X + 1.6, y], [NAME_X + 1.2, y - 0.95], [STATION[0] + STATION_R + 0.5, y - 0.95], [STATION[0] + 0.3, STATION[1] - 0.1]];
 /** Where a new delegation (or a fresh seal) comes from: the agent's own systems, off the stage above its station. */
 export const DELEGATION_ROUTE: Vec[] = [[MARGIN.left, 4.3], SEAL_AT];
 
@@ -133,7 +130,7 @@ function heroTicket(s: Stage, at: Vec, o: { teeth: number; mcpKey: boolean; expi
     new Rectangle({ width: p.tab.w, height: p.tab.h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS_TAG }).moveTo(tag),
     new Circle({ radius: 0.06, fill: TONE.ground, stroke: 'none' }).moveTo([tag[0], tag[1] + p.tab.h / 2 - 0.13]),
   );
-  const v = words(s, o.version, { at: [tag[0], tag[1] - 0.06], mono: true, bold: true, color: TONE.print, align: 'middle' });
+  const v = label(s, o.version, { at: [tag[0], tag[1] - 0.06], mono: true, bold: true, color: TONE.print });
   return [keyedPart(new Group(...body), 'ticket'), keyedPart(tab, 'ticket:tab'), keyedPart(emphasised(v, `the request's Poppy-Version: ${o.version}`), 'ticket:tab:version')];
 }
 const RADIUS_TAG = 0.08;
@@ -147,15 +144,15 @@ function slip(s: Stage, reply: Reply, part: Part): Mobject[] {
     poly([...tear, [r, b + k], [r - k, b], [l + k, b], [l, b + k]], TONE.paper),
     new Rectangle({ width: w - 2 * SPACE.m, height: STROKE.hair, fill: TONE.paperLine, stroke: 'none' }).moveTo([(l + r) / 2, -1.1]),
   );
-  const number = words(s, String(reply.status), { at: [l + SPACE.m - 0.06, -0.22], size: TYPE.display, mono: true, bold: true, color: TONE.print });
+  const number = label(s, String(reply.status), { at: [l + SPACE.m - 0.06, -0.22], size: TYPE.display, mono: true, bold: true, color: TONE.print, align: 'start' });
   const aboutX = l + SPACE.m + number.width() + SPACE.l;
   const code = reply.status === 429 ? `Retry-After: ${reply.retryAfter}` : reply.error ?? '';
   return [
     keyedPart(paper, 'slip:paper'),
     keyedPart(emphasised(number, `the Company's answer: ${sayReply(reply)}, about ${ABOUT[part]}`), 'slip:number'),
-    keyedPart(words(s, 'about', { at: [aboutX, 0.06], color: TONE.print }), 'slip:about'),
-    keyedPart(words(s, ABOUT[part], { at: [aboutX, -0.56], bold: true, color: TONE.print }), 'slip:part'),
-    keyedPart(words(s, code, { at: [l + SPACE.m, -1.56], mono: true, bold: true, color: TONE.print }), 'slip:code'),
+    keyedPart(label(s, 'about', { at: [aboutX, 0.06], color: TONE.print, align: 'start' }), 'slip:about'),
+    keyedPart(label(s, ABOUT[part], { at: [aboutX, -0.56], bold: true, color: TONE.print, align: 'start' }), 'slip:part'),
+    keyedPart(label(s, code, { at: [l + SPACE.m, -1.56], mono: true, bold: true, color: TONE.print, align: 'start' }), 'slip:code'),
   ];
 }
 
@@ -222,7 +219,7 @@ function remedyObject(s: Stage, fix: Fix, x: number): Group {
 
 /** The rail's slots: each remedy's centre, spaced by the width of its name so the six fill the stage. */
 function railSlots(s: Stage): number[] {
-  const widths = RAIL.map((f) => Math.max(words(s, FIX_NAME[f], { bold: true }).width(), 0.9));
+  const widths = RAIL.map((f) => Math.max(label(s, FIX_NAME[f], { bold: true, align: 'start' }).width(), 0.9));
   const gap = (MARGIN.right - MARGIN.left - widths.reduce((a, b) => a + b, 0)) / (RAIL.length - 1);
   let x = MARGIN.left;
   return widths.map((w) => { const c = x + w / 2; x += w + gap; return c; });
@@ -247,7 +244,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   addAll(parts, station(s, { at: STATION, r: STATION_R, keyTeeth: teeth }));
   if (w.mcpKey) {
     parts.add(serviceKey(s, { at: MCP_KEY_AT, size: 0.45, teeth: 2 }), 'agent:mcp-key');
-    parts.add(words(s, 'for MCP', { at: [MCP_KEY_AT[0] + 0.75, MCP_KEY_AT[1]], color: TONE.soft }), 'agent:mcp-key:name');
+    parts.add(label(s, 'for MCP', { at: [MCP_KEY_AT[0] + 0.75, MCP_KEY_AT[1]], color: TONE.soft, align: 'start' }), 'agent:mcp-key:name');
   }
 
   // The counter, and the lane to it: one lane, or for a call to the MCP server the MCP lane under the idle API lane.
@@ -270,29 +267,29 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   if (last?.reply.status === 429) parts.add(paceClock(s, answered ? 0 : 1), 'slip:clock');
 
   // Under the map: the slip the Company handed back, pointing at what was wrong, and what came of the send after it.
-  if (!last) parts.add(words(s, 'nothing sent yet', { at: [MARGIN.left, -0.6], size: TYPE.label, color: TONE.soft }), 'slip:none');
+  if (!last) parts.add(label(s, 'nothing sent yet', { at: [MARGIN.left, -0.6], size: TYPE.label, color: TONE.soft, align: 'start' }), 'slip:none');
   else if (last.reply.status >= 400 && at) {
     addAll(parts, slip(s, last.reply, PART[last.trouble]));
     addAll(parts, pointer(at, PART[last.trouble]));
   } else {
-    parts.add(words(s, String(last.reply.status), { at: [MARGIN.left - 0.06, -0.22], size: TYPE.display, mono: true, bold: true }), 'slip:number');
-    parts.add(words(s, 'OK', { at: [MARGIN.left + 3.3, -0.22], size: TYPE.title, bold: true }), 'slip:about');
-    parts.add(words(s, 'sizes found', { at: [MARGIN.left, -1.56] }), 'slip:code');
+    parts.add(label(s, String(last.reply.status), { at: [MARGIN.left - 0.06, -0.22], size: TYPE.display, mono: true, bold: true, align: 'start' }), 'slip:number');
+    parts.add(label(s, 'OK', { at: [MARGIN.left + 3.3, -0.22], size: TYPE.title, bold: true, align: 'start' }), 'slip:about');
+    parts.add(label(s, 'sizes found', { at: [MARGIN.left, -1.56], align: 'start' }), 'slip:code');
   }
   if (answered && last!.again) {
-    const again = words(s, `sent again: ${last!.again.status} OK`, { at: [MARGIN.left, OUTCOME_Y], bold: true });
+    const again = label(s, `sent again: ${last!.again.status} OK`, { at: [MARGIN.left, OUTCOME_Y], bold: true, align: 'start' });
     parts.add(emphasised(again, `sent again after ${FIX_NAME[last!.fix!]}: ${sayReply(last!.again)}`), 'outcome');
   }
 
   // Behind the counter, quiet: what the Company knows of the Session.
   // Drawn quiet, in SOFT, as the kit's ledger is laid out: only a row the last event changed is set in INK, bold, with a change bar.
   const rows = knownBy(w), right = MARGIN.right;
-  parts.add(words(s, 'The Company knows', { at: [LEDGER_X, 3.85], color: TONE.soft, bold: true }), 'company:title');
+  parts.add(label(s, 'The Company knows', { at: [LEDGER_X, 3.85], color: TONE.soft, bold: true, align: 'start' }), 'company:title');
   parts.add(new Rectangle({ width: right - LEDGER_X, height: 0.03, fill: TONE.rule, stroke: 'none' }).moveTo([(LEDGER_X + right) / 2, 3.42]), 'company:rule');
   rows.forEach((row, i) => {
     const y = 2.9 - i * 0.74, k = `company:${row.label}`;
-    parts.add(words(s, row.label, { at: [LEDGER_X, y], color: TONE.soft }), `${k}:label`);
-    const value = parts.add(words(s, row.value, { at: [right, y], align: 'end', mono: !row.quiet, bold: !!row.changed, color: row.changed ? TONE.ink : TONE.soft }), `${k}:value`);
+    parts.add(label(s, row.label, { at: [LEDGER_X, y], color: TONE.soft, align: 'start' }), `${k}:label`);
+    const value = parts.add(label(s, row.value, { at: [right, y], align: 'end', mono: !row.quiet, bold: !!row.changed, color: row.changed ? TONE.ink : TONE.soft }), `${k}:value`);
     parts.add(new Rectangle({ width: right - LEDGER_X, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([(LEDGER_X + right) / 2, y - 0.37]), `${k}:rule`);
     if (row.changed) {
       emphasised(value, `changed: ${row.label} is now ${row.value}`);
@@ -303,19 +300,19 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   // The right-hand focus: what to predict, why the tempting remedy would fail, or the 401 counterfactual.
   const room = MARGIN.right - LEDGER_X, tempting = temptation(w);
   const focus = (over: string, head: string, under: string) => {
-    parts.add(words(s, over, { at: [LEDGER_X, 1.22], color: TONE.soft }), 'panel:over');
-    const big = words(s, head, { at: [LEDGER_X, 0.3], size: TYPE.title, bold: true });
-    parts.add(big.width() <= room ? big : words(s, head, { at: [LEDGER_X, 0.3], size: TYPE.label, bold: true }), 'panel:head');
-    parts.add(words(s, under, { at: [LEDGER_X, -0.62] }), 'panel:body');
+    parts.add(label(s, over, { at: [LEDGER_X, 1.22], color: TONE.soft, align: 'start' }), 'panel:over');
+    const big = label(s, head, { at: [LEDGER_X, 0.3], size: TYPE.title, bold: true, align: 'start' });
+    parts.add(big.width() <= room ? big : label(s, head, { at: [LEDGER_X, 0.3], size: TYPE.label, bold: true, align: 'start' }), 'panel:head');
+    parts.add(label(s, under, { at: [LEDGER_X, -0.62], align: 'start' }), 'panel:body');
   };
   if (shown.whatIf) {
-    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, 1.22], color: TONE.soft }), 'panel:whatif');
-    parts.add(words(s, '400', { at: [LEDGER_X, 0.4], size: TYPE.label, mono: true, bold: true }), 'panel:400');
+    parts.add(label(s, 'An OAuth library', { at: [LEDGER_X, 1.22], color: TONE.soft, align: 'start' }), 'panel:whatif');
+    parts.add(label(s, '400', { at: [LEDGER_X, 0.4], size: TYPE.label, mono: true, bold: true, align: 'start' }), 'panel:400');
     parts.add(key(s, { at: [LEDGER_X + 1.85, 0.4], size: 0.45, teeth: 2 }), 'panel:400:key');
-    parts.add(words(s, 'keeps it', { at: [LEDGER_X + 2.7, 0.4] }), 'panel:400:says');
-    parts.add(words(s, '401', { at: [LEDGER_X, -0.5], size: TYPE.label, mono: true, bold: true }), 'panel:401');
+    parts.add(label(s, 'keeps it', { at: [LEDGER_X + 2.7, 0.4], align: 'start' }), 'panel:400:says');
+    parts.add(label(s, '401', { at: [LEDGER_X, -0.5], size: TYPE.label, mono: true, bold: true, align: 'start' }), 'panel:401');
     parts.add(key(s, { at: [LEDGER_X + 1.85, -0.5], size: 0.45, teeth: 2, ghost: true }), 'panel:401:key');
-    parts.add(emphasised(words(s, 'discards it', { at: [LEDGER_X + 2.7, -0.5], bold: true }), 'a 401 would make an OAuth library discard a good token'), 'panel:401:says');
+    parts.add(emphasised(label(s, 'discards it', { at: [LEDGER_X + 2.7, -0.5], bold: true, align: 'start' }), 'a 401 would make an OAuth library discard a good token'), 'panel:401:says');
   } else if (refused) focus('predict', 'Which remedy?', 'the slip says');
   else if (answered && tempting) focus('why not', `${FIX_NAME[tempting.fix]}?`, WHY_NOT[last!.trouble]);
   else if (last && !refused) focus('no refusal', 'The key fits', 'cut for this server');
@@ -326,10 +323,10 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     const x = slots[i]!, lit = answered && last!.fix === fix, struck = answered && tempting?.fix === fix;
     const object = parts.add(remedyObject(s, fix, x), `rail:${fix}`);
     if (!lit) object.setStyle({ fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine });
-    const label = parts.add(words(s, FIX_NAME[fix], { at: [x, RAIL_LABEL_Y], align: 'middle', bold: lit, color: lit ? TONE.ink : TONE.soft }), `rail:${fix}:name`);
+    const name = parts.add(label(s, FIX_NAME[fix], { at: [x, RAIL_LABEL_Y], bold: lit, color: lit ? TONE.ink : TONE.soft }), `rail:${fix}:name`);
     if (lit) {
-      emphasised(label, `the remedy applied: ${FIX_NAME[fix]}`);
-      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.32]), `rail:${fix}:mark`);
+      emphasised(name, `the remedy applied: ${FIX_NAME[fix]}`);
+      parts.add(new Rectangle({ width: name.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.32]), `rail:${fix}:mark`);
     }
     if (struck) parts.add(poly([[x - 0.5, RAIL_Y - 0.42], [x - 0.42, RAIL_Y - 0.5], [x + 0.5, RAIL_Y + 0.42], [x + 0.42, RAIL_Y + 0.5]], TONE.ink), `rail:${fix}:strike`);
   });

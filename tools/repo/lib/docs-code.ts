@@ -3,10 +3,10 @@ import { join } from 'node:path';
 import { packageImports } from '../../lib/explain-init.ts';
 
 /**
- * The guides that print tutorial files. A block marked `<!-- dir/file -->` above a fenced code block
+ * The guides that print tutorial files: the README, the tutorial and docs/WRITING.md. A block marked `<!-- dir/file -->` above a fenced code block
  * prints scenes/tutorial/<dir>/<file> exactly, with the package imports an npm author writes.
  */
-export const DOCS = ['README.md', 'docs/TUTORIAL.md'] as const;
+export const DOCS = ['README.md', 'docs/TUTORIAL.md', 'docs/WRITING.md'] as const;
 const MARKED = /(<!-- ([\w-]+\/[\w.-]+) -->\n```(?:ts|md)\n)([\s\S]*?)(```)/g;
 
 /** Each marked block in `doc`: the file it prints, what it shows, and what it should show. */

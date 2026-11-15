@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { chromium, type Page } from 'playwright-core';
+import type { Page } from 'playwright-core';
 import { playerProperties } from '../../app/embed-style.ts';
 import { PALETTES } from '../../explain/palettes.ts';
 import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
@@ -338,8 +338,7 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
       }
       // Playwright normally hides scrollbars. Use the native classic gutter for the fit boundary.
       await browser.close();
-      browser = await chromium.launch({
-        executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,
+      browser = await launch('The scrollbar check', {
         ignoreDefaultArgs:['--hide-scrollbars'],
         args:['--disable-features=OverlayScrollbar'],
       });

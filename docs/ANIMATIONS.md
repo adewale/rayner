@@ -1,25 +1,61 @@
-# Restore, copies and sequencing
+# Transforms, saved states, copies and sequencing
 
-Three animations from manim's set. Each fixes its endpoints when it begins, so a
-seek renders the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
-`Restore` and `TransformFromCopy`, in `rayner`, are each a `Transform` (to the saved look,
-or of a copy that the play makes as it begins). `Succession` is in `rayner` too.
-[Reusable choreography](CHOREOGRAPHY.md) covers the animations extracted from the
-example collection.
+`Transform`, in `rayner`, morphs one mobject into another, and its options cover what manim
+spreads over several classes: pairing parts by what they are, returning to a saved state,
+morphing a copy. `Succession`, in `rayner` too, plays animations one after another in one
+play. Each fixes its endpoints when it begins, so a seek renders the byte-identical frame a
+full run produces (`test/anim-utils.test.ts`). [Reusable choreography](CHOREOGRAPHY.md)
+covers the animations extracted from the example collection.
 
-## Restore: come back exactly
+## Transform and its options
+
+```ts
+new Transform(mobject, target, options?)    // target: a mobject, or 'saved'
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `match` | `'index'` | How parts pair. `'index'`: the families pair leaf for leaf, by position, and each pair morphs. `'text'`, `'shapes'`, `'key'`, `{ by: 'key', text, unkeyed, fallback }` or a function from a part to its key: parts pair by what they are, and a part with no partner fades out or in ([matching](MATCHING.md)). The type is `Match` |
+| `ordered` | `true` for `match: 'text'`, else `false` | A matched transform pairs runs of consecutive equal keys first, in reading order |
+| `staged` | `false` | A matched transform's unmatched parts go over the first half and come over the second, so a word and the word replacing it never overlap |
+| `fadeMismatches` | `true` | `false`: a matched transform morphs its unmatched parts into each other by index, fading only the leftovers |
+| `fromCopy` | `false` | A copy of `mobject` morphs into `target`; `mobject` stays ([below](#fromcopy-derive-one-thing-from-another)) |
+| `replace` | `false` for a morph by index; `true` when parts are matched, and with `fromCopy` | The scene holds `target` afterwards. A matched transform's source ends holding faded parts and copies of the target's new ones, so by default the scene takes the target; `fromCopy` refuses `false` |
+
+`'saved'` as the target returns `mobject` to the state `saveState()` stored
+([below](#back-to-a-saved-state-come-back-exactly)); it morphs by index and keeps `mobject`, so
+it refuses `match`, `fromCopy` and `replace`. A matched transform reports what it paired once it
+has begun: `pairs`, `morphed`, `removed`, `added`, and `summary()`, a `MatchSummary` (`null` for a
+morph by index), recorded as the step's `match` evidence. `TransformDiff` is a matched
+`Transform` whose pairing is a code diff ([diff-driven](MATCHING.md#diff-driven)).
+
+Earlier versions had a class for each of these; each is now the option on `Transform`:
+
+| Before | Now |
+| --- | --- |
+| `new TransformMatchingText(a, b)` | `new Transform(a, b, { match: 'text' })` |
+| `new TransformMatchingShapes(a, b)` | `new Transform(a, b, { match: 'shapes' })` |
+| `new TransformMatching(a, b, { key })` | `new Transform(a, b, { match: key })` |
+| `new TransformMatching(a, b, { key: matchByKey() })` | `new Transform(a, b, { match: 'key' })` |
+| `matchByKey({ text, unkeyed, fallback })` | `{ by: 'key', text, unkeyed, fallback }`, a `KeyMatch`, as `match` |
+| `new TransformFromCopy(a, b)` | `new Transform(a, b, { fromCopy: true })` |
+| `m.saveState()`, then `new Restore(m)` | `m.saveState()`, then `new Transform(m, 'saved')` |
+
+## Back to a saved state: come back exactly
 
 ```ts
 box.saveState();
 await this.play(box.animate.setFill(s.look.bad).scale(1.5));
-await this.play(new Restore(box));        // back to the saved look, animated
+await this.play(new Transform(box, 'saved'));   // back to the saved look, animated
 ```
 
 `saveState()` stores a deep copy on the mobject. `restore()` returns to
-it at once, `Restore` transforms back to it. After either, the mobject equals the saved
+it at once; `new Transform(box, 'saved')` transforms back to it, reading the saved state as
+its play begins. After either, the mobject equals the saved
 state exactly: points, style, and fields such as a `Text`'s string. That holds even
 when the mobject changed shape on the way (morphed into a circle, which subdivides its
-curves): `Restore` aligns to morph, then finishes on the saved data itself.
+curves): the transform aligns to morph, then finishes on the saved data itself. Without a
+saved state, the play throws as it begins, naming `saveState()`.
 
 The contract for structure: restore expects the family to have the same shape as when
 saved, and then rewrites each member's data in place, so references to children stay
@@ -30,26 +66,27 @@ mobject's own children after a restore, not the saved copy's (`test/anim-utils.t
 "restore() on a Code keeps `lines` naming its own children, not the saved copy's"). The saved state stays, so you can restore again. `copy()` does not
 carry it: a copy is a new mobject with no history.
 
-## TransformFromCopy: derive one thing from another
+## fromCopy: derive one thing from another
 
 ```ts
-await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.look.soft));
+await this.play(new Transform(formula, result, { fromCopy: true }), formula.animate.setFill(s.look.soft));
 ```
 
-A copy of `formula`, the animation's `source`, morphs into `result`. `formula` stays where it is, unchanged, and
+A copy of `formula` morphs into `result`. `formula` stays where it is, unchanged, and
 the scene holds `result` at the end. The copy is taken before any animation in the play
 begins, so it is `formula` as the play found it whatever the argument order, and it is a
-different mobject from the source, so the source can be animated in the same play. With
-the source already on screen, `TransformFromCopy(a, b)` listed before or after an
+different mobject from `formula`, so `formula` can be animated in the same play. Until the
+play begins, the transform's `mobject` is an empty placeholder. With
+the source already on screen, a `fromCopy` transform of `a` listed before or after an
 animation of `a` renders the same frames byte for byte; with a source new to the scene
-(`play(new Create(a), new TransformFromCopy(a, b))`) both orders draw the same paths, in
-the order of the arguments (`test/anim-utils.test.ts`, "TransformFromCopy copies its source
+(`play(new Create(a), new Transform(a, b, { fromCopy: true }))`) both orders draw the same paths, in
+the order of the arguments (`test/anim-utils.test.ts`, "fromCopy copies its source
 before anything in its play begins, in either argument order").
 
-TransformFromCopy is the supported way to morph a copy. The motion check lets a shape
-appear over a staying shape only when it is a `TransformFromCopy` copy of it or has the
-same shapes and paints, so a hand-made `Transform(t.copy(), other)` that changes glyph
-shapes on its first frame is reported as a cut-in. A known gap: a `TransformFromCopy`
+`fromCopy` is the supported way to morph a copy. The motion check lets a shape
+appear over a staying shape only when it is a `fromCopy` copy of it or has the
+same shapes and paints, so a hand-made `new Transform(t.copy(), other)` that changes glyph
+shapes on its first frame is reported as a cut-in. A known gap: a `fromCopy` transform
 into a `Text` reports cut-outs of the target's glyphs at the handoff.
 
 ## Succession: one after another, in one play
@@ -96,11 +133,13 @@ whose member brings an updater matches the full run").
 
 ## In the explainers
 
-- `saveState`/`Restore`: [unified-diff](https://github.com/adewale/rayner/blob/main/scenes/explainers/unified-diff/scene.ts), where the frame that searches
-  a file for a hunk's lines returns to the line it started from when the hunk fits nowhere; and the
-  [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s `restore` scenario.
-- `TransformFromCopy`: [float-sum](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts), where a typed decimal's ring stays put
-  and a copy of it settles on the double it is stored as; and the feature tour's `copy` scenario.
+- `saveState` and `new Transform(m, 'saved')`: [unified-diff](https://github.com/adewale/rayner/blob/main/scenes/explainers/unified-diff/scene.ts), where the frame that searches
+  a file for a hunk's lines returns to the line it started from when the hunk fits nowhere.
+- `fromCopy`: [float-sum](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts), where a typed decimal's ring stays put
+  and a copy of it settles on the double it is stored as.
+- `match: 'text'`, `'shapes'` and `'key'`: [float-sum](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts),
+  [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) and
+  [string-length](https://github.com/adewale/rayner/blob/main/scenes/explainers/string-length/scene.ts) ([matching](MATCHING.md#in-the-explainers)).
 - `Succession`: [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts),
   [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts) and
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) build each event's authored

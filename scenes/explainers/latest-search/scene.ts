@@ -1,4 +1,5 @@
-import { Scene, Transform, AnimationGroup, Succession, Cross, rushInto } from '../../../src/index.ts';
+import { Scene, Transform, AnimationGroup, Succession, Cross } from '../../../src/index.ts';
+import { rushInto } from '../../../extras/index.ts';
 import type { Choreography, View, Transition, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, Machine, view, having } from '../../../explain/index.ts';

@@ -1,13 +1,13 @@
 import { StateScope, wait } from './embed-scope.ts';
-import { renderFrame } from '../src/output.ts';
+import { renderFrame } from '../src/index.ts';
 import { traceRun, isHex, canonicalJson, STAGE_BOX } from '../src/internal.ts';
 import type { Palette } from '../src/index.ts';
 import { withSettings } from '../explain/testing.ts';
 import { bindSnapshots, settingsProblem, stepQuery, PAGE_QUERY, pictureChange, pictureHtml, pictureSummary, stepWords, paletteOf, paperOf, offPath, liveBase, liveSteps, runLive, predictionsOf } from '../explain/internal.ts';
 import type { Live, Prediction, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/internal.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
-import { StopScene } from '../src/output.ts';
-import { resolveSettings } from '../explain/index.ts';
+import { StopScene } from '../src/internal.ts';
+import { resolveSettings } from '../explain/internal.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { playerChanges, playerTrace } from './embed-trace.ts';
 import type { PlayerStep, PlayerTrace } from './embed-trace.ts';
@@ -170,10 +170,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       input.name = s.id;
       input.value = o.value;
       input.addEventListener('change', () => {
-        // A scene may start each new scenario with its opening step; otherwise keep
-        // the current step by name, read when the new scenario actually arrives.
-        if (input.checked) void load({ ...(wanted ?? values), [s.id]: o.value },
-          Source.meta?.scenarioNavigation === 'first' ? undefined : () => trace?.steps[selected]?.step, true);
+        // Keep the current step by name, read when the new scenario actually arrives.
+        if (input.checked) void load({ ...(wanted ?? values), [s.id]: o.value }, () => trace?.steps[selected]?.step, true);
       });
       label.append(input, el('span', o.label));
       segments.append(label);

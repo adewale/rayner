@@ -1,10 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor, keyed, Frame } from '../src/index.ts';
+import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, Scene, SurroundingRectangle, Cross, lerpColor, keyed } from '../src/index.ts';
+import { Frame } from '../src/frame.ts';
+import { thereAndBack } from '../extras/index.ts';
 import type { Mobject } from '../src/index.ts';
 import { publicClasses, MOBJECTS, USES } from './lib/public-classes.ts';
-import { NullSink, toSvgString, renderElements } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
+import { toSvgString, renderElements } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
 import { rotate } from '../src/vec.ts';
@@ -90,7 +93,7 @@ test('y is up in the model and flipped once, in path data; angles turn countercl
 });
 
 test('ArcBetweenPoints hits both endpoints and bulges to the signed side', async () => {
-  const { ArcBetweenPoints } = await import('../src/index.ts');
+  const { ArcBetweenPoints } = await import('../extras/index.ts');
   const a = new ArcBetweenPoints([0, 0], [2, 0], { angle: Math.PI / 2 });
   const end = a.pointFromProportion(1), mid = a.pointFromProportion(0.5);
   assert.ok(Math.hypot(end[0] - 2, end[1]) < 1e-5);

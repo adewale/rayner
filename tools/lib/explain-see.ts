@@ -5,7 +5,7 @@
 import { withoutHeading, describeScenario } from '../../explain/internal.ts';
 import type { ScenarioDescription } from '../../explain/testing.ts';
 import { writeFile } from 'node:fs/promises';
-import { renderFrame, toSvgString } from '../../src/output.ts';
+import { renderFrame, toSvgString } from '../../src/index.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
 

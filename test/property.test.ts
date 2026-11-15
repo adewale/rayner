@@ -11,12 +11,14 @@ import assert from 'node:assert/strict';
 import {
   Scene, Transform, Line, Arc, Text, VMobject,
   } from '../src/index.ts';
-import { StringSink, NullSink, renderFrame, renderText, renderElements, toSvgString } from '../src/output.ts';
+import { StringSink, renderElements, toSvgString } from '../src/svg.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { renderText } from '../src/ascii.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Box, Mobject } from '../src/index.ts';
-import type { ElementRecord } from '../src/output.ts';
+import type { ElementRecord } from '../src/svg.ts';
 import { tapeRng, makeScene, place, randomShape, tape, drawsFrom } from './lib/random-scene.ts';
 import type { Draws } from './lib/random-scene.ts';
 import { fc, params } from './lib/pbt.ts';

@@ -1,10 +1,9 @@
 import { Circle, Group, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Style, Vec } from '../../../src/index.ts';
-// The series' measures, words, parts and choreography are rayner/kit's; this file adds the Poppy palette and objects.
-import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, words, addAll, connector, plate, route, flight, pass, beats as kitBeats } from '../../../explain/kit.ts';
-import type { WordsOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/kit.ts';
+// The series' measures, words, parts and choreography are rayner/drawing's; this file adds the Poppy palette and objects.
+import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, label, addAll, connector, plate, route, flight, pass, beats as kitBeats, emphasised } from '../../../explain/drawing.ts';
+import type { LabelOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/drawing.ts';
 import type { Choreography, Stage } from '../../../explain/index.ts';
-import { emphasised } from '../../../explain/drawing.ts';
 
 /*
  * THE POPPY KIT: the visual system of the Poppy series (Personal Agent Protocol, draft 1.0), as code.
@@ -102,9 +101,9 @@ export const TONE = {
 /** The stage's palette for `stage(this, { palette: { ...PALETTE }, heading: false })`. */
 export const PALETTE = { paper: TONE.ground, ink: TONE.ink, accent: TONE.wax, muted: TONE.steel } as const;
 
-export { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, words, addAll, route, flight, pass };
-export type { WordsOptions, Parts, Beat, FlightTiming };
-/** Corner radii, in units, named for the series' objects: rayner/kit's RADIUS. */
+export { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, label, addAll, route, flight, pass };
+export type { LabelOptions, Parts, Beat, FlightTiming };
+/** Corner radii, in units, named for the series' objects: rayner/drawing's RADIUS. */
 export const RADIUS = { paper: KIT_RADIUS.sharp, ticket: KIT_RADIUS.small, panel: KIT_RADIUS.panel, device: KIT_RADIUS.round } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -271,7 +270,7 @@ export function station(s: Stage, { at = [0, 0], r = 1.05, name = 'your agent', 
   const out: Mobject[] = [
     keyedAs(new Group(new Circle({ radius: r, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.bold }).moveTo(at)), `${k}:station`),
     keyedAs(seal(s, { at: holds.seal, r: (keyTeeth !== undefined ? 0.44 : 0.64) * r, foreign }), `${k}:seal`),
-    keyedAs(words(s, name, { at: [at[0], at[1] - r - 0.42], align: 'middle' }), `${k}:name`),
+    keyedAs(label(s, name, { at: [at[0], at[1] - r - 0.42] }), `${k}:name`),
   ];
   if (keyTeeth !== undefined) {
     out.push(keyedAs(key(s, { at: holds.key, size: 0.66 * r, teeth: Math.max(1, keyTeeth), ghost: true }), `${k}:key:slot`));
@@ -361,11 +360,11 @@ export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = f
   const k = `lane:${id}`;
   const line = connector(s, laneRoute({ from, trunk, y, to, fan }), { active });
   if (nameAt === 'above') {
-    const over = words(s, name, { at: [nameX, y + 0.46], color: active ? TONE.ink : TONE.soft, bold: active });
+    const over = label(s, name, { at: [nameX, y + 0.46], color: active ? TONE.ink : TONE.soft, bold: active, align: 'start' });
     return [keyedAs(line, `${k}:line`), keyedAs(over, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
   }
-  const [back, label] = plate(s, name, { at: [nameX, y], key: k, color: active ? TONE.ink : TONE.soft, bold: active });
-  return [keyedAs(line, `${k}:line`), back!, keyedAs(label!, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
+  const [back, words] = plate(s, name, { at: [nameX, y], key: k, color: active ? TONE.ink : TONE.soft, bold: active });
+  return [keyedAs(line, `${k}:line`), back!, keyedAs(words!, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
 }
 
 /** A stop: a circle of radius 0.17 on the counter's face, ringed in INK, filled INK when `active`. One unkeyed Circle. */
@@ -462,15 +461,15 @@ export type LedgerOptions = {
  */
 export function ledger(s: Stage, rows: readonly LedgerRow[], { at, width, title, key: k, rowGap = 0.86, changedAs = 'changed' }: LedgerOptions): Mobject[] {
   const [x, top] = at, right = x + width, out: Mobject[] = [];
-  out.push(keyedAs(words(s, title, { at, bold: true }), `${k}:title`));
+  out.push(keyedAs(label(s, title, { at, bold: true, align: 'start' }), `${k}:title`));
   out.push(keyedAs(new Group(
     new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, top - 0.46]),
     new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, top - 0.56]),
   ), `${k}:rule`));
   rows.forEach((row, i) => {
     const y = top - 1.02 - i * rowGap, slug = `${k}:${row.label.toLowerCase().replace(/\s+/g, '-')}`;
-    out.push(keyedAs(words(s, row.label, { at: [x, y], color: TONE.soft }), `${slug}:label`));
-    const value = keyedAs(words(s, row.value, { at: [right, y], align: 'end', color: row.quiet ? TONE.soft : TONE.ink, mono: !row.quiet, bold: !!row.changed }), `${slug}:value`);
+    out.push(keyedAs(label(s, row.label, { at: [x, y], color: TONE.soft, align: 'start' }), `${slug}:label`));
+    const value = keyedAs(label(s, row.value, { at: [right, y], align: 'end', color: row.quiet ? TONE.soft : TONE.ink, mono: !row.quiet, bold: !!row.changed }), `${slug}:value`);
     out.push(value);
     out.push(keyedAs(new Rectangle({ width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([x + width / 2, y - rowGap / 2]), `${slug}:rule`));
     if (row.changed) {
@@ -517,12 +516,12 @@ export const ANSWER_NUMBER_WIDTH = 3 * 0.6 * TYPE.display;
  */
 export function answer(s: Stage, { at, asked, number, keyTeeth = 1, phrase, meaning, key: k = 'answer', emphasis, textX = at[0] + ANSWER_NUMBER_WIDTH + SPACE.m, meaningMono = false }: AnswerOptions): Mobject[] {
   const [x, y] = at, mid = y - 1.48;
-  const out: Mobject[] = [keyedAs(words(s, asked, { at, color: TONE.soft }), `${k}:asked`)];
-  if (number !== null) out.push(keyedAs(words(s, number, { at: [x - 0.06, mid], size: TYPE.display, mono: true, bold: true }), `${k}:code`));
+  const out: Mobject[] = [keyedAs(label(s, asked, { at, color: TONE.soft, align: 'start' }), `${k}:asked`)];
+  if (number !== null) out.push(keyedAs(label(s, number, { at: [x - 0.06, mid], size: TYPE.display, mono: true, bold: true, align: 'start' }), `${k}:code`));
   else out.push(keyedAs(key(s, { at: [x + ANSWER_NUMBER_WIDTH / 2 - 0.1, mid + 0.06], size: 1.25, teeth: keyTeeth }), `${k}:key`));
-  const head = keyedAs(words(s, phrase, { at: [textX, mid + 0.3], size: TYPE.title, bold: true }), `${k}:phrase`);
+  const head = keyedAs(label(s, phrase, { at: [textX, mid + 0.3], size: TYPE.title, bold: true, align: 'start' }), `${k}:phrase`);
   if (emphasis) markAs(head, emphasis);
-  out.push(head, keyedAs(words(s, meaning, { at: [textX, mid - 0.46], mono: meaningMono }), `${k}:meaning`));
+  out.push(head, keyedAs(label(s, meaning, { at: [textX, mid - 0.46], mono: meaningMono, align: 'start' }), `${k}:meaning`));
   return out;
 }
 
@@ -552,7 +551,7 @@ export type SheetOptions = {
  */
 export function sheet(s: Stage, { at = [0, 0], width, height, title, fields = [], lines }: SheetOptions = {}): Group {
   const printed = [...(title ? [title] : []), ...fields];
-  const texts = printed.map((line, i) => words(s, line, { mono: true, color: TONE.print, bold: i === 0 && !!title }));
+  const texts = printed.map((line, i) => label(s, line, { mono: true, color: TONE.print, bold: i === 0 && !!title, align: 'start' }));
   const pad = SPACE.s, lead = 0.62;
   const w = Math.max(width ?? 1.0, ...texts.map((t) => t.width() + 2 * pad + 0.22));
   const bars = lines ?? (printed.length ? 0 : 3);
@@ -576,7 +575,7 @@ export function sheet(s: Stage, { at = [0, 0], width, height, title, fields = []
  * bold PRINT ("K7Q-29F"). Size: the code's width + 0.56 × 0.95 units. One unkeyed Group.
  */
 export function codeSlip(s: Stage, { at = [0, 0], code = 'K7Q-29F' }: { at?: Vec; code?: string } = {}): Group {
-  const text = words(s, code, { mono: true, bold: true, color: TONE.print, align: 'middle', at: [at[0], at[1] + 0.06] });
+  const text = label(s, code, { mono: true, bold: true, color: TONE.print, at: [at[0], at[1] + 0.06] });
   const w = text.width() + 0.56, h = 0.95, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2;
   const teeth = Math.max(4, Math.round(w / 0.16)), tear: P[] = [];
   for (let i = 0; i <= teeth; i++) tear.push([r - (i * w) / teeth, b + (i % 2 ? 0.07 : 0)]);
@@ -603,7 +602,7 @@ export type CertificateOptions = {
  * title). The ribbon tails hang 0.5 below the seal, past the paper's edge. One unkeyed Group.
  */
 export function certificate(s: Stage, { at = [0, 0], width = 1.9, height = 1.3, title, foreign = false }: CertificateOptions = {}): Group {
-  const head = title ? words(s, title, { mono: true, bold: true, color: TONE.print }) : null;
+  const head = title ? label(s, title, { mono: true, bold: true, color: TONE.print, align: 'start' }) : null;
   const w = Math.max(width, head ? head.width() + 0.9 : 0), h = Math.max(height, head ? 1.5 : 0), [x, y] = at, l = x - w / 2, t = y + h / 2;
   const sealAt: P = [x + w / 2 - 0.42, y - h / 2 + 0.34], ribbon = foreign ? TONE.pewterDeep : TONE.waxDeep;
   const tail = (dx: number): P[] => [add(sealAt, [dx - 0.08, 0]), add(sealAt, [dx + 0.08, 0]), add(sealAt, [dx * 1.6 + 0.1, -0.5]), add(sealAt, [dx * 1.6, -0.4]), add(sealAt, [dx * 1.6 - 0.1, -0.5])];
@@ -635,7 +634,7 @@ export type InstructionCardOptions = {
  * reads and follows. Default 2.2 × 1.4 units. One unkeyed Group.
  */
 export function instructionCard(s: Stage, { at = [0, 0], title = 'SKILL.md', lines = 3, width = 2.2 }: InstructionCardOptions = {}): Group {
-  const head = words(s, title, { mono: true, bold: true, color: TONE.print });
+  const head = label(s, title, { mono: true, bold: true, color: TONE.print, align: 'start' });
   const w = Math.max(width, head.width() + 0.6), h = 0.95 + lines * 0.22, [x, y] = at, l = x - w / 2, t = y + h / 2;
   const parts: Mobject[] = [
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo(at),
@@ -669,7 +668,7 @@ export type BrowserOptions = {
  * units. Default 4.4 × 2.8 units, widened to hold the host. One unkeyed Group.
  */
 export function browserWindow(s: Stage, { at = [0, 0], width = 4.4, height = 2.8, host = 'example.com', lines = 3 }: BrowserOptions = {}): Group {
-  const probe = words(s, host, { mono: true }), fieldW = probe.width() + 0.5;
+  const probe = label(s, host, { mono: true, align: 'start' }), fieldW = probe.width() + 0.5;
   width = Math.max(width, 1.05 + fieldW + 0.3);
   const [x, y] = at, l = x - width / 2, t = y + height / 2, bar = 0.92;
   const address = probe.moveTo([l + 1.3, t - bar / 2], [-1, 0]);
@@ -761,7 +760,7 @@ export type SpeechOptions = {
  */
 export function speech(s: Stage, text: string, { at = [0, 0], who, side = 'left', width }: SpeechOptions): Group {
   const isPerson = who === 'person';
-  const t = words(s, text, { at, align: 'middle', color: isPerson ? TONE.print : TONE.ink });
+  const t = label(s, text, { at, color: isPerson ? TONE.print : TONE.ink });
   const w = width ?? t.width() + 0.56, h = 0.9, [x, y] = at, f = side === 'left' ? -1 : 1, k = RADIUS.panel;
   const l = x - w / 2, r = x + w / 2, top = y + h / 2, b = y - h / 2;
   const tip = 0.3, outline: P[] = side === 'left'
@@ -860,10 +859,10 @@ export function warning(_s: Stage, { at = [0, 0], size = 1 }: { at?: Vec; size?:
 }
 
 // ---------------------------------------------------------------------------------------------
-// Choreography: rayner/kit's, with the series' default for the parts of the last event
+// Choreography: rayner/drawing's, with the series' default for the parts of the last event
 
 /**
- * rayner/kit's `beats`, whose `fresh` parts default to the series' last event: the answer, the
+ * rayner/drawing's `beats`, whose `fresh` parts default to the series' last event: the answer, the
  * ticket and the barrier leave before the flight, so an answer is never readable before its
  * request lands.
  */

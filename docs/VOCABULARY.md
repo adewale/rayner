@@ -36,12 +36,12 @@ One row per idea.
 | What a part is for | `role` | A job many parts can share: the stage's `'backdrop'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which make a key double as a role |
 | A part's own parts | `key:part` under a keyed picture (a tile's `key:box` and `key:label`), `d.shapes(id)` and `d.labels(id)` for a diagram part | How a scene reaches inside a kit picture or a diagram part: by key or accessor, never by child index | `children[i]` into a tile, a callout, a marker or a diagram part |
 | The colours to draw with | `s.look` (`Look`) | paper, ink, soft, emphasis, good, bad, raised, rule and muted, each reading on the stage's paper; a colour name means one colour everywhere, so `d.emphasis` and `scene.colors.emphasis` are the look's | `s.emphasis`, `s.soft`, `s.good`, `s.bad`, `s.raised`, `s.rule`, `s.palette` read for drawing, local `{ ...s.palette, soft, emphasis }` bundles; `accent` for the derived emphasis colour (`SceneColors.accent`, `d.accent`) |
-| A named style's colours | `Palette`, `palette(name)` | The input a stage or diagram is styled from: `paper`, `ink`, the style's own `accent` and `muted`. Drawing code reads the look, not the palette | |
+| A named style's colours | `Palette`, the stage's `style` or `palette` option | The input a stage or diagram is styled from: `paper`, `ink`, the style's own `accent` and `muted`. Drawing code reads the look, not the palette | |
 | The stage's paper rectangle | The backdrop, role `'backdrop'` | The rectangle the stage is drawn on; "paper" names only its colour, `s.look.paper` | `s.paper`, role `'paper'` |
 | Where a picture stands | `at` | The one placement word in the drawing kit: a point (a label's, a tile's, a legend's first entry), or the anchor a layout is shifted to (a flow's row, bars, a table's header row). What a picture measures or points at (a callout's target, a dimension's ends, a pin's point) is positional content, not placement | Positional `(x, y)`, the `y` and `xs` options |
 | Text size | `size` | The text size in the drawing kit's options, the stage's annotations and notes, a legend and a diagram's notes; the engine's `Text` keeps `fontSize`, as in Manim | A positional size in `label` |
 | A legend's layout | `stack: 'column' \| 'row'` | Entries stacked or side by side | `direction`, which means left-to-right or right-to-left on the stage and a card |
-| Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
+| Matching by key | `match: 'key'`, `{ by: 'key', ... }` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
 | Enlarging diagram artwork | `d.enlarge(ids \| 'all')` | The diagram's parts scaled up inside its own box; the camera does not move (`s.focus` moves it) | `d.focus` |
 | Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay` | `Session`, `sessionsOf`; a describe field `sessions` |
 | Refused event | `next` returns `refuse(reason)`, the reason in the reader's words (`undefined` refuses with none) | Which buttons a reader cannot press in a state, and why; one function, so the buttons, their reasons and the model cannot disagree | A refused event returning the same state; `why(state, event)`, a reason in a function of its own |
@@ -61,9 +61,9 @@ One row per idea.
 | A sampled value | `view.tween((t) => state)`; `c.follow({ from, to, draw }, { targets })` in a transition | A state, or one number, sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | `s.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `s.draw(m)` |
-| 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
+| 2D camera | `scene.frame` | The box of the scene that is on screen; its class is the engine's own | |
 | 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/geo` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by a view's tween; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
-| Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
+| Frame-level check | `addInvariant`, `scene.invariants` | A predicate checked on every frame by `rayner check`, or by a sink of your own; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |
 | Records | trace, evidence, receipt | What each step showed, what an animation decided, what a build produced ([defined in the engine map](ENGINE.md#correctness-by-construction)) | |
@@ -110,13 +110,14 @@ Each name's promise is checkable:
   `scenes/explainers/bloom-filter/scene.test.ts` reads each keyed cell against the model.
 - `seenFrom` hides what the body hides. great-circle and henge draw with it: henge's two tilted
   Earths have a translucent body, the axis dashed inside it (`hidden: 'dashed'`) and solid where
-  it stands out of each pole (`'behind'`). Henge also draws New York's sky as a sphere, from
-  outside (the dome) and from its centre (the street, gnomonic), and turns the year with a view's
-  tween over the orbital longitude.
+  it stands out of each pole (`'behind'`). Henge also draws each place's sky as a sphere, from
+  outside (the dome) and from its centre (the street, gnomonic), turns the year with a view's
+  tween over the orbital longitude, and puts its places on a globe with the street carried on as
+  a great circle.
 
 ## Names deliberately kept
 
-- `Frame`, because Manim authors know `camera.frame`.
+- `scene.frame` for the camera, because Manim authors know `camera.frame`.
 - `become` and `Transform`: animations named as verbs follow Manim's
   convention.
 - `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
@@ -127,8 +128,8 @@ Each name's promise is checkable:
   its counterexample, with claims backed by tests that use them. Under the fixed clock a scene
   with updaters is still deterministic: a seek computes every frame before it rather than
   skipping. They cost seek speed, not invariant 1.
-- `GrowFromEdge` and `PulseAlongPath`. They are stock animation vocabulary with a documented
-  recipe, and adopter counts are the wrong test for a stock animation.
+- `GrowFromEdge` and `PulseAlongPath`, in `rayner/extras`. They are stock animation vocabulary
+  with a documented recipe, built on the public API as an author's own would be.
 
 `Indicate` and `Flash` are not stock vocabulary here. A mark that fades before the resting
 picture invites what the checks reject, and in a namespace agents mostly write, such a name is
@@ -136,20 +137,19 @@ worse than none. `Circumscribe` is kept, because it can `keep`.
 
 ## Not chosen, and why
 
-- `render` for state to picture. It already names the output pipeline: `renderFrame`,
-  `renderElements`, `renderText`.
+- `render` for state to picture. It already names the output pipeline: `renderFrame`.
 - `picture` as the function's name. It is a noun and stays the name for the result;
   `picture(state)` reads as a lookup.
-- Renaming `Frame` to `Camera`. It breaks a published, Manim-familiar name to free a word the 3D
+- Renaming `scene.frame` to `scene.camera`. It breaks a published, Manim-familiar name to free a word the 3D
   work does not need.
-- `Camera` for the 3D eye. It would clash with `Frame`'s documentation ("the scene's camera").
+- `Camera` for the 3D eye. It would clash with `scene.frame`'s documentation ("the scene's camera").
   In Manim a camera renders the scene; here the viewpoint is state that a view draws, and it
   should sound like state. For the same reason `viewpoint` is not an engine type.
 - `Model`, `Store` or `Actor` for the event-driven model. `Model` is already the plain functions.
   `Store` suggests a reducer with no explorable graph. `Actor` (XState) suggests concurrency and
   messages between machines. `Machine` says states and events, and it is the word issue #88 used.
-- `Session` for the same thing. It clashes with the HTTP sessions in the state-machine explainer
-  and with its general meaning on the web.
+- `Session` for the same thing. It clashes with its general meaning on the web (an HTTP or login
+  session).
 - A public animation that sets the state (`SetState`). Outside a machine it would do what assigning
   `this.state` before a sync does, a second way to do one thing. A machine's events change the state
   at their turns in its schedule with an animation of their own, which no entry point exports.

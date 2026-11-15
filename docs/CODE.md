@@ -137,7 +137,7 @@ is the example). Nothing in `src/` or the browser bundle imports shiki or the le
 
 ## Cost: elements per line
 
-The DOM renderer (`DomSink`, absolute path mode) draws a group of glyphs as one
+The player's DOM renderer (absolute path mode) draws a group of glyphs as one
 `<path>` per run of consecutive equal-styled glyphs (`mergedRecords` in
 `src/svg.ts`). A plain line is one element; a coloured line is one element per
 colour run. Spaces have no glyph, so `return await` in one colour is one run.
@@ -166,7 +166,7 @@ default) costs a fraction of one that colours it.
   `node tools/repo/tokens.ts --theme light --engine shiki` generated and that are
   checked in beside the scene (`scenes/explainers/mr-cache/code.ts`);
   `TransformDiff` morphs one into the other.
-- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): finds the reducer
-  row it read with `code.token(line, text)`, takes `code.span` from the key to
-  the value, and rings it with a `SurroundingRectangle` built from the span's
-  `box()`.
+- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): takes `code.span`
+  of each line of the branch of Node's own `send()` the socket ran, from its first
+  word to its end, and rings them with a `SurroundingRectangle` built from the
+  spans' `box()`.

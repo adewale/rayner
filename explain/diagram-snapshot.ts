@@ -100,14 +100,9 @@ export function useDiagrams(scene: Scene, resolver: DiagramResolver): void {
   resolvers.set(scene, resolver);
 }
 /**
- * The scene's diagram snapshots: `await diagramResolverOf(scene).diagram(spec)` is the laid-out diagram
- * for `spec`, so `new Diagram(scene, spec, snapshot, { box })` can be measured before anything is
- * drawn (`s.show` does both and builds the diagram in).
+ * The scene's diagram resolver, for the library's own callers (`s.show`, `Diagram.measure`): an error
+ * names `api`, the call the author made.
  */
-export function diagramResolverOf(scene: Scene): DiagramResolver {
-  return resolverOf(scene, 'diagramResolverOf()');
-}
-/** The scene's diagram resolver, for the library's own callers: an error names `api`, the call the author made. */
 export function resolverOf(scene: Scene, api: string): DiagramResolver {
   const resolver = resolvers.get(scene);
   if (!resolver)

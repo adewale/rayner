@@ -4,9 +4,10 @@ import { test } from 'node:test';
 import type { Transition, View } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey, keyed } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, keyed } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
-import { NullSink, StringSink, renderFrame } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { StringSink } from '../src/svg.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import { machinesOf } from '../explain/internal.ts';
@@ -105,7 +106,7 @@ test('without an authored transition, the views morph by key, staged: what goes 
   assert.equal(sync.staged, true);
   scene.state = { level: 1 };
   beginAnimation(sync);
-  const inner = sync.inner as TransformMatching;
+  const inner = sync.inner as Transform;
   // A replaced word is not morphed glyph by glyph: its glyphs leave and the new word's come.
   assert.ok(inner[matchRows].fadesOut.length > 0 && inner[matchRows].fadesIn.length > 0);
   const seen = (rows: { sub: { style: { opacity: number } } }[]) => Math.max(...rows.map((r) => r.sub.style.opacity));
@@ -118,7 +119,7 @@ test('without an authored transition, the views morph by key, staged: what goes 
   finishAnimation(sync);
   assert.deepEqual(lamp.texts, ['lamp dim']);
   // Unstaged (`staged: false`), both fade at once.
-  const plain = new TransformMatching(lamp.current, lamp.placed({ level: 2 }), { key: matchByKey({ text: 'whole' }), replace: false });
+  const plain = new Transform(lamp.current, lamp.placed({ level: 2 }), { match: { by: 'key', text: 'whole' }, replace: false });
   beginAnimation(plain);
   interpolateAnimation(plain, 0.25);
   assert.ok(seen(plain[matchRows].fadesOut) > 0 && seen(plain[matchRows].fadesIn) > 0);
@@ -144,7 +145,7 @@ test('reachable states are found breadth first, each with its shortest events, u
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
   const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
-  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [] }]);
+  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
   const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different state',

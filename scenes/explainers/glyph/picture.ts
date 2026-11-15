@@ -70,7 +70,7 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
             cell,
             t,
             label(s, name(f), { at: [x, -2.3], size: 0.65 }),
-            label(s, `advance ${st.l[f].toFixed(3)}`, { at: [x, -3.1], color: s.look.emphasis }),
+            label(s, `advance ${st.l[f].toFixed(3)}`, { at: [x, -3.1], color: s.look.emphasis, size: 0.6 }),
           );
         });
         return g;

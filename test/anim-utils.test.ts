@@ -1,9 +1,10 @@
-// saveState/restore and Restore, TransformFromCopy, Succession: the end states
+// saveState/restore and a Transform to 'saved', fromCopy, Succession: the end states
 // they promise, their timing against plain play() calls, and seek equality.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Restore, TransformFromCopy, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession, TransformMatchingText } from '../src/index.ts';
-import { StringSink, toSvgString, renderFrame } from '../src/output.ts';
+import { Scene, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession } from '../src/index.ts';
+import { StringSink, toSvgString } from '../src/svg.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts, traceScene } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
@@ -86,11 +87,11 @@ test('restore() on a Code keeps `lines` naming its own children, not the saved c
   assert.equal(code.lines.length, 2);
   code.lines.forEach((l, i) => assert.equal(l, code.children[i], `line ${i} is the child, not a detached copy`));
   assert.equal(code.lines[0]!.children[0]!.style.fill, '#1f2328', 'the colour is restored (the neutral ink, as a Code without a colour has)');
-  // The same through the Restore animation
+  // The same through a Transform to 'saved'
   const scene = new Scene(new SnapshotSink());
   scene.add(code);
   code.lines[1]!.setFill(BLUE);
-  await scene.play(new Restore(code, { runTime: 0.2 }));
+  await scene.play(new Transform(code, 'saved', { runTime: 0.2 }));
   code.lines.forEach((l, i) => assert.equal(l, code.children[i]));
   assert.equal(code.span(1, 0, 1).box() !== null, true, 'spans still address the live glyphs');
 });
@@ -118,9 +119,9 @@ test('copy() does not carry the saved state', () => {
   assert.throws(() => new Group(s).copy().children[0]!.restore(), /^Error: m\.restore\(\): .* has no saved state/);
 });
 
-// ---- Restore -----------------------------------------------------------------
+// ---- Transform(m, 'saved') -----------------------------------------------------
 
-test('Restore after Indicate and after an .animate change lands on the saved frame byte for byte', async () => {
+test('a Transform to \'saved\' after Indicate and after an .animate change lands on the saved frame byte for byte', async () => {
   let saved = '';
   let box!: Rectangle;
   await run(async (s) => {
@@ -130,60 +131,60 @@ test('Restore after Indicate and after an .animate change lands on the saved fra
     saved = toSvgString(s);
     const pts = data(box);
     await s.play(new Indicate(box));
-    await s.play(new Restore(box));
+    await s.play(new Transform(box, 'saved'));
     assert.equal(toSvgString(s), saved, 'after Indicate');
     assert.equal(toSvgString(fresh(s)), saved, 'after Indicate, rendered without caches');
     await s.play(box.animate.setFill(RED).scale(1.5).shift(RIGHT));
     assert.notEqual(toSvgString(s), saved);
-    await s.play(new Restore(box));
+    await s.play(new Transform(box, 'saved'));
     assert.equal(toSvgString(s), saved, 'after .animate');
     assert.equal(toSvgString(fresh(s)), saved, 'after .animate, rendered without caches');
     assert.deepEqual(data(box), pts);
     // A structural change since the save: the morph aligns, the end is exact anyway
     await s.play(new Transform(box, new Circle({ radius: 1 }).shift(LEFT)));
-    await s.play(new Restore(box));
+    await s.play(new Transform(box, 'saved'));
     assert.equal(toSvgString(s), saved, 'after a morph into a circle');
     assert.equal(toSvgString(fresh(s)), saved, 'after a morph into a circle, rendered without caches');
     assert.deepEqual(data(box), pts);
   });
 });
 
-test('Restore without saveState() says what to do', async () => {
-  await assert.rejects(run(async (s) => { await s.play(new Restore(new Rectangle({ width: 2, height: 2 }))); }), /saveState/);
+test('a Transform to \'saved\' without saveState() says what to do', async () => {
+  await assert.rejects(run(async (s) => { await s.play(new Transform(new Rectangle({ width: 2, height: 2 }), 'saved')); }), /saveState/);
 });
 
-// ---- TransformFromCopy -------------------------------------------------------
+// ---- fromCopy ----------------------------------------------------------------
 
-test('TransformFromCopy leaves the source alone and the scene holding the target', async () => {
+test('fromCopy leaves the source alone and the scene holding the target', async () => {
   await run(async (s) => {
     const a = new Rectangle({ width: 1, height: 1 }).shift([-2, 0]);
     const b = new Circle({ radius: 0.6 }).shift([3, 1]);
     s.add(a);
     const aBefore = data(a), bBefore = data(b);
-    await s.play(new TransformFromCopy(a, b));
+    await s.play(new Transform(a, b, { fromCopy: true }));
     assert.deepEqual(data(a), aBefore, 'source unchanged');
     assert.deepEqual(data(b), bBefore, 'target is exactly as built');
     assert.deepEqual(s.mobjects, [a, b], 'no copy left behind');
   });
 });
 
-test('TransformFromCopy and an animation on the source share a play', async () => {
+test('fromCopy and an animation on the source share a play', async () => {
   await run(async (s) => {
     const a = new Rectangle({ width: 2, height: 2 }).shift([-2, 0]), b = new Rectangle({ width: 2, height: 2 }).shift([2, 0]);
     s.add(a);
     const aBefore = data(a);
-    await s.play(new TransformFromCopy(a, b), new Indicate(a));
+    await s.play(new Transform(a, b, { fromCopy: true }), new Indicate(a));
     assert.deepEqual(data(a), aBefore, 'Indicate went there and back');
     assert.deepEqual(s.mobjects, [a, b]);
   });
 });
 
-test('TransformFromCopy copies its source before anything in its play begins, in either argument order', async () => {
+test('fromCopy copies its source before anything in its play begins, in either argument order', async () => {
   // Create's begin() hides its mobject: a copy taken after it would morph from nothing
   const body = (copyFirst: boolean, onScreen: boolean) => async (s: Scene) => {
     const a = new Rectangle({ width: 1, height: 1 }).shift([-3, 0]), b = new Circle({ radius: 0.5 }).shift([3, 0]);
     if (onScreen) s.add(a);
-    const anims = [new TransformFromCopy(a, b), new Create(a)];
+    const anims = [new Transform(a, b, { fromCopy: true }), new Create(a)];
     await s.play(...(copyFirst ? anims : anims.reverse()));
     await s.wait(0.1);
   };
@@ -344,15 +345,15 @@ class AllThree extends Scene {
     await this.play(box.animate.setFill(RED).scale(1.3).shift([1, -1]));
     await this.play(new Transform(box, new Circle({ radius: 0.8 }).shift([0, -1])));
     await this.step('copy');
-    await this.play(new TransformFromCopy(dot, tile), new Indicate(dot));
+    await this.play(new Transform(dot, tile, { fromCopy: true }), new Indicate(dot));
     await this.step('sequence');
-    await this.play(new Succession([new Indicate(label), dot.animate.shift([-1, 0]), new Restore(box)]));
+    await this.play(new Succession([new Indicate(label), dot.animate.shift([-1, 0]), new Transform(box, 'saved')]));
     await this.step('end');
     await this.wait(0.5);
   }
 }
 
-test('Restore, TransformFromCopy and Succession seek to the frame a full run produces', async () => {
+test('a Transform to \'saved\', fromCopy and Succession seek to the frame a full run produces', async () => {
   const full = new StringSink();
   await new AllThree(full).run();
   const ix = await traceScene(AllThree);
@@ -378,8 +379,8 @@ test('the motion verifier finds no teleport, pop or cut in these animations', as
     a.saveState();
     await s.wait(0.2);
     await s.play(a.animate.shift([3, 0]).setFill(RED, 1));
-    await s.play(new Restore(a));
-    await s.play(new TransformFromCopy(a, new Circle().shift([2, 1])), new Indicate(a));
+    await s.play(new Transform(a, 'saved'));
+    await s.play(new Transform(a, new Circle().shift([2, 1]), { fromCopy: true }), new Indicate(a));
     await s.wait(0.2);
   }, saved);
   assert.deepEqual(analyzeMotion(saved), []);
@@ -425,14 +426,14 @@ test('a cut-in is exempt over a staying leaf only when it is a copy of it or loo
     const a = new Rectangle({ width: 2, height: 2, fill: RED, fillOpacity: 1 }); s.add(a);
     await s.wait(0.2);
     const hexagon = new Polygon([[0, 1], [0.87, 0.5], [0.87, -0.5], [0, -1], [-0.87, -0.5], [-0.87, 0.5]]).shift([3, 0]);
-    await s.play(new TransformFromCopy(a, hexagon));
+    await s.play(new Transform(a, hexagon, { fromCopy: true }));
     await s.wait(0.2);
   }), []);
   // nor are the pieces of a copied text taking off from it (glyphs keep their shapes as they move)
   assert.deepEqual(await kinds(async (s) => {
     const t = new Text('hello world'); s.add(t);
     await s.wait(0.2);
-    await s.play(new TransformMatchingText(t.copy(), new Text('low hello').shift([0, -1])));
+    await s.play(new Transform(t.copy(), new Text('low hello').shift([0, -1]), { match: 'text' }));
     await s.wait(0.2);
   }), []);
 });

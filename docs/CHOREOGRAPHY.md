@@ -1,8 +1,11 @@
 # Reusable animations from the example collection
 
-These built-ins were extracted from techniques the example collection repeated.
+These animations were extracted from techniques the example collection repeated.
 They are ordinary animations on native mobjects: pass them to `play`,
 `AnimationGroup`, `LaggedStart` or `Succession`, with no stage or diagram controller.
+`GrowFromEdge` and `PulseAlongPath` are in `rayner/extras`, built on `rayner`'s public
+animations alone, as an author's own would be ([extending Rayner](EXTENDING.md#write-an-animation-of-your-own)
+walks through `GrowFromEdge` line by line).
 
 | Repetition | Public animation | Collection use |
 | --- | --- | --- |
@@ -10,15 +13,16 @@ They are ordinary animations on native mobjects: pass them to `play`,
 | Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins; the Galton board's 64 balls, one down each route |
 | Drive drawings from one sampled number | `view.tween`; `c.follow` in an authored transition | Great circle and henge: a globe and a sky redrawn from a turning viewpoint; token bucket: the gauge and the chart's climb from the same elapsed time; ring-buffer pointers turning round the ring |
 
-The first two replaced private classes in `explain/diagrams.ts`, whose diagram
-controller keeps the graph adjacency and reveal checks, recording and descriptions:
-the animations know geometry and time, not graphs.
+The first two replaced private classes in `explain/diagrams.ts`, which now builds its
+bars and tokens in with them from `rayner/extras`; its diagram controller keeps the graph
+adjacency and reveal checks, recording and descriptions: the animations know geometry and
+time, not graphs.
 
 ## Run the recipe
 
 ```sh
 npm run build:lib
-npm run recipes -- --scene choreography --time 0.5 --out out/choreography
+npm run recipes -- --scene choreography --frame 15 --out out/choreography
 ```
 
 After installation, use the compiled runner:
@@ -28,15 +32,14 @@ node node_modules/rayner/dist/recipes/render.js --scene choreography --out out/c
 ```
 
 [The full recipe](../recipes/choreography.ts) shows parallel growth and route travel,
-then two state changes, each assigned and drawn by a sync of the readout. The runner also writes its text
-frame, element records, step index and trace; `--step result` gives the final
-readout. These are raw engine examples: a published explainer also needs a model,
+then two state changes, each assigned and drawn by a sync of the readout. The runner also writes its state
+and trace; `--step result` gives the final readout. These are raw engine examples: a published explainer also needs a model,
 descriptions, a script and a reader review.
 
 ## GrowFromEdge
 
 ```ts
-import { GrowFromEdge } from 'rayner';
+import { GrowFromEdge } from 'rayner/extras';
 await this.play(new GrowFromEdge(bar, [0, -1]));                 // up from its bottom edge
 await this.play(new GrowFromEdge(task, [-1, 0], { runTime: 0.6 })); // right from its left edge
 ```
@@ -49,7 +52,7 @@ keeps its size, so the growth is along one axis.
 Placement and authored paint/opacity are captured when the play begins. At its
 normal endpoint, the object has exactly its authored geometry and styles.
 
-Options are `AnimationOptions` plus `initialScale`, a finite value in `[0, 1]`, default
+Options are a `GrowFromEdgeOptions`: `AnimationOptions` plus `initialScale`, a finite value in `[0, 1]`, default
 `0.001`. The small default avoids a degenerate starting path; zero is supported.
 Opacity starts at zero independently of this scale. Standard duration, easing and
 family lag apply. As with other transforms, an easing that ends somewhere other
@@ -58,7 +61,8 @@ than 1 ends at that point in the interpolation.
 ## PulseAlongPath
 
 ```ts
-import { PulseAlongPath, AnimationGroup } from 'rayner';
+import { AnimationGroup } from 'rayner';
+import { PulseAlongPath } from 'rayner/extras';
 await this.play(new AnimationGroup([
   new PulseAlongPath(tokenA, routeA),
   new PulseAlongPath(tokenB, routeB),
@@ -74,7 +78,7 @@ is strongest halfway along. Child opacity ratios are preserved; existing dimming
 is not overwritten with full strength. Applying an easing also changes that pulse's
 timing; the default is linear.
 
-Options are `MoveAlongPathOptions`, exported from `rayner` with `MoveAlongPath` and `PulseAlongPath`. With the default `fromCurrent: true`, any initial
+Options are `MoveAlongPathOptions`, exported from `rayner` with `MoveAlongPath`, which `PulseAlongPath` extends. With the default `fromCurrent: true`, any initial
 offset from the route is blended away rather than snapping on the first frame.
 Use `fromCurrent: false` to start exactly on the route. A live route edited after
 the animation begins does not change this traversal.

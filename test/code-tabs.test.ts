@@ -3,7 +3,7 @@
 // glyphs are shaped from the tab-expanded string and the shaper counts code points.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Code, Text, TransformDiff, TransformMatchingText } from '../src/index.ts';
+import { Code, Text, TransformDiff, Transform } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { expandTabs } from '../src/text.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -90,11 +90,11 @@ test('TransformDiff: an unchanged tabbed line pairs every glyph', () => {
   for (const [s, t] of changed.pairs) assert.equal(charOf(s), charOf(t));
 });
 
-test('TransformMatchingText keys tabbed and astral glyphs by their own character', () => {
+test('a Transform matched by \'text\' keys tabbed and astral glyphs by their own character', () => {
   for (const [a, b, n] of [['\tcache', '\tcached', 5], ['\tcache = 1', 'cache\t= 1', 7], ['😀cache', 'cached😀', 5], ['\t𝑥 = ab', 'ab = 𝑥', 3]] as const) {
-    const m = new TransformMatchingText(new Code([a]), new Code([b]));
+    const m = new Transform(new Code([a]), new Code([b]), { match: 'text' });
     beginAnimation(m);
-    assert.equal(m.summary().matched, n, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
+    assert.equal(m.summary()!.matched, n, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
     for (const [s, t] of m.pairs) assert.equal(charOf(s), charOf(t));
   }
 });

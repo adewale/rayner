@@ -1,6 +1,6 @@
 import { Group, Rectangle, keyed } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { label, tile, stat } from '../../../explain/drawing.ts';
+import { TYPE, label, tile, stat } from '../../../explain/drawing.ts';
 import { percent } from '../lib/format.ts';
 
 const pct2 = (p: number) => percent(p, { digits: 2 });
@@ -57,9 +57,9 @@ export function pairGrid(
   keyed(matched, 'birthday-matched-pairs');
   const g = new Group(rest, squares, matched);
   g.add(
-    keyed(label(s, you ? 'You: card 1' : 'card 1', { at: [x0, y0 + 0.28], color: you ? s.look.bad : s.look.soft, size: 0.42 }), 'birthday-you').moveTo([x0, y0 + 0.28], [-1, 0]),
-    label(s, 'card 2', { at: [x0 - 0.15, at(1, 0)[1]], color: s.look.soft, size: 0.42 }).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
-    label(s, `card ${n}`, { at: [x0 - 0.15, at(n - 1, 0)[1]], color: s.look.soft, size: 0.42 }).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
+    keyed(label(s, you ? 'You: card 1' : 'card 1', { at: [x0, y0 + 0.36], color: you ? s.look.bad : s.look.soft, size: TYPE.small }), 'birthday-you').moveTo([x0, y0 + 0.36], [-1, 0]),
+    label(s, 'card 2', { at: [x0 - 0.15, at(1, 0)[1]], color: s.look.soft, size: TYPE.small }).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
+    label(s, `card ${n}`, { at: [x0 - 0.15, at(n - 1, 0)[1]], color: s.look.soft, size: TYPE.small }).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
     you ? stat(s, 'Comparisons', count, { at: [-4.9, 0.2], key: 'birthday-comparisons' }) : stat(s, 'Pairs', count, { at: [-4.9, 0.2], key: 'birthday-pairs' }),
     stat(s, 'Chance', percent(chance), { at: [4.9, 0.2], key: 'birthday-chance' }),
     keyed(label(s, footer, { at: [0, -3.75], size: 0.58 }), 'birthday-footer'),
