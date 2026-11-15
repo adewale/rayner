@@ -24,7 +24,7 @@ const machine = new Machine(this, {
   events: events(chart),                  // one button each in the player
   next: (state, event) => machineAt(send(chart, state.config, event).config), // the tested model
   views: [main],                          // pictures of this.state, synced after each event
-  match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (the default)
+  match: { by: 'key', text: 'whole' },    // keyed parts keep their identity (the default)
 });
 this.state = machine.spec.start;
 await machine.replay(['POWER_ON', 'START', 'FROTH']);
@@ -54,7 +54,7 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `end(state)` | Where the story ends: the reason when `state` is finished, else `undefined`. From a finished state every event the model would take is beyond the story with this reason, and its refusals stay refusals, so a live step that ends finished starts the reader from `start` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
-| `match` | How the views morph without an authored transition (default `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed word that changes is replaced) |
+| `match` | How the views morph without an authored transition (default `{ by: 'key', text: 'whole' }`, a [`Match`](MATCHING.md): keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
 | `limit` | The most states exploration visits from one origin (default 256) |
 

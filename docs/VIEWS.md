@@ -124,15 +124,17 @@ narrows an optional part of what is shown: `having(sh, 'flow').flow`.
 
 ### `match`
 
-`match` takes a `ViewMatch`, one of these:
+`match` takes a `Match`, the option a `Transform` takes ([matching](MATCHING.md)), and the sync
+morphs with `new Transform(old, next, { match })`:
 
-| `match` | morphs with | good for |
+| `match` | pairs | good for |
 |---|---|---|
-| `'key'` (default) | `TransformMatching` with `matchByKey()` | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
-| `'text'` | `TransformMatchingText` | a bare `Text` readout, code without keys: unchanged characters stay where they are |
-| `'index'` | `Transform`, family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
-| `'shapes'` | `TransformMatchingShapes` | pictures whose parts come and go |
-| a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey({ fallback })` to keep unkeyed parts too, `matchByKey({ text: 'whole' })` when a keyed word's change is a new identity |
+| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
+| `{ by: 'key', fallback?, unkeyed?, text? }` | as `'key'`, saying what unkeyed parts and relabelled words do | `fallback` to keep unkeyed parts too, `text: 'whole'` when a keyed word's change is a new identity |
+| `'text'` | glyphs by character | a bare `Text` readout, code without keys: unchanged characters stay where they are |
+| `'index'` | family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
+| `'shapes'` | parts by outline (`shapeKey()`) | pictures whose parts come and go |
+| a `MatchKey` function | parts by the key it gives each | identity you know: a node id, a colour |
 
 A key sync whose two pictures carry no keys below their roots would pair nothing, so its play
 throws and names the fix: key the draw's parts (a card's or panel's `key` option, or `keyed(part, key)`),

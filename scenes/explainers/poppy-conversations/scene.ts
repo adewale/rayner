@@ -1,4 +1,4 @@
-import { AnimationGroup, Scene, Succession, Text, matchByKey } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
@@ -183,7 +183,7 @@ export default class Conversations extends Scene<World, Shown> {
         'Suppose the Company Agent had needed your account. It adds an authorization event; your agent signs you in and carries on in the same conversation with an access token. From then on the conversation belongs to agent.example, User ID usr_Q7c1vK and account A, whatever Session asks. Signed out, the agent gets a challenge to sign in again. Another User ID, or account B, gets 404, as if it did not exist.',
     });
     this.shown = { owner: true };
-    await this.play(world.sync({ runTime: 0.8, match: matchByKey({ text: 'whole' }) }));
+    await this.play(world.sync({ runTime: 0.8, match: { by: 'key', text: 'whole' } }));
 
     await this.step('close', {
       title: 'The small table closes, the big one listens',
@@ -192,7 +192,7 @@ export default class Conversations extends Scene<World, Shown> {
         'You are done, so your agent closes the Direct Conversation, and the first conversation takes messages again. A close does not wait its turn: the Company may drop anything it has not acted on yet, so the agent reads until working is false before it closes. Closing does not cancel the exchange itself. Now press the events, for both sides, and read why a refused press is refused.',
     });
     this.shown = {};
-    await this.play(world.sync({ runTime: 0.6, match: matchByKey({ text: 'whole' }) }));
+    await this.play(world.sync({ runTime: 0.6, match: { by: 'key', text: 'whole' } }));
     await this.play(machine.replay(STORY.slice(11, 12)));
   }
 }

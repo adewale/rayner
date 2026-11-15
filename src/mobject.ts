@@ -24,7 +24,7 @@ let parentIn: (m: Mobject) => Mobject | null;
 let setParent: (m: Mobject, p: Mobject | null) => void;
 /** A mobject's key, written only through `keyed` and the engine's own copies. */
 let setKey: (m: Mobject, key: string | undefined) => void;
-/** @internal The state saveState() stored, for restore() and Restore, or undefined. Copies do not carry it. */
+/** @internal The state saveState() stored, for restore() and a Transform to 'saved', or undefined. Copies do not carry it. */
 export let savedState: (m: Mobject) => Mobject | undefined;
 /**
  * @internal A mobject's number, for rendering and the reviews that match the renderer's records to
@@ -294,7 +294,7 @@ export class Mobject {
   /**
    * The first mobject in this family, depth first and this one included, whose `key` is
    * `key`; undefined when none has it. Keys are the address a picture gives its parts:
-   * matching (matchByKey), descriptions, invariants and reviews all read the same one.
+   * matching (match: 'key'), descriptions, invariants and reviews all read the same one.
    */
   find(key: string): Mobject | undefined {
     if (this.key === key) return this;
@@ -705,7 +705,7 @@ export class Mobject {
 
   // ---- saved state -------------------------------------------------------
 
-  /** Store a deep copy of this mobject's current state, for restore() or `new Restore(this)`. */
+  /** Store a deep copy of this mobject's current state, for restore() or `new Transform(this, 'saved')`. */
   saveState(): this {
     this.#saved = this.copy();
     return this;
@@ -936,7 +936,7 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
 }
 
 /**
- * `m` with `key` set, returned: the part's address, which matching (matchByKey), `find`,
+ * `m` with `key` set, returned: the part's address, which matching (`match: 'key'`), `find`,
  * invariants and reviews read. The one way to key a part: `Mobject.key` is read-only. A key is a
  * non-empty string; an empty one, which no type can refuse, is refused with a RangeError.
  */

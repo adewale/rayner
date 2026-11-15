@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { Transition, View } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey, keyed } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, keyed } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
@@ -105,7 +105,7 @@ test('without an authored transition, the views morph by key, staged: what goes 
   assert.equal(sync.staged, true);
   scene.state = { level: 1 };
   beginAnimation(sync);
-  const inner = sync.inner as TransformMatching;
+  const inner = sync.inner as Transform;
   // A replaced word is not morphed glyph by glyph: its glyphs leave and the new word's come.
   assert.ok(inner[matchRows].fadesOut.length > 0 && inner[matchRows].fadesIn.length > 0);
   const seen = (rows: { sub: { style: { opacity: number } } }[]) => Math.max(...rows.map((r) => r.sub.style.opacity));
@@ -118,7 +118,7 @@ test('without an authored transition, the views morph by key, staged: what goes 
   finishAnimation(sync);
   assert.deepEqual(lamp.texts, ['lamp dim']);
   // Unstaged (`staged: false`), both fade at once.
-  const plain = new TransformMatching(lamp.current, lamp.placed({ level: 2 }), { key: matchByKey({ text: 'whole' }), replace: false });
+  const plain = new Transform(lamp.current, lamp.placed({ level: 2 }), { match: { by: 'key', text: 'whole' }, replace: false });
   beginAnimation(plain);
   interpolateAnimation(plain, 0.25);
   assert.ok(seen(plain[matchRows].fadesOut) > 0 && seen(plain[matchRows].fadesIn) > 0);

@@ -2,7 +2,7 @@ import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, aiMark, person, words } from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, aiMark, person, label } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
 import { AGENT } from '../poppy/model.ts';
 import { ACCOUNT, CONVERSATION_ID, LINES, OWNER, PERSON, USER_ID, activeOf, authorOf, continueAs, openDirectOf, roleOf, ruleOf } from './model.ts';
@@ -119,13 +119,13 @@ function envelope(at: Vec): Group {
 
 /** A place card on the table: the conversation's owner, printed in mono on PAPER. One Group. */
 function placeCard(s: Stage, at: Vec, line: string): Group {
-  const text = words(s, line, { at, mono: true, color: TONE.print, align: 'middle' });
+  const text = label(s, line, { at, mono: true, color: TONE.print });
   return new Group(new Rectangle({ width: text.width() + 0.5, height: 0.84, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo(at), text);
 }
 
 /** How big a turn of speech is, for its words. */
 const TURN_H = 1.0;
-const turnWidth = (s: Stage, text: string) => words(s, text, { size: TYPE.label }).width() + 1.45;
+const turnWidth = (s: Stage, text: string) => label(s, text, { size: TYPE.label, align: 'start' }).width() + 1.45;
 
 /**
  * A turn of speech lying on the table: a bubble (PAPER with PRINT words for a person; the ground with
@@ -155,13 +155,13 @@ function turn(s: Stage, text: string, who: 'person' | 'ai', at: Vec, towards: Ve
   const bubble = new Polygon(pts, isPerson ? { fill: TONE.paper, stroke: 'none' } : { fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, lineJoin: 'round' });
   const markAt: Vec = [l + 0.5, y];
   const mark = isPerson ? person(s, { at: [markAt[0], markAt[1] + 0.02], size: 0.5, color: ink }) : aiMark(s, { at: markAt, size: 0.86, color: ink });
-  return new Group(bubble, mark, words(s, text, { at: [l + 0.95, y], size: TYPE.label, color: ink }));
+  return new Group(bubble, mark, label(s, text, { at: [l + 0.95, y], size: TYPE.label, color: ink, align: 'start' }));
 }
 
 /** A narrow ledger: a title of one or two bold lines over a double rule, then rows of a SOFT name and a mono value over hairlines. Keyed `<key>:…`. */
 function narrowLedger(s: Stage, parts: Parts, title: readonly string[], rows: readonly { label: string; value: string; quiet?: boolean }[], key: string, at: Vec) {
   const [x, y0] = at, width = LEDGER.width;
-  title.forEach((line, i) => parts.add(words(s, line, { at: [x, y0 - i * 0.62], bold: true }), `${key}:title:${i}`));
+  title.forEach((line, i) => parts.add(label(s, line, { at: [x, y0 - i * 0.62], bold: true, align: 'start' }), `${key}:title:${i}`));
   const ruleY = y0 - (title.length - 1) * 0.62 - 0.46;
   parts.add(new Group(
     new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, ruleY]),
@@ -169,8 +169,8 @@ function narrowLedger(s: Stage, parts: Parts, title: readonly string[], rows: re
   ), `${key}:rule`);
   rows.forEach((row, i) => {
     const y = ruleY - 0.56 - i * 0.66, slug = `${key}:${row.label.toLowerCase().replace(/\s+/g, '-')}`;
-    parts.add(words(s, row.label, { at: [x, y], color: TONE.soft }), `${slug}:label`);
-    parts.add(words(s, row.value, { at: [x + width, y], align: 'end', color: row.quiet ? TONE.soft : TONE.ink, mono: !row.quiet }), `${slug}:value`);
+    parts.add(label(s, row.label, { at: [x, y], color: TONE.soft, align: 'start' }), `${slug}:label`);
+    parts.add(label(s, row.value, { at: [x + width, y], align: 'end', color: row.quiet ? TONE.soft : TONE.ink, mono: !row.quiet }), `${slug}:value`);
     parts.add(new Rectangle({ width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([x + width / 2, y - 0.33]), `${slug}:rule`);
   });
 }
@@ -263,8 +263,8 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   /** A seat's name and, under it, what sits there; above the seat for a seat on the table's far edge. */
   const named = (key: string, at: Vec, name: string, kind: string, above: boolean, quiet = false) => {
     const nameY = above ? at[1] + SEAT_R + 1.06 : at[1] - SEAT_R - 0.4, kindY = above ? at[1] + SEAT_R + 0.4 : at[1] - SEAT_R - 1.06;
-    parts.add(words(s, name, { at: [at[0], nameY], align: 'middle', color: quiet ? TONE.soft : TONE.ink, bold: !quiet }), `${key}:name`);
-    parts.add(words(s, kind, { at: [at[0], kindY], align: 'middle', color: TONE.soft }), `${key}:kind`);
+    parts.add(label(s, name, { at: [at[0], nameY], color: quiet ? TONE.soft : TONE.ink, bold: !quiet }), `${key}:name`);
+    parts.add(label(s, kind, { at: [at[0], kindY], color: TONE.soft }), `${key}:kind`);
   };
 
   // The conversation's table. Its seats are drawn first, so the table's edge covers their inner half.
@@ -286,10 +286,10 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     named('company', seats.company, 'Company Agent', 'AI', true, paused);
     named('person', seats.person, joined ? PERSON.name : 'a person', joined ? 'person' : looking ? 'being found' : 'no one yet', false, !joined || paused);
   }
-  if (w.main && !back) parts.add(words(s, CONVERSATION_ID, { at: [-2.5, bottom(main) - 0.45], mono: true, color: TONE.soft, align: 'middle' }), 'main:id');
+  if (w.main && !back) parts.add(label(s, CONVERSATION_ID, { at: [-2.5, bottom(main) - 0.45], mono: true, color: TONE.soft }), 'main:id');
 
   // While paused or closed, the table says so.
-  if (paused && !shown.owner) parts.add(emphasised(words(s, w.main?.closed ? 'closed' : 'paused', { at: [main.x, main.y], size: TYPE.label, bold: true, color: TONE.soft, align: 'middle' }), `the conversation is ${w.main?.closed ? 'closed' : 'paused'}`), 'main:state');
+  if (paused && !shown.owner) parts.add(emphasised(label(s, w.main?.closed ? 'closed' : 'paused', { at: [main.x, main.y], size: TYPE.label, bold: true, color: TONE.soft }), `the conversation is ${w.main?.closed ? 'closed' : 'paused'}`), 'main:state');
   // The ownership step: a place card naming who the conversation belongs to.
   if (shown.owner) parts.add(placeCard(s, [main.x, main.y], `${USER_ID} · account ${ACCOUNT}`), 'owner:card');
 
@@ -297,7 +297,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   if (w.invited) {
     const at: Vec = [YOUR_X - 0.3, top(MAIN_FULL) - 0.55];
     parts.add(emphasised(envelope(at), 'the Company asks for you, through your agent'), 'invite');
-    parts.add(words(s, 'user_requested', { at: [at[0] + 0.75, at[1]], mono: true }), 'invite:type');
+    parts.add(label(s, 'user_requested', { at: [at[0] + 0.75, at[1]], mono: true, align: 'start' }), 'invite:type');
   }
 
   // The Direct Conversation: a smaller table below, joined to the first by a thread.
@@ -314,12 +314,12 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     // Your agent, set back beside the table: it may watch, and it says nothing here.
     parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
     parts.add(markOf(s, 'ai', seats.agent, TONE.ink, 0.82), 'agent:mark');
-    parts.add(words(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.31], bold: true }), 'agent:name');
-    parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft }), 'agent:kind');
+    parts.add(label(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.31], bold: true, align: 'start' }), 'agent:name');
+    parts.add(label(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft, align: 'start' }), 'agent:kind');
   } else if (w.direct === 'closed') {
     // Closed: the small table is gone, and the ledger's column notes that it was there.
-    parts.add(words(s, 'Direct', { at: [LEDGER.x, -3.2], color: TONE.soft }), 'direct:closed');
-    parts.add(words(s, 'closed', { at: [MARGIN.right, -3.2], mono: true, align: 'end' }), 'direct:closed:value');
+    parts.add(label(s, 'Direct', { at: [LEDGER.x, -3.2], color: TONE.soft, align: 'start' }), 'direct:closed');
+    parts.add(label(s, 'closed', { at: [MARGIN.right, -3.2], mono: true, align: 'end' }), 'direct:closed:value');
     parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -3.53]), 'direct:closed:rule');
   }
 

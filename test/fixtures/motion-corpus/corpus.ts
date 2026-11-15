@@ -357,7 +357,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     edits: [
       { file: 'poppy-browser/picture.ts', find: 'export const EVIL_HALF_AT: Vec = [EVIL[0] - 1.75, EVIL[1] - 0.45];', replace: 'export const EVIL_HALF_AT: Vec = [EVIL[0] + 0.9, EVIL[1] - 0.45];' },
       { file: 'poppy-browser/picture.ts', find: 'export const EVIL_OUT: Vec = [EVIL[0] - WIN_W / 2 - 0.35, EVIL[1] + 0.2];', replace: 'export const EVIL_OUT: Vec = [EVIL[0] + 2.2, EVIL[1] - 0.05];' },
-      { file: 'poppy-browser/picture.ts', find: 'at: [EVIL_HALF_AT[0] + 0.75, EVIL_HALF_AT[1]], color: TONE.soft }), \'evil:shelf\'', replace: 'at: [EVIL[0] - 2.6, EVIL_HALF_AT[1]], color: TONE.soft }), \'evil:shelf\'' },
+      { file: 'poppy-browser/picture.ts', find: 'at: [EVIL_HALF_AT[0] + 0.75, EVIL_HALF_AT[1]], color: TONE.soft, align: \'start\' }), \'evil:shelf\'', replace: 'at: [EVIL[0] - 2.6, EVIL_HALF_AT[1]], color: TONE.soft, align: \'start\' }), \'evil:shelf\'' },
       { file: 'poppy-browser/scene.ts', find: '[EVIL_OUT, [EVIL_SIDE_X, 0.95], [WIN_RIGHT - 0.6, 0.95]', replace: '[EVIL_OUT, [EVIL_OUT[0], ATTACK_Y], [SIDE_X, ATTACK_Y], [WIN_RIGHT - 0.6, 0.95]' },
       { file: 'poppy-browser/scene.ts', find: '[EVIL_HALF_AT, [EVIL_SIDE_X, EVIL_HALF_AT[1]], [EVIL_SIDE_X, ATTACK_Y], [COUNTER_X + 0.35, ATTACK_Y]]', replace: '[EVIL_HALF_AT, [EVIL_HALF_AT[0], ATTACK_Y], [COUNTER_X + 0.35, ATTACK_Y]]' },
     ],
@@ -397,8 +397,8 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-words-dissolve', chapter: 'poppy-conversations', kind: 'glyph dissolve', commit: '0a887ad4', method: 'reverted', events: [],
     what: 'Two steps’ plain view.sync() morphed the ledger’s words glyph by glyph, so they dissolved into rows of dots (#101 item 12); the fix matches words whole.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: matchByKey({ text: \'whole\' }) })', replace: 'world.sync({ runTime: 0.8 })' },
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: matchByKey({ text: \'whole\' }) })', replace: 'world.sync({ runTime: 0.6 })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8 })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6 })' },
     ],
   },
   {

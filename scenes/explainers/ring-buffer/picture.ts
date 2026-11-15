@@ -1,7 +1,7 @@
 import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { label, tile, emphasised } from '../../../explain/drawing.ts';
+import { TYPE, label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { Stage, StagedStepsOptions, Look } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
@@ -38,12 +38,12 @@ export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
         st.before.forEach((v, i) =>
           g.add(
             tile(s, v, { at: [x(i), TOP], width: W, height: H, size: 0.7, key: `array:${i}`, bad: i === 0 }),
-            label(s, `slot ${i}`, { at: [x(i), TOP + 0.95], color: s.look.soft, size: 0.5 }),
+            label(s, `slot ${i}`, { at: [x(i), TOP + 0.95], color: s.look.soft, size: TYPE.small }),
           ),
         );
         st.before.forEach((_, i) => {
           const v = st.after[i];
-          g.add(tile(s, v ?? 'empty', { at: [x(i), BOTTOM], width: W, height: H, size: v == null ? 0.5 : 0.7, key: `array-after:${i}` }));
+          g.add(tile(s, v ?? 'empty', { at: [x(i), BOTTOM], width: W, height: H, size: v == null ? TYPE.small : 0.7, key: `array-after:${i}` }));
         });
         // One arrow per value shift moves: slot i + 1 to slot i.
         for (let i = 0; i < st.moved; i++)

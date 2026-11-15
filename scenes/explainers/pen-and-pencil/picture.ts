@@ -2,7 +2,7 @@ import { Group, VMobject, Circle, Line, Text } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon, boundsOf, hatch, unowned, tag, hershey, fit, pencilWidth, TITLE } from './model.ts';
 import type { Pt, Box, Layer } from './model.ts';
-import { label } from '../../../explain/drawing.ts';
+import { TYPE, label } from '../../../explain/drawing.ts';
 import type { Diagram, Stage, StagedStepsOptions } from '../../../explain/index.ts';
 
 // Only these two seeds are pictured. The layout's construction is shared between them; the
@@ -17,14 +17,18 @@ const DASHED = '#c0584a';
 export const PX_PER_UNIT = 1280 / 16;
 export const px = (units: number) => `${(units * PX_PER_UNIT).toFixed(1)} px`;
 
-/** Four period boxes in a row, as a layout would place them; their names sit at the centres. */
+/**
+ * Four period boxes in a row, as a layout would place them; their names sit at the centres. Each
+ * box is as wide as its name at `TYPE.small` with room either side, and GAP apart.
+ */
 const NAMES = ['Dusk', 'Midnight', 'Small hours', 'Dawn'];
-const W = 3,
+const WIDTHS = [2.2, 3.2, 4, 2.4],
   H = 1.1,
-  PITCH = 3.55,
+  GAP = 0.8,
   X0 = -7.1,
   TOP = 1.2;
-const laid: Box[] = NAMES.map((_, i) => [X0 + i * PITCH, TOP - H, X0 + i * PITCH + W, TOP]);
+const LEFTS = WIDTHS.map((_, i) => X0 + WIDTHS.slice(0, i).reduce((x, w) => x + w + GAP, 0));
+const laid: Box[] = NAMES.map((_, i) => [LEFTS[i]!, TOP - H, LEFTS[i]! + WIDTHS[i]!, TOP]);
 
 /**
  * The four boxes drawn by a hand that places its own strokes: each side starts where the last one
@@ -33,8 +37,9 @@ const laid: Box[] = NAMES.map((_, i) => [X0 + i * PITCH, TOP - H, X0 + i * PITCH
 function freeBoxes(seed: number): Pt[][] {
   const moves: Pt[] = [];
   NAMES.forEach((_, i) => {
-    moves.push([W, 0], [0, -H], [-W, 0], [0, H]);
-    if (i < NAMES.length - 1) moves.push([PITCH, 0]);
+    const w = WIDTHS[i]!;
+    moves.push([w, 0], [0, -H], [-w, 0], [0, H]);
+    if (i < NAMES.length - 1) moves.push([w + GAP, 0]);
   });
   const corners = freehand([X0, TOP], moves, FREEHAND, rng(seed + 3));
   // Five corners per box (the fifth closes it, or nearly), then one pen-up move.
@@ -118,7 +123,7 @@ export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): P
           ...laid.map((b) => path([...boxPolygon(b), boxPolygon(b)[0]!], DASHED, 0.03, 0.8, '0.12 0.1')),
           ...freeInk(st.seeds.first).map((l) => path(l, GREY, 0.045, 0.9)),
           ...freeInk(st.seeds.second).map((l) => path(l, s.look.ink, 0.045)),
-          ...NAMES.map((n, i) => label(s, n, { at: [(laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2], size: 0.42 })),
+          ...NAMES.map((n, i) => label(s, n, { at: [(laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2], size: TYPE.small })),
           label(s, `Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, { at: [0, -2.3], size: 0.56 }),
         ),
     },

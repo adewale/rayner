@@ -14,11 +14,11 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Enclosing, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, knownTransform } from '../src/animation.ts';
+import { Enclosing, Transform, knownTransform } from '../src/animation.ts';
 import type { Animation } from '../src/animation.ts';
 import { linear } from '../src/rate.ts';
 import { Follow } from './state.ts';
-import type { MatchKey, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
+import type { Match, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import { Text } from '../src/text.ts';
 import type { Scene, SceneState, Evidence } from '../src/scene.ts';
@@ -39,16 +39,16 @@ export interface ViewOptions {
   place?: ViewPlace | false;
 }
 
-/** How sync() morphs: by glyph, by shape, by position in the family, by the keys the picture's parts carry, or by your own key. */
-export type ViewMatch = 'text' | 'shapes' | 'index' | 'key' | MatchKey;
-
 /** How sync() runs: a play's options, and how it morphs. */
 export interface SyncOptions extends PlayOptions {
   /**
-   * Default 'key': parts pair by the keys the picture gives them. A key sync whose pictures carry
-   * no keys below their roots is refused; key the parts, or say 'text', 'shapes' or 'index'.
+   * How the old picture's parts pair with the new one's, as a Transform's `match` pairs them
+   * (see Match): by glyph, by shape, by position in the family, by the keys the picture's parts
+   * carry, or by your own key. Default 'key': parts pair by the keys the picture gives them. A
+   * 'key' sync whose pictures carry no keys below their roots is refused; key the parts, or say
+   * 'text', 'shapes' or 'index'.
    */
-  match?: ViewMatch;
+  match?: Match;
   /** Parts that go fade out over the first half and parts that come fade in over the second, so the two never overlap. Default true, for every match; 'index' has no parts that go or come. */
   staged?: boolean;
 }
@@ -205,7 +205,7 @@ export function turnAction(scene: Scene<any, any>, name: string, runTime: number
  */
 export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   view: View<M, any, any>;
-  match: ViewMatch;
+  match: Match;
   staged: boolean;
   /** @internal Set as it begins: the morph from the current picture to the built one, or null when nothing changed. */
   inner!: Animation | null;
@@ -230,10 +230,8 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
     // morph's own time is linear: this sync's rate function eases it.
     const staged = this.staged, rateFunc = linear;
-    const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged, rateFunc })
-      : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false, staged, rateFunc })
-      : match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
-      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false, staged, rateFunc });
+    const inner = match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
+      : new Transform(old, next, { match, replace: false, staged, rateFunc });
     inner.lagRatio = this.lagRatio;
     this.inner = inner; this.next = next;
     return inner;
@@ -253,7 +251,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   }
 
   /** What the matching transform paired, once begun; null for 'index' or when nothing changed. */
-  summary(): MatchSummary | null { return this.inner instanceof TransformMatching ? this.inner.summary() : null; }
+  summary(): MatchSummary | null { return this.inner instanceof Transform ? this.inner.summary() : null; }
 
   /** The morph's evidence (`match` counts), with the View's key as `view` when it has one; none for 'index' or no change. */
   override evidence(): Evidence | null {
@@ -363,7 +361,7 @@ function fresh<M extends Mobject>(m: M, old: Mobject | null): M {
   return m;
 }
 
-/** Whether any part below `m` carries a key: what matchByKey pairs by (the root's own key is not read). */
+/** Whether any part below `m` carries a key: what matching by key pairs by (the root's own key is not read). */
 function keyed(m: Mobject): boolean { return m.family().some((x) => x !== m && x.key !== undefined); }
 
 /**

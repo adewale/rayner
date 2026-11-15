@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Rectangle, Line, TransformMatching, matchByKey } from '../src/index.ts';
+import { Scene, Text, Rectangle, Line, Transform } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
@@ -152,18 +152,14 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
         // The moved row's cell is the same part in both pictures, though its place changed.
         const name = names[from]!;
         assert.notEqual(before.find(`t:${name}:Name`)!.box()![1], after.find(`t:${name}:Name`)!.box()![1]);
-        const keyed = new TransformMatching(before, after, { key: matchByKey() });
+        const keyed = new Transform(before, after, { match: 'key' });
         beginAnimation(keyed);
         assert.equal(keyed.removed.length + keyed.added.length, 0, 'every glyph has its partner');
         for (const [a, b] of keyed.pairs) assert.equal(owner(a), owner(b));
         const text = (m: Mobject) => (m.parent instanceof Text ? m.parent.text : null);
         assert.ok(keyed.pairs.filter(([a]) => text(a) === name).every(([a, b]) => text(b) === text(a)), `${name} pairs with ${name}`);
         // Keyed by index instead, the row at the moved place pairs with whichever row is there now.
-        const byPlace = new TransformMatching(
-          table(s, ['Name', 'Letters'], names.map((n) => [n, n.length]), { key: 't' }),
-          table(s, ['Name', 'Letters'], moved.map((n) => [n, n.length]), { key: 't' }),
-          { key: matchByKey() },
-        );
+        const byPlace = new Transform(table(s, ['Name', 'Letters'], names.map((n) => [n, n.length]), { key: 't' }), table(s, ['Name', 'Letters'], moved.map((n) => [n, n.length]), { key: 't' }), { match: 'key' });
         beginAnimation(byPlace);
         const atTo = byPlace.pairs.filter(([a]) => owner(a) === `t:${to}:Name`);
         assert.ok(atTo.length > 0);

@@ -1,4 +1,4 @@
-import {Scene,MathTex,Group,TransformMatchingShapes,TransformMatchingText} from 'rayner';
+import { Scene, MathTex, Group, Transform } from 'rayner';
 import {stage} from 'rayner/explain';
 export default class Example extends Scene {
   static meta = {id: 'lettering-math', title: "Math", lettering: {math:true}};
@@ -9,11 +9,11 @@ export default class Example extends Scene {
     await s.enter(half);
     await this.step('morph', {title: "A morph", caption: "The same glyphs, paired by shape, move to their new places."});
     const more = new MathTex("x^2+\\frac{1}{2}", {color: s.look.ink});
-    await this.play(new TransformMatchingShapes(half, more));
+    await this.play(new Transform(half, more, { match: 'shapes' }));
     s.keep(more, {describe: 'x squared plus one half.'});
     await this.step('grow', {title: "A new term", caption: "Each glyph keeps its place, and plus y squared grows in at the end."});
     const grown = new MathTex("x^2+\\frac{1}{2}+y^2", {color: s.look.ink});
-    await this.play(new TransformMatchingText(more, grown));
+    await this.play(new Transform(more, grown, { match: 'text' }));
     s.keep(grown, {describe: 'x squared plus one half plus y squared.'});
     await this.step('forms', {title: "Display maths", caption: "Radicals, large operators with limits, an integral and a matrix."});
     await s.clear();

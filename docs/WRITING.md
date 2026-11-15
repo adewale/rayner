@@ -230,13 +230,13 @@ rayner: This explainer still has placeholders, each marked TODO:. To do, in orde
 
 ## 6. Draw the picture and write the steps
 
-A picture is a function from the model's state to shapes, in its own module. Draw it with the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`: its type sizes never go below `TYPE.small`, which a phone can read; `tones(s)` gives the stage's colours by role; `tile` (here `raised`, a structure's body) and `words` make the parts. Key each part by what it is, here each box by its number, so when the state changes a view slides a part to its new place instead of fading one out and another in.
+A picture is a function from the model's state to shapes, in its own module. Draw it with the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`: its type sizes never go below `TYPE.small`, which a phone can read; `tones(s)` gives the stage's colours by role; `tile` (here `raised`, a structure's body) and `label` make the parts. Key each part by what it is, here each box by its number, so when the state changes a view slides a part to its new place instead of fading one out and another in.
 
 <!-- sort-as-text/picture.ts -->
 ```ts
 import { Group } from 'rayner';
 import type { Stage } from 'rayner/explain';
-import { SPACE, TYPE, keyedParts, tile, tones, words } from 'rayner/drawing';
+import { SPACE, TYPE, keyedParts, tile, tones, label } from 'rayner/drawing';
 import { sorted, type State } from './model.ts';
 
 /** A box's width, and where row `y`'s boxes stand: centred on the stage, SPACE.s apart. */
@@ -254,10 +254,10 @@ const numberBox = (s: Stage, text: string, at: [number, number], key: string) =>
 export function drawSort(s: Stage, st: State): Group {
   const parts = keyedParts(), t = tones(s);
   const across = row(st.values.length);
-  parts.add(words(s, 'The array', { at: [0, 1.5], color: t.soft, align: 'middle' }), 'array:name');
+  parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
   st.values.forEach((n, i) => parts.add(numberBox(s, String(n), [across(i), 0.6], `array:${n}`), `array:${n}`));
   const how = st.compare === 'none' ? 'sort() compares them as text' : 'sort((a, b) => a - b) compares them as numbers';
-  parts.add(words(s, how, { at: [0, -1], color: t.soft, align: 'middle' }), 'sorted:name');
+  parts.add(label(s, how, { at: [0, -1], color: t.soft }), 'sorted:name');
   if (st.sorted)
     sorted(st.values, st.compare).forEach((n, i) =>
       parts.add(numberBox(s, st.compare === 'none' ? `"${n}"` : String(n), [across(i), -1.9], `sorted:${n}`), `sorted:${n}`));
@@ -357,8 +357,8 @@ A first draft rarely passes. Writing this explainer, the first draft ran into th
 
 <!-- draft: heading sort-as-text/picture.ts -->
 ```diff
--  parts.add(words(s, 'The array', { at: [0, 2.55], color: t.soft, align: 'middle' }), 'array:name');
-+  parts.add(words(s, 'The array', { at: [0, 1.5], color: t.soft, align: 'middle' }), 'array:name');
+-  parts.add(label(s, 'The array', { at: [0, 2.55], color: t.soft }), 'array:name');
++  parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
 ```
 
 <!-- check: heading -->
@@ -404,7 +404,7 @@ rayner: Machines in Compare function: none: a state the events reach fails (each
 - []
 ```
 
-After each press a phone shows the live step's whole picture, so every label must read 12 px there or whole inside one of the step's close-ups. The kit's `words` throws on such a size before anything is drawn (`words(): "10" at 0.3 units is under TYPE.small (0.56), which a phone cannot read; put the fact in the caption instead`), which is why the fix draws with `tile` at `TYPE.small`. Outside a live step the phone sizes are reported in `legibility` rather than gated, and `rayner review` measures them as served.
+After each press a phone shows the live step's whole picture, so every label must read 12 px there or whole inside one of the step's close-ups. The kit's `label` throws on such a size before anything is drawn (`label(): "10" at 0.3 units is under TYPE.small (0.56), which a phone cannot read; put the fact in the caption instead`), which is why the fix draws with `tile` at `TYPE.small`. Outside a live step the phone sizes are reported in `legibility` rather than gated, and `rayner review` measures them as served.
 
 **A caption over 80 words.** The first answer caption tried to say everything:
 

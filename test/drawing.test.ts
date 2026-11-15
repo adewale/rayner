@@ -15,7 +15,7 @@ import { entryPoints } from '../tools/lib/entry-points.ts';
 import { stage } from '../explain/index.ts';
 import type { Stage } from '../explain/index.ts';
 import { choreograph } from '../explain/choreograph.ts';
-import { MARGIN, PLATE_HEIGHT, RADIUS, SPACE, STROKE, TYPE, addAll, beats, connector, flight, keyedParts, label, pass, plate, route, tile, tones, words } from '../explain/drawing.ts';
+import { MARGIN, PLATE_HEIGHT, RADIUS, SPACE, STROKE, TYPE, addAll, beats, connector, flight, keyedParts, label, pass, plate, route, tile, tones } from '../explain/drawing.ts';
 import * as poppy from '../scenes/explainers/lib/poppy-kit.ts';
 import { Scene, Group, Line, Text } from '../src/index.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
@@ -24,7 +24,7 @@ import { NullSink, StringSink, toSvgString } from '../src/output.ts';
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
   assert.deepEqual(Object.keys(drawing).sort(), [
     'MARGIN', 'PLATE_HEIGHT', 'RADIUS', 'SPACE', 'STROKE', 'TYPE', 'addAll', 'bars', 'beats', 'callout', 'card', 'code', 'connector', 'dimension', 'dot', 'emphasised',
-    'flight', 'flow', 'keyedParts', 'label', 'legend', 'pass', 'pin', 'plate', 'route', 'segment', 'stat', 'table', 'tile', 'tones', 'words',
+    'flight', 'flow', 'keyedParts', 'label', 'legend', 'pass', 'pin', 'plate', 'route', 'segment', 'stat', 'table', 'tile', 'tones',
   ]);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
@@ -170,7 +170,7 @@ const drawn = (...parts: Mobject[]) => {
   return toSvgString(scene);
 };
 
-test('the type scale has a phone-safe floor, and words refuses text under it', async () => {
+test('the type scale has a phone-safe floor, and label refuses text under it', async () => {
   const s = await stageOf();
   assert.deepEqual(TYPE, { small: 0.56, label: 0.64, title: 0.8, display: 1.6 });
   // 0.56 units on a 358 px phone stage, 16 units wide, is 12.5 px: above the review's 12 px floor.
@@ -179,28 +179,30 @@ test('the type scale has a phone-safe floor, and words refuses text under it', a
   assert.ok(STROKE.hair < STROKE.fine && STROKE.fine < STROKE.line && STROKE.line < STROKE.bold);
   assert.ok(RADIUS.sharp < RADIUS.small && RADIUS.small < RADIUS.panel && RADIUS.panel < RADIUS.round);
   assert.ok(MARGIN.right - MARGIN.left < 16 && MARGIN.top - MARGIN.bottom < 9, 'the margin lies inside the 16 × 9 stage');
-  assert.throws(() => words(s, 'too small', { size: 0.5 }), /words\(\): "too small" at 0\.5 units is under TYPE\.small \(0\.56\)/);
-  assert.throws(() => words(s, 'not a size', { size: Number.NaN }), RangeError);
-  const t = words(s, 'Unauthorized');
+  assert.throws(() => label(s, 'too small', { size: 0.5 }), /label\(\): "too small" at 0\.5 units is under TYPE\.small \(0\.56\)/);
+  assert.throws(() => label(s, 'not a size', { size: Number.NaN }), RangeError);
+  assert.throws(() => label(s, 42, { size: 0.42 }), /label\(\): "42" at 0\.42 units/, 'a number is refused as its words');
+  const t = label(s, 'Unauthorized');
   assert.ok(t instanceof Text);
   assert.equal(t.text, 'Unauthorized');
   assert.equal(t.key, undefined, 'a single part comes unkeyed');
 });
 
-test('words anchors the start, middle or end of the line at `at`, at its vertical centre, in the stage ink', async () => {
+test('label anchors the middle, start or end of the line at `at`, at its vertical centre, in the stage ink', async () => {
   const s = await stageOf({ style: 'nord' });
   const at: Vec = [1, -2];
-  const [start, middle, end] = (['start', 'middle', 'end'] as const).map((align) => words(s, 'cache line', { at, align }).box()!) as [Box, Box, Box];
+  const [start, middle, end] = (['start', 'middle', 'end'] as const).map((align) => label(s, 'cache line', { at, align }).box()!) as [Box, Box, Box];
   assert.ok(Math.abs(start[0] - at[0]) < 1e-6, 'start: the left edge is at x');
   assert.ok(Math.abs(end[2] - at[0]) < 1e-6, 'end: the right edge is at x');
   assert.ok(Math.abs((middle[0] + middle[2]) / 2 - at[0]) < 1e-6, 'middle: centred on x');
   for (const b of [start, middle, end]) assert.ok(Math.abs((b[1] + b[3]) / 2 - at[1]) < 1e-6, 'centred on y');
-  assert.ok(Math.abs(start[2] - start[0] - words(s, 'cache line').width()) < 1e-6, 'width() is the measured width');
-  assert.match(drawn(words(s, 'ink')), new RegExp(`fill="${s.look.ink}"`, 'i'));
-  const plain = drawn(words(s, 'x = 1'));
-  assert.notEqual(drawn(words(s, 'x = 1', { bold: true })), plain, 'bold draws other glyphs');
-  assert.notEqual(drawn(words(s, 'x = 1', { mono: true })), plain, 'mono draws other glyphs');
-  assert.equal(drawn(words(s, 'x = 1', { color: '#ff0000' })).includes('fill="#ff0000"'), true);
+  assert.ok(Math.abs(start[2] - start[0] - label(s, 'cache line').width()) < 1e-6, 'width() is the measured width');
+  assert.deepEqual(label(s, 'cache line', { at }).box(), middle, 'centred on at by default');
+  assert.match(drawn(label(s, 'ink')), new RegExp(`fill="${s.look.ink}"`, 'i'));
+  const plain = drawn(label(s, 'x = 1'));
+  assert.notEqual(drawn(label(s, 'x = 1', { bold: true })), plain, 'bold draws other glyphs');
+  assert.notEqual(drawn(label(s, 'x = 1', { mono: true })), plain, 'mono draws other glyphs');
+  assert.equal(drawn(label(s, 'x = 1', { color: '#ff0000' })).includes('fill="#ff0000"'), true);
 });
 
 test('tones names the stage look by role', async () => {
@@ -242,12 +244,12 @@ test('a raised tile is a structure\'s body sized to its words, keyed by part, id
   assert.throws(() => addAll(keyedParts(), tile(s, 'unkeyed', { width: 2, height: 1 })), /addAll\(\): a part has no key/);
 });
 
-test('label sets a line at any size, aligned as words aligns it; words is label held to the type scale', async () => {
+test('label sets its words at TYPE.small unless given a size, takes a number as its words, and goes above the floor', async () => {
   const s = await stageOf();
-  for (const align of ['start', 'middle', 'end'] as const)
-    assert.equal(drawn(label(s, 'x = 1', { at: [1, 1], size: TYPE.label, bold: true, mono: true, align })), drawn(words(s, 'x = 1', { at: [1, 1], size: TYPE.label, bold: true, mono: true, align })), align);
-  assert.equal(label(s, 'small print', { size: 0.42 }).fontSize, 0.42, 'label takes any size');
-  assert.ok(Math.abs(label(s, 'centred', { at: [2, 0] }).center()[0] - 2) < 1e-6, 'centred on at by default');
+  assert.equal(label(s, 'x').fontSize, TYPE.small, 'TYPE.small by default');
+  assert.equal(label(s, 'x', { size: TYPE.display }).fontSize, TYPE.display);
+  assert.equal(label(s, 0.5).text, '0.5', 'a number is drawn as its words');
+  assert.equal(label(s, 'x', { size: TYPE.small }).fontSize, TYPE.small, 'the floor itself is drawn');
 });
 
 test('plate hides what runs behind a label: an opaque plate of the paper under the words, at any alignment', async () => {
@@ -284,7 +286,7 @@ test('connector is an open Line through rounded corners, idle or in use; route d
 test('words, plates and connectors draw what the Poppy kit draws, on Poppy\'s stage', async () => {
   const s = await poppyStage();
   for (const [value, options] of [['Unauthorized', { size: TYPE.title, bold: true }], ['orders:write', { mono: true, align: 'end' as const, at: [3, -1] as Vec }], ['your agent', { align: 'middle' as const, color: poppy.TONE.soft }]] as const)
-    assert.equal(drawn(words(s, value, options)), drawn(poppy.words(s, value, options)), value);
+    assert.equal(drawn(label(s, value, options)), drawn(poppy.label(s, value, options)), value);
   // A Poppy lane is a connector along laneRoute, with its name on a plate.
   for (const active of [false, true]) {
     const spec = { id: 'orders', name: 'orders', y: 1.5, from: [-4, 0] as Vec, trunk: -2, to: 3, nameX: -1, active };
@@ -302,8 +304,8 @@ function pictures(s: Stage) {
   const picture = (x: number, value: string, token: Vec) => {
     const parts = keyedParts();
     addAll(parts, tile(s, value === '1' ? 'idle' : 'in use', { at: [x, 2], key: 'b', raised: true, size: TYPE.small, active: value !== '1' }));
-    parts.add(words(s, value, { at: [-6, -2] }), 'value');
-    parts.add(new Group(words(s, 'request', { at: token, align: 'middle' })), 'token');
+    parts.add(label(s, value, { at: [-6, -2] }), 'value');
+    parts.add(new Group(label(s, 'request', { at: token })), 'token');
     return parts.group();
   };
   return { before: picture(-3, '1', [-5, 0]), after: picture(2, '2', [4, 0]) };
@@ -338,7 +340,7 @@ test('beats replaces changed words, flies a part along its route and ends on the
   assert.equal(kit.end, kit.target, 'it ends on the target picture');
   assert.ok(new Set(kit.frames).size > 20, 'the frames change as the transition plays');
   // A token that neither picture keeps passes through, as the Poppy kit passes one.
-  const passing = (k: typeof pass) => (c: ReturnType<typeof choreograph>, s: Stage) => beats(c, () => k(c, 'note', words(s, 'note'), [[-6, 3], [6, 3]]));
+  const passing = (k: typeof pass) => (c: ReturnType<typeof choreograph>, s: Stage) => beats(c, () => k(c, 'note', label(s, 'note'), [[-6, 3], [6, 3]]));
   const passed = await frames(passing(pass));
   assert.deepEqual(passed.frames, (await frames(passing(poppy.pass))).frames);
   assert.equal(passed.end, passed.target, 'the passing token leaves nothing behind');

@@ -2,7 +2,7 @@ import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Text, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import { MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, RADIUS, STROKE, TONE, TYPE, barrier, padlock, seal, sheet, words } from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, RADIUS, STROKE, TONE, TYPE, barrier, padlock, seal, sheet, label } from '../lib/poppy-kit.ts';
 import { GATES, GATE_NAME, SERVERS, fetchDocument, parseUrl, progress } from './model.ts';
 import type { Gate, GateResult, Server, World } from './model.ts';
 
@@ -199,7 +199,7 @@ function closedRegister(s: Stage): Group {
     new Rectangle({ width: 0.42, height: h, fill: TONE.rule, stroke: 'none' }).moveTo([l + 0.21, y]),
     ...[0.62, -0.62].map((dy) => new Rectangle({ width: 0.42, height: 0.06, fill: TONE.steel, stroke: 'none' }).moveTo([l + 0.21, y + dy])),
     new Rectangle({ width: 2.0, height: 0.74, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.paper }).moveTo([x + 0.21, y + 0.25]),
-    words(s, 'issuer', { at: [x + 0.21, y + 0.25], align: 'middle' }),
+    label(s, 'issuer', { at: [x + 0.21, y + 0.25] }),
   );
 }
 
@@ -235,9 +235,9 @@ function underlines(t: Text, indices: readonly number[], colour: string): Group 
 
 /** A label set on a line, signage fashion: the words on an opaque plate of the ground's colour. Adds both. */
 function onLine(parts: ReturnType<typeof keyedParts>, s: Stage, key: string, value: string, at: Vec, pad = 0.36): Text {
-  const label = words(s, value, { at, align: 'middle' });
-  parts.add(new Rectangle({ width: label.width() + pad, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo(at), `${key}:plate`);
-  return parts.add(label, `${key}:label`);
+  const words = label(s, value, { at });
+  parts.add(new Rectangle({ width: words.width() + pad, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo(at), `${key}:plate`);
+  return parts.add(words, `${key}:label`);
 }
 
 /** The state as its picture. */
@@ -250,16 +250,16 @@ export function drawWorld(w: World, s: Stage): Group {
   const last = sc.hops.at(-1)!, fetched = sc.ran >= 1;
   const { host, path: lastPath } = split(fetched ? last : sc.hops[0]!);
   parts.add(padlock(s, { at: [URL_X - 0.5, URL_Y + 0.05], size: 0.62, color: fetched ? TONE.ink : TONE.soft }), 'url:lock');
-  const hostText = parts.add(words(s, host, { at: [URL_X, URL_Y], mono: true, color: fetched ? TONE.ink : TONE.soft }), 'url:host');
+  const hostText = parts.add(label(s, host, { at: [URL_X, URL_Y], mono: true, color: fetched ? TONE.ink : TONE.soft, align: 'start' }), 'url:host');
   const pathX = hostText.center()[0]! + hostText.width() / 2;
-  const pathText = parts.add(words(s, lastPath, { at: [pathX, URL_Y], mono: true, bold: fetched, color: fetched ? TONE.ink : TONE.soft }), 'url:path');
+  const pathText = parts.add(label(s, lastPath, { at: [pathX, URL_Y], mono: true, bold: fetched, color: fetched ? TONE.ink : TONE.soft, align: 'start' }), 'url:path');
   const lastEnd = pathX + pathText.width();
   if (fetched) {
     const under = parts.add(new Rectangle({ width: pathText.width(), height: 0.05, fill: TONE.ink, stroke: 'none' }).moveTo([pathX + pathText.width() / 2, URL_Y - 0.4]), 'url:under');
     if (stoppedAt === 'fetch') emphasised(under, `refused: the agent ended on ${lastPath}, not /.well-known/poppy.json`);
   }
   if (fetched && sc.hops.length > 1) {
-    const first = parts.add(words(s, bare(sc.hops[0]!), { at: [URL_X, FIRST_Y], mono: true, color: TONE.soft }), 'url:first');
+    const first = parts.add(label(s, bare(sc.hops[0]!), { at: [URL_X, FIRST_Y], mono: true, color: TONE.soft, align: 'start' }), 'url:first');
     emphasised(first, `the agent was redirected from ${sc.hops[0]}`);
     // The redirect: a bracket from the end of the first URL, round and back to the end of the last.
     const firstEnd = first.center()[0]! + first.width() / 2, x = Math.max(firstEnd, lastEnd) + 0.35, tip: Vec = [lastEnd + 0.2, URL_Y];
@@ -268,7 +268,7 @@ export function drawWorld(w: World, s: Stage): Group {
 
   // The shopfront of the host the agent is at, its name on the fascia, and the signpost on its roof.
   parts.add(shopfront(), 'shop');
-  const fascia = parts.add(words(s, sc.host, { at: [SHOP_X, FASCIA_Y], mono: true, align: 'middle' }), 'shop:name');
+  const fascia = parts.add(label(s, sc.host, { at: [SHOP_X, FASCIA_Y], mono: true }), 'shop:name');
   parts.add(signpost(), 'sign');
 
   // A document fetched from any other path was not handed over at the door: it is pinned to a
@@ -276,14 +276,14 @@ export function drawWorld(w: World, s: Stage): Group {
   if (fetched && stoppedAt === 'fetch') {
     parts.add(noticeboard(), 'board');
     parts.add(new Group(sheet(s, { at: BOARD_SHEET, width: 3.7, height: 1.0, lines: 0 }), new Circle({ radius: 0.09, fill: TONE.steel, stroke: 'none' }).moveTo([BOARD_SHEET[0], BOARD_SHEET[1] + 0.36])), 'sheet');
-    parts.add(words(s, 'poppy.json', { at: [BOARD_SHEET[0], BOARD_SHEET[1] - 0.1], mono: true, color: TONE.print, align: 'middle' }), 'sheet:name');
+    parts.add(label(s, 'poppy.json', { at: [BOARD_SHEET[0], BOARD_SHEET[1] - 0.1], mono: true, color: TONE.print }), 'sheet:name');
   }
   // The document in front of the doorstep, once fetched from the well-known path; its letterhead once read.
   if (fetched && stoppedAt !== 'fetch') {
     parts.add(sheet(s, { at: SHEET_AT, width: SHEET_W, height: SHEET_H, lines: 0 }), 'sheet');
     parts.add(new Rectangle({ width: 3.6, height: 0.075, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([SHOP_X, SHEET_AT[1] - 0.26]), 'sheet:lines');
     if (sc.letterhead && sc.ran >= 2) {
-      const letter = parts.add(words(s, sc.letterhead, { at: [SHOP_X, HEAD_Y], mono: true, bold: true, color: TONE.print, align: 'middle' }), 'sheet:head');
+      const letter = parts.add(label(s, sc.letterhead, { at: [SHOP_X, HEAD_Y], mono: true, bold: true, color: TONE.print }), 'sheet:head');
       if (stoppedAt === 'read') {
         const a = sc.host.toLowerCase(), b = sc.letterhead.toLowerCase(), n = Math.max(a.length, b.length);
         const differ = Array.from({ length: n }, (_, i) => i).filter((i) => a[i] !== b[i]);
@@ -301,22 +301,22 @@ export function drawWorld(w: World, s: Stage): Group {
       parts.add(head(end, [0, -1], TONE.ink), 'out:head');
       onLine(parts, s, 'out', 'names its issuer', [0.4, ARM_Y]);
     } else if (sc.issuer === 'none') {
-      parts.add(words(s, '404', { at: [FINGER.r + 0.3, ARM_Y], mono: true, bold: true }), 'out:code');
-      emphasised(parts.add(words(s, 'not found', { at: [FINGER.r + 1.55, ARM_Y], color: TONE.soft }), 'out:note'), 'the metadata answered 404: no issuer');
+      parts.add(label(s, '404', { at: [FINGER.r + 0.3, ARM_Y], mono: true, bold: true, align: 'start' }), 'out:code');
+      emphasised(parts.add(label(s, 'not found', { at: [FINGER.r + 1.55, ARM_Y], color: TONE.soft, align: 'start' }), 'out:note'), 'the metadata answered 404: no issuer');
     } else if (stoppedAt === 'issuer') {
       parts.add(path([ARM_FROM, [-0.3, ARM_Y]], TONE.ink), 'out:line');
-      emphasised(parts.add(words(s, 'timed out', { at: [0.1, ARM_Y], bold: true }), 'out:note'), 'refused: the metadata timed out, and the agent does not fall back');
+      emphasised(parts.add(label(s, 'timed out', { at: [0.1, ARM_Y], bold: true, align: 'start' }), 'out:note'), 'refused: the metadata timed out, and the agent does not fall back');
     }
   }
 
   // The issuer: a closed register until it is found; open at its page once found; its rows once asked.
   // A Company with no issuer has no register at all, which the picture says in words.
   if (sc.issuer && sc.issuer !== 'none') {
-    parts.add(words(s, bare(sc.issuer), { at: [REG.l, REG.titleY], mono: true, bold: true }), 'register:title');
+    parts.add(label(s, bare(sc.issuer), { at: [REG.l, REG.titleY], mono: true, bold: true, align: 'start' }), 'register:title');
     parts.add(registerPage(), 'register:page');
     if (sc.ran >= 4) {
       const listed = ['example.com', 'example.co.uk'];
-      listed.forEach((d, i) => parts.add(words(s, d, { at: [ROW_X, ROW_Y[i]!], mono: true, color: TONE.print }), `register:row:${i}`));
+      listed.forEach((d, i) => parts.add(label(s, d, { at: [ROW_X, ROW_Y[i]!], mono: true, color: TONE.print, align: 'start' }), `register:row:${i}`));
       const match = listed.indexOf(sc.host.toLowerCase());
       if (match >= 0) {
         // Back from the row that lists the shop to its fascia, along the fascia's level.
@@ -328,34 +328,34 @@ export function drawWorld(w: World, s: Stage): Group {
       } else {
         // No row for this host: an empty dashed slot, and the return arrow only as a ghost that never arrives.
         parts.add(new Rectangle({ width: REG.r - ROW_X - 0.25, height: 0.72, fill: 'none', stroke: TONE.print, strokeWidth: STROKE.fine, dashArray: '0.12 0.08', cornerRadius: RADIUS.paper }).moveTo([(ROW_X - 0.15 + REG.r - 0.25) / 2 + 0.07, ROW_Y[2] - 0.05]), 'register:slot');
-        emphasised(parts.add(words(s, 'not listed', { at: [ROW_X + 0.25, ROW_Y[2] - 0.05], color: TONE.print }), 'register:slot:text'), `refused: the issuer does not list ${sc.host}`);
+        emphasised(parts.add(label(s, 'not listed', { at: [ROW_X + 0.25, ROW_Y[2] - 0.05], color: TONE.print, align: 'start' }), 'register:slot:text'), `refused: the issuer does not list ${sc.host}`);
         parts.add(new Line([REG.l - 0.3, ROW_Y[2] - 0.05], [-0.7, ROW_Y[2] - 0.05], { stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.18 0.12', fill: 'none' }).addLineTo([-0.7, FASCIA_Y]).addLineTo([SHOP.r + 0.3, FASCIA_Y]), 'back:ghost');
       }
     }
   } else if (sc.issuer === 'none') {
-    emphasised(parts.add(words(s, 'no issuer', { at: [BOOK.x, BOOK.y], size: TYPE.label, color: TONE.soft, align: 'middle' }), 'register:none'), 'there is no issuer: the Company is its domain');
+    emphasised(parts.add(label(s, 'no issuer', { at: [BOOK.x, BOOK.y], size: TYPE.label, color: TONE.soft }), 'register:none'), 'there is no issuer: the Company is its domain');
   } else if (stoppedAt !== 'fetch') parts.add(closedRegister(s), 'register:closed');
 
   // The verdict, large, in the lower right.
   if (v) {
-    const phrase = parts.add(words(s, v.accepted ? 'Accepted' : 'Refused', { at: [VERDICT.x, VERDICT.phrase], size: TYPE.title, bold: true }), 'verdict:phrase');
+    const phrase = parts.add(label(s, v.accepted ? 'Accepted' : 'Refused', { at: [VERDICT.x, VERDICT.phrase], size: TYPE.title, bold: true, align: 'start' }), 'verdict:phrase');
     if (v.accepted) {
-      if (!v.signIn) parts.add(words(s, 'signed out only', { at: [phrase.center()[0]! + phrase.width() / 2 + 0.42, VERDICT.phrase - 0.06], color: TONE.soft }), 'verdict:note');
-      const lead = parts.add(words(s, 'speaks for', { at: [VERDICT.x, VERDICT.meaning], color: TONE.soft }), 'verdict:meaning');
-      emphasised(parts.add(words(s, bare(v.company), { at: [lead.center()[0]! + lead.width() / 2 + 0.24, VERDICT.meaning], mono: true, bold: true }), 'verdict:value'), `the verdict: the document speaks for ${v.company}`);
-    } else emphasised(parts.add(words(s, `at the ${GATE_NAME[v.gate]} check`, { at: [VERDICT.x, VERDICT.meaning], color: TONE.soft }), 'verdict:meaning'), `the verdict: refused at the ${GATE_NAME[v.gate]} check`);
+      if (!v.signIn) parts.add(label(s, 'signed out only', { at: [phrase.center()[0]! + phrase.width() / 2 + 0.42, VERDICT.phrase - 0.06], color: TONE.soft, align: 'start' }), 'verdict:note');
+      const lead = parts.add(label(s, 'speaks for', { at: [VERDICT.x, VERDICT.meaning], color: TONE.soft, align: 'start' }), 'verdict:meaning');
+      emphasised(parts.add(label(s, bare(v.company), { at: [lead.center()[0]! + lead.width() / 2 + 0.24, VERDICT.meaning], mono: true, bold: true, align: 'start' }), 'verdict:value'), `the verdict: the document speaks for ${v.company}`);
+    } else emphasised(parts.add(label(s, `at the ${GATE_NAME[v.gate]} check`, { at: [VERDICT.x, VERDICT.meaning], color: TONE.soft, align: 'start' }), 'verdict:meaning'), `the verdict: refused at the ${GATE_NAME[v.gate]} check`);
   }
 
   // The agent's line of checks: its seal, the line, bold as far as the checks have passed, and a stop for each.
   parts.add(seal(s, { at: [SEAL_X, RAIL_Y], r: 0.4 }), 'rail:agent');
-  parts.add(words(s, 'your agent', { at: [MARGIN.left, RAIL_Y - 0.62] }), 'rail:name');
+  parts.add(label(s, 'your agent', { at: [MARGIN.left, RAIL_Y - 0.62], align: 'start' }), 'rail:name');
   parts.add(path([[SEAL_X + 0.42, RAIL_Y], [MARGIN.right, RAIL_Y]], TONE.steel), 'rail:line');
   const reached = GATES.filter(passed).at(-1);
   if (reached) parts.add(path([[SEAL_X + 0.42, RAIL_Y], [STOP_X[reached], RAIL_Y]], TONE.ink, STROKE.bold), 'rail:done');
   for (const g of GATES) {
     const ok = passed(g), refused = stoppedAt === g;
     parts.add(new Circle({ radius: 0.2, fill: ok ? TONE.ink : TONE.ground, stroke: ok || refused ? TONE.ink : TONE.steel, strokeWidth: STROKE.line }).moveTo([STOP_X[g], RAIL_Y]), `rail:stop:${g}`);
-    parts.add(words(s, GATE_NAME[g], { at: [STOP_X[g], RAIL_Y - 0.62], align: 'middle', color: ok || refused ? TONE.ink : TONE.soft, bold: refused }), `rail:name:${g}`);
+    parts.add(label(s, GATE_NAME[g], { at: [STOP_X[g], RAIL_Y - 0.62], color: ok || refused ? TONE.ink : TONE.soft, bold: refused }), `rail:name:${g}`);
   }
   if (stoppedAt) parts.add(barrier(s, { at: [STOP_X[stoppedAt] - 0.62, RAIL_Y], height: 0.84 }), 'rail:barrier');
   return parts.group();

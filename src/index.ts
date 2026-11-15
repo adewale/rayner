@@ -19,16 +19,14 @@ export type { AxisRange, NumberLineOptions, AxisStyle, AxesOptions, PlotOptions,
 
 // Motion
 export { Animation, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart } from './animation.ts';
-export { Restore, TransformFromCopy, MoveAlongPath } from './animation.ts';
+export { MoveAlongPath } from './animation.ts';
 export type { MoveAlongPathOptions } from './animation.ts';
-export type { AnimationOptions, PlayOptions, Playable, ScheduledAnimation, TransformOptions, FadeOptions, AnimationPhase } from './animation.ts';
+export type { AnimationOptions, PlayOptions, Playable, ScheduledAnimation, TransformOptions, Match, KeyMatch, MatchKey, MatchSummary, FadeOptions, AnimationPhase } from './animation.ts';
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOptions } from './animation.ts';
 export { Succession } from './animation.ts';
 export { GrowFromEdge, PulseAlongPath } from './animation.ts';
 export type { GrowFromEdgeOptions } from './animation.ts';
-export { TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
-export type { MatchKey, MatchingOptions, TransformMatchingOptions, MatchSummary, MatchByKeyOptions } from './animation.ts';
 export { TransformDiff } from './animation.ts';
 export type { TransformDiffOptions, LinePlan } from './animation.ts';
 export { diffLines, parseUnifiedDiff } from './diff.ts';

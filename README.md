@@ -224,16 +224,16 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 
 ## Drawing pictures
 
-A picture is drawn from the model's state by a function you write, with the [drawing kit](docs/REFERENCE.md#drawing-kit), `rayner/drawing`: a type scale whose smallest size reads on a phone (`TYPE`), spacing and strokes, the stage's colours by role (`tones(s)`), and `words`, `tile`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `words` refuses a size under the phone floor. The same module has ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
+A picture is drawn from the model's state by a function you write, with the [drawing kit](docs/REFERENCE.md#drawing-kit), `rayner/drawing`: a type scale whose smallest size reads on a phone (`TYPE`), spacing and strokes, the stage's colours by role (`tones(s)`), and `label`, `tile`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `label` refuses a size under the phone floor. The same module has ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
 
 ```ts
-import { TYPE, addAll, connector, keyedParts, tile, words } from 'rayner/drawing';
+import { TYPE, addAll, connector, keyedParts, label, tile } from 'rayner/drawing';
 
 const cache = view(this, (st) => {
   const parts = keyedParts();
   st.slots.forEach((item, i) => addAll(parts, tile(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
   parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
-  parts.add(words(s, `${st.hits} hits`, { at: [0, -2], align: 'middle' }), 'hits');
+  parts.add(label(s, `${st.hits} hits`, { at: [0, -2] }), 'hits');
   return parts.group();
 });
 ```

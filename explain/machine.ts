@@ -4,7 +4,8 @@
 // and records like any other play, and the same `next` and views a reader would drive
 // can be explored state by state by `rayner check`. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, MadeAtTurn, Succession, matchByKey } from '../src/animation.ts';
+import { Animation, AnimationGroup, MadeAtTurn, Succession } from '../src/animation.ts';
+import type { Match } from '../src/animation.ts';
 import { SetState } from './state.ts';
 import { canonicalJson } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
@@ -12,7 +13,7 @@ import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
 import type { Scene } from '../src/scene.ts';
 import { turnAction, ViewSync } from './view.ts';
-import type { View, ViewMatch } from './view.ts';
+import type { View } from './view.ts';
 import type { Action } from './action.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { choreograph } from './choreograph.ts';
@@ -62,12 +63,12 @@ export interface MachineSpec<S extends object, E extends string> {
   views: readonly View<Mobject, S>[];
   /**
    * How the views morph when an event has no authored transition (default
-   * `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed Text whose words
+   * `{ by: 'key', text: 'whole' }`: keyed parts keep their identity, and a keyed Text whose words
    * change is replaced, not morphed glyph by glyph). The morph is staged: parts that go fade out
    * over the first half, parts that come fade in over the second, and parts both pictures have
    * morph throughout, so a word and the word replacing it never overlap.
    */
-  match?: ViewMatch;
+  match?: Match;
   /** Each event's morph or transition, in seconds (default 0.6), or a function of the event and the states either side. */
   runTime?: number | ((t: { event: E; before: S; after: S }) => number);
   /** The most states `rayner check` explores (default 256); a larger machine is sampled breadth first up to it. */
@@ -332,7 +333,7 @@ function frozenSpec<S extends object, E extends string>(spec: MachineSpec<S, E>)
   // replays a page has no structuredClone.
   const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
   const start = copy(spec.start);
-  const kept = { match: matchByKey({ text: 'whole' }), runTime: 0.6, limit: 256, ...spec };
+  const kept = { match: { by: 'key', text: 'whole' } as Match, runTime: 0.6, limit: 256, ...spec };
   return Object.freeze(Object.defineProperties(kept, {
     start: { get: () => copy(start), enumerable: true },
     events: { value: Object.freeze([...spec.events]), enumerable: true },

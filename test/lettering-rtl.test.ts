@@ -1,7 +1,7 @@
 // Right-to-left and bidi lettering, and morphs by cluster. Bidi is resolved once, at build time,
 // with the shaping (tools/lettering.py); the page draws the stored runs. These tests hold
 // stored runs to the Unicode Bidi Algorithm's visual order, the page to the paragraph's direction,
-// and TransformMatchingText to pairing whole clusters.
+// and a Transform matched by 'text' to pairing whole clusters.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { Scene, Text, TransformMatchingText } from '../src/index.ts';
+import { Scene, Text, Transform } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { bindLettering, runKey, unpackLettering, rightToLeft } from '../src/lettering-outlines.ts';
@@ -69,7 +69,7 @@ test('a page that asks for a right-to-left script sets each caption\'s direction
   assert.doesNotMatch(devanagari.html, /unicode-bidi:plaintext/);
 });
 
-test('TransformMatchingText pairs whole clusters: a conjunct that replaces a letter fades, kept clusters morph', async () => {
+test('a Transform matched by \'text\' pairs whole clusters: a conjunct that replaces a letter fades, kept clusters morph', async () => {
   const project = await collectProject(join(ROOT, 'test/lettering/matching'), { write: false });
   const steps = defaultScenario(project).trace.steps;
   const match = (name: string) => {
@@ -89,11 +89,11 @@ test('cluster keys pair a match only when every Text in it has them; a Text buil
   const s = await stored('matching');
   await loadFonts();
   const outside = new Text('ab');
-  let summary: ReturnType<TransformMatchingText['summary']> | undefined;
+  let summary: ReturnType<Transform['summary']> | undefined;
   class Mixed extends Scene {
     override async construct() {
       this.add(outside);
-      const t = new TransformMatchingText(outside, new Text('abd'));
+      const t = new Transform(outside, new Text('abd'), { match: 'text' });
       await this.play(t);
       summary = t.summary();
     }
@@ -171,7 +171,7 @@ test('capture of the Hebrew and matching fixtures is deterministic', { skip: !ca
 
 test('morphing maths reshapes nothing: no run for the TeX source is captured', { skip: !capture && 'set EXPLAIN_LETTERING=1 to capture' }, async () => {
   const dir = await mkdtemp(join(folder, 'math-'));
-  await writeFile(join(dir, 'scene.ts'), `import{Scene,MathTex,TransformMatchingText}from'rayner';export default class L extends Scene{static meta={id:'m',lettering:{math:true,faces:{sans:'eb-garamond'}}};async construct(){await this.step('one');const a=new MathTex('a+b');this.add(a);await this.play(new TransformMatchingText(a,new MathTex('a+c')));}}`);
+  await writeFile(join(dir, 'scene.ts'), `import{Scene,MathTex,Transform}from'rayner';export default class L extends Scene{static meta={id:'m',lettering:{math:true,faces:{sans:'eb-garamond'}}};async construct(){await this.step('one');const a=new MathTex('a+b');this.add(a);await this.play(new Transform(a,new MathTex('a+c'),{match:'text'}));}}`);
   const project = await collectProject(join(dir, 'scene.ts'), { captureLettering: true, write: false });
   const keys = Object.keys(project.outlineLettering!.runs).map((k) => JSON.parse(k) as [string, string, boolean]);
   assert.ok(keys.some(([f, t]) => f === 'math' && t === 'a+b'));

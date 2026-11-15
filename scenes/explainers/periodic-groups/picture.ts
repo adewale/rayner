@@ -6,8 +6,8 @@
 // identity alone; the opening's comparison of one column is drawn large, with the full table shrunk to
 // context beside it; and an element's cell and symbol keep their keys wherever they go, so the runs slide
 // from their rows into the table.
-import { Group, Text, Rectangle, Line, Arrow, matchByKey, lerpColor, keyed } from '../../../src/index.ts';
-import type { Mobject, Vec, MatchKey } from '../../../src/index.ts';
+import { Group, Text, Rectangle, Line, Arrow, lerpColor, keyed } from '../../../src/index.ts';
+import type { Mobject, Vec, Match } from '../../../src/index.ts';
 import { POSITIONS, NAMES, CAPACITY, predicted } from './model.ts';
 import type { Block, Symbol, Subshell, Position } from './model.ts';
 import { listed as list } from '../lib/format.ts';
@@ -113,7 +113,7 @@ export const nameOf = (symbol: Symbol) => NAMES[symbol] ?? symbol;
  * words, or a shape of the same size; a badge, a note or a block label that is new or gone
  * fades, and no letter travels between labels.
  */
-export const samePlace: MatchKey = matchByKey({ fallback: (part: Mobject) => {
+export const samePlace: Match = { by: 'key', fallback: (part: Mobject) => {
   const owner = part.parent instanceof Text ? part.parent : part;
   const b = owner.box();
   if (!b) return undefined;
@@ -121,7 +121,7 @@ export const samePlace: MatchKey = matchByKey({ fallback: (part: Mobject) => {
   return part.parent instanceof Text
     ? `${part.parent.text}@${at}#${(part as { cluster?: number }).cluster ?? ''}`
     : `${(b[2] - b[0]).toFixed(2)}x${(b[3] - b[1]).toFixed(2)}@${at}`;
-} });
+} };
 
 /** One family member, as the family step writes it. */
 export interface Member {

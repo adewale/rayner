@@ -4,7 +4,7 @@
 // keep needing (a line of words, a labelled box, a label on a plate, a connector with rounded
 // corners, a table that places its measured columns, a flow of named steps, bars on one scale, the
 // annotations and the panels), as ordinary mobjects coloured from a stage's look. Keyed pictures
-// key their parts, so matching (matchByKey), find(), invariants and reviews can address them.
+// key their parts, so matching (match: 'key'), find(), invariants and reviews can address them.
 // Nothing here registers or reads scene state; the choreography at the end (`beats`, `flight`,
 // `pass`) builds a transition's animations from the choreography a machine's transition hands it,
 // and plays nothing itself. docs/REFERENCE.md ("Drawing kit") lists it.
@@ -137,51 +137,43 @@ export function addAll(parts: Parts, composite: Mobject | readonly Mobject[]): v
  * its text size, and `key` the address of a composite and its parts. A function whose parts are keyed
  * requires `key`; one that takes it optionally (`tile`, `dot` and the annotations) keys its parts only
  * when given it. Each keyed composite keys its parts under its own key (`key:box`, `key:label` and so
- * on), so a scene addresses a part by key, never by index. A single part (`words`, `label`, `connector`, `segment`) takes no
+ * on), so a scene addresses a part by key, never by index. A single part (`label`, `connector`, `segment`) takes no
  * `key`: key it with `keyed()`, the one way to key a part.
  * Text is made with the scene's shaping.
  */
 
-/** How `words` sets a line of text. */
-export type WordsOptions = {
-  /** The anchor point: the start, middle or end of the line (per `align`), at the line's vertical centre. Default [0, 0]. */
+/** How `label` sets a line of text. */
+export type LabelOptions = {
+  /** The anchor point: the middle, start or end of the line (per `align`), at the line's vertical centre. Default [0, 0]. */
   at?: Vec;
-  /** One of `TYPE`'s sizes; default `TYPE.small`, the floor. Anything smaller is refused. */
+  /** In stage units; default `TYPE.small`, the floor. Anything smaller is refused. Prefer one of `TYPE`'s sizes. */
   size?: number;
   /** Default: the stage's ink. */
   color?: string;
   bold?: boolean;
   /** JetBrains Mono, for literals: names in code, hosts, IDs, numbers a reader may copy. */
   mono?: boolean;
-  /** Which end of the line `at` is: 'start' (default), 'middle' or 'end'. */
+  /** Which part of the line `at` is: 'middle' (default), 'start' or 'end'. */
   align?: 'start' | 'middle' | 'end';
 };
 
 /**
- * A line of text at `at`, in the look's ink unless given a `color`, at any size (default 0.6): Inter,
- * or JetBrains Mono with `mono`, bold with `bold`, shaped as the scene shapes text. `at` is the
- * line's centre, or with `align` its start or end, at its vertical centre. `words` is this line held
- * to the type scale, and refuses a size a phone cannot read: draw with it, and with `label` only
- * where a picture's type is set otherwise. Key it with `keyed()`.
+ * One line of words, the way a scene draws words: at `at`, in the look's ink unless given a
+ * `color`, at `size` units (default `TYPE.small`): Inter, or JetBrains Mono with `mono`, bold with
+ * `bold`, shaped as the scene shapes text. `at` is the line's middle, or with `align` its start or
+ * end, at its vertical centre. A size under `TYPE.small` (0.56 units, 12.5 px on a 358 px phone
+ * stage showing the whole picture) is a RangeError: a fact that does not fit at `TYPE.small`
+ * belongs in the caption or the description. Returns an unkeyed Text, its `width()` its measured
+ * width; key it with `keyed()`.
  */
 export function label(
   s: Stage,
   text: string | number,
-  { at = [0, 0], color = s.look.ink, size = 0.6, bold = false, mono = false, align = 'middle' }: { at?: Vec; color?: string; size?: number; bold?: boolean; mono?: boolean; align?: 'start' | 'middle' | 'end' } = {},
+  { at = [0, 0], size = TYPE.small, color = s.look.ink, bold = false, mono = false, align = 'middle' }: LabelOptions = {},
 ): Text {
+  if (!(size >= TYPE.small - 1e-9)) throw new RangeError(`label(): ${JSON.stringify(String(text))} at ${size} units is under TYPE.small (${TYPE.small}), which a phone cannot read; put the fact in the caption instead`);
   return new Text(String(text), { fontSize: size, color, shaping: s.scene.textShaping, anchor: align, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}) })
     .moveTo(at, [align === 'start' ? -1 : align === 'end' ? 1 : 0, 0]);
-}
-
-/**
- * One line of text on the type scale: `label` at one of `TYPE`'s sizes (default `TYPE.small`), with
- * `at` the start of the line unless `align` says its middle or end. A size under `TYPE.small` is a
- * RangeError: a fact that does not fit at `TYPE.small` belongs in the caption or the description.
- * Returns an unkeyed Text; its `width()` is its measured width.
- */
-export function words(s: Stage, value: string, { at = [0, 0], size = TYPE.small, color = s.look.ink, bold = false, mono = false, align = 'start' }: WordsOptions = {}): Text {
-  if (!(size >= TYPE.small - 1e-9)) throw new RangeError(`words(): ${JSON.stringify(value)} at ${size} units is under TYPE.small (${TYPE.small}), which a phone cannot read; put the fact in the caption instead`);
-  return label(s, value, { at, size, color, bold, mono, align });
 }
 
 /**
@@ -217,8 +209,8 @@ export function tile(
 }
 
 /** Options for `plate`. */
-export type PlateOptions = Omit<WordsOptions, 'at'> & {
-  /** Where the words stand, as `words` places them. */
+export type PlateOptions = Omit<LabelOptions, 'at'> & {
+  /** Where the words stand, as `label` places them, but from their start unless `align` says otherwise. */
   at: Vec;
   /** Prefix of the parts' keys: `<key>:plate` and `<key>:label`. */
   key: string;
@@ -228,16 +220,16 @@ export type PlateOptions = Omit<WordsOptions, 'at'> & {
 
 /**
  * A label set on an opaque plate of the ground's colour, so a line that runs behind it is hidden
- * where the words sit, as a transit map sets a line's name on the line. The words are `words`, so
- * held to the type scale. Returns two parts, keyed `<key>:plate` and `<key>:label`; the plate comes
+ * where the words sit, as a transit map sets a line's name on the line. The words are a `label`, so
+ * held to the type scale, standing from `at` unless `align` says otherwise. Returns two parts, keyed `<key>:plate` and `<key>:label`; the plate comes
  * first, so the words paint over it. Add them with `addAll(parts, plate(...))`.
  */
-export function plate(s: Stage, text: string, { at, key, padding = 0.18, ...style }: PlateOptions): Mobject[] {
-  const label = words(s, text, { at, ...style });
-  const w = label.width(), align = style.align ?? 'start';
+export function plate(s: Stage, text: string, { at, key, padding = 0.18, align = 'start', ...style }: PlateOptions): Mobject[] {
+  const words = label(s, text, { at, align, ...style });
+  const w = words.width();
   const centre = align === 'start' ? at[0] + w / 2 : align === 'end' ? at[0] - w / 2 : at[0];
   const back = new Rectangle({ width: w + 2 * padding, height: PLATE_HEIGHT, fill: s.look.paper, stroke: 'none' }).moveTo([centre, at[1]]);
-  return [keyed(back, `${key}:plate`), keyed(label, `${key}:label`)];
+  return [keyed(back, `${key}:plate`), keyed(words, `${key}:label`)];
 }
 
 /** Options for `connector`. */

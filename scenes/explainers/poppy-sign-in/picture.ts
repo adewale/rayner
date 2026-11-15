@@ -2,10 +2,7 @@ import { Circle, Group, Polygon, Rectangle, keyed as keyedAs } from '../../../sr
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import {
-  MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE,
-  addAll, barrier, codeSlip, counter, key, person, phone, seal, station, ticket, words,
-} from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, addAll, barrier, codeSlip, counter, key, person, phone, seal, station, ticket, label } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
 import { SID, USER_IDS } from '../poppy/model.ts';
 import { CARDS, DEVICE, OTHER, ruleOf } from './model.ts';
@@ -164,8 +161,8 @@ const outline = (points: Vec[], fill: string) => new Polygon(points, { fill, str
  * with `value` null, stamped with another's seal when `foreign`. One unkeyed Group.
  */
 export function tag(s: Stage, { at, value, foreign = false }: { at: Vec; value: string | null; foreign?: boolean }): Group {
-  const text = value ? words(s, value, { mono: true, bold: true, color: TONE.print }) : null;
-  const name = value ? words(s, 'refresh token', { color: TONE.print }) : null;
+  const text = value ? label(s, value, { mono: true, bold: true, color: TONE.print, align: 'start' }) : null;
+  const name = value ? label(s, 'refresh token', { color: TONE.print, align: 'start' }) : null;
   const w = text && name ? Math.max(text.width(), name.width()) + 0.85 : 1.0, h = value ? 1.44 : 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
   const parts: Mobject[] = [
     outline([[l + cut, t], [r - RADIUS.ticket, t], [r, t - RADIUS.ticket], [r, b + RADIUS.ticket], [r - RADIUS.ticket, b], [l + cut, b], [l, y - 0.12], [l, y + 0.12]], TONE.paper),
@@ -206,7 +203,7 @@ function box(at: Vec, ticked: boolean): Mobject {
 
 /** The display card the agent shows for Device Sign-In: the code, and the Company's name, its right edge at `at`; or a card someone else's, face down, centred at `at`. */
 function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
-  const code = words(s, DEVICE.user_code, { mono: true, bold: true }), name = words(s, 'Example Company');
+  const code = label(s, DEVICE.user_code, { mono: true, bold: true, align: 'start' }), name = label(s, 'Example Company', { align: 'start' });
   const w = foreign ? 3.4 : Math.max(code.width(), name.width()) + 0.7, h = 1.3, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
   if (foreign)
     return new Group(
@@ -215,8 +212,8 @@ function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
     );
   return new Group(
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo([x, y]),
-    words(s, DEVICE.user_code, { at: [x, y + 0.33], mono: true, bold: true, color: TONE.print, align: 'middle' }),
-    words(s, 'Example Company', { at: [x, y - 0.37], color: TONE.print, align: 'middle' }),
+    label(s, DEVICE.user_code, { at: [x, y + 0.33], mono: true, bold: true, color: TONE.print }),
+    label(s, 'Example Company', { at: [x, y - 0.37], color: TONE.print }),
   );
 }
 
@@ -239,7 +236,7 @@ export const codeToken = (_s: Stage): Mobject => {
 /** Your browser window, with the Company's page in it, joined to the counter. */
 function browser(s: Parts, st: Stage, host: string, rows: Rows) {
   const w = WIN.right - WIN.left, h = WIN.top - WIN.bottom, cx = (WIN.left + WIN.right) / 2, cy = (WIN.top + WIN.bottom) / 2;
-  const address = words(st, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2], align: 'middle' });
+  const address = label(st, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2] });
   s.add(new Group(
     new Rectangle({ width: w, height: h, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel }).moveTo([cx, cy]),
     new Rectangle({ width: address.width() + 0.44, height: 0.6, fill: TONE.raised, stroke: 'none', cornerRadius: 0.3 }).moveTo([cx, WIN.top - WIN.bar / 2]),
@@ -305,35 +302,35 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
       if (typed) pw = parts.add(new Group(...dots([PHONE.at[0] - 0.4, rows.field], TONE.ink)), 'page:password');
       for (const scope of ['orders:read', 'orders:write'] as const) {
         parts.add(box([SCREEN.left + 0.38, rows[scope]], !!w.sign.approved?.includes(scope)), `page:${scope}:box`);
-        parts.add(words(s, SHORT[scope], { at: [SCREEN.left + 0.75, rows[scope]] }), `page:${scope}:line`);
+        parts.add(label(s, SHORT[scope], { at: [SCREEN.left + 0.75, rows[scope]], align: 'start' }), `page:${scope}:line`);
       }
     } else {
       browser(parts, s, 'auth.example.com', rows);
-      parts.add(words(s, 'Example Company', { at: [PAGE_X, rows.title], bold: true }), 'page:title');
+      parts.add(label(s, 'Example Company', { at: [PAGE_X, rows.title], bold: true, align: 'start' }), 'page:title');
       parts.add(new Rectangle({ width: 3.9, height: 0.6, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PAGE_X + 1.95, rows.field]), 'page:field');
       if (typed) pw = parts.add(new Group(...dots([PAGE_X + 0.3, rows.field], TONE.ink)), 'page:password');
-      else parts.add(words(s, 'password', { at: [PAGE_X + 0.24, rows.field], color: TONE.soft }), 'page:hint');
+      else parts.add(label(s, 'password', { at: [PAGE_X + 0.24, rows.field], color: TONE.soft, align: 'start' }), 'page:hint');
       for (const scope of ['orders:read', 'orders:write'] as const) {
         parts.add(box([PAGE_X + 0.21, rows[scope]], !!w.sign.approved?.includes(scope)), `page:${scope}:box`);
-        parts.add(words(s, LINE[scope], { at: [PAGE_X + 0.66, rows[scope]] }), `page:${scope}:line`);
+        parts.add(label(s, LINE[scope], { at: [PAGE_X + 0.66, rows[scope]], align: 'start' }), `page:${scope}:line`);
       }
     }
     if (pw && last?.kind === 'approve') emphasised(pw, 'changed: your password is on the Company’s page');
   }
 
   // Behind the counter: the scopes the Company offers, each a row with its tooth, cut in brass when the agent holds it.
-  parts.add(words(s, 'The Company', { at: [RACK_X, WIN.top - WIN.bar / 2], size: TYPE.label, bold: true }), 'company');
-  parts.add(words(s, 'Scopes offered', { at: [RACK_X, rows.title], bold: true }), 'rack:title');
+  parts.add(label(s, 'The Company', { at: [RACK_X, WIN.top - WIN.bar / 2], size: TYPE.label, bold: true, align: 'start' }), 'company');
+  parts.add(label(s, 'Scopes offered', { at: [RACK_X, rows.title], bold: true, align: 'start' }), 'rack:title');
   for (const scope of RACK) {
     const y = rackY(rows, scope), status = statusOf(w, scope), asked = !!w.sign && scope !== 'addresses', cut = !!w.holds?.scopes.includes(scope as Scope);
     parts.add(tooth([TOOTH_X, y], cut), `rack:${scope}:tooth`);
-    parts.add(words(s, scope, { at: [RACK_X, y], mono: true, color: asked || cut ? TONE.ink : TONE.soft, bold: asked }), `rack:${scope}:name`);
+    parts.add(label(s, scope, { at: [RACK_X, y], mono: true, color: asked || cut ? TONE.ink : TONE.soft, bold: asked, align: 'start' }), `rack:${scope}:name`);
     if (status) {
-      const word = parts.add(words(s, status, { at: [MARGIN.right, y], align: 'end', color: status === 'not now' ? TONE.soft : TONE.ink }), `rack:${scope}:status`);
+      const word = parts.add(label(s, status, { at: [MARGIN.right, y], align: 'end', color: status === 'not now' ? TONE.soft : TONE.ink }), `rack:${scope}:status`);
       if (last?.kind === 'approve' || last?.kind === 'tokens') emphasised(word, `changed: ${scope} is ${status}`);
     }
   }
-  parts.add(words(s, 'can’t be undone', { at: [RACK_X, rows['orders:write'] - 0.7], color: TONE.soft }), 'rack:hint');
+  parts.add(label(s, 'can’t be undone', { at: [RACK_X, rows['orders:write'] - 0.7], color: TONE.soft, align: 'start' }), 'rack:hint');
 
   // You, and your password unless it is on the page.
   const place = open ? YOU[w.flow] : YOU.closed;
@@ -371,12 +368,12 @@ function swappedSlip(s: Stage, at: Vec): Group {
 /** The readout: who did what in SOFT, the phrase in TYPE.title bold, and what it means. */
 function readout(s: Stage, parts: Parts, report: Report | null) {
   if (!report) {
-    parts.add(words(s, 'nothing asked yet', { at: [READ_X, READ_Y - 1.2], size: TYPE.label, color: TONE.soft }), 'answer:phrase');
+    parts.add(label(s, 'nothing asked yet', { at: [READ_X, READ_Y - 1.2], size: TYPE.label, color: TONE.soft, align: 'start' }), 'answer:phrase');
     return;
   }
-  parts.add(words(s, report.asked, { at: [READ_X, READ_Y], color: TONE.soft }), 'answer:asked');
-  emphasised(parts.add(words(s, report.phrase, { at: [READ_X, READ_Y - 1.05], size: TYPE.title, bold: true }), 'answer:phrase'), `the outcome: ${report.phrase}, ${report.meaning}`);
-  parts.add(words(s, report.meaning, { at: [READ_X, READ_Y - 1.85], mono: !!report.mono }), 'answer:meaning');
+  parts.add(label(s, report.asked, { at: [READ_X, READ_Y], color: TONE.soft, align: 'start' }), 'answer:asked');
+  emphasised(parts.add(label(s, report.phrase, { at: [READ_X, READ_Y - 1.05], size: TYPE.title, bold: true, align: 'start' }), 'answer:phrase'), `the outcome: ${report.phrase}, ${report.meaning}`);
+  parts.add(label(s, report.meaning, { at: [READ_X, READ_Y - 1.85], mono: !!report.mono, align: 'start' }), 'answer:meaning');
 }
 
 /** Step 1's picture: the shortcut. Your password hangs on the agent's keyring, where a key would, and the agent types it in. */
@@ -384,20 +381,20 @@ function drawShortcut(s: Stage, parts: Parts): Group {
   const rows = ROWS.direct;
   addAll(parts, counter(s, { x: FACE, top: MARGIN.top, bottom: COUNTER_BOTTOM }));
   browser(parts, s, 'example.com', rows);
-  parts.add(words(s, 'Sign in', { at: [PAGE_X, rows.title], bold: true }), 'page:title');
+  parts.add(label(s, 'Sign in', { at: [PAGE_X, rows.title], bold: true, align: 'start' }), 'page:title');
   parts.add(new Rectangle({ width: 3.9, height: 0.6, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PAGE_X + 1.95, rows.field]), 'page:field');
   parts.add(new Group(...dots([PAGE_X + 0.3, rows.field], TONE.ink)), 'page:password');
-  parts.add(words(s, 'typed by your agent', { at: [PAGE_X, rows['orders:read']], color: TONE.soft }), 'page:by');
-  parts.add(words(s, 'The Company sees', { at: [RACK_X, rows.title], bold: true }), 'sees:title');
+  parts.add(label(s, 'typed by your agent', { at: [PAGE_X, rows['orders:read']], color: TONE.soft, align: 'start' }), 'page:by');
+  parts.add(label(s, 'The Company sees', { at: [RACK_X, rows.title], bold: true, align: 'start' }), 'sees:title');
   parts.add(person(s, { at: [RACK_X + 0.55, 1.45], size: 1.2 }), 'sees:you');
-  parts.add(words(s, 'you', { at: [RACK_X + 1.45, 1.45], size: TYPE.title, bold: true }), 'sees:who');
-  parts.add(words(s, 'not your agent', { at: [RACK_X, 0.2], color: TONE.soft }), 'sees:not');
+  parts.add(label(s, 'you', { at: [RACK_X + 1.45, 1.45], size: TYPE.title, bold: true, align: 'start' }), 'sees:who');
+  parts.add(label(s, 'not your agent', { at: [RACK_X, 0.2], color: TONE.soft, align: 'start' }), 'sees:not');
   parts.add(person(s, { at: YOU.direct.you, size: YOU.direct.size }), 'you');
   const at = AGENT_AT.open;
   addAll(parts, agentWith(s, at, 0, null, false));
   const card: Vec = [at.ring[0] + 0.2 + 0.9 + 0.02, at.ring[1]];
   parts.add(passwordCard(s, { at: card }), 'agent:password');
-  parts.add(words(s, 'your password', { at: [card[0] - 0.9, card[1] - 0.8], color: TONE.soft }), 'agent:password:label');
+  parts.add(label(s, 'your password', { at: [card[0] - 0.9, card[1] - 0.8], color: TONE.soft, align: 'start' }), 'agent:password:label');
   readout(s, parts, reportOf({ flow: 'direct', sign: null, holds: null, ended: false, last: null }, { password: true }));
   return parts.group();
 }

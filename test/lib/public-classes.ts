@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
-import { Scene, Circle, Rectangle, FadeIn, Create, AnimationGroup, Transform, Text, Group, Mobject, Animation, Code, Line, Dot, keyed, matchByKey, shaperFor } from '../../src/index.ts';
+import { Scene, Circle, Rectangle, FadeIn, Create, AnimationGroup, Transform, Text, Group, Mobject, Animation, Code, Line, Dot, shaperFor } from '../../src/index.ts';
 import type { ScheduledAnimation, VMobject, Sink, Labeled, Arrow, NumberLine, Axes, MathTex, ItalicText, DecimalNumber } from '../../src/index.ts';
 import { StringSink } from '../../src/output.ts';
 import type { DomSink } from '../../src/output.ts';
@@ -109,14 +109,9 @@ export const ANIMATIONS: Record<string, (C: any) => ScheduledAnimation> = {
   AnimationGroup: (C) => new C([new FadeIn(new Circle()), new Create(new Rectangle().shift([2, 0]))], { lagRatio: 0.5 }),
   LaggedStart: (C) => new C([new FadeIn(new Circle()), new FadeIn(new Rectangle().shift([2, 0]))]),
   Succession: (C) => { const d = new Rectangle(); return new C([new FadeIn(d), d.animate.shift([-1, -1]), new Transform(d, new Circle().shift([0, -2]))]); },
-  Restore: (C) => { const r = new Rectangle(); r.saveState(); r.shift([2, 1]).scale(0.5); return new C(r); },
-  TransformFromCopy: (C) => new C(new Circle(), new Rectangle().shift([2, 0])),
   MoveAlongPath: (C) => new C(new Dot(), new Line([-2, 0], [2, 1])),
   PulseAlongPath: (C) => new C(new Dot(), new Line([-2, 0], [2, 1])),
   Circumscribe: (C) => new C(new Rectangle()),
-  TransformMatching: (C) => new C(new Group(keyed(new Circle(), 'a'), keyed(new Rectangle(), 'b')), new Group(keyed(new Circle().shift([1, 0]), 'a')), { key: matchByKey() }),
-  TransformMatchingShapes: (C) => new C(new Group(new Circle(), new Rectangle()), new Group(new Rectangle().shift([1, 0]), new Circle())),
-  TransformMatchingText: (C) => new C(new Text('one two'), new Text('two one')),
   TransformDiff: (C) => new C(new Code(['let x = 1;', 'return x;']), new Code(['let x = 2;', 'return x;'])),
 };
 

@@ -4,7 +4,6 @@
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
 import type { AudioClip, ScoreNote, StepAudio } from 'rayner/explain';
-import { TransformFromCopy, Restore } from 'rayner';
 import { StringSink, renderFrame } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
@@ -23,8 +22,7 @@ import type { AnimationOptions, TextOptions } from 'rayner';
 import { jsonObject } from 'rayner/testing';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
 void serializedState;
-import { TransformMatching, TransformMatchingText } from 'rayner';
-import type { MatchingOptions, MatchSummary } from 'rayner';
+import type { TransformOptions, Match, KeyMatch, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
 import { renderElements } from 'rayner/output';
 import type { Hunk, TransformDiffOptions, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
@@ -69,13 +67,18 @@ export async function run(): Promise<number> {
   return sink.frames.length + tr.steps.length + still.length;
 }
 
-// Matching transforms: options, keys and the pairing report are public types
+// Matching transforms: a Transform's options, its matches and the pairing report are public types
 export function matching(): number {
-  const opts: MatchingOptions = { fadeMismatches: false, replace: false, runTime: 2 };
-  const text = new TransformMatchingText(new Text('cache'), new Text('cached'), opts);
-  const fills = new TransformMatching(new Text('a'), new Text('b'), { key: (part) => part.style.fill });
-  const report = (m: TransformMatching): MatchSummary => m.summary();
-  return text.runTime + fills.runTime + report.length;
+  const opts: TransformOptions = { fadeMismatches: false, replace: false, runTime: 2 };
+  const text = new Transform(new Text('cache'), new Text('cached'), { match: 'text', ...opts });
+  const fills = new Transform(new Text('a'), new Text('b'), { match: (part) => part.style.fill });
+  const keys: KeyMatch = { by: 'key', text: 'whole', unkeyed: 'by-place' };
+  const all: Match[] = ['index', 'key', 'text', 'shapes', keys];
+  // @ts-expect-error A match is one of the named ways, a KeyMatch or a function.
+  void new Transform(new Text('a'), new Text('b'), { match: 'glyphs' });
+  const back = new Transform(new Text('a'), 'saved', { runTime: 0.5 });
+  const report = (m: Transform): MatchSummary | null => m.summary();
+  return text.runTime + fills.runTime + back.runTime + report.length + all.length;
 }
 
 // Diff-driven transforms and evidence: hunks, options, colour spans and trace records are public types
@@ -113,7 +116,7 @@ export class Tour extends Scene {
     const span: CodeSpan = code.token(0, 'n');
     await this.play(span.animate.setFill('#5cd0b3'));
     code.saveState();
-    await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
+    await this.play(new Succession([new Transform(code, new Code(['n = 2;']).shift([0, -1]), { fromCopy: true }), new Transform(code, 'saved')]));
     this.onStep((s: Step) => s.name);
     this.addJson(() => ({ frame: frame.width() }));
   }
@@ -219,7 +222,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside
 // author writes them. Every view draws from its state.
-import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor, keyed } from 'rayner';
+import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor, keyed } from 'rayner';
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
 import { callout, dimension, pin, legend, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
@@ -285,7 +288,7 @@ export class Collection extends Scene<CollectionModel> {
     picture.key = 'other';
     const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
     await this.play(...all);
-    await this.play(new FadeOut(picture, fade), new TransformFromCopy(new Text('done'), new Text('done!')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
+    await this.play(new FadeOut(picture, fade), new Transform(new Text('done'), new Text('done!'), { fromCopy: true }), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
     await s.clear();
 
     await this.step('kit', { title: 'The kit', caption: 'A callout, a dimension, a pin and a legend.' });
@@ -319,7 +322,7 @@ export class Collection extends Scene<CollectionModel> {
     const count = view(this, (st) => card(s, [['Count', st.count]], opts), { place: false });
     await s.enter(count);
     this.state.count = rows.length;
-    await this.play(count.sync(), new TransformMatchingShapes(new Text('n'), new Text('n + 1'), { runTime: 0.5 }));
+    await this.play(count.sync(), new Transform(new Text('n'), new Text('n + 1'), { match: 'shapes', runTime: 0.5 }));
     void panel.marks;
 
     await this.step('diagram', { title: 'A diagram', caption: 'A diagram drawn from the state.' });
@@ -363,7 +366,9 @@ export async function hostPage(Explainer: SceneClass): Promise<string> {
   await scene.run();
   const invariants = new InvariantSink();
   const failures: InvariantFailure[] = invariants.failures;
-  const key: MatchKey = matchByKey({ text: 'whole' });
+  const key: MatchKey = (part) => part.key;
+  const match: Match = { by: 'key', text: 'whole', fallback: key };
+  void new Transform(scene.mobjects[0]!, scene.mobjects[0]!.copy(), { match });
   const state: SceneState = scene.state;
   const font: FontName = 'mono';
   return `${frame} ${renderText(scene).length} ${toSvgString(scene).length} ${failures.length} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
@@ -403,14 +408,14 @@ export class Composed extends Scene {
   }
 }
 
-import { TYPE, SPACE, addAll, beats, connector, flight, plate, tones, words as kitWords } from 'rayner/drawing';
-import type { Tones, WordsOptions, Beat, Parts } from 'rayner/drawing';
+import { TYPE, SPACE, addAll, beats, connector, flight, plate, tones } from 'rayner/drawing';
+import type { Tones, LabelOptions, Beat, Parts } from 'rayner/drawing';
 
 /** A picture drawn with the drawing kit's measures and parts, and a transition between two of them in beats. */
 export function kitPicture(s: Stage, used: string) {
   const t: Tones = tones(s), parts: Parts = keyedParts();
-  const options: WordsOptions = { size: TYPE.title, bold: true, color: t.soft };
-  parts.add(kitWords(s, used, options), 'used');
+  const options: LabelOptions = { size: TYPE.title, bold: true, color: t.soft };
+  parts.add(label(s, used, { align: 'start', ...options }), 'used');
   addAll(parts, tile(s, 'cache', { key: 'cache', at: [0, SPACE.l], raised: true, active: true }));
   addAll(parts, plate(s, 'lane', { key: 'lane', at: [-2, 0] }));
   parts.add(connector(s, [[-3, 0], [3, 0]]), 'line');

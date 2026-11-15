@@ -95,7 +95,7 @@ test('a sync rebuilds from the state, morphs by glyph, and keeps the View, its p
   assert.ok(!s.mobjects.includes(v), 'and the scene draws it through the group, not twice');
   assert.equal(v.children.length, 1, 'one child: the current picture');
 
-  // TransformMatchingText: 'len 0  head 0' -> 'len 1  head 0' keeps eight glyphs, each paired with itself
+  // Matched by 'text': 'len 0  head 0' -> 'len 1  head 0' keeps eight glyphs, each paired with itself
   const push = s.syncs['push-a']!;
   assert.deepEqual(push.summary(), { matched: 8, morphed: 0, removed: 1, added: 1 });
   const charOf = (g: Mobject) => [...(g.parent as Text).text][(g as Mobject & { cluster: number }).cluster];

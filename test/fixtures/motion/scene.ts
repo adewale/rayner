@@ -19,7 +19,7 @@ import { AnimationGroup, Group, Rectangle, Scene, Succession, keyed } from '../.
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, Machine, view } from '../../../explain/index.ts';
 import type { Stage, Transition } from '../../../explain/index.ts';
-import { TYPE, beats, flight, tile, words } from '../../../explain/drawing.ts';
+import { TYPE, beats, flight, tile, label } from '../../../explain/drawing.ts';
 
 type Post = { sent: number };
 type Send = 'send';
@@ -40,9 +40,9 @@ function drawPost(st: Post, s: Stage): Group {
   if (st.sent > 0) {
     const ticket = keyed(new Group(
       new Rectangle({ width: 1.4, height: 0.7, fill: s.look.raised, stroke: s.look.ink, strokeWidth: 0.06 }),
-      keyed(words(s, `#${st.sent}`, { align: 'middle', mono: true }), 'ticket:number'),
+      keyed(label(s, `#${st.sent}`, { mono: true }), 'ticket:number'),
     ).moveTo([SERVER[0], 0]), 'ticket');
-    parts.push(ticket, keyed(words(s, `200 OK, request ${st.sent}`, { at: [SERVER[0], -1.1], align: 'middle', size: TYPE.label }), 'answer'));
+    parts.push(ticket, keyed(label(s, `200 OK, request ${st.sent}`, { at: [SERVER[0], -1.1], size: TYPE.label }), 'answer'));
   }
   const g = new Group();
   for (const p of parts) g.add(p);

@@ -258,9 +258,9 @@ export function buildText(t: Text, text: string, fontSize: number, style: Style,
   t.invalidateBox();
 }
 
-/** @internal Whether a TransformMatchingText pairs `t`'s glyphs by their lettering clusters (clusterKeyOf). */
+/** @internal Whether a Transform matched by 'text' pairs `t`'s glyphs by their lettering clusters (clusterKeyOf). */
 export const matchesClusters = (t: Text): boolean => !!t.shaping?.clusterKey && !t[formulaOf];
-/** @internal The key `t`'s shaping gives the glyphs of `cluster`, which a TransformMatchingText pairs by. */
+/** @internal The key `t`'s shaping gives the glyphs of `cluster`, which a Transform matched by 'text' pairs by. */
 export const clusterKeyOf = (t: Text, cluster: number): string | undefined => t.shaping?.clusterKey?.(t, cluster);
 
 /**

@@ -249,12 +249,12 @@ The card is a ready-made picture. When the picture should look like the thing it
 <!-- kit example, run by test/drawing.test.ts -->
 ```ts
 import type { Stage } from 'rayner/explain';
-import { MARGIN, SPACE, TYPE, addAll, connector, keyedParts, tile, tones, words } from 'rayner/drawing';
+import { MARGIN, SPACE, TYPE, addAll, connector, keyedParts, label, tile, tones } from 'rayner/drawing';
 
 /** One policy's cache, newest first: a box per slot, keyed by its item, the newest in use. */
 export function drawSlots(s: Stage, policy: string, cache: readonly string[], y: number) {
   const parts = keyedParts(), t = tones(s);
-  parts.add(words(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true }), `${policy}:name`);
+  parts.add(label(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true, align: 'start' }), `${policy}:name`);
   cache.forEach((item, i) =>
     addAll(parts, tile(s, item, { at: [-3 + i * (1.6 + SPACE.m), y], width: 1.6, raised: true, size: TYPE.small, key: `${policy}:${item}`, active: i === 0 })));
   parts.add(connector(s, [[-3.9, y - 0.6], [1.9, y - 0.6]]), `${policy}:shelf`);
@@ -262,7 +262,7 @@ export function drawSlots(s: Stage, policy: string, cache: readonly string[], y:
 }
 ```
 
-- `words` sets text at one of the kit's four sizes, `TYPE.small` by default; anything smaller is refused, because a phone could not read it.
+- `label` draws a line of words, centred on `at` unless `align` says its start or end, at `TYPE.small` unless given one of the kit's other sizes; anything smaller is refused, because a phone could not read it. Scenes draw words with it, not with the engine's `Text`.
 - `tones(s)` names the stage's colours by role: `soft` for secondary words, `idle` for what is not in use, `ink` for what is.
 - `tile` with `raised: true` draws a slot as a structure's body, in use when `active`. Given a `key`, it keys its two parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
 - `connector` draws a line through points, with rounded corners when there are any. It is a `Line`, so `rayner check` fails one that crosses a label.

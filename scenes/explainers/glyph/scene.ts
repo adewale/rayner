@@ -1,5 +1,5 @@
 import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, advanceCells, letterRow, letterTargets } from './picture.ts';
-import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from '../../../src/index.ts';
+import { Scene, Text, Create, FadeIn, shaperFor, Transform } from '../../../src/index.ts';
 import type { MatchSummary, FontName } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
@@ -164,7 +164,7 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     await this.step('letterforms', {
       title: `Answer: across the two fonts, none of the ${measured.children.length} glyphs pair`,
       line: `Every glyph pairs with its ${SMALL * 100}% copy; with the other font, none do.`,
-      caption: `Rayner’s shape matcher, TransformMatchingShapes, compares outlines after removing position and size. The ${SMALL * 100}% copy keeps those paths, so all ${measured.children.length} of its glyphs pair with the originals; the space has no outline to pair. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
+      caption: `Rayner’s own shape matcher compares outlines after removing position and size. The ${SMALL * 100}% copy keeps those paths, so all ${measured.children.length} of its glyphs pair with the originals; the space has no outline to pair. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
     await s.clear();
     // The card has gone, and the row it lit with it.
@@ -177,9 +177,9 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     const first = row.copy(),
       second = row.copy();
     const index = new Map(first.children.map((g, i) => [g, i]));
-    const toSmaller = new TransformMatchingShapes(first, smaller, { runTime: 1.4 });
+    const toSmaller = new Transform(first, smaller, { match: 'shapes', runTime: 1.4 });
     await this.play(toSmaller);
-    const sameFont = toSmaller.summary();
+    const sameFont = toSmaller.summary()!;
     const links = s.keep(
       pairLines(toSmaller.pairs, (g) => row.children[index.get(g)!]!, soft),
       {
@@ -187,9 +187,9 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
       },
     );
     await this.play(new Create(links, { runTime: 0.6, lagRatio: 0 }));
-    const toOther = new TransformMatchingShapes(second, across, { runTime: 1.4 });
+    const toOther = new Transform(second, across, { match: 'shapes', runTime: 1.4 });
     await this.play(toOther);
-    const otherFont = toOther.summary();
+    const otherFont = toOther.summary()!;
     const paired = (m: MatchSummary) => `${m.matched} of ${m.matched + m.morphed + m.removed} paired`;
     // Each row says how many of its glyphs found a partner, at its right end.
     await this.play(new Create(s.keep(callout(s, smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));

@@ -21,16 +21,7 @@
       "Transform": {
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
-      "TransformMatchingShapes": {
-        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
-      },
-      "TransformMatchingText": {
-        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
-      },
       "keyed": {
-        "check": "Keys: two parts on the stage with one key at the end of a step fail"
-      },
-      "matchByKey": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       }
     },
@@ -130,10 +121,6 @@
       "tones": {
         "guide": "docs/REFERENCE.md#drawing-kit",
         "test": "test/drawing.test.ts"
-      },
-      "words": {
-        "guide": "docs/REFERENCE.md#drawing-kit",
-        "test": "test/drawing.test.ts"
       }
     },
     "rayner/geo": {
@@ -224,20 +211,24 @@
   "features": [
     {
       "feature": "Matching transforms",
-      "uses": "`TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added`",
+      "uses": "`new Transform(a, b, { match })`: `'text'`, `'shapes'` (`shapeKey()`), `'key'` or `{ by: 'key', text, unkeyed, fallback }` (keyed components), or your own key; `summary()`, `pairs`, `removed`, `added`",
       "guide": "[Matching](MATCHING.md)",
       "items": [
         {
-          "name": "TransformMatchingText"
+          "label": "match: 'text'",
+          "pattern": "match: 'text'"
         },
         {
-          "name": "TransformMatchingShapes"
+          "label": "match: 'shapes'",
+          "pattern": "match: 'shapes'"
         },
         {
-          "name": "TransformMatching"
+          "label": "match: 'key'",
+          "pattern": "match: 'key'|by: 'key'"
         },
         {
-          "name": "matchByKey"
+          "label": "summary()",
+          "pattern": "\\.summary\\(\\)"
         }
       ]
     },
@@ -369,8 +360,8 @@
       ]
     },
     {
-      "feature": "Restore, copies, sequencing",
-      "uses": "`saveState()` and `Restore`, `TransformFromCopy`, `Succession`",
+      "feature": "Saved states, copies, sequencing",
+      "uses": "`saveState()` and `new Transform(m, 'saved')`, `new Transform(a, b, { fromCopy: true })`, `Succession`",
       "guide": "[Animations](ANIMATIONS.md)",
       "items": [
         {
@@ -378,14 +369,16 @@
           "pattern": "\\.saveState\\("
         },
         {
-          "name": "Restore"
+          "label": "Transform(m, 'saved')",
+          "pattern": "'saved'"
         },
         {
           "label": "restore()",
           "pattern": "\\.restore\\("
         },
         {
-          "name": "TransformFromCopy"
+          "label": "fromCopy",
+          "pattern": "\\bfromCopy: true"
         },
         {
           "name": "Succession"
@@ -508,7 +501,7 @@
     {
       "explaining": "Identity, hashing or text that changes",
       "start": "`exgit`, `glyph`",
-      "shows": "`exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: `TransformMatchingShapes` pairs letters by their outlines",
+      "shows": "`exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: a `Transform` with `match: 'shapes'` pairs letters by their outlines",
       "scenes": [
         "exgit",
         "glyph"
@@ -516,20 +509,25 @@
       "names": [
         "view",
         "BraceLabel",
-        "TransformMatchingShapes"
-      ]
+        "Transform"
+      ],
+      "patterns": {
+        "match: 'shapes'": "match: 'shapes'"
+      }
     },
     {
       "explaining": "Keyed cells or nodes rearranged between pictures of the same state",
       "start": "`periodic-groups`",
-      "shows": "`view(...).sync()`, which matches by key; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
+      "shows": "`view(...).sync()`, which matches by key; `match: { by: 'key', fallback }` for unkeyed parts that should stay put, `text: 'whole'` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
       "scenes": [
         "periodic-groups"
       ],
       "names": [
-        "view",
-        "matchByKey"
-      ]
+        "view"
+      ],
+      "patterns": {
+        "by: 'key'": "by: 'key'"
+      }
     },
     {
       "explaining": "A real tool's behaviour, checked against it",
@@ -716,51 +714,52 @@
     },
     {
       "feature": "A label changed, its shared letters kept",
-      "uses": "`new TransformMatchingText(before, after)`",
+      "uses": "`new Transform(before, after, { match: 'text' })`",
       "guide": "[Matching](MATCHING.md)",
       "scenes": [
         "float-sum"
       ],
-      "names": [
-        "TransformMatchingText"
-      ]
+      "names": [],
+      "patterns": {
+        "match: 'text'": "match: 'text'"
+      }
     },
     {
       "feature": "Items reordered, each travelling whole",
-      "uses": "`new TransformMatching(before, after, { key: matchByKey() })`",
+      "uses": "`new Transform(before, after, { match: 'key' })`",
       "guide": "[Keyed components](MATCHING.md#keyed-components)",
       "scenes": [
         "string-length"
       ],
-      "names": [
-        "TransformMatching",
-        "matchByKey"
-      ]
+      "names": [],
+      "patterns": {
+        "match: 'key'": "match: 'key'"
+      }
     },
     {
       "feature": "An object put back where it was",
-      "uses": "`m.saveState()`, then `new Restore(m)`",
-      "guide": "[Restore](ANIMATIONS.md#restore-come-back-exactly)",
+      "uses": "`m.saveState()`, then `new Transform(m, 'saved')`",
+      "guide": "[Saved states](ANIMATIONS.md#back-to-a-saved-state-come-back-exactly)",
       "scenes": [
         "unified-diff"
       ],
-      "names": [
-        "Restore"
-      ],
+      "names": [],
       "patterns": {
-        "saveState": "\\.saveState\\(\\)"
+        "saveState": "\\.saveState\\(\\)",
+        "Transform(m, 'saved')": "'saved'"
       }
     },
     {
       "feature": "A new shape made from a copy, the original kept",
-      "uses": "`new TransformFromCopy(source, result)`",
-      "guide": "[TransformFromCopy](ANIMATIONS.md#transformfromcopy-derive-one-thing-from-another)",
+      "uses": "`new Transform(source, result, { fromCopy: true })`",
+      "guide": "[fromCopy](ANIMATIONS.md#fromcopy-derive-one-thing-from-another)",
       "scenes": [
         "float-sum"
       ],
-      "names": [
-        "TransformFromCopy"
-      ]
+      "names": [],
+      "patterns": {
+        "fromCopy": "\\bfromCopy: true"
+      }
     },
     {
       "feature": "A shape drawn in, part after part",

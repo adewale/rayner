@@ -316,7 +316,7 @@ function spanForm(text: Text): { shaped: string; source: number[] } {
 /**
  * Matching keys for the glyphs of a Text built from lettering runs: the whole
  * cluster each glyph draws (a conjunct, a ligature, a letter with its marks),
- * and how many glyphs draw it. TransformMatchingText then pairs a glyph only
+ * and how many glyphs draw it. A Transform matched by 'text' then pairs a glyph only
  * with a glyph of the same cluster drawn the same way, so a cluster whose
  * glyphs change (क to the conjunct क्ष) fades out and in instead of morphing
  * one glyph into another. Keys by source index into the Text's text; recomputed

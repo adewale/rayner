@@ -1,4 +1,4 @@
-import { Scene, Group, Line, Brace, Create, FadeIn, FadeOut, Restore, Succession, SurroundingRectangle, Text, Transform, TransformDiff, parseUnifiedDiff, keyed } from '../../../src/index.ts';
+import { Scene, Group, Line, Brace, Create, FadeIn, FadeOut, Succession, SurroundingRectangle, Text, Transform, TransformDiff, parseUnifiedDiff, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta, Setting } from '../../../explain/index.ts';
@@ -133,7 +133,7 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
     probe.saveState();
     const moves = tried.slice(1).map((line, i) => probe.animate.shift([0, -(line - tried[i]!) * PITCH]));
     await this.play(new Succession(moves), { runTime: 0.75 * moves.length });
-    if (!yours.ok) await this.play(new Restore(probe, { runTime: 0.8 }));
+    if (!yours.ok) await this.play(new Transform(probe, 'saved', { runTime: 0.8 }));
 
     // 6. What Git does and says.
     const said = yours.ok ? report(yours, NAME) : report(yours, NAME, old).slice(-2);

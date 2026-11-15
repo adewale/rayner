@@ -2,7 +2,7 @@
 // do, and the invariants every animation keeps (seek-exact, no jumps).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText, keyed } from '../src/index.ts';
+import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, keyed } from '../src/index.ts';
 import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
@@ -16,24 +16,24 @@ import { mobjectId } from '../src/mobject.ts';
 Scene.captionWpm = Infinity;
 await loadFonts();
 
-/** Visible VMobjects with points: what TransformMatching pairs. */
+/** Visible VMobjects with points: what a matched Transform pairs. */
 const parts = (m: Mobject) => m.family().filter((p) => p instanceof VMobject && p.style.opacity > 0 && p.hasPoints());
 
 /** Every part of both sides lands in exactly one bucket. */
-function assertPartition(a: TransformMatching, src: Mobject[], tgt: Mobject[], label: string): void {
+function assertPartition(a: Transform, src: Mobject[], tgt: Mobject[], label: string): void {
   const s = [...a.pairs.map((p) => p[0]), ...a.morphed.map((p) => p[0]), ...a.removed];
   const t = [...a.pairs.map((p) => p[1]), ...a.morphed.map((p) => p[1]), ...a.added];
   assert.equal(new Set(s).size, s.length, `${label}: a source part in two buckets`);
   assert.equal(new Set(t).size, t.length, `${label}: a target part in two buckets`);
   assert.deepEqual(new Set(s), new Set(src), `${label}: source parts`);
   assert.deepEqual(new Set(t), new Set(tgt), `${label}: target parts`);
-  const sum = a.summary();
+  const sum = a.summary()!;
   assert.equal(sum.matched + sum.morphed + sum.removed, src.length);
   assert.equal(sum.matched + sum.morphed + sum.added, tgt.length);
 }
 
 /** The pairing as part indices: comparable across two independent constructions. */
-function pairing(a: TransformMatching, src: Mobject[], tgt: Mobject[]): string {
+function pairing(a: Transform, src: Mobject[], tgt: Mobject[]): string {
   const ix = (xs: Mobject[], m: Mobject) => xs.indexOf(m);
   return JSON.stringify({ pairs: a.pairs.map(([s, t]) => [ix(src, s), ix(tgt, t)]), morphed: a.morphed.map(([s, t]) => [ix(src, s), ix(tgt, t)]),
     removed: a.removed.map((s) => ix(src, s)), added: a.added.map((t) => ix(tgt, t)) });
@@ -61,17 +61,17 @@ function textSides(seed: number): [Mobject, Mobject] {
 test('every part ends matched, morphed, removed or added, exactly once, and the pairing is deterministic', () => {
   for (let seed = 1; seed <= 60; seed++) {
     for (const fadeMismatches of [true, false]) {
-      const run = (make: (seed: number) => [Mobject, Mobject], Anim: typeof TransformMatchingShapes) => {
+      const run = (make: (seed: number) => [Mobject, Mobject], match: 'shapes' | 'text') => {
         const [src, tgt] = make(seed), sp = parts(src), tp = parts(tgt);
-        const a = new Anim(src, tgt, { fadeMismatches });
+        const a = new Transform(src, tgt, { match, fadeMismatches });
         beginAnimation(a);
         assertPartition(a, sp, tp, `seed ${seed}`);
         if (fadeMismatches) assert.equal(a.morphed.length, 0);
         else assert.ok(a.removed.length === 0 || a.added.length === 0, 'fadeMismatches: false morphs what it can');
         return pairing(a, sp, tp);
       };
-      assert.equal(run(shapeSides, TransformMatchingShapes), run(shapeSides, TransformMatchingShapes), `shapes seed ${seed}`);
-      assert.equal(run(textSides, TransformMatchingText), run(textSides, TransformMatchingText), `text seed ${seed}`);
+      assert.equal(run(shapeSides, 'shapes'), run(shapeSides, 'shapes'), `shapes seed ${seed}`);
+      assert.equal(run(textSides, 'text'), run(textSides, 'text'), `text seed ${seed}`);
     }
   }
 });
@@ -84,7 +84,7 @@ test('a moved, scaled and shuffled copy of a group pairs every part with its own
     const of = new Map(src.children.map((c, i) => [c, copies[i]!]));
     const tgt = new Group(...[...copies].sort(() => r(-1, 1)));
     tgt.scale(r(0.5, 2)).shift([r(-3, 3), r(-2, 2)]);
-    const a = new TransformMatchingShapes(src, tgt);
+    const a = new Transform(src, tgt, { match: 'shapes' });
     beginAnimation(a);
     assert.deepEqual(a.summary(), { matched: src.children.length, morphed: 0, removed: 0, added: 0 }, `seed ${seed}`);
     for (const [s, t] of a.pairs) assert.equal(t, of.get(s), `seed ${seed}: a part paired with another's copy`);
@@ -96,10 +96,10 @@ test('inserting or deleting a character keeps every other glyph', () => {
     const r = rng(seed);
     const w = Array.from({ length: r.int(1, 12) }, () => r.pick([...'abcab'])).join('');
     const i = r.int(0, w.length), longer = w.slice(0, i) + r.pick([...'abc']) + w.slice(i);
-    const grow = new TransformMatchingText(new Text(w), new Text(longer));
+    const grow = new Transform(new Text(w), new Text(longer), { match: 'text' });
     beginAnimation(grow);
     assert.deepEqual(grow.summary(), { matched: w.length, morphed: 0, removed: 0, added: 1 }, `${w} -> ${longer}`);
-    const shrink = new TransformMatchingText(new Text(longer), new Text(w));
+    const shrink = new Transform(new Text(longer), new Text(w), { match: 'text' });
     beginAnimation(shrink);
     assert.deepEqual(shrink.summary(), { matched: w.length, morphed: 0, removed: 1, added: 0 }, `${longer} -> ${w}`);
   }
@@ -108,7 +108,7 @@ test('inserting or deleting a character keeps every other glyph', () => {
 test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fades in, the scene ends holding the target", async () => {
   const s = new Scene(new StringSink());
   const a = new Text('cache'), b = new Text('cached', { color: '#ffff00' }).shift([0.5, -1]);
-  const anim = new TransformMatchingText(a, b);
+  const anim = new Transform(a, b, { match: 'text' });
   s.construct = async function (this: Scene) { this.add(a); await this.play(anim); };
   await s.run();
   assert.deepEqual(anim.summary(), { matched: 5, morphed: 0, removed: 0, added: 1 });
@@ -120,7 +120,7 @@ test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fad
 
   // The d grows from a point beside the word as it fades in
   const c = new Text('cache'), d = new Text('cached');
-  const grow = new TransformMatchingText(c, d);
+  const grow = new Transform(c, d, { match: 'text' });
   beginAnimation(grow);
   const copy = grow[matchRows].fadesIn[0]!.sub as VMobject, glyph = d.children[5] as VMobject;
   assert.equal(copy.parent, c, 'the new glyph lives in the source while it plays');
@@ -135,7 +135,7 @@ test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fad
 
 test('an inserted line of code leaves the other lines in place, and its glyphs join it', () => {
   const a = new Code(['const x = 1;', 'return x;']), b = new Code(['const x = 1;', 'const y = x + 1;', 'return y;']);
-  const anim = new TransformMatchingText(a, b);
+  const anim = new Transform(a, b, { match: 'text' });
   beginAnimation(anim);
   const line = (m: Mobject) => b.lines.indexOf(m.parent as Text);
   for (const [x, y] of anim.pairs) assert.equal(line(y), a.lines.indexOf(x.parent as Text) === 0 ? 0 : 2, `${(x.parent as Text).text} stays its line`);
@@ -147,7 +147,7 @@ test('an inserted line of code leaves the other lines in place, and its glyphs j
 });
 
 test('mono and sans letters, and bold and normal, do not match', () => {
-  const anim = new TransformMatchingText(new Group(new Text('ab', { font: 'mono' }), new Text('ab', { weight: 'bold' })), new Text('ab'));
+  const anim = new Transform(new Group(new Text('ab', { font: 'mono' }), new Text('ab', { weight: 'bold' })), new Text('ab'), { match: 'text' });
   beginAnimation(anim);
   assert.deepEqual(anim.summary(), { matched: 0, morphed: 0, removed: 4, added: 2 });
 });
@@ -161,7 +161,7 @@ function diagrams(): [Group, Group, Record<string, Mobject>] {
 
 test('shapes: shared nodes travel to the target, others fade out, new ones fade in', async () => {
   const [a, b, n] = diagrams();
-  const anim = new TransformMatchingShapes(a, b);
+  const anim = new Transform(a, b, { match: 'shapes' });
   const s = new Scene(new StringSink());
   s.construct = async function (this: Scene) { this.add(a); await this.play(anim); };
   await s.run();
@@ -178,7 +178,7 @@ test('shapes: shared nodes travel to the target, others fade out, new ones fade 
 test('an explicit key; fadeMismatches: false morphs leftovers; replace: false keeps the source', async () => {
   const dots = (xs: number[], fill: string) => xs.map((x) => new Circle({ radius: 0.2, fill, fillOpacity: 1 }).shift([x, 0]));
   const a = new Group(...dots([-2, 0], '#ff0000'), ...dots([2], '#00ff00')), b = new Group(...dots([-1, 1, 3], '#ff0000'), new Rectangle({ width: 0.4, height: 0.4 }));
-  const anim = new TransformMatching(a, b, { key: (p) => p.style.fill, fadeMismatches: false, replace: false });
+  const anim = new Transform(a, b, { match: (p) => p.style.fill, fadeMismatches: false, replace: false });
   const s = new Scene(new StringSink());
   s.construct = async function (this: Scene) { this.add(a); await this.play(anim); };
   await s.run();
@@ -197,9 +197,9 @@ test('one animation of the source: plays inside a group, and play() refuses a se
   const a = new Text('ab'), b = new Text('abc'), dot = new Circle({ radius: 0.1 }).shift([2, 2]);
   const s = new Scene(new StringSink());
   s.construct = async function (this: Scene) {
-    await this.play(new LaggedStart([new TransformMatchingText(a, b), new FadeIn(dot)]));
+    await this.play(new LaggedStart([new Transform(a, b, { match: 'text' }), new FadeIn(dot)]));
     const c = new Text('abc').shift([0, 1]);
-    await assert.rejects(this.play(new TransformMatchingText(b, c), new Transform(b.children[0]!, new Rectangle({ width: 2, height: 2 }))), /both animate/);
+    await assert.rejects(this.play(new Transform(b, c, { match: 'text' }), new Transform(b.children[0]!, new Rectangle({ width: 2, height: 2 }))), /both animate/);
   };
   await s.run();
   assert.deepEqual(s.mobjects, [b, dot], 'the group put the source on screen, and replace swapped in the target');
@@ -211,21 +211,20 @@ class MatchingScene extends Scene {
     await this.step('text');
     const w = new Text('cache').shift([-3, 2]);
     await this.play(new FadeIn(w));
-    await this.play(new TransformMatchingText(w, new Text('cached', { fontSize: 0.6, color: '#ffff00' }).shift([2, 2.5])));
+    await this.play(new Transform(w, new Text('cached', { fontSize: 0.6, color: '#ffff00' }).shift([2, 2.5]), { match: 'text' }));
     await this.step('code');
     const c = new Code(['const x = 1;', 'return x;']).shift([-3, -1]);
     await this.play(new FadeIn(c));
-    await this.play(new TransformMatchingText(c, new Code(['const x = 1;', 'const y = x + 1;', 'return y;']).shift([-3, -1.2])), { runTime: 1.5 });
+    await this.play(new Transform(c, new Code(['const x = 1;', 'const y = x + 1;', 'return y;']).shift([-3, -1.2]), { match: 'text' }), { runTime: 1.5 });
     await this.step('shapes');
     const node = (label: string, x: number, y: number) => new Labeled(new Rectangle({ width: 1.6, height: 0.7 }), new Text(label, { fontSize: 0.3 })).moveTo([x, y]);
     const d1 = new Group(node('cache', 2, -1), node('db', 5, -1), new Arrow([2.8, -1], [4.2, -1]));
     await this.play(new FadeIn(d1));
-    await this.play(new TransformMatchingShapes(d1, new Group(node('cache', 2, -2.5), node('api', 5.5, -2.5), new Circle({ radius: 0.4 }).shift([3.8, -1]))));
+    await this.play(new Transform(d1, new Group(node('cache', 2, -2.5), node('api', 5.5, -2.5), new Circle({ radius: 0.4 }).shift([3.8, -1])), { match: 'shapes' }));
     await this.step('key');
     const dots = new Group(...[-1, 0, 1].map((x) => new Circle({ radius: 0.2, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.5])));
     await this.play(new FadeIn(dots));
-    await this.play(new TransformMatching(dots, new Group(...[-1.5, 1.5].map((x) => new Rectangle({ width: 0.4, height: 0.4, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.4]))),
-      { key: (p) => p.style.fill, fadeMismatches: false, lagRatio: 0.3 }));
+    await this.play(new Transform(dots, new Group(...[-1.5, 1.5].map((x) => new Rectangle({ width: 0.4, height: 0.4, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.4]))), { match: (p) => p.style.fill, fadeMismatches: false, lagRatio: 0.3 }));
     await this.wait(0.5);
   }
 }
@@ -264,8 +263,7 @@ test('shapeKey: same shape at any position and size, nothing else', () => {
   assert.equal(key(new Line(p, p)), key(new Line([5, 5], [5, 5])), 'points key alike');
 });
 
-test('matchByKey: a keyed component is kept wherever it moves, its parts morph inside it, and the root key is ignored', async () => {
-  const { matchByKey } = await import('../src/index.ts');
+test('match \'key\': a keyed component is kept wherever it moves, its parts morph inside it, and the root key is ignored', async () => {
   const cell = (z: number, symbol: string, at: Vec) => {
     const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
     keyed(g, `cell:${z}`);
@@ -281,7 +279,7 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
     return root;
   };
   const src = picture(false, 'runs'), tgt = picture(true, 'table');
-  const a = new TransformMatching(src, tgt, { key: matchByKey() });
+  const a = new Transform(src, tgt, { match: 'key' });
   beginAnimation(a);
   assertPartition(a, parts(src), parts(tgt), 'keys');
   // Each cell's square pairs with its own key's square across the swap, not the nearer one
@@ -295,21 +293,20 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   assert.equal(a.removed.length, 'runs'.length);
   assert.equal(a.added.length, 'table'.length);
   // A fallback keys what is under no key: the same word pairs
-  const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey({ fallback: (p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined) }) });
+  const b = new Transform(picture(false, 'same'), picture(true, 'same'), { match: { by: 'key', fallback: (p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined) } });
   beginAnimation(b);
   assert.equal(b.removed.length + b.added.length, 0);
   // A kept Text may change its glyphs: the symbol's parts morph inside the kept cell
-  const c = new TransformMatching(new Group(cell(3, 'Li', [0, 0])), new Group(cell(3, 'Be', [3, 0])), { key: matchByKey() });
+  const c = new Transform(new Group(cell(3, 'Li', [0, 0])), new Group(cell(3, 'Be', [3, 0])), { match: 'key' });
   beginAnimation(c);
-  assert.equal(c.summary().matched, 1 + 2 + 1, 'the square, both glyphs by place, and the digit');
+  assert.equal(c.summary()!.matched, 1 + 2 + 1, 'the square, both glyphs by place, and the digit');
   // The root's own key is not a component: matching one keyed cell to another reads only what is below it
-  const d = new TransformMatching(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { key: matchByKey() });
+  const d = new Transform(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { match: 'key' });
   beginAnimation(d);
-  assert.equal(d.summary().matched, 0);
+  assert.equal(d.summary()!.matched, 0);
 });
 
-test('matchByKey text policy: by place, a relabelled keyed word morphs its glyphs; whole, it pairs only with the same words', async () => {
-  const { matchByKey } = await import('../src/index.ts');
+test('match by key, its text policy: by place, a relabelled keyed word morphs its glyphs; whole, it pairs only with the same words', async () => {
   const node = (label: string, at: Vec) => {
     const word = new Text(label, { fontSize: 0.3 });
     keyed(word, 'state:idle:label');
@@ -317,13 +314,13 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
     keyed(g, 'state:idle');
     return new Group(g);
   };
-  const byPlace = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey() });
+  const byPlace = new Transform(node('idle', [0, 0]), node('ready', [1, 0]), { match: 'key' });
   beginAnimation(byPlace);
   assert.deepEqual(byPlace.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 1 });
-  const whole = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey({ text: 'whole' }) });
+  const whole = new Transform(node('idle', [0, 0]), node('ready', [1, 0]), { match: { by: 'key', text: 'whole' } });
   beginAnimation(whole);
   assert.deepEqual(whole.summary(), { matched: 1, morphed: 0, removed: 4, added: 5 });
-  const same = new TransformMatching(node('idle', [0, 0]), node('idle', [1, 0]), { key: matchByKey({ text: 'whole' }) });
+  const same = new Transform(node('idle', [0, 0]), node('idle', [1, 0]), { match: { by: 'key', text: 'whole' } });
   beginAnimation(same);
   assert.deepEqual(same.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 0 });
 });
@@ -335,7 +332,7 @@ test('new parts join the source in the target\'s drawing order: a new card is dr
   const card = () => new Rectangle({ width: 3, height: 1, fill: '#fff', fillOpacity: 1 });
   const from = new Group(new Circle({ radius: 0.2 }));
   const to = new Group(new Circle({ radius: 0.2 }), card(), new Text('owner', { fontSize: 0.3 }));
-  const m = new TransformMatching(from, to, { key: () => undefined });
+  const m = new Transform(from, to, { match: () => undefined });
   beginAnimation(m);
   interpolateAnimation(m, 0.5);
   const drawn = from.family().filter((p) => p instanceof VMobject && p.hasPoints());
@@ -382,23 +379,22 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
   assert.notDeepEqual(before, v.current.children.map((c) => c.key));
 });
 
-test('matchByKey unkeyed: by-place pairs parts under no key by their place in the picture; fade leaves them to fade', async () => {
-  const { matchByKey } = await import('../src/index.ts');
+test('match by key, unkeyed parts: by-place pairs parts under no key by their place in the picture; fade leaves them to fade', async () => {
   const picture = (word: string, at: Vec) => {
     const cell = new Group(new Rectangle({ width: 1, height: 1 }));
     keyed(cell, 'cell');
     return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
   };
-  const faded = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey() });
+  const faded = new Transform(picture('odds', [0, 0]), picture('odds', [2, 0]), { match: 'key' });
   beginAnimation(faded);
   assert.deepEqual(faded.summary(), { matched: 1, morphed: 0, removed: 4 + 1, added: 4 + 1 });
-  const placed = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place' }) });
+  const placed = new Transform(picture('odds', [0, 0]), picture('odds', [2, 0]), { match: { by: 'key', unkeyed: 'by-place' } });
   beginAnimation(placed);
   assert.deepEqual(placed.summary(), { matched: 1 + 4 + 1, morphed: 0, removed: 0, added: 0 });
   // A fallback still wins over unkeyed
-  const fallen = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place', fallback: () => undefined }) });
+  const fallen = new Transform(picture('odds', [0, 0]), picture('odds', [2, 0]), { match: { by: 'key', unkeyed: 'by-place', fallback: () => undefined } });
   beginAnimation(fallen);
-  assert.equal(fallen.summary().matched, 1);
+  assert.equal(fallen.summary()!.matched, 1);
 });
 
 test('become takes another mobject\'s data in place, keeping identity, children and key', () => {

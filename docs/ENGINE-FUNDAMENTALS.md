@@ -168,7 +168,7 @@ does. If it stores named child references, override the protected hook
 Override `copyData(source)`, also protected, for mutable data inside a field (its own points,
 the objects an array holds) that the copy must not share.
 
-`saveState()` stores a copy. `restore()` restores immediately; `Restore`
+`saveState()` stores a copy. `restore()` restores immediately; `new Transform(m, 'saved')`
 does it as an animation. A generic transform can align or replace child structure, so retain
 references only to parts whose identity your operation promises to preserve.
 See [restoration and sequencing](ANIMATIONS.md).

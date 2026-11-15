@@ -11,7 +11,7 @@ import { KeyedMotionSink, keyedMotionLine } from '../src/internal.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { Machine, stage, view } from '../explain/index.ts';
 import type { Transition } from '../explain/index.ts';
-import { beats, flight, words } from '../explain/drawing.ts';
+import { beats, flight, label } from '../explain/drawing.ts';
 import { exploreMachines, keyedMotionSink } from '../tools/lib/explain-check.ts';
 import { motionFixture } from './fixtures/motion/scene.ts';
 import type { Defect } from './fixtures/motion/scene.ts';
@@ -73,8 +73,8 @@ async function played(transition: (t: Transition<N, 'go'>, post: ReturnType<type
       const s = stage(this, { heading: false });
       const post = view(this, (st: N) => new Group(
         keyed(new Rectangle({ width: 15, height: 8, fill: s.look.paper, stroke: 'none' }), 'ground'),
-        keyed(words(s, 'status: ready', { at: [0, 2], align: 'middle' }), 'status'),
-        keyed(words(s, `count ${st.n}`, { at: [0, -2], align: 'middle' }), 'count'),
+        keyed(label(s, 'status: ready', { at: [0, 2] }), 'status'),
+        keyed(label(s, `count ${st.n}`, { at: [0, -2] }), 'count'),
         keyed(new Rectangle({ width: 0.8, height: 0.5, fill: s.look.emphasis, stroke: 'none' }).moveTo([4, 0]), 'box'),
       ));
       const machine = new Machine<N, 'go'>(this, { start: { n: 0 }, events: ['go'], views: [post], next: (st) => ({ n: st.n + 1 }), runTime, transition: { go: (t) => transition(t, post) } });

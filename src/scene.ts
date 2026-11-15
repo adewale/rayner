@@ -1002,7 +1002,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       assertDisjointInPlay(this.#playing, anims, call);
     }
     bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come; groups record their members' evidence
-    takeCopies(anims); // every TransformFromCopy copies its source before anything in the play begins
+    takeCopies(anims); // every fromCopy Transform copies its source before anything in the play begins
     let present = new Set(this.familyMembers());
     // Whatever a play draws or morphs toward takes the scene's colours before it begins, so its
     // endpoints are fixed in them (a Succession's members take them as they begin, here).

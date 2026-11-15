@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Rectangle, VMobject, Transform, TransformMatchingShapes } from '../../src/index.ts';
+import { Scene, Group, Text, Rectangle, VMobject, Transform } from '../../src/index.ts';
 import { NullSink, toSvgString } from '../../src/output.ts';
 import { loadFonts } from '../../explain/testing.ts';
 import { stage } from '../../explain/index.ts';
@@ -140,7 +140,7 @@ test('nested imported font bases follow matching and morphed glyphs without targ
     const label = importedLabel(), originalSize = readingLabelSize(label)!;
     label.saveState();
     const source = new Group(label), target = source.copy().stretch(factor, 0);
-    const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
+    const animation = new Transform(source, target, { match: 'shapes', replace: false, fadeMismatches: false });
     beginAnimation(animation);
     finishAnimation(animation);
     assert.ok(Math.abs(readingLabelSize(label)! - originalSize * Math.min(1, factor)) < 2e-6,
@@ -160,7 +160,7 @@ test('matching between native and imported labels retains the target font scale 
       const expected = readingLabelSize(targetLabel)!;
       const source = nested ? new Group(sourceLabel) : sourceLabel;
       const target = nested ? new Group(targetLabel) : targetLabel;
-      const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
+      const animation = new Transform(source, target, { match: 'shapes', replace: false, fadeMismatches: false });
       beginAnimation(animation);
       finishAnimation(animation);
       assert.ok(Math.abs(readingLabelSize(sourceLabel)! - expected) < 2e-6,
@@ -177,7 +177,7 @@ test('zero-em native matching keeps finite geometry and a closed readability flo
     const native = new Text('Paper', { fontSize: 0 }), imported = importedLabel();
     const source = nativeFirst ? native : imported, target = nativeFirst ? imported : native;
     assert.equal(readingLabelSize(native), 0, 'the existing zero-size constructor yields no readable em');
-    const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
+    const animation = new Transform(source, target, { match: 'shapes', replace: false, fadeMismatches: false });
     beginAnimation(animation);
     for (const alpha of [0, 0.5, 1]) {
       interpolateAnimation(animation, alpha);

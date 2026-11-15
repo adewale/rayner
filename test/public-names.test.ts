@@ -120,11 +120,11 @@ test('the feature index points each feature at a catalogued explainer that uses 
   assert.ok(restore >= 0 && maths >= 0 && palette >= 0);
   // The maths row points at float-sum, the explainer that sets formulas.
   assert.deepEqual(ledger.lookup[maths]!.scenes, ['float-sum']);
-  assert.match(await found((l) => (l.lookup[restore]!.scenes = ['token-bucket'])), /lookup "An object put back where it was": none of token-bucket uses Restore/);
+  assert.match(await found((l) => (l.lookup[restore]!.scenes = ['token-bucket'])), /lookup "An object put back where it was": none of token-bucket shows Transform\(m, 'saved'\)/);
   assert.match(await found((l) => (l.lookup[restore]!.scenes = ['tutorial/door'])), /tutorial\/door is not a catalogued explainer/);
   assert.match(await found((l) => (l.lookup[restore]!.scenes = ['feature-tour'])), /feature-tour is not a scene/);
-  assert.match(await found((l) => (l.lookup[restore]!.uses += ', `TransformFromCopy`')), /it names TransformFromCopy but does not list it in names/);
-  assert.match(await found((l) => l.lookup[restore]!.scenes.push('glyph')), /lookup "An object put back where it was": glyph uses none of Restore, saveState/);
+  assert.match(await found((l) => (l.lookup[restore]!.uses += ', `Succession`')), /it names Succession but does not list it in names/);
+  assert.match(await found((l) => l.lookup[restore]!.scenes.push('glyph')), /lookup "An object put back where it was": glyph uses none of saveState, Transform\(m, 'saved'\)/);
   // A feature no explainer uses says so, until one does.
   assert.deepEqual(ledger.lookup[palette]!.scenes, []);
   const paletteUsed = { ...u, names: new Map([...u.names].map(([e, m]) => [e, e === 'rayner/explain' ? new Map([...m, ['palette', new Set(['seasons'])]]) : m])) };
@@ -146,7 +146,7 @@ test('every public value, type and member is documented in docs/, or listed as h
   assert.ok(docs.rows.some((r) => r.name === 'View.sync') && docs.rows.some((r) => r.name === 'Card.describe'), 'class members, type-only classes included');
   assert.ok(!docs.rows.some((r) => r.name === 'View.placed' || r.name === 'Mobject.id'), '@internal and hidden members are not public');
   assert.ok(docs.rows.some((r) => r.name === 'Sink.frame') && !docs.rows.some((r) => r.name === 'NullSink.frame'), 'a member that implements an exported interface’s is the interface’s');
-  assert.ok(docs.rows.some((r) => r.name === 'Animation.evidence') && !docs.rows.some((r) => r.name === 'TransformMatching.evidence'), 'an override is its ancestor’s name, not its own');
+  assert.ok(docs.rows.some((r) => r.name === 'Animation.evidence') && !docs.rows.some((r) => r.name === 'TransformDiff.evidence'), 'an override is its ancestor’s name, not its own');
   assert.deepEqual(docsProblems(docs), []);
 });
 
