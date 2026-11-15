@@ -1,0 +1,582 @@
+{
+ "topic": "isdigit",
+ "oracle": "CPython 3.15.1's frozen answers and Unicode 17.0.0's rows in scenes/explainers/isdigit/model.test.ts (lines 21-52), the code-point scan counts, the 128 isdigit-but-not-isdecimal code points in scenes/explainers/isdigit/fixtures/isdigit-digit-ages.json, the check-question cases, and the CPython and UAX #44 lines cited in scenes/explainers/isdigit/model.ts:1-23. Signs, underscores, the rest of int()'s grammar and the digit limit are outside the model.",
+ "pages": {
+  "plain": {
+   "file": "bench/premise/isdigit/plain.html",
+   "round": 2,
+   "how": "Written by a fresh session with no repository from the question and Reader line (bench/premise/README.md, round 2)."
+  },
+  "rayner": {
+   "file": "scenes/explainers/isdigit (rayner describe at 5e9d07d4)",
+   "round": 2,
+   "how": "The catalogued explainer; text read from `rayner describe`."
+  },
+  "method": {
+   "file": "bench/premise/isdigit/method.html",
+   "round": 3,
+   "how": "Method-only page (bench/premise/isdigit/method/), built for round 3 with the model and oracle and no engine."
+  }
+ },
+ "rules": "Grade each claim against the evidence only. right: agrees with a recorded value, with the tested model on an input of the same shape as a recorded one, with a source file the model pins, or is plain arithmetic. wrong: contradicted by a recorded value or a pinned source. unverifiable: nothing in the evidence decides it; do not guess, even where the claim is well known. A claim with count n stands for n claims of the same kind graded together.",
+ "claims": [
+  {
+   "id": "isdigit-plain-01",
+   "page": "plain",
+   "count": 1,
+   "claim": "No: isdigit() is True for characters int() refuses, so the guarded line can raise",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": "recorded ²"
+  },
+  {
+   "id": "isdigit-plain-02",
+   "page": "plain",
+   "count": 1,
+   "claim": "isdigit() also refuses strings int() parses",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded U+3000 then 7"
+  },
+  {
+   "id": "isdigit-plain-03",
+   "page": "plain",
+   "count": 1,
+   "claim": "The three methods each check a Unicode group; the sets nest; int() uses the smallest",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144); scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-04",
+   "page": "plain",
+   "count": 1,
+   "claim": "isdecimal covers ASCII and other scripts' digits (٣ ३ ３)",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-05",
+   "page": "plain",
+   "count": 1,
+   "claim": "isdigit adds superscripts, subscripts and circled digits (² ₂ ② ₃ ① ❼)",
+   "evidence": "scenes/explainers/isdigit/fixtures/isdigit-digit-ages.json (the 128 code points isdigit() accepts beyond isdecimal(), by Unicode age); scenes/explainers/isdigit/model.test.ts:306-316",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-06",
+   "page": "plain",
+   "count": 1,
+   "claim": "...and some historical scripts whose digits are not positional",
+   "evidence": "scenes/explainers/isdigit/fixtures/isdigit-digit-ages.json (the 128 code points isdigit() accepts beyond isdecimal(), by Unicode age); scenes/explainers/isdigit/model.test.ts:306-316 lists Ethiopic, Kharoshthi and Brahmi digits; how they are used is not in the oracle.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-07",
+   "page": "plain",
+   "count": 1,
+   "claim": "isnumeric adds fractions, Roman numerals and Chinese numerals (½ Ⅻ 五)",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError); scenes/explainers/isdigit/model.test.ts:21-33 (UnicodeData.txt 17.0.0 rows: 0033 and 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 range ;;;; and Unihan U+4E09 kPrimaryNumeric 3) (五 has the same Unihan kPrimaryNumeric shape as 三)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-08",
+   "page": "plain",
+   "count": 1,
+   "claim": "Why int() refuses ² (\"1²\" would be ambiguous)",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-09",
+   "page": "plain",
+   "count": 1,
+   "claim": "int() strips surrounding whitespace",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-10",
+   "page": "plain",
+   "count": 1,
+   "claim": "int() accepts a sign",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-11",
+   "page": "plain",
+   "count": 1,
+   "claim": "int() accepts underscores between digits",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-12",
+   "page": "plain",
+   "count": 1,
+   "claim": "isdigit() accepts no whitespace, sign or underscore",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144): none of these has field 7; scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "isdigit-plain-13",
+   "page": "plain",
+   "count": 13,
+   "claim": "Grid and preset buttons: what the three checks and int() give for 42, ٤٢ (42), ３ and ７, 𝟕𝟕 (77), ², ①, ₃, ፫, 1², ½, Ⅻ, 五 and \" 7 \" (13 claims)",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError); scenes/explainers/isdigit/model.test.ts:196-216 (⑤ fields ;;5;5; 𝟗 ;9;9;9; rewrite of ٣4² ); scenes/explainers/isdigit/fixtures/isdigit-digit-ages.json (the 128 code points isdigit() accepts beyond isdecimal(), by Unicode age); scenes/explainers/isdigit/model.test.ts:306-316 (the page's 20 ranges equal its 128 code points)",
+   "grade": "right",
+   "note": "recorded rows and model on recorded shapes"
+  },
+  {
+   "id": "isdigit-plain-14",
+   "page": "plain",
+   "count": 1,
+   "claim": "\"abc\", \"3.5\" and \"\" are refused by both",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. (int()'s grammar)",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-15",
+   "page": "plain",
+   "count": 1,
+   "claim": "The 4,300-digit limit since 3.11 (and in 3.7 to 3.10 security releases), its message, sys.set_int_max_str_digits",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-16",
+   "page": "plain",
+   "count": 1,
+   "claim": "isdecimal() is the same as re.fullmatch(r\"\\d+\", s)",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-17",
+   "page": "plain",
+   "count": 1,
+   "claim": "isdecimal() still rejects \"-5\" and \" 5\"",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144): neither \"-\" nor \" \" has field 6",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "isdigit-plain-18",
+   "page": "plain",
+   "count": 1,
+   "claim": "isascii() and isdecimal() together mean only 0 to 9",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. (isascii() is not in the oracle)",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-plain-19",
+   "page": "plain",
+   "count": 1,
+   "claim": "s.isdecimal() means int(s) works (up to the digit limit)",
+   "evidence": "scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\"); scenes/explainers/isdigit/model.test.ts:283-293",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "isdigit-plain-20",
+   "page": "plain",
+   "count": 1,
+   "claim": "The ValueError message text",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. Only the exception was recorded.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-01",
+   "page": "rayner",
+   "count": 1,
+   "claim": "The answer: isdigit() is True for ² and int('²') raises ValueError",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError); scenes/explainers/isdigit/model.test.ts:11-19",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-02",
+   "page": "rayner",
+   "count": 1,
+   "claim": "int() turns text into a whole number and raises ValueError when it cannot",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-03",
+   "page": "rayner",
+   "count": 15,
+   "claim": "What each check returns for each of the five characters (٣ ² ½ Ⅻ 三)",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-04",
+   "page": "rayner",
+   "count": 5,
+   "claim": "int() of the five characters: ٣ gives 3, the others raise",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-05",
+   "page": "rayner",
+   "count": 1,
+   "claim": "The rewrite: non-ASCII decimals to ASCII digits, whitespace to spaces, anything else to \"?\"",
+   "evidence": "scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\"); scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-06",
+   "page": "rayner",
+   "count": 2,
+   "claim": "The eight characters' values; int() and isdecimal() accept the first four, isdigit() adds ², isnumeric() takes all eight",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError); scenes/explainers/isdigit/model.test.ts:21-33 (UnicodeData.txt 17.0.0 rows: 0033 and 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 range ;;;; and Unihan U+4E09 kPrimaryNumeric 3)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-07",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Fields 6, 7 and 8, and CPython building its tables from them",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-08",
+   "page": "rayner",
+   "count": 5,
+   "claim": "Each character's row: ٣ fills 6 to 8, ² 7 and 8, ½ only 8 (1/2), Ⅻ only 8 (12), 三 none, with Unihan kPrimaryNumeric 3",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:21-33 (UnicodeData.txt 17.0.0 rows: 0033 and 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 range ;;;; and Unihan U+4E09 kPrimaryNumeric 3); scenes/explainers/isdigit/model.test.ts:125-139",
+   "grade": "right",
+   "note": "verbatim rows"
+  },
+  {
+   "id": "isdigit-rayner-09",
+   "page": "rayner",
+   "count": 1,
+   "claim": "isdigit() follows field 7 and int() field 6",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144); scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\")",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-10",
+   "page": "rayner",
+   "count": 1,
+   "claim": "770, 898 and 2,023",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": "recorded scan"
+  },
+  {
+   "id": "isdigit-rayner-11",
+   "page": "rayner",
+   "count": 1,
+   "claim": "The sets nest",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144); scenes/explainers/isdigit/model.test.ts:271-282; scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-12",
+   "page": "rayner",
+   "count": 1,
+   "claim": "The innermost box holds the only single characters int() accepts",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770) (int 770 = isdecimal 770; every int-accepted character was decimal)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-13",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Accepted by a check but not by int(): 0, 128 and 1,253",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-14",
+   "page": "rayner",
+   "count": 1,
+   "claim": "For one character only isdecimal() matches int()",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770); scenes/explainers/isdigit/model.test.ts:283-293",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-15",
+   "page": "rayner",
+   "count": 1,
+   "claim": "int() accepts surrounding spaces",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded U+3000 case"
+  },
+  {
+   "id": "isdigit-rayner-16",
+   "page": "rayner",
+   "count": 1,
+   "claim": "int() accepts signs",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-17",
+   "page": "rayner",
+   "count": 1,
+   "claim": "int() accepts underscores in valid positions",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-18",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 1: s.isdigit() is False and int(s) is 7",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-rayner-19",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 1: why (Zs is whitespace, rewritten to a space)",
+   "evidence": "scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\"); scenes/explainers/isdigit/model.ts SPACE (UnicodeData.txt line 11279, category Zs)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-rayner-20",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 2: float('٣.5') is 3.5 and float('2.²') raises, through the same rewrite",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-01",
+   "page": "method",
+   "count": 1,
+   "claim": "The answer: isdigit() is True for ² and int('²') raises ValueError",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError); scenes/explainers/isdigit/model.test.ts:11-19",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-02",
+   "page": "method",
+   "count": 1,
+   "claim": "int() turns text into a whole number and raises ValueError when it cannot",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-03",
+   "page": "method",
+   "count": 15,
+   "claim": "What each check returns for each of the five characters (٣ ² ½ Ⅻ 三)",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-04",
+   "page": "method",
+   "count": 5,
+   "claim": "int() of the five characters: ٣ gives 3, the others raise",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-05",
+   "page": "method",
+   "count": 1,
+   "claim": "The rewrite: non-ASCII decimals to ASCII digits, whitespace to spaces, anything else to \"?\"",
+   "evidence": "scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\"); scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-06",
+   "page": "method",
+   "count": 2,
+   "claim": "The eight characters' values; int() and isdecimal() accept the first four, isdigit() adds ², isnumeric() takes all eight",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:38-47 (CPython 3.15.1 [isdecimal, isdigit, isnumeric, int]: 3 ٣ ३ ３ -> True,True,True,3; ² -> False,True,True,ValueError; ½, Ⅻ, 三 -> False,False,True,ValueError); scenes/explainers/isdigit/model.test.ts:21-33 (UnicodeData.txt 17.0.0 rows: 0033 and 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 range ;;;; and Unihan U+4E09 kPrimaryNumeric 3)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-07",
+   "page": "method",
+   "count": 1,
+   "claim": "Fields 6, 7 and 8, and CPython building its tables from them",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-08",
+   "page": "method",
+   "count": 5,
+   "claim": "Each character's row: ٣ fills 6 to 8, ² 7 and 8, ½ only 8 (1/2), Ⅻ only 8 (12), 三 none, with Unihan kPrimaryNumeric 3",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:21-33 (UnicodeData.txt 17.0.0 rows: 0033 and 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 range ;;;; and Unihan U+4E09 kPrimaryNumeric 3); scenes/explainers/isdigit/model.test.ts:125-139",
+   "grade": "right",
+   "note": "verbatim rows"
+  },
+  {
+   "id": "isdigit-method-09",
+   "page": "method",
+   "count": 1,
+   "claim": "isdigit() follows field 7 and int() field 6",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144); scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\")",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-10",
+   "page": "method",
+   "count": 1,
+   "claim": "770, 898 and 2,023",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": "recorded scan"
+  },
+  {
+   "id": "isdigit-method-11",
+   "page": "method",
+   "count": 1,
+   "claim": "The sets nest",
+   "evidence": "scenes/explainers/isdigit/model.ts:6-16 (UAX #44: field 6 for Decimal, 7 for Decimal and Digit, 8 for every numeric; Tools/unicode/makeunicodedata.py:595-603; Objects/unicodectype.c:105-144); scenes/explainers/isdigit/model.test.ts:271-282; scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-12",
+   "page": "method",
+   "count": 1,
+   "claim": "The innermost box holds the only single characters int() accepts",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770) (int 770 = isdecimal 770; every int-accepted character was decimal)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-13",
+   "page": "method",
+   "count": 3,
+   "claim": "Accepted by a check but not by int(): 0, 128 and 1,253",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-14",
+   "page": "method",
+   "count": 1,
+   "claim": "For one character only isdecimal() matches int()",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:52 (scan of every code point: isdecimal 770, isdigit 898, isnumeric 2023, int 770); scenes/explainers/isdigit/model.test.ts:283-293",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-15",
+   "page": "method",
+   "count": 1,
+   "claim": "int() accepts surrounding spaces",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded U+3000 case"
+  },
+  {
+   "id": "isdigit-method-16",
+   "page": "method",
+   "count": 1,
+   "claim": "int() accepts signs",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-17",
+   "page": "method",
+   "count": 1,
+   "claim": "int() accepts underscores in valid positions",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-18",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 1: s.isdigit() is False and int(s) is 7",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-19",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 1: why (Zs is whitespace, rewritten to a space)",
+   "evidence": "scenes/explainers/isdigit/model.ts:17-19 (Objects/unicodeobject.c:9536-9553: non-ASCII becomes a space if whitespace, \"0\" + field 6 if it has one, else \"?\"); scenes/explainers/isdigit/model.ts SPACE (UnicodeData.txt line 11279, category Zs)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-20",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 2: float('٣.5') is 3.5 and float('2.²') raises, through the same rewrite",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:217-231 (U+3000 then 7: isdigit False, rewrite \" 7\", int 7; float(\"٣.5\") rewrite \"3.5\"; float(\"2.²\") rewrite \"2.?\"); scenes/explainers/isdigit/model.test.ts:252-270 (python3 rerun)",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "isdigit-method-21",
+   "page": "method",
+   "count": 1,
+   "claim": "The row pictures give each row's UnicodeData.txt line number (1598 for ٣, 179 for ², 190 for ½, 7719 for Ⅻ, 12349 for the range holding 三) and Unihan line 29",
+   "evidence": "scenes/explainers/isdigit/model.test.ts:21-33 (UnicodeData.txt 17.0.0 rows: 0033 and 0663 ;3;3;3; 00B2 ;;2;2; 00BD ;;;1/2; 216B ;;;12; 4E00 range ;;;; and Unihan U+4E09 kPrimaryNumeric 3) (line numbers are in the test's UNICODE_DATA and UNIHAN_LINE)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "isdigit-method-22",
+   "page": "method",
+   "count": 1,
+   "claim": "Intro: every answer is computed from a model of CPython 3.15.1 and Unicode 17.0.0 tested against CPython 3.15.1's recorded answers; the lineup and the counts are those recorded values",
+   "evidence": "bench/premise/isdigit/method/oracle.ts (copied from scenes/explainers/isdigit/model.test.ts:38-52); bench/premise/isdigit/method/method.test.ts",
+   "grade": "right",
+   "note": ""
+  }
+ ]
+}
