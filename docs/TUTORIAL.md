@@ -363,7 +363,7 @@ Two kinds of picture need more than Node, and only in the scenes that draw them 
 The tutorial edits a finished explainer. Writing your own is the same loop from the other end: state the question and intent, model the system, test the model against something real, then draw. `init --blank` starts there:
 
 ```sh
-npx rayner init --blank my-question --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
+npx rayner init --blank sort-as-text --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
 ```
 
 It writes the four files of [step 2](#2-generate-the-explainer) with nothing decided. Every part still to write says `TODO:` and what goes there: each line of the script's intent header, the oracle test in `model.test.ts` (it fails until you replace it), and the words of the scene's one step, which draws the stub model's state as text. `model.ts` is a stub to replace with your system's state and rules. `rayner check` then fails with what is left, in the order to write it:
@@ -378,8 +378,11 @@ rayner: This explainer still has placeholders, each marked TODO:. To do, in orde
 
 Work down the list, rerunning `check`: plan the explainer as in [step 1](#1-plan-on-paper); name what the model is checked against and grade it; write the model and make its test compare it with the real system, as in [step 4](#4-check-the-model-against-the-source); then draw the picture from the model's state, as in [step 5](#5-read-the-scene). Once nothing says `TODO:`, the list is gone and `check` holds the explainer to the same checks as any other: some step must state the answer, the model test must pass, and every picture must read. [The skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) names an example to borrow the picture from.
 
+[Writing your own explainer](WRITING.md) works through this question from the list above to a reviewed page: how to choose a subject and an oracle, what `check` says at each stage, the failures a first draft runs into (a caption over 80 words, a label a phone cannot read, motion squeezed into too short a time), and what explainers have cost to make here.
+
 ## Next
 
+- To write an explainer of your own question, follow [Writing your own explainer](WRITING.md).
 - To explain another kind of subject, start from the nearest example. The [skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) matches subjects such as a protocol, a race, a state machine or a code change to explainers in `scenes/explainers/`.
 - The [reference](REFERENCE.md) covers the stage, card, diagram and check APIs. The [engine map](ENGINE.md) covers camera moves, code diffs, charts and pictures rebuilt from state.
 - [Judging an explainer](EXPLAINER-RUBRIC.md) asks whether a finished explainer teaches a newcomer, and whether it beats the alternative.

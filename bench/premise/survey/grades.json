@@ -1,0 +1,75 @@
+{
+ "about": "Round 3 headline-answer survey. Each catalogued topic explainer's # question and Reader line were put to fresh cloud sessions (model claude-opus-5-5, no repository, no tools used), several independent questions per session; their answers are verbatim in session-1.md to session-8.md. Each answer is graded against the script's Answer line and the explainer's oracle: right (the headline is stated or directly implied and nothing on the headline contradicts the oracle), partly right (part of the headline, with a key element missing or misstated), wrong (the headline contradicts the Answer line or the oracle). wrongFacts lists other facts in the answer that the oracle contradicts, with the oracle's value.",
+ "prompt": "Answer the questions below from your own knowledge only. Do not use any tools: do not run commands, read files or search the web. Each question is independent of the others: they come from unrelated sources, so do not let one question or answer inform another. Each comes with a description of the reader who is asking.\n\nFor each question, give a short, direct answer of a few sentences, as you would say it to that reader. Start with the answer itself, and include any specific facts or numbers you would state. If you are unsure, still answer, and say how confident you are.\n\nReply in one message, numbering the answers to match the questions. Do not commit, push or publish anything.\n\n1. Question: <the script's # question>\n   Reader: <the script's Reader line>\n...",
+ "sessions": {
+  "1": "session_01N4DAa8HntRUsVQAvkJPpeo",
+  "2": "session_01N4DAaASHB6z8RHKUkivFAj",
+  "3": "session_01N4DAa9XH2L5TRBZUBQ1gnG",
+  "4": "session_01N4DAa6FyC1bbvjTw14x5MQ",
+  "5": "session_01N4DAa9G7iPrKgeFDhgztgH",
+  "6": "session_01N4DAa6TF7Jnb8wN9vMXAky",
+  "7": "session_01N4DAa79FQwBVFatrQysWbN",
+  "8": "session_01N4DAa74tyGaheuZfZrNeQP"
+ },
+ "grades": [
+  {"id": "python-dict", "answer": "session-1.md#1", "grade": "right", "finding": "An emptied slot would end the probe early; deletion leaves a dummy marker."},
+  {"id": "bloom-filter", "answer": "session-2.md#1", "grade": "right", "finding": "A set bit does not record which item set it."},
+  {"id": "git-branches", "answer": "session-3.md#1", "grade": "right", "finding": "A merge commit is needed only when both branches have commits the other lacks; otherwise fast-forward."},
+  {"id": "pg-page", "answer": "session-4.md#1", "grade": "right", "finding": "28 rounds to 32, int8 is 32; about 226 rows a page either way (measured 226 and 226, scenes/explainers/pg-page/model.test.ts)."},
+  {"id": "trust-proxy", "answer": "session-5.md#1", "grade": "right", "finding": "The first address from the right that is not one of your proxies; true makes req.ip the forgeable left-most entry."},
+  {"id": "send-sync", "answer": "session-6.md#1", "grade": "right", "finding": "Arc<T> is Send only when T: Send + Sync."},
+  {"id": "ext4-space", "answer": "session-1.md#2", "grade": "right", "finding": "Names the 5% root reserve as the largest part and says it is free, not eaten.",
+   "wrongFacts": [
+    {"claim": "Inode tables: one 256-byte inode per 16 KiB of disk, about 1.6% of capacity (stated without a size limit)", "oracle": "One per 32 KiB from 4 TiB and per 64 KiB from 16 TiB: 4 TiB run 134,217,728 inodes, 20 TiB run 335,544,320 (scenes/explainers/ext4-space/model.test.ts:44, :48); 0.39% of a 20 TiB disk"},
+    {"claim": "Journal: usually 128 MiB to 1 GiB depending on filesystem size", "oracle": "16 MiB at 128 MiB, 32 MiB at 1 GiB, 128 MiB only from 16 GiB (model.test.ts:64-114, recorded 1 GiB journal 8,192 blocks at :35)"}
+   ]},
+  {"id": "token-bucket", "answer": "session-2.md#2", "grade": "right", "finding": "A burst spends saved tokens up to the bucket size; after that only the refill rate."},
+  {"id": "float-sum", "answer": "session-3.md#2", "grade": "right", "finding": "Each decimal and the sum are rounded to the nearest double."},
+  {"id": "unified-diff", "answer": "session-4.md#2", "grade": "right", "finding": "Context lines place the hunk; the numbers say where to look first; git apply uses no fuzz."},
+  {"id": "latest-search", "answer": "session-5.md#2", "grade": "right", "finding": "Responses can arrive out of order and the last to resolve overwrites the result."},
+  {"id": "monty-hall", "answer": "session-1.md#4", "grade": "right", "finding": "2 in 3 under the informed host; 1 in 2 if he opens a random door that happens to show a goat."},
+  {"id": "birthday-paradox", "answer": "session-2.md#4", "grade": "right", "finding": "23 people, 253 pairs, about 50.7%."},
+  {"id": "galton-board", "answer": "session-3.md#4", "grade": "right", "finding": "More paths lead to the middle bins (252 of 1,024 for five rights in ten rows)."},
+  {"id": "melody-rhythm", "answer": "session-4.md#4", "grade": "partly right", "flags": ["the question points at a tune the model was not shown"], "finding": "Says the strong notes do not start on the beat lines and suggests a shifted tune; does not (and could not) name the shifted G held across the bar line so that the 1 of bar 2 brings no new note."},
+  {"id": "seasons", "answer": "session-5.md#4", "grade": "right", "finding": "Axial tilt, not distance; about 3% farther in July and about 7% in sunlight (model: 3.4% farther, 6.9%)."},
+  {"id": "henge", "answer": "session-6.md#2", "grade": "right", "finding": "The grid is turned about 29 degrees and the sunset direction moves across it with the seasons (street bearing 299.1 degrees in the model)."},
+  {"id": "great-circle", "answer": "session-7.md#1", "grade": "right", "finding": "The great circle bends north; the flat map distorts it. Distance about 8,750 km (oracle 8,760 km)."},
+  {"id": "oauth-pkce", "answer": "session-8.md#1", "grade": "right", "finding": "Redeeming the code needs the verifier, which never passes through the redirect."},
+  {"id": "poppy", "answer": "session-1.md#3", "grade": "partly right", "flags": ["the protocol's draft 1.0 was published on 2026-11-13; the answer said it did not know the protocol and guessed"], "finding": "Guesses scoped revocable permission plus a signed credential on each request, but merges the two: one credential says who it represents and what it may do. The Answer separates them: the request is signed to say who is asking, and what the agent may do is approved separately (Session header and access token)."},
+  {"id": "poppy-discovery", "answer": "session-2.md#3", "grade": "partly right", "flags": ["protocol published after training; the answer said so"], "finding": "Gets the HTTPS fetch from a fixed path on the shop's own domain; guesses a signature or registry instead of the draft's check that the domain names its issuer and the issuer lists the domain back."},
+  {"id": "poppy-sessions", "answer": "session-3.md#3", "grade": "partly right", "flags": ["protocol published after training; the answer said so"], "finding": "Guesses a JWT signed by an issuer the shop already trusts, verified against published keys and bound to a key; the draft has no prior trust: the agent's own URL publishes its keys, one of them vouches for a short-lived key, and that key seals each request."},
+  {"id": "poppy-sign-in", "answer": "session-4.md#3", "grade": "right", "flags": ["protocol published after training; the answer said so"], "finding": "The password stays with the service; the agent gets a scoped, expiring, revocable token."},
+  {"id": "poppy-browser", "answer": "session-5.md#3", "grade": "wrong", "flags": ["protocol published after training; the answer said so"], "finding": "Has the agent's backend obtain a single-use code tied to the Session from the shop and pass it to the browser, which redeems it for a cookie.",
+   "wrongFacts": [
+    {"claim": "The agent's backend asks the shop for a handoff code and the browser opens a link with that code", "oracle": "The Company's page gives the browser a one-time code and, in the same response, a join cookie; the agent authorizes that code in a request of its own; the code works only with that cookie (scenes/explainers/poppy-browser/model.ts:5-14; model.test.ts:63-140). In the answer's design a code is not tied to the browser, which is the consent-phishing hole the draft's cookie half closes (model.test.ts:158-171)."}
+   ]},
+  {"id": "poppy-refusals", "answer": "session-6.md#3", "grade": "wrong", "flags": ["protocol published after training; the answer said so"], "finding": "Sorts refusals into two classes (who is asking, what the account allows) with one remedy each, where the draft gives each code its own remedy; both class remedies are wrong for the main codes. Only the Retry-After wait for a temporary refusal matches.",
+   "wrongFacts": [
+    {"claim": "For a key or permission refusal, it doesn't retry; it reports the refusal to the user or operator", "oracle": "401 invalid_token: refresh (4.4); 403 insufficient_scope: a refresh token covering the scope, or sign in again requesting every scope still needed (scenes/explainers/poppy-refusals/model.ts:187-195)"},
+    {"claim": "For a seal problem, it re-establishes identity and retries once", "oracle": "400 invalid_session: a new Session does not fix it; stop until the cause is fixed. Only 400 session_ended takes a new Session and one more send (model.ts:196-197)"}
+   ]},
+  {"id": "poppy-conversations", "answer": "session-7.md#2", "grade": "partly right", "flags": ["protocol published after training; the answer said so"], "finding": "Says each side should state whether it is AI or human and that the User is consulted through their own agent; the draft marks every message, on both sides, as written by a person or an AI, rather than assuming AI until a human is announced."},
+  {"id": "poppy-coverage", "answer": "session-8.md#2", "grade": "right", "flags": ["protocol published after training; the answer said so"], "finding": "What it does not do, how to do things and skills; all treated as advice, never orders that override the user."},
+  {"id": "exgit", "answer": "session-6.md#4", "grade": "right", "finding": "Only objects with new bytes are written; unchanged content is named again by its id."},
+  {"id": "mr-cache", "answer": "session-7.md#3", "grade": "right", "finding": "A hit saves the database read; a miss adds a cache read and write."},
+  {"id": "state-machine", "answer": "session-8.md#3", "grade": "right", "flags": ["the question points at a session model the model was not shown; the answer is the general rule"], "finding": "Only events the table allows in the current state change it; a late callback in closed is dropped."},
+  {"id": "statecharts", "answer": "session-8.md#4", "grade": "right", "finding": "States contain states, one at a time or several in parallel regions."},
+  {"id": "ring-buffer", "answer": "session-7.md#4", "grade": "right", "finding": "Head and tail move and wrap to slot 0; values stay in place."},
+  {"id": "2password", "answer": "session-7.md#5", "grade": "right", "finding": "The agent handles an op:// reference and op run puts the value into the child's environment."},
+  {"id": "just-bash", "answer": "session-6.md#6", "grade": "right", "flags": ["the question points at a library the model was not shown; the answer said so"], "finding": "The call returns a new shell holding the write and leaves the old one unchanged."},
+  {"id": "cert-renewal", "answer": "session-5.md#6", "grade": "right", "finding": "Renew at a share of the lifetime (a third left, or the ARI window); a 30-day margin renews 45-day certificates at day 15 (model: day 15) and 6-day ones at every run."},
+  {"id": "quotient-familial", "answer": "session-4.md#6", "grade": "right", "finding": "The barème is progressive, so dividing by the parts taxes less income in the high bands; plafond 'about 1,750 to 1,800 euros' (oracle 1,791 euros for revenus 2024, scenes/explainers/quotient-familial/model.test.ts:127)."},
+  {"id": "gtfs", "answer": "session-1.md#5", "grade": "right", "finding": "Trips run only on dates their service_id is active, set by calendar.txt and calendar_dates.txt."},
+  {"id": "traffic-policy", "answer": "session-2.md#5", "grade": "right", "finding": "With Local the load balancer splits per node, not per pod, so a lone pod gets as much as three pods share."},
+  {"id": "isdigit", "answer": "session-3.md#5", "grade": "right", "finding": "No: ² passes isdigit() and int() raises ValueError."},
+  {"id": "string-length", "answer": "session-1.md#6", "grade": "right", "finding": "Bytes, code points (or UTF-16 units) and grapheme clusters are different counts."},
+  {"id": "periodic-groups", "answer": "session-2.md#6", "grade": "right", "finding": "Blocks of 2, 6, 10 and 14 from the subshells and the filling order; the f block is set apart below."},
+  {"id": "ical-recurrence", "answer": "session-3.md#6", "grade": "partly right", "finding": "Gets that the guest holds its own copy that only a delivered cancellation can change; attributes the lingering meeting to delivery or matching failures, and misses the Answer's point that on this server a delivered cancellation marks the guest's copy CANCELLED instead of deleting it (scenes/explainers/ical-recurrence/model.test.ts:70, recorded on Baïkal 0.10.1)."},
+  {"id": "tailwind-gamut", "answer": "session-4.md#5", "grade": "partly right", "finding": "Says some colours fall outside sRGB and get pulled in, which is the direction of the answer, but understates how many.",
+   "wrongFacts": [
+    {"claim": "Some of its colours, mostly the vivid mid shades around 400-600, are outside sRGB", "oracle": "11, 14 and 14 of the 17 colour families lie outside sRGB at shades 300, 500 and 700 (scenes/explainers/tailwind-gamut/model.test.ts:112-120, against Color.js 0.7.1); the Answer: most of these colours lie outside sRGB"}
+   ]},
+  {"id": "gnome-files", "answer": "session-5.md#5", "grade": "partly right", "flags": ["the question points at a usability report the model was not shown; the answer said so"], "finding": "Guesses commands hidden in unexpected menus or behind shortcuts; does not (and could not) state that all six participants gave up at least once, each time on a menu command (scenes/explainers/gnome-files/model.test.ts:69)."},
+  {"id": "wcag-map", "answer": "session-6.md#5", "grade": "right", "finding": "A level requires its own criteria and those below it, in the named version; 2.1 AA about 50 and 2.2 AA about 55 (oracle 50 and 55, scenes/explainers/wcag-map/model.test.ts:231-232); 2.2 removed 4.1.1."}
+ ]
+}

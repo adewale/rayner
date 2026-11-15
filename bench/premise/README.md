@@ -11,6 +11,8 @@ Short result: on these two topics the plain pages were mostly right. They made 3
 
 [Round 2](#round-2-topics-models-get-wrong) repeats the plain-page test on three topics chosen because a pilot found an unaided model making errors on them: `ext4-space`, `isdigit` and `cert-renewal`.
 
+[Round 3](#round-3-a-catalog-wide-survey-method-only-pages-and-a-new-trio) asks an unaided model every catalogued topic's question for a short answer and grades the headline (35 of 45 right, 8 partly right, 2 wrong, both on a protocol published after the model's training), adds method-only pages for round 2's topics, runs a new trio on one of the two wrong topics (`poppy-browser`), and writes every graded claim to JSON for a second grader.
+
 ## Method
 
 ### The three pages per topic
@@ -334,7 +336,7 @@ The isdigit question ("Does isdigit guarantee int can parse it?") asks yes or no
 
 Each page was copied from the session's final message into `<topic>/plain.html`. Afterwards each session was asked for the `sha256sum` of its file: the ext4-space and isdigit copies match byte for byte; the cert-renewal session declined to reply, so that copy was compared by eye only. All three sessions, and both pilot sessions, are archived. All three pages render in Chromium with no console errors. Interactive parts were read in their default state and from their preset buttons; free-form inputs were not explored, as with round 1's pg-page builder.
 
-The Rayner pages' text was read from `rayner describe` at `5e9d07d4` (every scenario, every step, and the check questions). The Rayner pages were not copied here; `rayner build` at that commit reproduces them. No method-only pages were made this round.
+The Rayner pages' text was read from `rayner describe` at `5e9d07d4` (every scenario, every step, and the check questions). The Rayner pages were not copied here; `rayner build` at that commit reproduces them. No method-only pages were made this round; round 3 added them.
 
 The fact-check rules are round 1's: right, wrong or unverifiable against recorded values, the tested model or the sources `model.ts` pins, with each claim counted once however often it repeats. Three additions:
 
@@ -510,7 +512,7 @@ Oracle: Certbot v5.8.0's renewal test vectors and the Certbot 3.3, 4.1 and 5.8 l
 | Public certificates are heading for 47 days | Right | BR table: 47 from 2029-03-15 |
 | Some are as short as six days | Right | Let's Encrypt's shortlived profile, 160 hours |
 | Recent Certbot releases renew at a share of the lifetime when `renew_before_expiry` is unset: with a third left, or at half under about ten days | Right | Certbot vectors; `renewal.py:425-429` |
-| ARI is ACME Renewal Information, RFC 9773 | Right | As `model.ts` cites |
+| ARI is ACME Renewal Information, RFC 9773 | Right | As the scene's sources cite (`scene.ts:187`; this row first said `model.ts`, corrected in round 3) |
 | `renew_before_expiry = 30 days` fixes the margin in days | Right | `renewal.py:478` |
 | Lifetimes stayed at 90 days for years | Unverifiable | History |
 | A fixed 30 days renews 90-, 64- and 47-day certificates at day 60, 34 and 17; a certificate of 30 days or less is due from issue | Right (model) | |
@@ -588,6 +590,164 @@ It shows:
 It does not show:
 
 - That models generally get these topics wrong. The pilot found errors on 3 of 38 questions across seven topics, and the plain pages' headline answers were right in every case. The model that wrote the pages is the same model family that did the checking.
-- That the engine, rather than the method, prevents errors: no method-only pages were made this round, and round 1 found no difference between the two.
+- That the engine, rather than the method, prevents errors: no method-only pages were made this round, and round 1 found no difference between the two. ([Round 3](#round-3-a-catalog-wide-survey-method-only-pages-and-a-new-trio) adds them.)
 - Anything about other models, other topics or other authors. One checker, three topics, one page each; claim counts depend on the split, which the tables show.
 - How well any page teaches.
+
+## Round 3: a catalog-wide survey, method-only pages and a new trio
+
+Round 2 left three gaps: every plain page got the headline answer right, so it never tested the case Rayner exists for; no method-only pages were made, so the method's value could not be separated from the engine's; and one checker from the same model family graded everything. Round 3 addresses each in part. It was run on 2026-11-15 against commit `3e71fe38`.
+
+Short result: asked for a short answer, an unaided model got the headline right on 35 of the 45 catalogued topics, partly right on 8 and wrong on 2. Both wrong answers are about the Personal Agent Protocol, a draft published on 2026-11-13, after the model's training; the model said each time that it did not know the protocol and was guessing. On a new trio for one of them (`poppy-browser`), the plain page made 4 errors in 30 claims, the method-only page none in 28 and the Rayner page none in 24. The method-only pages for round 2's topics made no errors either (0 in 152 claims), so on correctness the method again accounts for all of the difference, as in round 1. Every graded claim of rounds 2 and 3 is now in JSON, with a blind copy for a second grader.
+
+### Headline-answer survey
+
+Every catalogued explainer in `scenes/explainers/catalog.ts` with group `topic` (45; the 8 `toolchain` lessons about Rayner itself were skipped) was asked of fresh cloud sessions created like round 2's plain authors: `create_session` with no source repository, model `claude-opus-5-5`. Eight sessions got four to six questions each, one Poppy chapter per session. The prompt, the same for all eight apart from the questions:
+
+> Answer the questions below from your own knowledge only. Do not use any tools: do not run commands, read files or search the web. Each question is independent of the others: they come from unrelated sources, so do not let one question or answer inform another. Each comes with a description of the reader who is asking.
+>
+> For each question, give a short, direct answer of a few sentences, as you would say it to that reader. Start with the answer itself, and include any specific facts or numbers you would state. If you are unsure, still answer, and say how confident you are.
+>
+> Reply in one message, numbering the answers to match the questions. Do not commit, push or publish anything.
+>
+> 1. Question: *the script's `#` question*
+>    Reader: *the script's Reader line*
+
+No session used a tool. Their final messages are copied verbatim into [`survey/session-1.md`](survey/session-1.md) to `session-8.md`; all eight sessions are archived. Each answer was graded against the script's **Answer** line and the explainer's oracle: **right** if the headline is stated or directly implied and nothing on the headline contradicts the oracle; **partly right** if part of the headline is there and a key element is missing or misstated; **wrong** if the headline contradicts the Answer line or the oracle. Other facts the oracle contradicts are listed separately. The grades, with evidence, are in [`survey/grades.json`](survey/grades.json).
+
+| Topic | Grade | What was wrong or missing |
+| --- | --- | --- |
+| python-dict | Right | |
+| bloom-filter | Right | |
+| git-branches | Right | |
+| pg-page | Right | 226 rows a page for both, as measured |
+| trust-proxy | Right | |
+| send-sync | Right | |
+| ext4-space | Right | Headline right (the 5% reserve, free, is the largest part). Two other facts wrong: "one inode per 16 KiB, about 1.6%" given without a size limit (recorded: one per 32 KiB at 4 TiB, 64 KiB at 20 TiB); journal "usually 128 MiB to 1 GiB" (recorded: 32 MiB at 1 GiB; 128 MiB only from 16 GiB) |
+| token-bucket | Right | |
+| float-sum | Right | |
+| unified-diff | Right | |
+| latest-search | Right | |
+| monty-hall | Right | |
+| birthday-paradox | Right | |
+| galton-board | Right | |
+| melody-rhythm | Partly right | Generic: strong notes off the beat lines, perhaps a shifted tune. Not the shifted G held across the bar line so that the 1 of bar 2 brings no new note. The question points at a tune the model was not shown |
+| seasons | Right | |
+| henge | Right | |
+| great-circle | Right | |
+| oauth-pkce | Right | |
+| poppy | Partly right | Guesses a signed credential and scoped permission, but as one credential saying both who and what; the protocol separates the seal (who is asking) from the key (what the account allows) |
+| poppy-discovery | Partly right | Gets HTTPS from a fixed path on the shop's own domain; guesses a signature or registry instead of the issuer cross-listing (the domain names its issuer, the issuer lists the domain back) |
+| poppy-sessions | Partly right | Guesses a token from an issuer the shop already trusts; the draft needs no prior trust: the agent's URL publishes its keys, one vouches for a short-lived key that seals each request |
+| poppy-sign-in | Right | |
+| poppy-browser | **Wrong** | See below |
+| poppy-refusals | **Wrong** | See below |
+| poppy-conversations | Partly right | Each side states AI or human, and the User is reached through their own agent; the draft marks every message, on both sides, rather than assuming AI until a person is announced |
+| poppy-coverage | Right | |
+| exgit | Right | |
+| mr-cache | Right | |
+| state-machine | Right | The general rule; the question points at a session model it was not shown |
+| statecharts | Right | |
+| ring-buffer | Right | |
+| 2password | Right | |
+| just-bash | Right | |
+| cert-renewal | Right | |
+| quotient-familial | Right | Plafond "about 1,750 to 1,800 €" (recorded 1,791 € for revenus 2024) |
+| gtfs | Right | |
+| traffic-policy | Right | |
+| isdigit | Right | |
+| string-length | Right | |
+| periodic-groups | Right | |
+| ical-recurrence | Partly right | Gets the guest's own copy; puts the lingering meeting down to delivery or matching failures, not to this server marking a delivered cancellation CANCELLED instead of deleting the copy (recorded on Baïkal 0.10.1) |
+| tailwind-gamut | Partly right | "Some of its colours, mostly the vivid mid shades around 400–600, are outside sRGB"; recorded against Color.js 0.7.1: 11, 14 and 14 of the 17 families at shades 300, 500 and 700, so most |
+| gnome-files | Partly right | Generic causes; not that all six participants gave up at least once, each time on a menu command. The question points at a report the model was not shown |
+| wcag-map | Right | 50 and 55 criteria at AA in 2.1 and 2.2, as the model's lists give |
+
+Totals: **35 right, 8 partly right, 2 wrong**, of 45.
+
+The two headline errors:
+
+1. `poppy-browser`, "How does the agent's browser join the Session without ever carrying the key?" The answer: the agent's backend asks the shop for a single-use handoff code tied to the Session, the browser opens a link with it, and the shop swaps it for a cookie. The oracle (the draft's section 6, as `scenes/explainers/poppy-browser/model.ts:5-14` transcribes it and `model.test.ts:63-140` pins it): the Company's page gives the browser a one-time code and, in the same response, a join cookie; the agent authorizes that code in a request of its own; the code works only with that cookie. The answer's code is not tied to a browser, which is the consent-phishing hole the cookie half closes (`model.test.ts:158-171`).
+2. `poppy-refusals`, "What does your agent do when the Company says no?" The answer sorts refusals into two classes with one remedy each: for a key or permission refusal, do not retry and report to the user; for a seal problem, re-establish identity and retry once. The oracle (`scenes/explainers/poppy-refusals/model.ts:187-205`, from section 7's table): 401 invalid_token is refreshed; 403 insufficient_scope takes a refresh token covering the scope or a new sign-in asking for every scope still needed; 400 invalid_session is not fixed by a new Session, and the agent stops; only 400 session_ended takes a new Session and one more send. Its Retry-After rule for 429 matches.
+
+Ten of the 45 headlines were not fully right. Eight of the ten concern the Poppy protocol (published as draft 1.0 on 2026-11-13; every Poppy answer said it did not know the protocol) or a specific artefact the question names and the model could not see (a tune, a usability report). The other two, `ical-recurrence` and `tailwind-gamut`, are a model answering a well-known topic and missing what the oracle shows: a server's behaviour, and how many colours lie outside a gamut.
+
+### Method-only pages for round 2
+
+Built exactly as round 1's: `<topic>/method/page.ts` holds each picture as a function from state to an SVG string and each step as a function from the settings to `{ title, caption, svg }`; `main.ts` wires them to the shared `shell.ts`; `oracle.ts` holds the recorded values, copied from the explainer's `model.test.ts`; `method.test.ts` requires the model to give the oracle's values and every step of every scenario to render and state them; `node bench/premise/build.ts` bundles each page with esbuild into one HTML file (`ext4-space` 28 KiB, `isdigit` 26 KiB, `cert-renewal` 32 KiB). One difference: round 3's pages share their SVG helpers in `draw.ts` instead of each carrying a copy. The settings and steps follow the Rayner explainer's, with some pictures drawn from the oracle values rather than the model (the `df` and size-comparison steps from the recorded statfs, the lineup and counts from CPython's recorded answers, the 90-day ARI window from the live windows). `node --test bench/premise/*/method/method.test.ts` runs 18 tests (round 1's 6 and 12 new), all passing, and `npx tsc -p bench/premise` type-checks every method-only page, round 1's included (it is not part of `npm run check`). In Chromium every view of every scenario renders with no console errors and no horizontal scroll at 390 px (`node bench/premise/render-check.mjs <page.html>…`); text size and overlap were not measured this time. As in round 1, the pages were written after reading the Rayner explainers and are not an independent replication.
+
+Source size: `page.ts` is 220 lines (`ext4-space`), 231 (`isdigit`) and 261 (`cert-renewal`), with 74 to 111 more in `main.ts`, `oracle.ts` and `method.test.ts`, plus 61 shared in `draw.ts`. The Rayner scenes are 499 lines (`scene.ts`), 556 (`scene.ts` 403 + `picture.ts` 153) and 843 (715 + 128).
+
+The method-only pages were fact-checked with the Rayner pages' claim lists, claim for claim, since they state the same things: a claim on the Rayner page that the method page does not make was dropped (`ext4-space`: "tune2fs -m changes the reserve without reformatting"), and claims only the method page makes were added (each page's provenance line; `isdigit`'s UnicodeData.txt line numbers; `cert-renewal`'s recorded live windows and its first ten days under the limit). The rules are round 2's. `node bench/premise/dump.ts <topic>` prints every scenario's titles and captions, which is the text that was checked.
+
+| Topic | Page | Claims | Right | Wrong | Unverifiable |
+| --- | --- | --- | --- | --- | --- |
+| ext4-space | Plain | 46 | 27 | 4 | 15 |
+| ext4-space | Method-only | 58 | 56 | 0 | 2 |
+| ext4-space | Rayner | 58 | 55 | 0 | 3 |
+| isdigit | Plain | 32 | 23 | 0 | 9 |
+| isdigit | Method-only | 47 | 45 | 0 | 2 |
+| isdigit | Rayner | 45 | 43 | 0 | 2 |
+| cert-renewal | Plain | 31 | 23 | 1 | 7 |
+| cert-renewal | Method-only | 47 | 47 | 0 | 0 |
+| cert-renewal | Rayner | 44 | 44 | 0 | 0 |
+| All three | Method-only | 152 | 148 | 0 | 4 |
+
+The unverifiable method-only claims are the same as the Rayner pages': `df` reading statfs, `tune2fs -m 0` in a check answer, and int()'s signs and underscores. Every claim, with its evidence, is in the topic's `claims.json` (below), so the rows are not repeated here.
+
+### Round-3 trio: poppy-browser
+
+Of the two topics with a headline error, `poppy-browser` was chosen; `poppy-refusals` was not run. Its oracle is unlike the others': the draft was read and not run, there is no reference implementation, and nothing was measured, so "right" here means agreeing with the draft's rules and examples as the explainer's model transcribes them and its tests pin them.
+
+- **Plain page**: a fresh session with no repository, given the script's `#` question, its Reader line and round 1's instruction word for word, as in rounds 1 and 2. [`poppy-browser/plain.html`](poppy-browser/plain.html) is the session's final message; asked afterwards, the session gave `sha256sum` `09144e6f…0ee680` and 25,742 bytes for its file, which the copy matches byte for byte. The session is archived. The page renders in Chromium with no console errors.
+- **Method-only page**: [`poppy-browser/method.html`](poppy-browser/method.html) (37 KiB), built as above. Its steps replay the model's own story (`start`, then `next` for each event) and each picture is drawn from the model's world. The model imports `refuse` and `isRefusal` from `explain/machine.ts`, so that one small class is in the bundle; nothing else from `src/` or `explain/` is.
+- **Rayner page**: the catalogued explainer, read from `rayner describe` at `3e71fe38` (every scenario, every step, and the five check questions).
+
+| Page | Claims | Right | Wrong | Unverifiable |
+| --- | --- | --- | --- | --- |
+| Plain | 30 | 15 | 4 | 11 |
+| Method-only | 28 | 27 | 0 | 1 |
+| Rayner | 24 | 23 | 0 | 1 |
+
+Errors on the plain page:
+
+1. The agent uses its key on its own back channel to *ask the shop for* a join code, which the shop mints and returns to the agent, which types it into the join form. In the draft the code comes from the Company's page to the browser, and the agent's request *authorizes* that code (`model.ts:5-14`; `model.test.ts:63-104`).
+2. The join page shows a challenge, the hash of the join cookie, not a code, and the code is bound to the browser through that hash. In the draft the page shows the code, and the Company pairs it with the join cookie it set in the same response (`model.ts:93`; `model.test.ts:63-85`).
+3. The shop authorizes a code only for a caller that shows the key and the seal. In the draft a signed-out agent authorizes the code with its seal alone, and the browser joins the Session with no account (`model.test.ts:86-104`, `252-280`).
+4. The web side "can be given less than the key allows but never more". Where a website cannot apply scopes, poppy:browser-sign-in grants everything the account can do there, and the issuer must say so and set web.unscoped (`model.test.ts:207-222`).
+
+The plain page did better than the survey answer to the same question. It ties the code to a cookie set in the browser, refuses a code that arrives without it, uses the key only on the agent's own request, and explains the login cross-site request forgery that the draft's design stops. It gets the direction of the code wrong (errors 1 and 2) and leaves out the attack that direction exists to stop: a code sent to the agent in a message. Its headline is partly right.
+
+The one unverifiable claim on both the method-only and the Rayner page is the same: both state the model's own status numbers (200 for ordinary pages, 303 for the redirect, 400 for a refused submission), which `model.ts:216` and `:416-424` say the draft does not give. The method-only page leaves out web.disabled and adds the endpoint and cookie names and the rule that loading the page changes no Session.
+
+### Claims for a second grader
+
+Every page graded in rounds 2 and 3 has its claims in JSON: [`ext4-space/claims.json`](ext4-space/claims.json), [`isdigit/claims.json`](isdigit/claims.json) and [`cert-renewal/claims.json`](cert-renewal/claims.json) (round 2's plain and Rayner pages and round 3's method-only page) and [`poppy-browser/claims.json`](poppy-browser/claims.json) (round 3's trio). Each file has:
+
+- `topic`, `oracle` (what the evidence is drawn from), `pages` (each page's file, round and how it was made) and `rules` (the grading rules, as above);
+- `claims`: one item per row of the tables, with `id`, `page`, `count` (how many claims of one kind the item stands for; the totals above add these), `claim`, `evidence` (the oracle value, quoted, with the file and line it comes from, or the pinned source and its version), `grade` (`right`, `wrong` or `unverifiable`) and `note` (this checker's qualifier, such as "model" or "model, bracketed").
+
+`claims-blind.json` beside each has the same `topic`, `oracle`, `pages` and `rules`, and claims with `id`, `page`, `count`, `claim` and `evidence` only: no grade and no note. A second grader can grade the blind file and compare by `id`. Both files are written by `python3 bench/premise/claims/build.py` from the lists in `bench/premise/claims/*.py`, which also prints the totals. Two cautions: the evidence was chosen by this checker, so a grader who doubts an item may need the cited file itself; and an item with `count` above 1 is graded as one, so agreement should be computed per item and, separately, weighted by count.
+
+The survey's grades are in `survey/grades.json` in a similar shape, with each answer's place in `survey/session-N.md`.
+
+### What round 3 shows and does not show
+
+It shows:
+
+- On short answers to the catalog's own questions, an unaided model of this family gets the headline right on most topics: 35 of 45, with 8 partly right. On well-documented subjects the headline is rarely where it goes wrong.
+- Where it does go wrong on the headline, in this sample, is a protocol published after its training (2 of 8 Poppy questions wrong, 4 partly right) and questions about a specific artefact it was not shown. Among well-known topics, the misses were a server's behaviour (`ical-recurrence`) and a count (`tailwind-gamut`): things an oracle states and memory does not. That is the territory of Rayner's own phrase, what this version of this system does.
+- On the new trio, the plain page made 4 errors in 30 claims, two of them in the mechanism the question asks about; the method-only and Rayner pages made none in 28 and 24.
+- Across round 2's topics and the trio, the method-only pages made no errors in 180 claims and the Rayner pages none in 171. Their correctness comes from the same model and oracle; on correctness the engine adds nothing measurable here, as round 1 also found. What the engine adds (the class (b) checks in round 1's table, close-ups, the receipt) is not something a fact-check measures.
+
+It does not show:
+
+- That models generally get these subjects wrong. The survey asked for a few sentences, one sample per question, from one model; a page written with more effort can do better than the short answer, as `poppy-browser`'s plain page did.
+- That the 45 questions are a fair sample of topics. They are this catalog's, chosen by its authors, and several name something specific the model could not see.
+- That the method-only pages are independent. One author wrote them after reading the Rayner explainers and graded them with the Rayner pages' claim lists, so their agreement with the Rayner pages is expected.
+- Anything from a second grader yet. The same model family wrote every page and did all the grading in all three rounds; the blind files exist so that a different model can regrade.
+- How well any page teaches.
+
+### PRODUCT.summary
+
+`PRODUCT.summary` in `scenes/explainers/catalog.ts` reads: "Rayner makes an explanation of what this version of this system does, drawn from a model checked against that system where it can be, with a short receipt the person who commissioned it can review." It is left unchanged, neither strengthened nor weakened. It claims no error rate for unaided explanations and no advantage of the engine over the method, so the survey's mostly right headlines do not contradict it. A stronger sentence, such as one saying unaided explanations get the answer wrong, would rest on two headline errors about one new protocol, which is too little. What round 3 found, that the errors sit in version-specific behaviour and in systems newer than the model's knowledge, is what "what this version of this system does" already says.

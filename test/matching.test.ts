@@ -328,6 +328,22 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
   assert.deepEqual(same.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 0 });
 });
 
+test('new parts join the source in the target\'s drawing order: a new card is drawn under its new words while it fades in', () => {
+  // The target adds a card and the words on it (a new Text, so a new frame). Before, the new line's
+  // frame joined the source first and the bare card after it, so the card covered its words until
+  // the morph ended (filmed in poppy-conversations' ownership step).
+  const card = () => new Rectangle({ width: 3, height: 1, fill: '#fff', fillOpacity: 1 });
+  const from = new Group(new Circle({ radius: 0.2 }));
+  const to = new Group(new Circle({ radius: 0.2 }), card(), new Text('owner', { fontSize: 0.3 }));
+  const m = new TransformMatching(from, to, { key: () => undefined });
+  beginAnimation(m);
+  interpolateAnimation(m, 0.5);
+  const drawn = from.family().filter((p) => p instanceof VMobject && p.hasPoints());
+  const rect = drawn.findIndex((p) => p instanceof Rectangle), glyph = drawn.findIndex((p) => p.parent instanceof Text);
+  assert.ok(rect >= 0 && glyph >= 0, 'the card and the words are both in the source while they fade in');
+  assert.ok(rect < glyph, `the card is drawn under the words (card at ${rect}, first glyph at ${glyph})`);
+});
+
 test('find and findAll address parts by key, depth first, on a mobject and across a scene', () => {
   const cell = (z: number) => { const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(String(z))); keyed(g, `cell:${z}`); keyed(g.children[1]!, `cell:${z}:z`); return g; };
   const table = new Group(cell(1), new Group(cell(2), cell(3)));

@@ -2070,18 +2070,24 @@ export class TransformMatching extends Animation {
       }
     }
     // A target frame no source frame took (a new line) gets a bare copy of
-    // itself in the source, where its new parts grow in place
-    for (const ft of tFrames) {
-      if (toSource.has(ft)) continue;
-      const stage = bare(ft);
-      toSource.get(frameOfT(ft))!.add(stage);
-      toSource.set(ft, stage);
+    // itself in the source, where its new parts grow in place. New frames and
+    // new parts join the source in the target's drawing order, so a new shape
+    // drawn under a new line in the target (a card under its words) is drawn
+    // under it while it fades in too, not over it until the morph ends.
+    const newFrame = new Set(tFrames.filter((ft) => !toSource.has(ft))), adding = new Set(this.added);
+    const fadeRows = new Map<Mobject, FadeRow>();
+    for (const t of tgt.family()) {
+      if (newFrame.has(t)) {
+        const stage = bare(t);
+        toSource.get(frameOfT(t))!.add(stage);
+        toSource.set(t, stage);
+      } else if (adding.has(t)) {
+        const sub = bare(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
+        home.add(sub);
+        fadeRows.set(t, { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k });
+      }
     }
-    const fadesIn = this.added.map((t): FadeRow => {
-      const sub = bare(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
-      home.add(sub);
-      return { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k };
-    });
+    const fadesIn = this.added.map((t) => fadeRows.get(t)!);
     this[matchRows] = { moves, fadesOut, fadesIn, frames, touched: src.family() };
     this.doInterpolate(0);
   }

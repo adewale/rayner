@@ -61,9 +61,11 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
 });
 
 /** `rayner check` on a folder, as a reader of its output sees it: the exit status and what it printed. */
+// Node 24.0.0 prints an ExperimentalWarning for type stripping on stderr; later 24.x releases do not.
+const withoutNodeWarnings = (stderr: string) => stderr.replace(/^\(node:\d+\) ExperimentalWarning: .*\n(?:\(Use `node --trace-warnings .*\n)?/gm, '');
 const checkFolder = (dir: string, out: string) => {
   const { status, stdout, stderr } = spawnSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', out], { encoding: 'utf8' });
-  return { status, stdout, stderr };
+  return { status, stdout, stderr: withoutNodeWarnings(stderr) };
 };
 /** The labels of a script's intent header, in order. */
 const labels = (script: string) => [...script.matchAll(/^- \*\*([^*:]+):\*\*/gm)].map((m) => m[1]);
