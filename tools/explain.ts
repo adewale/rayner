@@ -58,8 +58,9 @@ Options:
 
 init, check, build, describe, see, snapshots, preview and shots need Node alone
 for a scene that draws no Mermaid diagram and asks for no lettering. review
-opens the page in Chromium: install it once with
-  npx playwright-core install chromium
+opens the page in Chromium: Playwright's own build, another Playwright build,
+or an installed Chrome or Chromium, whichever launches first (it prints which).
+Only if none is found: npx playwright-core install chromium
   or set CHROMIUM_EXECUTABLE_PATH
 PNG output (shots) is included.
 
@@ -131,7 +132,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const { reviewScene } = await import('./lib/explain-review-scene.ts');
     const artifact = flags.out?.endsWith('.html') ? resolve(flags.out) : undefined;
     const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
-    console.log(JSON.stringify(await reviewScene(project, directory, flags.subjects, artifact), null, 2));
+    console.log(JSON.stringify(await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line)), null, 2));
     return;
   }
   if (command === 'snapshots') {

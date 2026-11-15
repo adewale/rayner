@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 import { buildInputs } from '../lib/build-inputs.ts';
 import { spawnSync, execFileSync } from 'node:child_process';
 import type { Browser, Page } from 'playwright-core';
-import { launch } from '../lib/browser.ts';
+import { launch, chromiumUsed, describeChromium } from '../lib/browser.ts';
 import { collectProject, sceneInputs, ROOT } from '../lib/explain-project.ts';
 import { serve } from '../lib/explain-serve.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
@@ -45,6 +45,8 @@ try {
   server = await serve(built, 0, 'index.html');
   const base = server.url;
   browser = await launch();
+  const used = chromiumUsed(browser)!;
+  console.log(describeChromium(used));
   page = await browser.newPage({ viewport: DESKTOP_VIEWPORT });
   const errors: string[] = [],
     connections: string[] = [];
@@ -167,6 +169,7 @@ try {
         results: scenarios,
         consoleErrors: errors,
         runtimeConnections: connections,
+        browser: { name: 'chromium', path: used.path, version: used.version, source: used.source },
       },
       null,
       2,

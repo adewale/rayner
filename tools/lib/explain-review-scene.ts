@@ -9,7 +9,7 @@ import { buildInputs } from './build-inputs.ts';
 import { ROOT, hash, loadScene } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { serve } from './explain-serve.ts';
-import { launch } from './browser.ts';
+import { launch, chromiumUsed, describeChromium } from './browser.ts';
 import { reviewStoryScenario } from './explain-story-review.ts';
 import type { StorySubject } from './explain-story-review.ts';
 import { liveSubjects, reviewLiveStates } from './explain-live-review.ts';
@@ -44,8 +44,12 @@ export async function reviewSubjects(project: Project, file?: string): Promise<S
   return value.subjects as StorySubject[];
 }
 
-/** The same served-paint reviewer used by the catalog, for any installed author's scene. */
-export async function reviewScene(project: Project, directory: string, subjectsFile?: string, artifact?: string) {
+/**
+ * The same served-paint reviewer used by the catalog, for any installed author's scene. `log` receives
+ * one line naming the Chromium the review runs in; the receipt records its path and version.
+ */
+export async function reviewScene(project: Project, directory: string, subjectsFile?: string, artifact?: string,
+  log: (line: string) => void = () => {}) {
   directory = resolve(directory);
   await mkdir(directory, { recursive: true });
   const receiptFile = join(directory, 'review.json');
@@ -61,6 +65,8 @@ export async function reviewScene(project: Project, directory: string, subjectsF
     const { receipt } = await buildExplainer(project, join(temporary, 'scene.html'));
     server = await serve(temporary, 0, 'scene.html');
     browser = await launch('rayner review');
+    const used = chromiumUsed(browser)!;
+    log(describeChromium(used));
     const page = await browser.newPage();
     const errors: string[] = [], connections: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -104,6 +110,7 @@ export async function reviewScene(project: Project, directory: string, subjectsF
       scenarios: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0),
       liveStateWidths: results.reduce((n, c) => n + (c.live?.length ?? 0), 0), results,
       consoleErrors: errors, runtimeConnections: connections,
+      browser: { name: 'chromium', path: used.path, version: used.version, source: used.source },
     };
     await rm(join(directory, 'failure.json'), { force: true });
     await rm(join(directory, 'failure.png'), { force: true });

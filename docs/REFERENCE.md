@@ -785,7 +785,7 @@ These checks establish deterministic behaviour and readable pictures. They do no
 
 ### Add-ons
 
-The `rayner` command (the `rayner-cli` package) needs Node 24 and nothing else to `init`, `check`, `see`, `describe`, `build`, `snapshots`, `preview` and `shots` a scene that draws no Mermaid diagram and asks for no lettering: it then loads no Agentic Mermaid, no Playwright browser and no Python. `shots` draws its PNG with resvg, which `rayner-cli` installs. `review` opens the built page in Chromium, so it needs Chromium for every scene: `npx playwright-core install chromium` once, or `CHROMIUM_EXECUTABLE_PATH` set to a Chromium or Chrome executable.
+The `rayner` command (the `rayner-cli` package) needs Node 24 and nothing else to `init`, `check`, `see`, `describe`, `build`, `snapshots`, `preview` and `shots` a scene that draws no Mermaid diagram and asks for no lettering: it then loads no Agentic Mermaid, no Playwright browser and no Python. `shots` draws its PNG with resvg, which `rayner-cli` installs. `review` opens the built page in Chromium, so it needs Chromium for every scene. It finds one as [Finding Chromium](#finding-chromium) describes; only if none is found, run `npx playwright-core install chromium` once, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium or Chrome executable.
 
 Two kinds of picture need an add-on, and only the scenes that draw them:
 
@@ -854,9 +854,22 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `--blank` | `init` | Write a blank explainer to fill in instead of the tutorial's; not with `--machine` |
 | `--question <text>` | `init --blank` | The reader's question, one line, written as the script's `#` heading in place of its placeholder |
 
-`CHROMIUM_EXECUTABLE_PATH` selects a Chromium for capture; otherwise it is looked up in `PLAYWRIGHT_BROWSERS_PATH` and Playwright's cache. If an authoring package is missing, the command prints the line that installs it.
+If an authoring package is missing, the command prints the line that installs it.
 
 `node tools/repo/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]` prints syntax colours as `ColorSpan`s for `new Code(lines, { spans })`, to check in beside the scene. It runs from a checkout and is not part of the package; [the code guide](CODE.md#the-tool) describes its engines.
+
+### Finding Chromium
+
+`review`, diagram capture and the repository's browser checks start Chromium through `tools/lib/browser.ts`. playwright-core alone runs only the one revision it pins (`npx playwright-core install chromium` downloads it), so the launcher looks wider, in this order:
+
+1. `CHROMIUM_EXECUTABLE_PATH`, if set, and nothing else: an executable that does not exist is an error, not skipped.
+2. Playwright's pinned revision, headless shell before the full build, in `PLAYWRIGHT_BROWSERS_PATH` if set (`0` means playwright-core's own folder), otherwise in Playwright's cache (`~/.cache/ms-playwright`, or `$XDG_CACHE_HOME/ms-playwright`; `~/Library/Caches/ms-playwright` on macOS).
+3. Other complete Playwright Chromium builds in that folder, newest revision first, headless shell before the full build.
+4. Chrome and Chromium installed on the system: `google-chrome`, `google-chrome-stable`, `chromium` and `chromium-browser` on `PATH`, then on macOS `Google Chrome.app` and `Chromium.app` in `/Applications` and `~/Applications`. `RAYNER_SYSTEM_CHROMIUM=0` leaves these out.
+
+A candidate from steps 2 to 4 is used only once it has launched, reported a major version within four of the pinned build's (Playwright drives Chromium over CDP, which changes slowly, but a build far from the pinned one can launch and then fail mid-run), and rendered a page; otherwise the next is tried. When none can be used, the command says how to install Chromium and lists each candidate it passed over with the reason.
+
+`review` prints one line to standard error naming the build, for example `Chromium 153.0.8010.12: /opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell (Playwright revision 1243; playwright-core's pinned revision 1248 is not installed)`, and its receipt (`review.json`) records it as `browser: { name, path, version, source }`, where `source` is `CHROMIUM_EXECUTABLE_PATH`, `pinned`, `installed` or `system`. `demos:review` prints the same line and records the same field in each shard's receipt.
 
 ## Page
 

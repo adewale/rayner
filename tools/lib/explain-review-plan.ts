@@ -104,6 +104,8 @@ export interface ReviewReceipt {
   results: ReviewedScenario[];
   consoleErrors: string[];
   runtimeConnections: string[];
+  /** The Chromium this shard ran in (tools/lib/browser.ts); shards may differ, so a merge keeps none. */
+  browser?: { name: 'chromium'; path: string; version: string; source: string };
 }
 export function reviewScope(args: readonly string[]): ReviewScope {
   if (!args.length) return { part: 1, total: 1 };

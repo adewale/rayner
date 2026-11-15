@@ -25,7 +25,7 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows: from npm once it lists that version (`npm view rayner-cli versions`), and until then from archives built in a clone of this repository. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
-This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
+This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: Playwright's own build, another installed Playwright build or the Chrome or Chromium already on the machine ([Finding Chromium](REFERENCE.md#finding-chromium)). Only if none is found, install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
 
 ## 1. Plan on paper
 
@@ -355,7 +355,7 @@ npx rayner build lru-mru/scene.ts --out public/lru-mru.html
 
 Two kinds of picture need more than Node, and only in the scenes that draw them ([add-ons](REFERENCE.md#add-ons)):
 
-- A Mermaid diagram, `s.show({ source: 'graph LR\nA --> B' })`, is laid out by Agentic Mermaid in Chromium at build time and pinned in `scene.snapshots/`. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, and Chromium with `npx playwright-core install chromium`. Without them, a command that must capture a diagram fails and prints that install line; committed snapshots replay without Chromium.
+- A Mermaid diagram, `s.show({ source: 'graph LR\nA --> B' })`, is laid out by Agentic Mermaid in Chromium at build time and pinned in `scene.snapshots/`. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`; capture finds Chromium as `review` does, and needs `npx playwright-core install chromium` only if none is found. Without them, a command that must capture a diagram fails and prints that install line; committed snapshots replay without Chromium.
 - Letters the embedded Inter and JetBrains Mono do not have, other scripts, replacement faces, real bold and italic, and maths need a [lettering request](LETTERING.md). Capturing one needs Python and the source fonts; a committed `scene.lettering.json` replays without them.
 
 ## Start your own

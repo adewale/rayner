@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { collectProject } from '../../tools/lib/explain-project.ts';
 import { reviewSubjects, reviewScene } from '../../tools/lib/explain-review-scene.ts';
@@ -34,8 +35,18 @@ test('an outside author reviews every served scenario and width; a false caption
     const project = await collectProject(file, { write: false });
     await writeFile(claims, JSON.stringify({ version: 2, subjects: [{ step: 'one', opening: true, targets: [{ text: 'Answer' }] }] }));
     const published = join(folder, 'public', 'answer.html');
-    const result = await reviewScene(project, output, undefined, published);
+    const lines: string[] = [];
+    const result = await reviewScene(project, output, undefined, published, line => lines.push(line));
     assert.equal(result.artifact, published);
+    // The review names its Chromium once, and the receipt records the same build.
+    const receipt = JSON.parse(await readFile(join(output, 'review.json'), 'utf8'));
+    assert.deepEqual(receipt.browser, result.browser);
+    assert.equal(receipt.browser.name, 'chromium');
+    assert.match(receipt.browser.version, /^\d+\.\d+\.\d+\.\d+$/);
+    assert.ok(existsSync(receipt.browser.path), receipt.browser.path);
+    assert.ok(['CHROMIUM_EXECUTABLE_PATH', 'pinned', 'installed', 'system'].includes(receipt.browser.source));
+    assert.equal(lines.length, 1);
+    assert.ok(lines[0]!.startsWith(`Chromium ${receipt.browser.version}: ${receipt.browser.path} (`), lines[0]);
     const { createHash } = await import('node:crypto');
     const artifact = await readFile(result.artifact);
     assert.equal(createHash('sha256').update(artifact).digest('hex'), result.artifactHash);
