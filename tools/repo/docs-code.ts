@@ -1,5 +1,5 @@
 // node tools/repo/docs-code.ts [--write]
-// Lists each code block in the README and the tutorial that prints a tutorial file, and whether it
+// Lists each code block in the README, the tutorial and the writing guide that prints a tutorial file, and whether it
 // matches the file; --write rewrites the blocks from the files (test/explain-tutorial.test.ts fails when they differ).
 import { DOCS, docBlocks, writeDocBlocks } from './lib/docs-code.ts';
 import { ROOT } from '../lib/explain-project.ts';
