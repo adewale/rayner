@@ -82,7 +82,7 @@ export const KEYED_MOTION_LIMITS = {
   /** ...and comes back to this share of it... */
   back: 0.9,
   /** ...in the same place (centre within `same` units, size within `same` units) with the same words and colours. */
-  same: 0.08,
+  same: 0.2,
   /** A token (a part passing through) travels at least this far (units) on one trip: its landing excuses a blink, and early words wait for it... */
   travel: 0.5,
   /** Early words: the token has at least this far (units) still to go when the words become readable... */
