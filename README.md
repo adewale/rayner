@@ -213,7 +213,7 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 
 ## Drawing pictures
 
-A picture is drawn from the model's state by a function you write, with [`rayner/kit`](docs/REFERENCE.md#kit): a type scale whose smallest size reads on a phone (`TYPE`, `MIN_TEXT`), spacing and strokes, the stage's colours by role (`tones(s)`), and `words`, `box`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `words` refuses a size under the phone floor. [`rayner/drawing`](docs/REFERENCE.md#drawing-kit) adds ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
+A picture is drawn from the model's state by a function you write, with [`rayner/kit`](docs/REFERENCE.md#kit): a type scale whose smallest size reads on a phone (`TYPE`), spacing and strokes, the stage's colours by role (`tones(s)`), and `words`, `box`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `words` refuses a size under the phone floor. [`rayner/drawing`](docs/REFERENCE.md#drawing-kit) adds ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
 
 ```ts
 import { keyedParts } from 'rayner/drawing';

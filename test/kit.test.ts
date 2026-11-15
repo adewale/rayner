@@ -17,7 +17,7 @@ import { stage } from '../explain/index.ts';
 import type { Stage } from '../explain/index.ts';
 import { choreograph } from '../explain/choreograph.ts';
 import { keyedParts } from '../explain/drawing.ts';
-import { MARGIN, MIN_TEXT, PLATE_HEIGHT, RADIUS, SPACE, STROKE, TYPE, addAll, beats, box, connector, flight, pass, plate, route, tones, words } from '../explain/kit.ts';
+import { MARGIN, PLATE_HEIGHT, RADIUS, SPACE, STROKE, TYPE, addAll, beats, box, connector, flight, pass, plate, route, tones, words } from '../explain/kit.ts';
 import * as poppy from '../scenes/explainers/lib/poppy-kit.ts';
 
 /** A stage to draw with, styled as `options` say, on a scene that has run. */
@@ -37,14 +37,13 @@ const drawn = (...parts: Mobject[]) => {
 test('the type scale has a phone-safe floor, and words refuses text under it', async () => {
   const s = await stageOf();
   assert.deepEqual(TYPE, { small: 0.56, label: 0.64, title: 0.8, display: 1.6 });
-  assert.equal(MIN_TEXT, TYPE.small);
   // 0.56 units on a 358 px phone stage, 16 units wide, is 12.5 px: above the review's 12 px floor.
-  assert.ok((MIN_TEXT * 358) / 16 >= 12);
+  assert.ok((TYPE.small * 358) / 16 >= 12);
   assert.ok(Object.values(SPACE).every((v) => Math.abs(v / 0.14 - Math.round(v / 0.14)) < 1e-9), 'spacing is in multiples of 0.14');
   assert.ok(STROKE.hair < STROKE.fine && STROKE.fine < STROKE.line && STROKE.line < STROKE.bold);
   assert.ok(RADIUS.sharp < RADIUS.small && RADIUS.small < RADIUS.panel && RADIUS.panel < RADIUS.round);
   assert.ok(MARGIN.right - MARGIN.left < 16 && MARGIN.top - MARGIN.bottom < 9, 'the margin lies inside the 16 × 9 stage');
-  assert.throws(() => words(s, 'too small', { size: 0.5 }), /words\(\): "too small" at 0\.5 units is under MIN_TEXT \(0\.56\)/);
+  assert.throws(() => words(s, 'too small', { size: 0.5 }), /words\(\): "too small" at 0\.5 units is under TYPE\.small \(0\.56\)/);
   assert.throws(() => words(s, 'not a size', { size: Number.NaN }), RangeError);
   const t = words(s, 'Unauthorized');
   assert.ok(t instanceof Text);
@@ -200,7 +199,7 @@ test('beats with no options replaces only the words that changed, and settles th
   assert.deepEqual(played.frames, (await frames((c) => poppy.beats(c, undefined, { fresh: [] }))).frames);
 });
 
-test('the tutorial\'s kit example runs as printed: keyed slots, the newest in use, words no smaller than MIN_TEXT', async () => {
+test('the tutorial\'s kit example runs as printed: keyed slots, the newest in use, words no smaller than TYPE.small', async () => {
   const doc = readFileSync(join(ROOT, 'docs/TUTORIAL.md'), 'utf8');
   const printed = /<!-- kit example, run by test\/kit\.test\.ts -->\n```ts\n([\s\S]*?)```/.exec(doc)?.[1];
   assert.ok(printed, 'docs/TUTORIAL.md prints the kit example');
@@ -219,7 +218,7 @@ test('the tutorial\'s kit example runs as printed: keyed slots, the newest in us
     assert.ok(part('LRU:shelf') instanceof Line);
     const texts = picture.family().filter((m): m is Text => m instanceof Text);
     assert.deepEqual(texts.map((t) => t.text), ['LRU', 'D', 'C', 'B']);
-    assert.ok(texts.every((t) => t.fontSize >= MIN_TEXT));
+    assert.ok(texts.every((t) => t.fontSize >= TYPE.small));
     // No two slots overlap, and every slot sits above the shelf.
     const boxes = ['D', 'C', 'B'].map((k) => part(`LRU:${k}:box`).box()!);
     for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i - 1]![2] < boxes[i]![0], 'slots stand apart');

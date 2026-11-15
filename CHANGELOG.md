@@ -32,7 +32,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Drawing kit and 3D
 
-- `rayner/kit` is the default way to draw a picture by hand: the type scale `TYPE` with its phone-safe floor `MIN_TEXT` (0.56 units, which `words()` will not go below), `STROKE`, `RADIUS`, `SPACE`, `MARGIN` and `PLATE_HEIGHT`; `tones(s)`, the stage's colours by role; `words`, `box`, `plate`, `connector` and `route`; `addAll`; and `beats`, `flight` and `pass`, transitions in which changed words are replaced and a token travels its route. The Poppy series' kit now builds on it: its measures, words, routes and transitions are the kit's, and its eight chapters draw the same pictures as before. [Kit](docs/REFERENCE.md#kit)
+- `rayner/kit` is the default way to draw a picture by hand: the type scale `TYPE`, whose `small` size is its phone-safe floor (0.56 units, which `words()` will not go below), `STROKE`, `RADIUS`, `SPACE`, `MARGIN` and `PLATE_HEIGHT`; `tones(s)`, the stage's colours by role; `words`, `box`, `plate`, `connector` and `route`; `addAll`; and `beats`, `flight` and `pass`, transitions in which changed words are replaced and a token travels its route. The Poppy series' kit now builds on it: its measures, words, routes and transitions are the kit's, and its eight chapters draw the same pictures as before. [Kit](docs/REFERENCE.md#kit)
 - `rayner/drawing` draws the parts explanations keep needing as keyed mobjects: `keyedParts`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow`, `bars`, `legend`, `callout`, `dimension`, `pin`, `emphasised`, and the panels `card` and `code`. Each takes the stage first, its content next and one options object (`at`, `size`, `key`). `table`, `stat`, `flow`, `bars` and `legend` require a `key`; `tile`, `dot`, `callout`, `dimension` and `pin` take one optionally. A keyed picture keys its parts under its key. `label` and `segment` take no `key`: key them with `keyed()`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
 - `table()` rows given as `{ key, cells }` keep their identity wherever they move; a duplicated row key or header is refused.
 - `emphasised(m, as)` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it.
@@ -95,7 +95,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Removed from the public API
 
-[The engine map](docs/ENGINE.md#public-names) gives the rule a public name meets.
+[The engine map](docs/ENGINE.md#public-names) gives the rule a public name meets: a subject explainer, a tutorial or a recipe uses it, or `test/public-names.json` records why it stays public, with the guide and test that teach it. The feature tour's use does not count, and Manim parity is not a reason ([what stays in the public API](docs/ENGINE.md#what-stays-in-the-public-api)); `Frame` and `palette` stay with recorded reasons.
 
 - The package exports its six entry points only. `rayner/lettering` is gone: import the `LetteringRequest` type from `rayner`.
 - Moved to `rayner/testing`: `traceScene`, `TraceSink`, `loadFonts`, `describeExplainer` and `withSettings`, and the types `Trace` and `StepRecord`. `CaseDescription` is `ScenarioDescription` there, and `findingsOf` is `diagramFindings`.

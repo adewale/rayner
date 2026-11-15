@@ -1,14 +1,15 @@
-// The export rule (docs/ENGINE.md, "Public names") as a test. Every value each entry point exports
-// needs a reason to be public: used (computed from the explainers, tutorial scenes and recipes that
-// import it), tooling (it lives in rayner/output or rayner/testing, and test/public-names.json says
-// who uses it outside a scene and for what) or taught (a guide section and a test, named in
-// test/public-names.json, which must exist and mention it). The
-// reference's engine features table and the skill's examples table are rendered from the same file.
+// The export rule (docs/ENGINE.md, "Public names" and "What stays in the public API") as a test. Every
+// value each entry point exports needs a reason to be public: used (computed from the subject explainers,
+// tutorial scenes, the tutorial's printed kit example and recipes that import it; the feature tour does
+// not count), tooling (it lives in rayner/output or rayner/testing, and test/public-names.json says who
+// uses it outside a scene and for what) or kept (test/public-names.json says why it stays public, and
+// names a guide section and a test, which must exist and mention it). The reference's engine features
+// table, the skill's examples table and the engine map's table of kept names are rendered from the same file.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
-import { ROOT, problems, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
+import { ROOT, classOf, problems, publicNames, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
 import type { Ledger } from '../tools/repo/lib/public-names.ts';
 import { UNDOCUMENTED, docsProblems, docsReport, documented } from '../tools/repo/lib/public-docs.ts';
 
@@ -31,7 +32,7 @@ test('the rule rejects a name with no reason, a broken guide or test, and an ent
     edit(l);
     return (await problems(l, ROOT, u)).join('\n');
   };
-  assert.match(await found((l) => delete l.names['rayner']!['Frame']), /Frame \(rayner\) has no reason to be public: no explainer, tutorial scene or recipe uses it/);
+  assert.match(await found((l) => delete l.names['rayner']!['Frame']), /Frame \(rayner\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it; .* or stop exporting it from src\/index\.ts/);
   assert.match(await found((l) => (l.names['rayner']!['Gone'] = { check: 'Views: x' })), /Gone \(rayner\) is in test\/public-names\.json but rayner does not export it/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { guide: 'docs/EMPHASIS.md#no-such-section', test: 'test/emphasis.test.ts' })), /docs\/EMPHASIS\.md has no section #no-such-section/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { guide: 'docs/EMPHASIS.md#circumscribe', test: 'test/emphasis.test.ts' })), /docs\/EMPHASIS\.md#circumscribe does not mention it/);
@@ -39,10 +40,50 @@ test('the rule rejects a name with no reason, a broken guide or test, and an ent
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { guide: 'docs/EMPHASIS.md#the-shapes', test: 'test/diff.test.ts' })), /test\/diff\.test\.ts does not mention it/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { guide: 'docs/EMPHASIS.md#the-shapes' })), /Brace \(rayner\): a name is taught by a guide section and a test, both/);
   assert.match(await found((l) => ((l.names['rayner']!['Scene'] = {} as Record<string, unknown>)['users'] = ['fork'])), /Scene \(rayner\): users is not part of a ledger entry/);
+  // A guide and a test show that a name works, not why it is public: an unused name keeps a written reason.
+  assert.match(await found((l) => delete l.names['rayner']!['Frame']!.reason), /Frame \(rayner\) has no reason to be public/);
   // Tooling is a written reason, not where a name lives.
   assert.match(await found((l) => delete l.names['rayner/testing']!['loadFonts']), /loadFonts \(rayner\/testing\) has no reason to be public: rayner\/testing is tooling, and test\/public-names\.json gives it no tooling reason/);
   assert.match(await found((l) => (l.names['rayner/output']!['renderFrame'] = { tooling: 'tools' })), /renderFrame \(rayner\/output\): its tooling reason must say who uses it outside a scene, and for what/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { tooling: 'a host page that draws braces around things' })), /Brace \(rayner\): only a name in rayner\/output or rayner\/testing is tooling/);
+});
+
+test('what stays in the public API: a subject user or a written reason, never the tour alone', async () => {
+  const exported = await publicNames();
+  const found = async (edit: (l: Ledger) => void, uu = u, exports = exported) => {
+    const l = copy();
+    edit(l);
+    return (await problems(l, ROOT, uu, exports)).join('\n');
+  };
+  // A new export with neither a user nor a reason fails, naming the ledger and the entry point's source to edit.
+  const plus = (entry: string, name: string) => new Map([...exported].map(([e, n]) => [e, e === entry ? [...n, name] : n]));
+  assert.match(await found(() => {}, u, plus('rayner/kit', 'newHelper')),
+    /newHelper \(rayner\/kit\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it; use it in one, give it a reason in test\/public-names\.json with the guide and test that teach it, or stop exporting it from explain\/kit\.ts/);
+  assert.match(await found(() => {}, u, plus('rayner/testing', 'newTool')),
+    /newTool \(rayner\/testing\) has no reason to be public: rayner\/testing is tooling, .* or stop exporting it from explain\/testing\.ts/);
+  // The feature tour's use does not count: palette, which only the tour uses, needs its reason.
+  assert.equal(classOf(u, 'rayner/explain', 'palette'), 'tour-only');
+  assert.equal(classOf(u, 'rayner', 'Frame'), 'unused');
+  assert.match(await found((l) => delete l.names['rayner/explain']!['palette']!.reason), /palette \(rayner\/explain\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it \(only the feature tour does, which does not count\)/);
+  const without = (name: string, keep: (user: string) => boolean) => ({ ...u, names: new Map([...u.names].map(([e, m]) => [e, new Map([...m].map(([n, users]) => [n, n === name ? new Set([...users].filter(keep)) : users]))])) });
+  const tourOnly = without('smooth', (x) => x === 'feature-tour');
+  assert.equal(classOf(tourOnly, 'rayner', 'smooth'), 'tour-only');
+  assert.match(await found(() => {}, tourOnly), /smooth \(rayner\) has no reason to be public: .*only the feature tour does/);
+  // The tutorial's printed kit example counts as a use, so tones needs no reason while it draws with it.
+  assert.equal(classOf(u, 'rayner/kit', 'tones'), 'used');
+  assert.match(await found(() => {}, without('tones', () => false)), /tones \(rayner\/kit\) has no reason to be public/);
+  // A reason says who needs the name and for what, never Manim parity, and comes with its guide and test.
+  const reason = (r: Record<string, string>) => (l: Ledger) => (l.names['rayner']!['Frame'] = r);
+  const taught = { guide: 'docs/CAMERA.md#what-it-is', test: 'test/camera.test.ts' };
+  assert.match(await found(reason({ reason: 'the camera', ...taught })), /Frame \(rayner\): its reason must say who needs it public/);
+  assert.match(await found(reason({ reason: 'Manim has a camera frame class, so authors porting a scene expect one here', ...taught })), /Frame \(rayner\): its reason leans on Manim, and Manim parity is not a reason to be public/);
+  assert.match(await found(reason({ reason: 'the class of every scene camera, which an author names as a type' })), /Frame \(rayner\): a name kept with a reason is taught by a guide section and run by a test/);
+  // A reason goes stale when a subject explainer uses the name: delete it.
+  assert.match(await found((l) => (l.names['rayner']!['Arc'] = { reason: 'arcs are drawn by scenes that show angles and orbits', guide: 'docs/REFERENCE.md#scene', test: 'test/core.test.ts' })), /Arc \(rayner\): seasons uses it, so it needs no written reason; delete its reason from test\/public-names\.json/);
+  assert.match(await found((l) => (l.names['rayner/testing']!['loadFonts']!.reason = 'an author test that draws text needs the fonts loaded first')), /loadFonts \(rayner\/testing\): a tooling name says why it is public in its tooling reason, not a reason/);
+  // this.frame.animate is a pattern, not a name: a scene on a stage moves the camera with s.focus.
+  const zoomed = { ...u, code: new Map([...u.code].map(([k, c]) => [k, k === 'seasons' ? c + '\nawait this.play(this.frame.animate.fit(sun));' : c])) };
+  assert.match(await found(() => {}, zoomed), /seasons moves the camera with frame\.animate on a stage; use s\.focus/);
 });
 
 test('the tables cannot claim what their scenes do not do', async () => {

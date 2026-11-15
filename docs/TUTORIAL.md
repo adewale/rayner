@@ -263,7 +263,7 @@ export function drawSlots(s: Stage, policy: string, cache: readonly string[], y:
 }
 ```
 
-- `words` sets text at one of the kit's four sizes, `TYPE.small` by default; anything smaller than `MIN_TEXT` is refused, because a phone could not read it.
+- `words` sets text at one of the kit's four sizes, `TYPE.small` by default; anything smaller is refused, because a phone could not read it.
 - `tones(s)` names the stage's colours by role: `soft` for secondary words, `idle` for what is not in use, `ink` for what is.
 - `box` returns two keyed parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
 - `connector` draws a line through points, with rounded corners when there are any. It is a `Line`, so `rayner check` fails one that crosses a label.

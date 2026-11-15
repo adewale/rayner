@@ -403,7 +403,7 @@ export class Composed extends Scene {
   }
 }
 
-import { TYPE, MIN_TEXT, SPACE, addAll, beats, box, connector, flight, plate, tones, words as kitWords } from 'rayner/kit';
+import { TYPE, SPACE, addAll, beats, box, connector, flight, plate, tones, words as kitWords } from 'rayner/kit';
 import type { Tones, WordsOptions, Beat } from 'rayner/kit';
 
 /** A picture drawn with the kit, and a transition between two of them in beats. */
@@ -416,6 +416,6 @@ export function kitPicture(s: Stage, used: string) {
   parts.add(connector(s, [[-3, 0], [3, 0]]), 'line');
   // @ts-expect-error box needs the key its parts are keyed under.
   box(s, 'unkeyed', {});
-  return { picture: parts.group(), floor: MIN_TEXT };
+  return { picture: parts.group(), floor: TYPE.small };
 }
 export const kitTransition = (c: Choreography): Beat => beats(c, flight(c, 'token', [[-6, 0]]), { fresh: ['token'] });
