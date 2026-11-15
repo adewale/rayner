@@ -46,13 +46,19 @@ export default class Conversations extends Scene<World, Shown> {
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
     const world = view(this, (w, sh) => drawWorld(w, s, sh), { place: false });
 
+    /**
+     * What a turn brings with it: the turn, and the two fields under "On the table" that say who wrote
+     * it, which wait for it to land. The heading, its rules and the fields' labels stay where they are,
+     * rather than blink out and back for a second at every message.
+     */
+    const SAID = ['turn', 'written:author.type:value', 'written:role:value'];
     /** A turn of speech grows out of its writer's mark and comes to rest on the table. */
     const spoken = (t: Transition<World, TableEvent>) => {
       const c = t.choreograph(world), seat = speakerAt(t.after);
-      if (!seat || !c.has('turn', 'to')) return beats(c, () => [], { fresh: ['turn', 'written:'] });
+      if (!seat || !c.has('turn', 'to')) return beats(c, () => [], { fresh: SAID });
       // It sets off a little way from its rest towards the writer's seat, so the copy never covers the seat's name.
       const [rx, ry] = c.to('turn').center(), from: Vec = [rx! + 0.3 * (seat[0] - rx!), ry! + 0.3 * (seat[1] - ry!)];
-      return beats(c, flight(c, 'turn', [from], { appear: 0.2, move: 0.5, leave: 0.2 }), { fresh: ['turn', 'written:'] });
+      return beats(c, flight(c, 'turn', [from], { appear: 0.2, move: 0.5, leave: 0.2 }), { fresh: SAID });
     };
     /** A part comes in from a point and stops where it rests. */
     const arrives = (c: Choreography, key: string, ...via: Vec[]) => (c.has(key, 'to') ? flight(c, key, via, { appear: 0.2, move: 0.9, leave: 0.2 }) : () => []);
@@ -73,10 +79,11 @@ export default class Conversations extends Scene<World, Shown> {
       const moved = (k: string) => {
         const a = c.from(k), b = c.to(k);
         if (a instanceof Text && b instanceof Text && a.text !== b.text) return true;
-        // A shift too small to see (the conversation's state panel settles 0.02 units) is morphed by rest(), not
-        // faded out and in: crossfading it would blink an unchanged label for a second (rayner check's keyed motion).
+        // A small shift (the state panel settles 0.02 units, the "On the table" block 0.1) is morphed by rest(), not
+        // faded out and in: crossfading it would blink an unchanged label for a second (rayner check's keyed motion,
+        // and filming the reflow). Only a part that moves for the composition, a unit or more, is cross-faded.
         const [ax, ay] = a.center(), [bx, by] = b.center();
-        return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.1;
+        return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.5;
       };
       for (const k of c.keys('from')) if (!c.has(k, 'to') || moved(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.25 }));
       for (const k of c.keys('to')) if (!c.has(k, 'from') || moved(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));
