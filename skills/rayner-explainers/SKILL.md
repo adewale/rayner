@@ -5,7 +5,7 @@ description: Author, check and publish Rayner explainers as reader-paced HTML em
 
 # Rayner explainers
 
-Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review. You are usually the writer: someone else named the system, its version and the question, and they will judge the result by the script's header and the page's receipt (what the model was checked against, and how). Make the receipt true before you make the page good.
+Rayner makes an explanation of what this version of this system does, drawn from a model checked against that system where it can be, with a short receipt the person who commissioned it can review. You are usually the writer: someone else named the system, its version and the question, and they will judge the result by the script's header and the page's receipt (what the model was checked against, and how). Make the receipt true before you make the page good.
 
 An explainer is one Rayner `Scene`. The CLI builds it into a step-through HTML page. It needs no server or MCP. Start with [Your first explainer](https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md) for a worked example: LRU versus MRU cache replacement, with its model tested against published examples. Read the [reference](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md) for the helper API and the checks, and [publishing](https://github.com/adewale/rayner/blob/main/docs/PUBLISHING.md) before you host a page.
 
