@@ -68,7 +68,7 @@ Outside authors use `rayner review scene.ts --out public/example.html`, with an 
 
 Keep the current validation record in CI and the generated `out/` artifacts. Commit a representative screenshot or a durable source oracle when it helps a reviewer; dated run transcripts and repeated receipts belong in CI or Git history, and older audit records are not a release gate.
 
-A test reads an explainer's steps from the scene, not from a copy of its list: `assertSteps` in `rayner/testing` fails unless the steps a test reads by name are there in order, whatever else the story gains or loses, and `test/lib/steps.ts` gives the repository's tests a trace's step ids (`idsOf`, on one path or the whole story) and a scene's (`stepIdsOf`). Pin the whole list only when the list is the point, as `explain-scenario-navigation.test.ts` does for a fixture whose every scenario must open at the same first step.
+A test reads an explainer's steps from the scene, not from a copy of its list: `assertSteps` in `rayner/testing` fails unless the steps a test reads by name are there in order, whatever else the story gains or loses, and `test/lib/steps.ts` gives the repository's tests a trace's step ids (`idsOf`, on one path or the whole story) and a scene's (`stepIdsOf`). Pin the whole list only when the list is the point.
 
 When consolidating tests, move every assertion to a named keeper and show that it rejects a deliberate defect. Keep independent values and endpoints, native paint, raster references, package checks and the full scenario inventory. [test/AGENTS.md](https://github.com/adewale/rayner/blob/main/test/AGENTS.md) records these rules. A test's name says what it asserts, and more runs do not make up for a missing input class or oracle.
 

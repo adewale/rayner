@@ -238,7 +238,7 @@ const cache = view(this, (st) => {
 });
 ```
 
-The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, words and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
+The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, `label` and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
 
 ## Add-ons: diagrams and lettering
 

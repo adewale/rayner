@@ -116,6 +116,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 - `Frame` and its fit options (`FrameFitOpts` in 0.1.0) are not exported: the camera is `scene.frame`. `palette` is not exported: name a style with the stage's `style` option, or give its colours with its `palette` option.
 - `ItalicText` is gone: write `new Text(text, { italic: true })`.
 - `resolveSettings` is internal: `withSettings` in `rayner/testing` refuses the values a page would.
+- Never in a release, and gone before 0.2.0: the entry point `rayner/kit`, whose measures, `tones`, `plate`, `connector`, `route`, `addAll` and transitions are in `rayner/drawing`, whose `box` is `tile`'s `raised` look, and whose `dot`, `segment` and `MIN_TEXT` are gone (draw a `Circle` or a `Line`; the floor is `TYPE.small`); the entry point `rayner/output`, whose `renderFrame`, `toSvgString` and `StringSink` are in `rayner` and whose other names are internal, as above; `jsonObject` and `InvariantSink` in `rayner/testing`; and `diagramResolverOf` in `rayner/explain` (measure a diagram with `Diagram.measure`).
 - Moved to `rayner/explain`: `view`, `View` (a type) and `ViewPlace`. `ViewMatch` is gone: a sync's `match` is a `Match`, from `rayner`. `Palette` comes from `rayner`, and `Card`, `CodeBlock`, `CardRow` and `CardOptions` from `rayner/drawing`.
 - Option types end in `Options` where they ended in `Opts` (`AnimationOptions`, `TextOptions`, `ViewOptions` and the rest). The code panel's options are `CodeBlockOptions`, apart from the engine `Code`'s `CodeOptions`.
 - Seeking by time is gone: `renderAt`, `SeekSink`, `indexScene`, `stepTime` and `SceneIndex`. Draw a frame with `renderFrame`. `SnapshotSink` is internal: `renderFrame` returns the scene at its frame.
@@ -150,10 +151,10 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Known limits
 
-- Each event a reader sends runs the scene again to the live step, which takes tens to a few hundred milliseconds.
-- `rayner review` does not visit a live step or send events through the served page.
+- The first press at a live step, and a press after Undo, Reset, Back or a link, runs the scene again to that step, which takes tens to a few hundred milliseconds. A press that extends the log plays only the new event ([the player](docs/MACHINES.md#the-player)).
+- `rayner review` opens a sample of each live step's states by their links (`?step=…&sent=…`): every state one press away, the nearest others until there are five, and the farthest. It does not press the event buttons.
 - Exploration stops at a machine's limit, 256 states by default, so ring-buffer's states are a sample.
-- Phone close-ups are not worked out for explored states.
+- After a press a phone shows the whole picture, with the live step's own close-ups one Next view away; no close-up is planned for an explored state itself.
 - The checks establish deterministic, readable pictures. They cannot establish that a caption is true, so test each model against its source.
 - Windows is not supported.
 
