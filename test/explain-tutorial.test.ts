@@ -163,11 +163,13 @@ test('`rayner check` fails a fresh blank explainer with what is left to write, i
   }
 });
 
-test('the tutorial\'s "Start your own" prints its command and the to-do list `rayner check` gives for it', async () => {
+test('the tutorial\'s "Start your own" prints the command whose to-do list docs/WRITING.md prints', async () => {
   const doc = readFileSync('docs/TUTORIAL.md', 'utf8');
   const section = doc.slice(doc.indexOf('## Start your own\n'), doc.indexOf('\n## Next'));
   const [, dir, question] = /^npx rayner init --blank (\S+) --question "([^"]+)"$/m.exec(section)!;
-  const printed = /```text\n([\s\S]*?)```/.exec(section)![1];
+  // explain-writing.test.ts holds WRITING.md's copy of the list to what check prints.
+  const writing = readFileSync('docs/WRITING.md', 'utf8');
+  const printed = /<!-- check: blank -->\n```text\n([\s\S]*?)```/.exec(writing)![1];
   const folder = await mkdtemp(join(tmpdir(), 'rayner-init-blank-doc-'));
   try {
     execFileSync(process.execPath, ['tools/explain.ts', 'init', '--blank', join(folder, dir!), '--question', question!], { stdio: 'pipe' });

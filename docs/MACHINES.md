@@ -3,7 +3,8 @@
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
 schedule, `rayner check` draws and checks every state those events can reach, and at the step
 where the machine last played the player gives the reader a button per event
-([the player](#the-player)). Ten explainers are machines ([the table](#ten-machines)).
+([the player](#the-player)). Eighteen explainers are machines: the ten in [the table](#ten-machines)
+and the eight chapters of the Poppy series.
 
 ## Making one
 
@@ -266,7 +267,7 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 At the step where a machine last played, the reader can drive it: one button per event under the
 step's caption, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
 gives the reader-facing contract: what the buttons say, how a refused event explains itself, what
-Undo, Reset and the keyboard do, and what a screen reader hears. Every one of the ten machines
+Undo, Reset and the keyboard do, and what a screen reader hears. Every one of the eighteen machines
 is live at its step, in every scenario that plays it (oauth-pkce without the attacker plays none).
 This section says how it works and why.
 
@@ -393,6 +394,8 @@ afresh (oauth-pkce's sign-in runs to its end first). The finish takes the event'
 - The [benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md) has not been re-run with the buttons.
 
 ## Ten machines
+
+The ten machines outside the Poppy series, whose eight chapters are machines too:
 
 | Explainer | Live at | State | Events | What is drawn from state | Explored |
 | --- | --- | --- | --- | --- | --- |

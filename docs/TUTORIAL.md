@@ -23,7 +23,7 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 ## Before you start
 
-You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows: from npm once it lists that version (`npm view rayner-cli versions`), and until then from archives built in a clone of this repository. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
+You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
 This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: Playwright's own build, another installed Playwright build or the Chrome or Chromium already on the machine ([Finding Chromium](REFERENCE.md#finding-chromium)). Only if none is found, install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
 
@@ -336,19 +336,15 @@ Read every step of every scenario this way. `npx rayner describe lru-mru/scene.t
 - Does the first step deliver what the title promises, and does the last step earn its conclusion in every scenario?
 - Does any sentence claim more than the sources say? Chou and DeWitt recommend MRU for a looping file only when it is too large to fit, which is why the loop's ending says so.
 
-## 9. Review and build
+## 9. Review and publish
 
 ```sh
-npx rayner review lru-mru/scene.ts
+npx rayner review lru-mru/scene.ts --out public/lru-mru.html
 ```
 
 `review` runs the checks, then opens every step of every scenario at phone and desktop widths in Chromium and saves screenshots in `out/review/lru-mru/`. Look at them yourself; a passing review shows that the pictures render, not that they explain.
 
-```sh
-npx rayner build lru-mru/scene.ts --out public/lru-mru.html
-```
-
-`build` does not repeat the checks. It writes the page, which needs no network, plus `lru-mru.html.headers.json` with the response headers your host must send, a receipt of input hashes and an optional `loader.js` that sizes an embedding iframe. [Publishing](PUBLISHING.md) covers hosting and embedding.
+With `--out`, a passing review keeps the page it reviewed: `public/lru-mru.html`, which needs no network, plus `lru-mru.html.headers.json` with the response headers your host must send, a receipt of input hashes and an optional `loader.js` that sizes an embedding iframe. Upload that page. `npx rayner build lru-mru/scene.ts --out public/lru-mru.html` writes the same files without the review, for a draft. [Publishing](PUBLISHING.md) covers hosting and embedding.
 
 ## Diagrams and lettering are add-ons
 
@@ -365,19 +361,11 @@ The tutorial edits a finished explainer. Writing your own is the same loop from 
 npx rayner init --blank sort-as-text --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
 ```
 
-It writes the four files of [step 2](#2-generate-the-explainer) with nothing decided. Every part still to write says `TODO:` and what goes there: each line of the script's intent header, the oracle test in `model.test.ts` (it fails until you replace it), and the words of the scene's one step, which draws the stub model's state as text. `model.ts` is a stub to replace with your system's state and rules. `rayner check` then fails with what is left, in the order to write it:
-
-```text
-rayner: This explainer still has placeholders, each marked TODO:. To do, in order:
-1. script.md: fill in the intent header: write Reader, Answer, Changed condition, Reader's own work, Leaves out, Check yourself question 1 and Why this explainer in place of each TODO
-2. script.md: write Checked against and Grounding: the real system model.test.ts compares the model with, and how (live, recorded, read or none, then the system and its version)
-3. model.test.ts fails: the model agrees with the real system (TODO: replace this placeholder with a comparison of the model against something real: a reference implementation run live, published test vectors, or a recorded run of the real system)
-4. scene.ts: step "start" still says TODO in its title, line and caption: draw the model's state and say what the picture shows
-```
+It writes the four files of [step 2](#2-generate-the-explainer) with nothing decided. Every part still to write says `TODO:` and what goes there: each line of the script's intent header, the oracle test in `model.test.ts` (it fails until you replace it), and the words of the scene's one step, which draws the stub model's state as text. `model.ts` is a stub to replace with your system's state and rules. `rayner check` then fails with a numbered list of what is left, in the order to write it: the intent header, its Checked against and Grounding lines, the oracle test, then the step ([Writing your own explainer](WRITING.md#2-start-from-a-blank-explainer) prints the list).
 
 Work down the list, rerunning `check`: plan the explainer as in [step 1](#1-plan-on-paper); name what the model is checked against and grade it; write the model and make its test compare it with the real system, as in [step 4](#4-check-the-model-against-the-source); then draw the picture from the model's state, as in [step 5](#5-read-the-scene). Once nothing says `TODO:`, the list is gone and `check` holds the explainer to the same checks as any other: some step must state the answer, the model test must pass, and every picture must read. [The skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) names an example to borrow the picture from.
 
-[Writing your own explainer](WRITING.md) works through this question from the list above to a reviewed page: how to choose a subject and an oracle, what `check` says at each stage, the failures a first draft runs into (a caption over 80 words, a label a phone cannot read, motion squeezed into too short a time), and what explainers have cost to make here.
+[Writing your own explainer](WRITING.md) works through this question from that list to a reviewed page: how to choose a subject and an oracle, what `check` says at each stage, the failures a first draft runs into (a caption over 80 words, a label a phone cannot read, motion squeezed into too short a time), and what explainers have cost to make here.
 
 ## Next
 

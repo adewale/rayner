@@ -333,7 +333,7 @@ Four facts make the code below readable:
 
 - Positions are in stage units. The stage is 16 wide and 9 high, the origin is its centre, and y goes up. `at: [0, 1.5]` is the middle of the stage, 1.5 units above centre.
 - The shapes come from the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`. `label` draws a line of words and `tile` draws a labelled box (`raised` gives it a filled body). `tones(s)` gives the stage's colours by role, such as `soft` for secondary words. `SPACE` holds the kit's spacings.
-- The kit's smallest type size is `TYPE.small`, which a phone can read, and `label` refuses anything smaller. Draw words with the kit and this is decided for you.
+- The kit's smallest type size is `TYPE.small`, which a phone can read, and `label` refuses anything smaller. Draw words with `label`, or with `tile` and `plate`, which use it, and this is decided for you; a card or code panel takes the size you give it.
 - Every part has a **key**, a name that says what the part is. `keyedParts()` collects parts under their keys, and `parts.group()` returns them as one group. Here each box is keyed by its number: `array:10`, `sorted:10`. When the state changes, Rayner matches parts by key, so a box whose number is still there slides to its new place. Without keys it would fade out and a copy would fade in somewhere else, and the reader could not follow which number went where.
 
 <!-- sort-as-text/picture.ts -->
@@ -683,7 +683,7 @@ What you hand to the person who commissioned the explainer is `script.md`, the p
 
 ## Who writes it, and who reviews it
 
-An explainer usually has two people behind it: one commissions and reviews it, and one writes it. In this repository the writers were agents. Every commit under `scenes/explainers/` is Claude's: the four by the repository's owner are squash merges of pull requests Claude wrote (#102, #103, #104 and #106). The owner commissioned the work and reviewed and merged it.
+An explainer usually has two people behind it: one commissions and reviews it, and one writes it. In this repository the writers were agents. Every commit under `scenes/explainers/` up to #107 is Claude's: the five by the repository's owner are squash merges of pull requests Claude wrote (#102, #103, #104, #106 and #107). The owner commissioned the work and reviewed and merged it.
 
 The review happens at five points, and the earlier ones are cheaper:
 

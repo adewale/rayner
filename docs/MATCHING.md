@@ -273,5 +273,5 @@ the glyph and git explainers put on screen.
   moving each code point's cell, keyed by its place in the word, to its place in its character.
 - [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): no matching transform of its
   own. Its views sync by shape (`match: 'shapes'`, keeping one row whole while another grows in)
-  and by index, and the counts it shows are read from the match evidence those syncs record
+  by index, and by text (`match: 'text'`, for the new tree and commit ids), and the counts it shows are read from the match evidence those syncs record
   in `scene.evidence`.
