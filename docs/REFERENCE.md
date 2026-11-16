@@ -789,13 +789,13 @@ These checks establish deterministic behaviour and readable pictures. They do no
 
 ### Add-ons
 
-The `rayner` command (the `rayner-cli` package) needs Node 24 and nothing else to `init`, `check`, `see`, `describe`, `build`, `snapshots`, `preview` and `shots` a scene that draws no Mermaid diagram and asks for no lettering: it then loads no Agentic Mermaid, no Playwright browser and no Python. `shots` draws its PNG with resvg, which `rayner-cli` installs. `review` opens the built page in Chromium, so it needs Chromium for every scene. It finds one as [Finding Chromium](#finding-chromium) describes; only if none is found, run `npx playwright-core install chromium` once, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium or Chrome executable.
+The `rayner` command, which comes with the `rayner` package, needs Node 24 and nothing else to `init`, `check`, `see`, `describe`, `build`, `snapshots`, `preview` and `shots` a scene that draws no Mermaid diagram and asks for no lettering: it then loads no Agentic Mermaid, no Playwright browser and no Python. `shots` draws its PNG with resvg, which the package installs. `review` opens the built page in Chromium, so it needs Chromium for every scene. It finds one as [Finding Chromium](#finding-chromium) describes; only if none is found, run `npx playwright-core install chromium` once, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium or Chrome executable.
 
 Two kinds of picture need an add-on, and only the scenes that draw them:
 
 | Add-on | A scene needs it when | Install | Without it |
 | --- | --- | --- | --- |
-| Diagrams | It shows a Mermaid diagram (`s.show`, `d.morph`) | `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, the optional peer dependencies of `rayner-cli`; and Chromium, to capture | Diagrams pinned in `scene.snapshots/` replay, natural-lettering ones included. A diagram the folder does not hold, or a `d.morph(spec, { ops })` whose edits must be replayed, fails with the scene, the diagram's first line and the install command. With the packages but no Chromium, capture fails saying how to install it |
+| Diagrams | It shows a Mermaid diagram (`s.show`, `d.morph`) | `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, the optional peer dependencies of `rayner`; and Chromium, to capture | Diagrams pinned in `scene.snapshots/` replay, natural-lettering ones included. A diagram the folder does not hold, or a `d.morph(spec, { ops })` whose edits must be replayed, fails with the scene, the diagram's first line and the install command. With the packages but no Chromium, capture fails saying how to install it |
 | Lettering | `meta.lettering` asks for scripts, faces, styles or maths beyond the embedded fonts | Python with fonttools, brotli, uharfbuzz and python-bidi, and the source fonts ([lettering](LETTERING.md)) | A committed `scene.lettering.json` replays. Capturing one, which `rayner snapshots` and `preview` do when it is missing or stale, fails naming what it needs |
 
 `rayner --help` prints the same list with the versions this release pins.
@@ -830,7 +830,7 @@ Removing a callout can reveal background ink and make it part of the automatic c
 
 The collection's reviewer (`npm run demos:review`) reads each scene's `scene.review.json` as `rayner review` does. Its parallel receipts include the `.review.json` files in their review fingerprint, so an older review cannot satisfy changed expectations. For a highlighted cell or boundary, name the outline's key with `paint: "stroke"`; checking its label does not prove that the outline exists.
 
-`rayner <command> <scene.ts | directory> [options]`. The command is the `rayner-cli` package, installed beside `rayner` at the same version ([the quick start](../README.md#quick-start): from npm once it lists that version, otherwise from archives built in a clone); in a checkout, run `npm run rayner -- <command> ...`. `rayner --help` prints the commands and Chromium setup instructions.
+`rayner <command> <scene.ts | directory> [options]`. The command comes with the `rayner` package ([the quick start](../README.md#quick-start): from npm once it lists that version, otherwise from the archive built in a clone); in a checkout, run `npm run rayner -- <command> ...`. `rayner --help` prints the commands and Chromium setup instructions.
 
 | Command | What it does |
 | --- | --- |
@@ -842,7 +842,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `build <scene>` | The page, its receipt, its header recipe and `loader.js` |
 | `shots <scene>` | A contact sheet of every step, as SVG and PNG |
 | `describe <scene>` | [`describeExplainer`](#describe) as JSON: every scenario and step, with words, state, what changed and the picture in words and as text |
-| `version` | Print the command's version (`rayner-cli`'s, which is also the version of `rayner` it requires); `--version` does the same |
+| `version` | Print the command's version, which is the `rayner` package's; `--version` does the same |
 | `help` | Print the commands and options; `--help`, or no command, does the same |
 | `see <scene> [step]` | One step of [`describeExplainer`](#describe)'s description: its resting picture drawn as text, then its title, caption, the picture in words and what it changed in `scene.state` (`key: before → after`). The last step by default; needs no browser, so an agent can read a scene from a terminal |
 
@@ -991,7 +991,7 @@ Under the same rule as the resize message (framed, with a valid `parentOrigin`; 
 
 ## Repository scripts
 
-The scripts below, and the tools under `tools/repo/` they run, belong to this repository: neither `rayner` nor `rayner-cli` ships them, and `test/package-boundary.test.ts` checks both archives for them. `tools/` outside `tools/repo/` (and the oracles in `tools/oracle/`) is the `rayner` command.
+The scripts below, and the tools under `tools/repo/` they run, belong to this repository: the `rayner` package does not ship them, and `test/package-boundary.test.ts` checks its archive for them. `tools/` outside `tools/repo/` (and the oracles in `tools/oracle/`) is the `rayner` command.
 
 | Script | What it does |
 | --- | --- |
@@ -1006,9 +1006,10 @@ The scripts below, and the tools under `tools/repo/` they run, belong to this re
 | `node tools/repo/live-cost.ts` | What a press of a live machine's button costs, in Chromium on built pages and in Node; `--cpu 4` throttles, `--presses n`, `--explainers a,b` ([the player](MACHINES.md#the-player)) |
 | `npm run bench` | Manual interleaved BASE/HEAD browser measurements; skips identical built pages and reports insufficient samples as inconclusive |
 | `npm run site:export -- <site-root>` | Copy the built pages, posters and loader under `<site-root>/projects/rayner` (`--path` changes it), with every step's preview picture of the default scenario as `<id>/<step>.png` (the 960 × 540 still centred on a 1080 × 540 canvas of the stage's paper, since X shows these cards at 2:1; a palette PNG of at most 256 colours taken from the picture, each channel within a few levels of the render), and write their `_headers` block to `out/site-headers.txt`. `--origin https://example.org` also writes a share page per step whose name is letters, digits, `-` and `_`, `<id>/<step>.html`, which sends a reader to the player at `<id>?step=<step>`, and adds the same link-preview tags to each explainer page, for its gallery tile's step: `description`, Open Graph (`og:type`, `og:title`, `og:description`, `og:url`, `og:image`, `og:image:width`, `og:image:height`, `og:image:alt`) and Twitter card (`twitter:card` = `summary_large_image`, `twitter:title`, cut at a word to the 70 characters X shows, `twitter:description`, `twitter:image`, `twitter:image:alt`), with absolute URLs, and `<meta name="rayner:share" content="<origin><path>/<id>/">`, which the player's Copy link reads; then it checks every page has each tag once and each picture exists at the declared size. Link previews come from the HTML a crawler fetches, and a static host sends the same HTML for every `?step=`, so a step needs its own URL to preview. Each explainer's `<id>.json` is copied from `demos:build`'s `describe.json`. The export fails before writing anything if a scene's code, its folder or the engine changed since `demos:build` ran. `demos:build` and `site:export` refuse two page ids that are equal ignoring case, and a scene whose `meta.id` is not its catalog id. Several collections can share one site, each at its own `--path`: each export replaces only its own marked section of the site's `_headers` and `llms.txt` and pins those sections in its `deployment.json` (version 2). `--index none` writes no generic gallery at `<path>/index.html`; `--llms-heading` names the collection's `llms.txt` section ([Publishing](PUBLISHING.md#several-collections-on-one-site)) |
-| `npm run pack:smoke` | Pack `rayner` and `rayner-cli`, install `rayner` alone (no dependencies) and then both into a fresh project with diagram capture and with PNG output, check that nothing but the entry points can be imported, type-check `test/consumer/consumer.ts` and every explainer and recipe (engine imports rewritten to the entry points) against the packed declarations, build an outside scene; `EXPLAIN_BROWSER=1` adds installed diagram capture and starter authoring |
-| `npm run build:lib` | Compile the library's `dist/` (runs on `npm pack`) |
-| `npm run build:cli` | Build `rayner-cli` into `cli/`: the command bundled into `cli/dist/tools/`, with the player and capture tools beside it (runs on `npm pack` in `cli/`) |
+| `npm run pack:smoke` | Pack `rayner`, install the archive into a fresh project with a plain `npm install`, check that the command runs, that the diagram add-on stays out until the command asks for it by name, that nothing but the entry points can be imported and nothing outside `files` ships, then add the add-on, type-check `test/consumer/consumer.ts` and every explainer and recipe (engine imports rewritten to the entry points) against the packed declarations, build an outside scene; `EXPLAIN_BROWSER=1` adds installed diagram capture and starter authoring |
+| `npm run build` | `build:lib`, then `build:command`; npm runs it on `npm pack` |
+| `npm run build:lib` | Compile the library's `dist/` |
+| `npm run build:command` | Bundle the command into `dist/tools/`, beside the library's compiled modules, which it imports by relative path |
 | `npm run fonts` | Regenerate `src/font-data.ts` from Inter, JetBrains Mono and the Noto numeral subsets, reproducibly (needs `fonttools` and `brotli`) |
 | `npm run fonts:lettering` | Regenerate `vendor/lettering/`, the Latin Extended, Greek and Cyrillic of the same Inter and JetBrains Mono that [lettering on request](#lettering-on-request) cuts from; leaves `src/font-data.ts` alone (needs `fonttools` and `brotli`) |
 

@@ -23,7 +23,7 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 ## Before you start
 
-You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
+You need Node 24 or later. In your project, install the `rayner` package, as [the quick start](../README.md#quick-start) shows. Your scenes import `rayner`, and the same package provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
 This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: Playwright's own build, another installed Playwright build or the Chrome or Chromium already on the machine ([Finding Chromium](REFERENCE.md#finding-chromium)). Only if none is found, install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
 

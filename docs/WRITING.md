@@ -6,7 +6,7 @@ You can follow it without having read the tutorial. Do each step in a terminal a
 
 What the guide prints is checked. The finished explainer is in [`scenes/tutorial/sort-as-text/`](../scenes/tutorial/sort-as-text/), and every file this guide prints is that folder's file, with package imports. Every output is what the command printed. [`test/explain-writing.test.ts`](https://github.com/adewale/rayner/blob/main/test/explain-writing.test.ts), part of `npm test`, builds each stage in a fresh folder, runs the guide's `init` and `check` commands there and fails when what they print differs from this page. [`test/browser/explain-writing-review.test.ts`](https://github.com/adewale/rayner/blob/main/test/browser/explain-writing-review.test.ts) does the same for `review` in Chromium (with `EXPLAIN_BROWSER=1`).
 
-You need what [the tutorial's "Before you start"](TUTORIAL.md#before-you-start) lists: Node 24 or later, and `rayner` and `rayner-cli` installed at the same version, as [the quick start](../README.md#quick-start) shows. Only the last command, `rayner review`, also needs Chromium.
+You need what [the tutorial's "Before you start"](TUTORIAL.md#before-you-start) lists: Node 24 or later, and the `rayner` package installed, as [the quick start](../README.md#quick-start) shows. Only the last command, `rayner review`, also needs Chromium.
 
 ## What you will build
 

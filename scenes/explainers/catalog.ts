@@ -29,7 +29,7 @@ export const PRODUCT = {
    * project page reads it there). It names package.json's version, so a release revisits it
    * (test/explain-gallery.test.ts); say only what npm actually has (`npm view rayner versions`).
    */
-  install: 'Rayner 0.2.0, which these guides describe, is not on npm yet: npm has rayner 0.1.0, an earlier single-package release, and no rayner-cli. Build both packages from the repository, as the quick start shows.',
+  install: 'Rayner 0.2.0, which these guides describe, is not on npm yet: npm has rayner 0.1.0, an earlier release. Build the package from the repository, as the quick start shows.',
   installGuide: 'https://github.com/adewale/rayner#quick-start',
   entry: {
     id: 'bloom-filter',

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Explicit distribution gate: pack rayner and rayner-cli, install both in a fresh author project,
-// run the installed command there. The library is also installed alone, to show it needs nothing.
+// Explicit distribution gate: pack rayner, install the one archive in a fresh author project with a
+// plain `npm install`, and run the installed command there.
 import { mkdtemp, mkdir, writeFile, readFile, copyFile, cp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, dirname, basename } from 'node:path';
+import { join, resolve, dirname, basename, posix } from 'node:path';
 import { parseArgs } from 'node:util';
 import { existsSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
-import { integrity as integrityOf } from '../lib/hash.ts';
+import { integrity as integrityOf, listTree, relativePosix } from '../lib/hash.ts';
 import { options as authoredOptions, typeCheckAuthored } from './lib/authored-types.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
@@ -26,96 +26,89 @@ async function waitUntil(predicate: () => boolean, message: () => string, meanwh
 }
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
-/** The two packages, in install order: the library, then the command that depends on it. */
-const PACKAGES = [{ name: 'rayner', directory: '.' }, { name: 'rayner-cli', directory: 'cli' }] as const;
 try {
-  const { values } = parseArgs({ options: { archive: { type: 'string' }, 'cli-archive': { type: 'string' }, manifest: { type: 'string' } } });
-  if ((values.archive || values['cli-archive']) && values.manifest) throw new Error('Choose --archive and --cli-archive, or --manifest');
-  if (!values.archive !== !values['cli-archive']) throw new Error('Give both --archive (rayner) and --cli-archive (rayner-cli)');
-  type Packed = { name: string; filename: string; integrity: string };
-  let candidate: { sourceCommit: string; packages: Packed[] } | undefined;
+  const { values } = parseArgs({ options: { archive: { type: 'string' }, manifest: { type: 'string' } } });
+  if (values.archive && values.manifest) throw new Error('Choose --archive or --manifest');
+  let candidate: { name: string; filename: string; integrity: string; sourceCommit: string } | undefined;
   if (values.manifest) {
     candidate = JSON.parse(await readFile(resolve(values.manifest), 'utf8'));
-    assert.ok(candidate && Array.isArray(candidate.packages), 'invalid candidate manifest');
-    assert.deepEqual(candidate.packages.map((p) => p.name), PACKAGES.map((p) => p.name), 'the candidate holds rayner and rayner-cli');
-    for (const p of candidate.packages)
-      assert.ok(typeof p.filename === 'string' && basename(p.filename) === p.filename && p.filename.endsWith('.tgz'), 'invalid candidate filename');
+    assert.ok(candidate && typeof candidate === 'object', 'invalid candidate manifest');
+    assert.equal(candidate.name, 'rayner', 'the candidate is the rayner package');
+    assert.ok(typeof candidate.filename === 'string' && basename(candidate.filename) === candidate.filename && candidate.filename.endsWith('.tgz'), 'invalid candidate filename');
     const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
     assert.equal(candidate.sourceCommit, commit, 'candidate comes from another source commit');
   }
-  const archives: string[] = [];
-  for (const [i, p] of PACKAGES.entries()) {
-    const selected = candidate ? join(dirname(resolve(values.manifest!)), candidate.packages[i]!.filename) : i === 0 ? values.archive : values['cli-archive'];
-    if (selected) archives.push(resolve(selected));
-    else {
-      // npm pack runs each package's prepack: build:lib for rayner, tools/repo/build-cli.ts for rayner-cli.
-      const packed = await run('npm', ['pack', '--json', '--pack-destination', folder], { cwd: join(ROOT, p.directory), maxBuffer: 4 * 1024 * 1024 });
-      archives.push(join(folder, JSON.parse(packed.stdout)[0].filename));
-    }
+  let archive: string;
+  if (candidate) archive = join(dirname(resolve(values.manifest!)), candidate.filename);
+  else if (values.archive) archive = resolve(values.archive);
+  else {
+    // npm pack runs prepack, `npm run build`: the library (build:lib), then the command (build:command).
+    const packed = await run('npm', ['pack', '--json', '--pack-destination', folder], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
+    archive = join(folder, JSON.parse(packed.stdout)[0].filename);
   }
-  const [archive, cliArchive] = archives as [string, string];
   const integrity = async (file: string) => integrityOf(await readFile(file));
   const checkCandidate = async (when: string) => {
-    if (candidate) for (const [i, file] of archives.entries()) assert.equal(await integrity(file), candidate.packages[i]!.integrity, `candidate archive integrity mismatch${when}`);
+    if (candidate) assert.equal(await integrity(archive), candidate.integrity, `candidate archive integrity mismatch${when}`);
   };
   await checkCandidate('');
-  const { version } = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+  const source = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+  const { version } = source;
 
-  // The library alone: no dependencies, so its install is the package and nothing else, and every
-  // entry point loads from it.
-  const alone = join(folder, 'library-alone');
-  await mkdir(alone);
-  await writeFile(join(alone, 'package.json'), JSON.stringify({ name: 'library-alone', private: true, type: 'module' }));
-  await run('npm', ['install', '--no-audit', '--no-fund', archive], { cwd: alone, maxBuffer: 4 * 1024 * 1024 });
-  assert.deepEqual((await readdir(join(alone, 'node_modules'))).filter((name) => !name.startsWith('.')), ['rayner'], 'rayner installs no dependencies');
-  const library = JSON.parse(await readFile(join(alone, 'node_modules/rayner/package.json'), 'utf8'));
-  assert.equal(library.version, version);
-  assert.equal(library.dependencies, undefined, 'rayner has no runtime dependencies');
-  assert.equal(library.bin, undefined, 'the rayner command ships in rayner-cli');
-  for (const entry of entryPoints(ROOT).keys())
-    await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: alone });
-  // Nothing else: the compiled modules behind the entry points are not importable, by an export
-  // pattern or by the private specifier rayner-cli's own resolve hook answers (tools/installed.ts).
-  const unreachable = async (cwd: string) => {
-    // rayner/kit was folded into rayner/drawing before any release, so it is not an entry point either.
-    for (const [specifier, code] of [['rayner/internal/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/dist/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/kit', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['#rayner/src/scene.js', 'ERR_PACKAGE_IMPORT_NOT_DEFINED']] as const) {
-      const tried = await run(process.execPath, ['--input-type=module', '-e', `try{await import(${JSON.stringify(specifier)});console.log('imported')}catch(e){console.log(e.code)}`], { cwd });
-      assert.equal(tried.stdout.trim(), code, `an outside project imports ${specifier}`);
-    }
-  };
-  await unreachable(alone);
-  // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
-  for (const file of ['tools', 'app', 'dist/tools', 'integrations', 'dist/integrations', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering', 'vendor/glyph.js', 'vendor/glyph.pin.json', 'vendor/font-data-sfnt.json'])
-    assert.ok(!existsSync(join(alone, 'node_modules/rayner', file)), `rayner ships ${file}`);
-  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'explain/diagram-snapshot.ts', 'explain/diagrams.ts', 'dist/vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
-    assert.ok(existsSync(join(alone, 'node_modules/rayner', file)), `rayner is missing ${file}`);
-
-  await writeFile(
-    join(folder, 'package.json'),
-    JSON.stringify({ name: 'outside-author', private: true, type: 'module' }),
-  );
-  // Both archives at once: rayner-cli's exact rayner dependency is satisfied by the rayner archive.
-  await run('npm', ['install', '--no-audit', '--no-fund', archive, cliArchive], {
-    cwd: folder,
-    maxBuffer: 4 * 1024 * 1024,
-  });
-  const cli = join(folder, 'node_modules/rayner-cli/dist/tools/explain.js');
+  // A plain install of the one archive: the library, the command and the command's dependencies,
+  // and neither add-on, whose packages are optional peers that npm leaves out until an author asks.
+  await writeFile(join(folder, 'package.json'), JSON.stringify({ name: 'outside-author', private: true, type: 'module' }));
+  await run('npm', ['install', '--no-audit', '--no-fund', archive], { cwd: folder, maxBuffer: 4 * 1024 * 1024 });
+  const installed = join(folder, 'node_modules/rayner');
+  const installedManifest = JSON.parse(await readFile(join(installed, 'package.json'), 'utf8'));
+  assert.equal(installedManifest.version, version);
+  assert.deepEqual(installedManifest.bin, { rayner: 'dist/tools/explain.js' }, 'the package carries the rayner command');
+  assert.deepEqual(installedManifest.dependencies, source.dependencies, 'the archive declares the dependencies the checkout pins');
+  assert.deepEqual(Object.keys(installedManifest.peerDependencies).sort(), ['agentic-mermaid', 'svgpath']);
+  for (const name of Object.keys(installedManifest.peerDependencies)) {
+    assert.deepEqual(installedManifest.peerDependenciesMeta?.[name], { optional: true }, `${name} is an optional peer`);
+    assert.ok(!existsSync(join(folder, 'node_modules', name)), `a plain install brings ${name}`);
+  }
+  // PNG and browser tools ship in the plain install: they are dependencies.
+  for (const name of Object.keys(installedManifest.dependencies)) assert.ok(existsSync(join(folder, 'node_modules', name)), `a plain install is missing ${name}`);
+  const cli = join(installed, 'dist/tools/explain.js');
   const bin = join(folder, 'node_modules/.bin/rayner');
+  // The command works straight after the install, from npm's bin link.
   assert.ok((await run(bin, ['--help'], { cwd: folder })).stdout.startsWith(`Rayner ${version} (Node 24+)`));
   assert.equal((await run(bin, ['--version'], { cwd: folder })).stdout.trim(), version);
-  const installed = join(folder, 'node_modules/rayner'), command = join(folder, 'node_modules/rayner-cli');
-  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, version);
-  const commandManifest = JSON.parse(await readFile(join(command, 'package.json'), 'utf8'));
-  assert.equal(commandManifest.version, version);
-  assert.equal(commandManifest.dependencies.rayner, version, 'rayner-cli requires rayner at exactly its own version');
-  assert.ok(!existsSync(join(command, 'node_modules/rayner')), 'one rayner: the command uses the author\'s');
-  // PNG and browser tools ship in the default authoring install; the diagram add-on's packages are
-  // optional peers, which npm leaves out until an author installs them.
-  assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
-  assert.ok(existsSync(join(folder, 'node_modules/playwright-core')));
-  for (const name of Object.keys(commandManifest.peerDependencies ?? {}))
-    assert.ok(!existsSync(join(folder, 'node_modules', name)), `the default authoring install brings ${name}`);
-  assert.deepEqual(Object.keys(commandManifest.peerDependencies).sort(), ['agentic-mermaid', 'svgpath']);
+  for (const entry of entryPoints(ROOT).keys())
+    await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: folder });
+  // Nothing else: the compiled modules behind the entry points, and the command, are not importable.
+  // rayner/kit was folded into rayner/drawing before any release, so it is not an entry point either.
+  for (const specifier of ['rayner/internal/src/scene.js', 'rayner/dist/src/scene.js', 'rayner/dist/tools/explain.js', 'rayner/kit']) {
+    const tried = await run(process.execPath, ['--input-type=module', '-e', `try{await import(${JSON.stringify(specifier)});console.log('imported')}catch(e){console.log(e.code)}`], { cwd: folder });
+    assert.equal(tried.stdout.trim(), 'ERR_PACKAGE_PATH_NOT_EXPORTED', `an outside project imports ${specifier}`);
+  }
+  // Nothing outside "files" ships (npm adds package.json and the README itself), and nothing from the
+  // repository's own tooling, tests, catalog or build output.
+  const shipped = (await listTree(installed)).filter((e) => e.isFile()).map((e) => relativePosix(installed, join(e.parentPath, e.name)));
+  const listed = (installedManifest.files as string[]).map((pattern) => pattern.endsWith('*.md') ? (f: string) => posix.dirname(f) === posix.dirname(pattern) && f.endsWith('.md') : (f: string) => f === pattern || f.startsWith(pattern + '/'));
+  assert.deepEqual(shipped.filter((f) => !['package.json', 'README.md'].includes(f) && !listed.some((matches) => matches(f))), [], 'the archive ships only what "files" lists');
+  assert.deepEqual(shipped.filter((f) => /^(?:tools\/(?:repo|lib|oracle)\/|test\/|scenes\/explainers\/|bench\/|specs\/|out\/|cli\/|integrations\/|dist\/integrations\/)/.test(f) || /\.test\.ts$/.test(f) && !f.startsWith('scenes/tutorial/')), [],
+    'the archive ships no repository-only file');
+  // What the library needs, for scenes, hosts and snapshot replay, and what the command reads at run time.
+  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'explain/diagram-snapshot.ts', 'explain/diagrams.ts', 'dist/vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE',
+    'dist/tools/explain.js', 'app/embed.ts', 'app/embed-audio.ts', 'app/embed-audio.css', 'app/loader.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh',
+    'vendor/glyph-math.js', 'vendor/font-data-sfnt.json', 'vendor/glyph.pin.json', 'vendor/lettering/inter.woff2', 'vendor/licenses/LatinModernMath-GUST.txt', 'scenes/tutorial/lru-mru/scene.ts'])
+    assert.ok(shipped.includes(file), `the archive is missing ${file}`);
+  // The shaper ships once, beside the compiled modules that import it.
+  assert.ok(!shipped.includes('vendor/glyph.js'), 'the archive ships the shaper twice');
+  // One engine: the command's chunks are in dist/tools/ and reach the library only through its compiled
+  // modules beside them (the entry points, the two internal barrels and the shaper), never a copy.
+  const chunks = shipped.filter((f) => f.startsWith('dist/tools/'));
+  assert.ok(chunks.every((f) => posix.dirname(f) === 'dist/tools' && f.endsWith('.js')), 'the command is JavaScript chunks directly in dist/tools/');
+  const reached = new Set<string>();
+  for (const chunk of chunks)
+    for (const [, specifier] of (await readFile(join(installed, chunk), 'utf8')).matchAll(/(?:from|import\()\s*"(\.\.\/[^"]+)"/g))
+      reached.add(posix.join('dist/tools', specifier!));
+  const library = Object.values(installedManifest.exports as Record<string, { default: string }>).map((t) => t.default.replace(/^\.\//, ''));
+  assert.deepEqual([...reached].filter((f) => !library.includes(f) && !['dist/src/internal.js', 'dist/explain/internal.js', 'dist/vendor/glyph.js'].includes(f)), [], 'the command reaches the library through its entry points, internal barrels and shaper only');
+  for (const f of ['dist/src/index.js', 'dist/src/internal.js', 'dist/explain/internal.js']) assert.ok(reached.has(f), `the command imports ${f}`);
+  for (const f of reached) assert.ok(shipped.includes(f), `the command imports ${f}, which the archive does not ship`);
   // Copy the real authoring examples into the outside project, each folder whole (its scene,
   // model and picture modules). Engine imports use the installed package; other imports keep
   // their relative paths, so a dependency outside the explainer's folder still fails.
@@ -150,7 +143,7 @@ try {
   // is refused with the line that installs it, and pinned natural diagrams (font-metrics) replay.
   await mkdir(join(folder, 'drawn'));
   await writeFile(join(folder, 'drawn/scene.ts'), `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Drawn extends Scene{static meta={id:'drawn',title:'One diagram'};async construct(){const s=stage(this);await this.step('one',{caption:'A diagram from Mermaid source.'});await s.show({source:'graph LR\\nA --> B'});}}`);
-  const addOn = Object.entries(commandManifest.peerDependencies as Record<string, string>).map(([name, range]) => `${name}@${range}`);
+  const addOn = Object.entries(installedManifest.peerDependencies as Record<string, string>).map(([name, range]) => `${name}@${range}`);
   const refused = await run(process.execPath, [cli, 'check', 'drawn'], { cwd: folder }).then(() => undefined, (error: { stderr: string }) => error);
   assert.ok(refused, 'a diagram to capture without the diagram add-on is refused');
   assert.match(refused.stderr, /capturing the diagram "graph LR", which scene\.snapshots\/ does not hold, needs the diagram add-on/);
@@ -163,8 +156,6 @@ try {
   });
   // The collection's own tests import Agentic Mermaid, and they type-check below: install the add-on now.
   await run('npm', ['install', '--no-audit', '--no-fund', '--save-dev', ...addOn], { cwd: folder, maxBuffer: 4 * 1024 * 1024 });
-  for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'vendor/glyph-math.js', 'vendor/font-data-sfnt.json', 'vendor/glyph.pin.json', 'vendor/lettering/inter.woff2', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
-    assert.ok(existsSync(join(command, file)), `rayner-cli is missing ${file}`);
   // Public-API extension recipes must work from the installed archive too.
   await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
   const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
@@ -183,8 +174,6 @@ try {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
-  // With the command installed beside it too, which reaches the compiled modules through its own hook.
-  await unreachable(folder);
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
@@ -196,7 +185,9 @@ try {
 
   await run(process.execPath, [cli, 'init', 'first'], { cwd: folder });
   // The starter is the tutorial's LRU/MRU explainer. Its model test runs as the tutorial says,
-  // and it draws no diagram, so it checks without a browser.
+  // and it draws no diagram, so it checks without a browser. check takes the scene to be the export
+  // that extends the command's own Scene class, so it passes only if the scene and the command
+  // loaded one engine.
   await run(process.execPath, ['--test', 'first/model.test.ts'], { cwd: folder });
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // Evidence references must resolve in the author's project, not the installed package.
@@ -458,7 +449,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with PNG authoring and without the diagram add-on, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, the blank starter type-checked and its to-do list, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: one tested archive installed plainly, the command working from its bin link with PNG authoring and without the diagram add-on (an optional peer), its entry points the only modules it exports and nothing outside its files, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, the blank starter type-checked and its to-do list, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine shared by the command and its scenes' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',

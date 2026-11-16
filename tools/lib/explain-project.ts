@@ -22,12 +22,12 @@ import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';
 import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
-import { COMPILED, GLYPH, LIB_ROOT, ROOT } from './roots.ts';
+import { COMPILED, GLYPH, ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 import { listTree, relativePosix, sha256 } from './hash.ts';
 import { diagramAddOn, diagramName } from './addons.ts';
 
-export { LIB_ROOT, ROOT };
+export { ROOT };
 /** SHA-256, hex (tools/lib/hash.ts). */
 export const hash = sha256;
 /**
@@ -65,29 +65,24 @@ export function engineAlias(node = false, outlines = false): Plugin {
       b.onResolve({ filter: /.*/ }, (args) => {
         let file: string | undefined;
         const entry = entryPoints().get(args.path);
-        if (entry) file = join(LIB_ROOT, entry + '.ts');
+        if (entry) file = join(ROOT, entry + '.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|extras)\/(.+)\.js$/);
           // The library's sources import its shaper beside them; it ships once, beside the compiled modules.
-          if (!node && absolute === join(LIB_ROOT, 'vendor/glyph.js')) return { path: GLYPH };
-          if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
-          else
-            // The player (app/) ships with the command and reaches the engine by relative paths,
-            // so its imports land beside it; the engine itself is the library's.
-            for (const base of new Set([LIB_ROOT, ROOT])) {
-              const local = relativePosix(base, absolute);
-              if (local.startsWith('src/') || local.startsWith('explain/') || local.startsWith('extras/')) {
-                file = join(LIB_ROOT, local);
-                break;
-              }
-            }
+          if (!node && absolute === join(ROOT, 'vendor/glyph.js')) return { path: GLYPH };
+          if (compiled) file = join(ROOT, compiled[1]!, compiled[2]! + '.ts');
+          else {
+            // The player (app/) and the engine's own sources reach the engine by relative paths.
+            const local = relativePosix(ROOT, absolute);
+            if (local.startsWith('src/') || local.startsWith('explain/') || local.startsWith('extras/')) file = join(ROOT, local);
+          }
         }
         if (file) {
           if (!node) return { path: file };
           // The checkout runs source; the installed JavaScript CLI shares the compiled runtime.
           const canonical = COMPILED
-            ? join(LIB_ROOT, 'dist', relative(LIB_ROOT, file).replace(/\.ts$/, '.js'))
+            ? join(ROOT, 'dist', relative(ROOT, file).replace(/\.ts$/, '.js'))
             : file;
           return { path: pathToFileURL(canonical).href, external: true };
         }
@@ -115,7 +110,7 @@ export async function importAuthored(file: string): Promise<{ module: Record<str
   // The scene's code, whatever folders the checkout and the scene are in: engine imports are
   // external, so their file URLs are the only paths in it.
   const code = result.outputFiles[0]!.text,
-    sourceHash = hash(code.replaceAll(pathToFileURL(LIB_ROOT).href, '<rayner>/').replaceAll(dirname(file), '<author>'));
+    sourceHash = hash(code.replaceAll(pathToFileURL(ROOT).href, '<rayner>/').replaceAll(dirname(file), '<author>'));
   const folder = join(tmpdir(), 'rayner-explain');
   await mkdir(folder, { recursive: true });
   const output = join(folder, hash(code) + '.mjs');

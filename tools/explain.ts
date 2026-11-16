@@ -6,15 +6,15 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
 import { collectProject, defaultScenario, sceneSlug } from './lib/explain-project.ts';
-import { cliManifest } from './lib/roots.ts';
+import { manifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { BLANK_FILES, MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, blankStarter, packageImports } from './lib/explain-init.ts';
 import { DIAGRAM_PACKAGES, installCommand, missingPackage } from './lib/addons.ts';
 
 // Authoring packages, grouped for installation error messages: the diagram add-on's optional peers,
-// then the browser and PNG dependencies rayner-cli installs itself.
+// then the browser and PNG dependencies the package installs itself.
 const GROUPS: readonly (readonly string[])[] = [DIAGRAM_PACKAGES, ['playwright-core'], ['@resvg/resvg-js']];
-const pkg = cliManifest;
+const pkg = manifest;
 const HELP = `Rayner ${pkg.version} (Node 24+)
 
 Usage: rayner <command> <scene.ts | directory> [options]
@@ -243,7 +243,7 @@ export function watchAndRebuild(folder: string, out: string, rebuild: () => Prom
   });
   return { watcher, run };
 }
-/** Run the command line, reporting a failure on stderr with exit code 1 (tools/installed.ts runs it in the installed command). */
+/** Run the command line, reporting a failure on stderr with exit code 1 (the installed command, dist/tools/explain.js, runs it too). */
 export const run = (): Promise<void> =>
   main().catch((error) => {
     // Diagnose an incomplete authoring install with the pinned dependency versions.

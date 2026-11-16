@@ -18,7 +18,7 @@ import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { renderFrame, toSvgString } from '../../src/index.ts';
 import { InvariantSink, jsonObject } from '../../src/internal.ts';
-import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
+import { ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
 import { checkedAgainstFiles, compareAnswers, placeholderTodo, runModelTest } from './explain-evidence.ts';
 import { READ_PX, closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import type { Box, EndedStep, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
@@ -766,7 +766,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
 export async function bareRuntime(project: Project, plugins: Plugin[] = []): Promise<(values: Settings) => Promise<{ trace: unknown; svg: string }>> {
   const contents = await sceneEntry(project, { target: 'bare' });
   const b = await build({
-    stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
+    stdin: { contents, resolveDir: ROOT, loader: 'ts' },
     bundle: true,
     format: 'iife',
     globalName: 'bare',
