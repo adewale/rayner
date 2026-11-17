@@ -79,7 +79,7 @@ export function engineAlias(node = false, outlines = false): Plugin {
           }
         }
         if (file) {
-          if (!node) return { path: file };
+          if (!node) return { path: file, sideEffects: false };
           // The checkout runs source; the installed JavaScript CLI shares the compiled runtime.
           const canonical = COMPILED
             ? join(ROOT, 'dist', relative(ROOT, file).replace(/\.ts$/, '.js'))
