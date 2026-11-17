@@ -17,7 +17,7 @@ It depends on esbuild, TypeScript, Playwright and resvg, at exact versions, for 
 
 ## Validate the archive
 
-Use Node 24 and a clean checkout of the release commit. Install the optional Chromium, Python and font dependencies listed in the CI workflow and [lettering guide](LETTERING.md), then run:
+Use Node 24 and a clean checkout of the release commit. Review failed scheduled property campaigns using [failure triage](TESTING.md#triage-a-failed-random-campaign); record the repair or explicit release disposition of each unresolved failure. A later green fixed-seed run does not close a random counterexample. Install the optional Chromium, Python and font dependencies listed in the CI workflow and [lettering guide](LETTERING.md), then run:
 
 ```sh
 npm ci

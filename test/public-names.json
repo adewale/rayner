@@ -31,7 +31,7 @@
         "check": "Views: a draw that reads a state of another shape throws, which counts as reading its state, so a draw that narrows with having is held to the state it draws"
       },
       "Machine": {
-        "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
+        "check": "Machines: each explored state, within the machine's limit, is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
       },
       "refuse": {
         "check": "Machines: a bound that stops an event the model refuses anyway fails"
@@ -412,7 +412,7 @@
     {
       "explaining": "A model the reader could drive with events",
       "start": "`scenes/tutorial/door` (what `rayner init --machine` writes), `statecharts` (the frother)",
-      "shows": "A `Machine` over the model's step, refusals with reasons, a live last step; `rayner check` draws every reachable state",
+      "shows": "A `Machine` over the model's step, refusals with reasons, a live last step; `rayner check` draws states up to the exploration limit",
       "scenes": [
         "tutorial/door",
         "statecharts"

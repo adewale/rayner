@@ -1,7 +1,7 @@
 # Machines: a model driven by events
 
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
-schedule, `rayner check` draws and checks every state those events can reach, and at the step
+schedule, `rayner check` draws and checks states up to the machine's exploration limit (256 per origin by default), and at the step
 where the machine last played the player gives the reader a button per event
 ([the player](#the-player)). Eighteen explainers are machines: the ten in [the table](#ten-machines)
 and the eight chapters of the Poppy series.
@@ -207,8 +207,8 @@ last played in, the stage the reader saw it on, by the player's own run (`runLiv
 there, while that run can still play. A machine that never played is explored on a fresh run of
 the scene as it ends. A machine whose
 views are not on that stage is reported, since its states could not be checked. Exploration
-visits every state breadth first from `start`. When the machine's state at that step is not one
-of those and some event moves it, exploration also visits every state reachable from there, since
+visits states breadth first from `start`. When the machine's state at that step is not one
+of those and some event moves it, exploration also visits states reachable from there, since
 the player lets the reader send events from there. Each origin visits up to `limit` states. Each state is redrawn as a resting
 picture, and fails if it
 
@@ -334,8 +334,7 @@ live states by their links, at 390 and 1180 px, and check each as they check a r
 pictures one press away are the ones every reader who touches a button sees; breadth first keeps
 each link the shortest that reaches its state, so a failure names the fewest events; and the
 farthest state is where a story's machine ends up (a full ring, the tenth request, both responses
-landed), the picture most likely to crowd. Exploration has already drawn every reachable state in
-Node; this is the served page's evidence for a bounded sample. For the nine machines that is 107 states over 21 live steps and every scenario, 214
+landed), the picture most likely to crowd. Node exploration is itself bounded by the machine's limit; served-page review visits a further bounded sample. For the nine machines that is 107 states over 21 live steps and every scenario, 214
 visits: the catalog review of those nine explainers took 7 min 13 s, 181 s of it the live states
 (about a minute for each of CI's three shards), and ring-buffer's `rayner review` went from 44 s
 to 75 s. The first state at each width opens as a fresh load of its link and the rest through the

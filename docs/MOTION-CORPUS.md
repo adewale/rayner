@@ -101,6 +101,16 @@ Measured on 2026-11-15, focused runs, the catalog as of this page. Before: 3 of 
 | flicker | 4 | 2 | 3 |
 | **all** | **59** | **3** | **26** |
 
+## What this score establishes
+
+The change from 3/59 to 26/59 is coverage of these reconstructed historical mutations. It is not a measured 44% detection rate for arbitrary animation defects, and the 33 misses are not 33 known defects still present in the current catalog. The examples share one eight-chapter subject and drawing kit, were selected from defects older checks missed, and were used to tune the new rules. There is no independent held-out sample here.
+
+Of the 59 entries, 24 directly reverse a fix and 35 adapt an old defect to later source. The edit-applicability test proves the mutation still changes code, not that it still reproduces the intended visible defect; some misses now cross nothing in the current layout. The score also counts any finding absent from the baseline as a hit, even if it names a different problem from the historical one. The full regression test preserves the 26 named hits, so a new hit cannot compensate for losing an old one; its fast sample covers three detector kinds. Those tests omit baseline runs on the assumption that the separate catalog gate is clean. The reporting command runs baselines and subtracts their findings.
+
+The 23 additional hits are 19 **covers**, 3 **small words**, and 1 **flicker**; the earlier 3 were 1 **jump** and 2 **flicker**. There are no early-words hits in this corpus. The result-before-cause entry counted as caught is detected as a jump. The mechanical work left includes glyph dissolution, occlusion by drawings rather than readable labels, and engine paint-order defects outside this scene-mutation corpus. Timing and narrative causality need authored meaning or editorial review; shortening every long transition would not establish either.
+
+For future measurements, retain affected-frame evidence showing each mutation still depicts its intended defect, associate acceptable rule/transition/part findings with it, and report baseline-subtracted results. Add independently discovered cases prospectively. Keep semantic and pacing review alongside these mechanical checks. [The follow-up review](https://github.com/adewale/rayner/blob/main/docs/evidence/review-2026-11-17.md) separates those recommendations from changes already verified.
+
 ## Why the misses are missed
 
 The 33 misses fall into five groups (the table gives each entry's):

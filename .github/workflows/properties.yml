@@ -56,4 +56,22 @@ jobs:
       - run: npx playwright-core install --with-deps --only-shell chromium
       - run: npm run check          # emits dist/, which some tests read
       # The check job's full step, from this run's seed; a failed property prints the command that replays it.
-      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts
+      - name: Expanded properties
+        id: properties
+        shell: bash
+        run: |
+          set -o pipefail
+          FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts 2>&1 | tee property-tests.log
+      - name: Retain failed campaign and replay commands
+        if: failure() && steps.properties.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: property-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: property-tests.log
+          retention-days: 30
+      - name: Point to failure triage
+        if: failure() && steps.properties.outcome == 'failure'
+        shell: bash
+        run: |
+          echo 'Expanded properties failed. Download the retained log and replay the printed counterexample command.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Before release, classify and resolve the failure using docs/TESTING.md#triage-a-failed-random-campaign. A green fixed-seed run does not close this campaign.' >> "$GITHUB_STEP_SUMMARY"

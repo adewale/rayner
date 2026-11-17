@@ -51,7 +51,7 @@ test('the rule rejects a name with no reason, a broken guide or test, and an ent
   assert.match(await unused((l) => (l.names['rayner']!['Unused'] = { guide: 'docs/CAMERA.md#what-it-is', test: 'test/camera.test.ts' })), /Unused \(rayner\) has no reason to be public/);
   // Tooling is a written reason, not where a name lives.
   assert.match(await found((l) => delete l.names['rayner/testing']!['loadFonts']), /loadFonts \(rayner\/testing\) has no reason to be public: rayner\/testing is tooling, and test\/public-names\.json gives it no tooling reason/);
-  assert.match(await found((l) => (l.names['rayner/testing']!['loadFonts'] = { tooling: 'tools' })), /loadFonts \(rayner\/testing\): its tooling reason must say who uses it outside a scene, and for what/);
+  assert.match(await found((l) => (l.names['rayner/testing']!['loadFonts'] = { tooling: ' ' })), /loadFonts \(rayner\/testing\): its tooling reason must not be empty/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { tooling: 'a host page that draws braces around things' })), /Brace \(rayner\): only a name in rayner\/testing is tooling/);
 });
 
@@ -82,15 +82,25 @@ test('what stays in the public API: a user or a written reason', async () => {
   // The tutorial's printed kit example counts as a use, so tones needs no reason while it draws with it.
   assert.equal(classOf(u, 'rayner/drawing', 'tones'), 'used');
   assert.match(await found(() => {}, without('tones', () => false)), /tones \(rayner\/drawing\) has no reason to be public/);
-  // A reason says who needs the name and for what, never Manim parity, and comes with its guide and test.
+  // A written rationale is reviewed for meaning; neither word counts nor a source name decide it.
   const plusUnused = plus('rayner', 'Unused');
   const reason = (r: Record<string, string>) => (l: Ledger) => (l.names['rayner']!['Unused'] = r);
   const taught = { guide: 'docs/CAMERA.md#what-it-is', test: 'test/camera.test.ts' };
-  assert.match(await found(reason({ reason: 'the camera', ...taught }), u, plusUnused), /Unused \(rayner\): its reason must say who needs it public/);
-  assert.match(await found(reason({ reason: 'Manim has a camera frame class, so authors porting a scene expect one here', ...taught }), u, plusUnused), /Unused \(rayner\): its reason leans on Manim, and Manim parity is not a reason to be public/);
+  // A concise rationale can cite an upstream and survives a name gaining its first user.
+  const rationale = (l: Ledger) => {
+    l.names['rayner']!['Brace'] = { reason: 'Manim ports', guide: 'docs/EMPHASIS.md#the-shapes', test: 'test/emphasis.test.ts' };
+    // The synthetic no-user case must not retain a lookup claiming an example uses Brace.
+    l.lookup = l.lookup.filter((row) => !row.names.includes('Brace'));
+  };
+  assert.equal(await found(rationale, without('Brace', () => false)), '');
+  assert.equal(await found(rationale), '');
+  const retained = copy();
+  rationale(retained);
+  assert.ok(!rendered(retained, ROOT, u).get(join(ROOT, 'docs/ENGINE.md'))!.includes('Manim ports'), 'a used name with rationale is not an unused exception');
+  assert.equal(await found((l) => (l.names['rayner']!['Brace'] = { reason: 'Group annotations' })), '', 'used APIs may retain rationale without extra ledger ceremony');
+  assert.equal(await found((l) => (l.names['rayner/testing']!['loadFonts'] = { tooling: 'Font setup' })), '');
+  assert.match(await found(reason({ reason: ' ', ...taught }), u, plusUnused), /Unused \(rayner\): its reason must not be empty/);
   assert.match(await found(reason({ reason: 'the class of every scene camera, which an author names as a type' }), u, plusUnused), /Unused \(rayner\): a name kept with a reason is taught by a guide section and run by a test/);
-  // A reason goes stale when a subject explainer uses the name: delete it.
-  assert.match(await found((l) => (l.names['rayner']!['Arc'] = { reason: 'arcs are drawn by scenes that show angles and orbits', guide: 'docs/REFERENCE.md#scene', test: 'test/core.test.ts' })), /Arc \(rayner\): seasons uses it, so it needs no written reason; delete its reason from test\/public-names\.json/);
   assert.match(await found((l) => (l.names['rayner/testing']!['loadFonts']!.reason = 'an author test that draws text needs the fonts loaded first')), /loadFonts \(rayner\/testing\): a tooling name says why it is public in its tooling reason, not a reason/);
   // this.frame.animate is a pattern, not a name: a scene on a stage moves the camera with s.focus.
   const zoomed = { ...u, code: new Map([...u.code].map(([k, c]) => [k, k === 'seasons' ? c + '\nawait this.play(this.frame.animate.fit(sun));' : c])) };

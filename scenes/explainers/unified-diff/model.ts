@@ -4,9 +4,11 @@
 // and moves outward one line at a time, down first, then up.
 // It follows Git 2.43's apply.c (find_pos and apply_one_fragment) for a patch to one text file,
 // with Git's defaults. Its limits: every old-side line must match exactly (no -C, no fuzz, no
-// --ignore-whitespace, no --3way, no --reject, no -R); no "\ No newline at end of file" marker,
+// --ignore-whitespace, no --3way, no --reject, no --allow-overlap, no -R); no "\ No newline at end of file" marker,
 // binary patch, rename, mode change or file creation; hunks are taken in order. `git apply` writes
-// nothing unless every hunk fits, so a refused patch leaves the file as it was. Other tools place
+// nothing unless every hunk fits, and a later hunk cannot reuse an earlier hunk's postimage,
+// including its unchanged context (Git's LINE_PATCHED rule). A refused patch leaves the file as
+// it was. Other tools place
 // hunks differently: patch(1) accepts a hunk with some of its context missing.
 
 /** A hunk of a unified diff, numbered as its header numbers it: what parseUnifiedDiff returns. */
@@ -42,7 +44,7 @@ export interface Search { tried: number[]; at: number | null }
  * one further up, two down, two up, and so on to both ends of the file. A hunk that starts at line 1
  * is tried only at the top, and one with no context after its last change only at the bottom.
  */
-export function search(file: readonly string[], h: Hunk, start: number): Search {
+export function search(file: readonly string[], h: Hunk, start: number, patched: readonly boolean[] = []): Search {
   const old = oldSide(h), trailing = h.ops.length - 1 - h.ops.findLastIndex((op) => op !== '=');
   const atTop = h.oldStart <= 1, atBottom = trailing === 0;
   // Git counts lines from 0 and lets a search start anywhere up to the end of the file.
@@ -56,7 +58,7 @@ export function search(file: readonly string[], h: Hunk, start: number): Search 
   for (let i = 0; ; i++) {
     if (possible(current)) {
       tried.push(current + 1);
-      if (fits(file, h, current + 1)) return { tried, at: current + 1 };
+      if (!old.some((_, i) => patched[current + i]) && fits(file, h, current + 1)) return { tried, at: current + 1 };
     }
     for (;;) {
       if (back === 0 && forth === file.length) return { tried, at: null };
@@ -77,19 +79,22 @@ export interface Placement { at: number; offset: number; tried: number[] }
 /** What applying a patch gives: the new file and each hunk's place, or the hunk that fits nowhere. */
 export type Applied =
   | { ok: true; file: string[]; placements: Placement[] }
-  | { ok: false; failed: number; line: number; tried: number[] };
+  | { ok: false; failed: number; line: number; tried: number[]; placements?: Placement[] };
 
 /**
  * Apply every hunk in order. Each is looked for from its new-side start, since the hunks before it
- * have already changed the file. If one fits nowhere, nothing is applied.
+ * have already changed the file. Their postimages, including unchanged context, cannot be used
+ * again by a later hunk (Git's default, without --allow-overlap). If one fits nowhere, nothing is applied.
  */
 export function apply(file: readonly string[], hunks: readonly Hunk[]): Applied {
   let now = [...file];
+  let patched = file.map(() => false);
   const placements: Placement[] = [];
   for (const [i, h] of hunks.entries()) {
-    const start = h.newStart || 1, found = search(now, h, start);
+    const start = h.newStart || 1, found = search(now, h, start, patched);
     // Git names the hunk's old-side line when it gives up.
-    if (found.at === null) return { ok: false, failed: i, line: h.oldStart, tried: found.tried };
+    if (found.at === null) return { ok: false, failed: i, line: h.oldStart, tried: found.tried, ...(placements.length ? { placements } : {}) };
+    patched = [...patched.slice(0, found.at - 1), ...newSide(h).map(() => true), ...patched.slice(found.at - 1 + oldSide(h).length)];
     now = [...now.slice(0, found.at - 1), ...newSide(h), ...now.slice(found.at - 1 + oldSide(h).length)];
     placements.push({ at: found.at, offset: found.at - start, tried: found.tried });
   }
@@ -98,8 +103,8 @@ export function apply(file: readonly string[], hunks: readonly Hunk[]): Applied 
 
 /** What `git apply -v` says on standard error, after its "Checking patch" line. */
 export function report(result: Applied, name: string, searched: readonly string[] = []): string[] {
-  if (!result.ok) return ['error: while searching for:', ...searched, '', `error: patch failed: ${name}:${result.line}`, `error: ${name}: patch does not apply`];
-  const moved = result.placements.flatMap((p, i) => (p.offset ? [`Hunk #${i + 1} succeeded at ${p.at} (offset ${p.offset} line${Math.abs(p.offset) === 1 ? '' : 's'}).`] : []));
+  const moved = (result.placements ?? []).flatMap((p, i) => (p.offset ? [`Hunk #${i + 1} succeeded at ${p.at} (offset ${p.offset} line${Math.abs(p.offset) === 1 ? '' : 's'}).`] : []));
+  if (!result.ok) return [...moved, 'error: while searching for:', ...searched, '', `error: patch failed: ${name}:${result.line}`, `error: ${name}: patch does not apply`];
   return [...moved, `Applied patch ${name} cleanly.`];
 }
 
