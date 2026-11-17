@@ -44,8 +44,8 @@ export const options = {
  * folder's tests) and recipes/ from `root` into `project`/authored, engine imports rewritten to the
  * package's entry points, and type-check them with `tsc` against the rayner installed in `project`.
  * Scenes see no Node types; their tests and the recipes run in Node, so they see Node's, from
- * `root`'s @types/node. The tests' own packages are the project's: Agentic Mermaid comes with
- * rayner-cli, and fast-check, which an author adds for property tests, is linked from `root`.
+ * `root`'s @types/node. The tests' own packages are the project's: Agentic Mermaid is the diagram
+ * add-on, which the project installs, and fast-check, which an author adds for property tests, is linked from `root`.
  * Throws with tsc's report on an error.
  */
 export async function typeCheckAuthored(root: string, project: string, tsc: string): Promise<{ scenes: number; tests: number; recipes: number }> {

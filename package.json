@@ -4,14 +4,15 @@
   "type": "module",
   "scripts": {
     "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/repo/copy-vendor.ts",
-    "build:cli": "node tools/repo/build-cli.ts",
+    "build:command": "node tools/repo/build-command.ts",
+    "build": "npm run build:lib && npm run build:command",
     "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
     "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
     "fonts": "tools/repo/fonts.sh",
     "fonts:lettering": "tools/repo/lettering-fonts.sh",
     "fonts:lettering-outlines": "bash tools/lettering-outline-fonts.sh",
     "check": "tsc -b && node tools/repo/copy-vendor.ts && tsc -p test/consumer/tsconfig.json",
-    "prepack": "npm run build:lib",
+    "prepack": "npm run build",
     "rayner": "node tools/explain.ts",
     "demos:build": "node tools/repo/explain-demos.ts",
     "demos:check": "node tools/repo/explain-demos.ts --check",
@@ -25,16 +26,30 @@
     "bench": "node tools/repo/bench.ts",
     "recipes": "node recipes/render.ts"
   },
+  "dependencies": {
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3",
+    "playwright-core": "1.64.1",
+    "@resvg/resvg-js": "2.6.2"
+  },
+  "peerDependencies": {
+    "agentic-mermaid": "0.5.1",
+    "svgpath": "2.6.0"
+  },
+  "peerDependenciesMeta": {
+    "agentic-mermaid": {
+      "optional": true
+    },
+    "svgpath": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "@resvg/resvg-js": "2.6.2",
     "@types/node": "24.19.2",
     "agentic-mermaid": "0.5.1",
-    "esbuild": "0.25.12",
     "fast-check": "4.10.2",
-    "playwright-core": "1.64.1",
     "shiki": "4.5.0",
-    "svgpath": "2.6.0",
-    "typescript": "5.9.3"
+    "svgpath": "2.6.0"
   },
   "description": "Technical explainers drawn from a tested TypeScript model, each step's pictures checked against its state. Read step by step or explore in the player, from one portable HTML page.",
   "exports": {
@@ -63,6 +78,9 @@
       "default": "./dist/explain/testing.js"
     }
   },
+  "bin": {
+    "rayner": "dist/tools/explain.js"
+  },
   "author": "Ade Oshineye (https://github.com/adewale)",
   "license": "MIT",
   "sideEffects": false,
@@ -73,16 +91,25 @@
     "dist/extras",
     "dist/vendor",
     "dist/recipes",
+    "dist/tools",
     "src",
     "explain",
     "extras",
+    "app",
+    "tools/lettering.py",
+    "tools/lettering-requirements.txt",
+    "tools/lettering-outline-fonts.sh",
+    "vendor/glyph.d.ts",
+    "vendor/glyph-math.js",
+    "vendor/font-data-sfnt.json",
+    "vendor/glyph.pin.json",
+    "vendor/lettering",
+    "vendor/licenses",
     "docs/*.md",
     "FAQ.md",
     "skills",
     "scenes/tutorial",
     "recipes",
-    "vendor/glyph.d.ts",
-    "vendor/licenses",
     "LICENSE",
     "CHANGELOG.md"
   ],

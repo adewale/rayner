@@ -10,7 +10,7 @@ import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/inter
 import type { SnapshotStore } from '../../explain/index.ts';
 import { pageFaces } from './explain-lettering.ts';
 import { pageSnapshots } from './page-snapshots.ts';
-import { LIB_ROOT, ROOT } from './roots.ts';
+import { ROOT } from './roots.ts';
 
 /** The player's page: mounts the scene on #content, then marks it ready. */
 export interface PageEntry {
@@ -78,7 +78,7 @@ export function shippedScenario(project: Project, scenario: Project['scenarios']
  * subset-lettered scene puts its faces in place before anything shapes text.
  */
 export async function sceneEntry(project: Project, entry: PageEntry | BareEntry): Promise<string> {
-  const lib = (path: string) => JSON.stringify(join(LIB_ROOT, path));
+  const lib = (path: string) => JSON.stringify(join(ROOT, path));
   const outline = shippedOutlines(project);
   const author = entry.target === 'page'
     ? `import Original from 'virtual:author';`

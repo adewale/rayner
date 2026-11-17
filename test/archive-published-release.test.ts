@@ -11,21 +11,20 @@ const script = new URL('../tools/repo/archive-published-release.ts', import.meta
 type Release = {id: number; tag_name: string; draft: boolean; assets: unknown[]};
 const draft = (id = 5): Release => ({id, tag_name: 'v0.1.0', draft: true, assets: []});
 
-async function attempt(releases: Release[], mode = '', env = {}, split = false) {
+async function attempt(releases: Release[], mode = '', env = {}, gate: 'tools' | 'tools/repo' = 'tools') {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-archive-guard-'));
   try {
     const bin = join(folder, 'bin'), calls = join(folder, 'calls.jsonl'), state = join(folder, 'releases.json');
     await mkdir(bin); await mkdir(join(folder, 'tools'));
     await writeFile(join(bin, 'package.json'), '{"type":"commonjs"}');
     await writeFile(join(folder, 'package.json'), JSON.stringify({name: 'rayner', version: '0.1.0', type: 'module'}));
-    // Before 0.2.0 a version is rayner alone, its gate in tools/; from 0.2.0, rayner and rayner-cli, the gate in tools/repo/.
-    const smoke = split ? 'tools/repo/explain-package-smoke.ts' : 'tools/explain-package-smoke.ts';
+    // Every version is one package, rayner; its gate is in tools/ before 0.2.0 and in tools/repo/ from 0.2.0.
+    const smoke = `${gate}/explain-package-smoke.ts`;
     await mkdir(join(folder, 'tools/repo'), {recursive: true});
-    if (split) { await mkdir(join(folder, 'cli')); await writeFile(join(folder, 'cli/package.json'), JSON.stringify({name: 'rayner-cli', version: '0.1.0', type: 'module'})); }
     await writeFile(join(folder, smoke), "import fs from 'node:fs';fs.writeFileSync(process.env.ARCHIVE_SMOKE_ARGS,JSON.stringify(process.argv.slice(2)));console.log('Installed package gates passed.');\n");
     await writeFile(state, JSON.stringify(releases));
     const bytes = (name: string) => Buffer.from(`original public npm archive of ${name}`);
-    const integrity = Object.fromEntries(['rayner', 'rayner-cli'].map(name => [name, 'sha512-' + createHash('sha512').update(bytes(name)).digest('base64')]));
+    const integrity = Object.fromEntries(['rayner'].map(name => [name, 'sha512-' + createHash('sha512').update(bytes(name)).digest('base64')]));
     // Only these executables can serve git/npm/gh requests. No actual credential,
     // npm publication, release mutation or remote connection is available here.
     const common = `const fs=require('node:fs'),path=require('node:path');const args=process.argv.slice(2),mode=process.env.ARCHIVE_MODE;fs.appendFileSync(process.env.ARCHIVE_CALLS,JSON.stringify({command:NAME,args})+'\\n');`;
@@ -95,20 +94,17 @@ test('retrospective archival retains original source and archive guards without 
   assert.deepEqual(result.recorded.filter(c => c.command === 'git').map(c => c.args[0]), ['rev-parse', 'rev-parse', 'status', 'status']);
 });
 
-test('from 0.2.0 retrospective archival validates and preserves rayner and rayner-cli together', async () => {
-  const result = await attempt([], '', {}, true);
-  assert.equal(result.code, 0, result.stderr);
-  assert.deepEqual(result.recorded.filter(c => c.command === 'npm').map(c => c.args.slice(0, 2)),
-    [['view', 'rayner@0.1.0'], ['pack', 'rayner@0.1.0'], ['view', 'rayner-cli@0.1.0'], ['pack', 'rayner-cli@0.1.0']]);
-  assert.equal(result.smoked?.[0], '--archive');
-  assert.ok(result.smoked?.[1]?.endsWith('rayner-0.1.0.tgz'));
-  assert.equal(result.smoked?.[2], '--cli-archive');
-  assert.ok(result.smoked?.[3]?.endsWith('rayner-cli-0.1.0.tgz'));
-  const upload = writes(result).find(c => c.args[1] === 'upload')!;
-  assert.ok(upload.args.some(p => p.endsWith('/rayner-0.1.0.tgz')) && upload.args.some(p => p.endsWith('/rayner-cli-0.1.0.tgz')), 'both archives are preserved');
-  const corrupt = await attempt([], 'corrupt-rayner-cli', {}, true);
-  assert.notEqual(corrupt.code, 0); assert.match(corrupt.stderr, /retain the original npm bytes of rayner-cli/); assert.deepEqual(writes(corrupt), []);
-  const legacy = await attempt([]);
-  assert.equal(legacy.code, 0, legacy.stderr);
-  assert.deepEqual(legacy.smoked?.length, 2, 'before 0.2.0 the gate installs rayner alone');
+test('retrospective archival asks npm for rayner alone and runs the tagged source\'s own gate, in tools/repo/ from 0.2.0, on that one archive', async () => {
+  for (const gate of ['tools', 'tools/repo'] as const) {
+    const result = await attempt([], '', {}, gate);
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(result.recorded.filter(c => c.command === 'npm').map(c => c.args.slice(0, 2)), [['view', 'rayner@0.1.0'], ['pack', 'rayner@0.1.0']], gate);
+    assert.equal(result.smoked?.length, 2, `${gate}: the gate installs the one archive`);
+    assert.equal(result.smoked?.[0], '--archive');
+    assert.ok(result.smoked?.[1]?.endsWith('rayner-0.1.0.tgz'));
+    const upload = writes(result).find(c => c.args[1] === 'upload')!;
+    assert.deepEqual(upload.args.filter(p => p.endsWith('.tgz')).map(p => p.split('/').at(-1)), ['rayner-0.1.0.tgz'], 'the one archive is preserved');
+  }
+  const corrupt = await attempt([], 'corrupt-rayner', {}, 'tools/repo');
+  assert.notEqual(corrupt.code, 0); assert.match(corrupt.stderr, /retain the original npm bytes of rayner/); assert.deepEqual(writes(corrupt), []);
 });

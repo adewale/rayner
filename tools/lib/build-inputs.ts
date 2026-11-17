@@ -1,32 +1,26 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
-import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
+import { COMPILED } from './roots.ts';
 import { listTree, relativePosix, sha256 } from './hash.ts';
 
 // Runtime assets are deliberately broad; Node tools follow the actual producer
 // imports. A reviewer, benchmark or release-script edit does not change a page.
 const producers = ['tools/lib/explain-build.ts', 'tools/lib/explain-project.ts', 'tools/lib/explain-shots.ts', 'tools/repo/lib/explain-gallery.ts', 'tools/repo/lib/explain-embed-size.ts', 'tools/repo/lib/explain-site-describe.ts'];
-export async function buildInputs(root: string, library = resolve(root) === resolve(ROOT) ? LIB_ROOT : root) {
+export async function buildInputs(root: string) {
   root = resolve(root);
-  library = resolve(library);
   const compiled = COMPILED;
-  // Each input by its name: the command's files by their path in it, the library's (when it is
-  // another package, as for the installed command) under rayner/.
+  // Each input by its path in the package (or the checkout).
   const files = new Map<string, string>();
-  const add = (base: string, prefix: string, file: string) => files.set(prefix + relativePosix(base, file), file);
-  const scan = async (base: string, prefix: string, entries: string[], directories: string[]) => {
-    for (const name of entries) add(base, prefix, join(base, name));
+  const add = (base: string, file: string) => files.set(relativePosix(base, file), file);
+  const scan = async (base: string, entries: string[], directories: string[]) => {
+    for (const name of entries) add(base, join(base, name));
     for (const directory of directories) {
       const found = await listTree(join(base, directory), { optional: true });
-      for (const entry of found) if (entry.isFile()) add(base, prefix, join(entry.parentPath, entry.name));
+      for (const entry of found) if (entry.isFile()) add(base, join(entry.parentPath, entry.name));
     }
   };
   const runtime = ['src', 'explain', 'extras', 'vendor'], built = ['dist/src', 'dist/explain', 'dist/extras', 'dist/vendor'];
-  if (library === root) await scan(root, '', ['package.json', 'LICENSE'], [...runtime, 'app', 'integrations', ...(compiled ? [...built, 'dist/app', 'dist/tools'] : [])]);
-  else {
-    await scan(root, '', ['package.json', 'LICENSE'], ['app', 'integrations', 'vendor', ...(compiled ? ['dist/tools'] : [])]);
-    await scan(library, 'rayner/', ['package.json', 'LICENSE'], [...runtime, ...built]);
-  }
+  await scan(root, ['package.json', 'LICENSE'], [...runtime, 'app', 'integrations', ...(compiled ? [...built, 'dist/tools'] : [])]);
   // Loaded here, not at the top: every command imports this module, and only the checkout's
   // fingerprint parses imports, so the compiler (0.4 s and 60 MB to load) stays out of the rest.
   const { default: ts } = await import('typescript');
@@ -39,7 +33,7 @@ export async function buildInputs(root: string, library = resolve(root) === reso
       throw error;
     });
     if (text === undefined) return;
-    add(root, '', file);
+    add(root, file);
     const imports: string[] = [];
     const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
     const walk = (node: import('typescript').Node) => {
@@ -62,8 +56,8 @@ export async function buildInputs(root: string, library = resolve(root) === reso
   // Installed tools are bundled chunks, so their bundle bytes are the producer inputs.
   if (!compiled) for (const name of producers) await visit(join(root, name));
   // Dynamic capture assets and catalog/export orchestration are not JS imports.
-  for (const name of ['tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/repo/explain-demos.ts', 'tools/repo/explain-site.ts', 'package-lock.json', 'cli/package.json', 'scenes/explainers/catalog.ts']) {
-    try { await readFile(join(root, name)); add(root, '', join(root, name)); }
+  for (const name of ['tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/repo/explain-demos.ts', 'tools/repo/explain-site.ts', 'package-lock.json', 'scenes/explainers/catalog.ts']) {
+    try { await readFile(join(root, name)); add(root, join(root, name)); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   }
   const inputs = await Promise.all([...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(async ([file, path]) => ({

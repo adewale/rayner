@@ -9,28 +9,22 @@ import { createHash } from 'node:crypto';
 import { ROOT } from '../tools/lib/explain-project.ts';
 
 const run = promisify(execFile);
-type Packed = { name: string; filename: string; integrity: string };
-type Manifest = { sourceCommit: string; packages: Packed[] };
+type Manifest = { name: string; sourceCommit: string; filename: string; integrity: string };
 for (const [name, change, message] of [
-  ['an escaping archive filename', (m: Manifest) => { m.packages[0]!.filename = '../escape.tgz'; }, /invalid candidate filename/],
-  ['an escaping command archive filename', (m: Manifest) => { m.packages[1]!.filename = '../escape.tgz'; }, /invalid candidate filename/],
-  ['a missing command archive', (m: Manifest) => { m.packages.pop(); }, /the candidate holds rayner and rayner-cli/],
+  ['an escaping archive filename', (m: Manifest) => { m.filename = '../escape.tgz'; }, /invalid candidate filename/],
+  ['an archive that is not a tarball', (m: Manifest) => { m.filename = 'rayner.zip'; }, /invalid candidate filename/],
+  ['another package', (m: Manifest) => { m.name = 'rayner-cli'; }, /the candidate is the rayner package/],
   ['another source commit', (m: Manifest) => { m.sourceCommit = '0'.repeat(40); }, /candidate comes from another source commit/],
-  ['modified archive bytes', (m: Manifest) => { m.packages[0]!.integrity = 'sha512-incorrect'; }, /candidate archive integrity mismatch/],
-  ['modified command archive bytes', (m: Manifest) => { m.packages[1]!.integrity = 'sha512-incorrect'; }, /candidate archive integrity mismatch/],
+  ['modified archive bytes', (m: Manifest) => { m.integrity = 'sha512-incorrect'; }, /candidate archive integrity mismatch/],
 ] as const) {
   test(`package smoke rejects ${name} before installation`, async () => {
     const folder = await mkdtemp(join(tmpdir(), 'rayner-candidate-'));
     try {
       const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
       const manifest = join(folder, 'manifest.json');
-      const archives: Packed[] = [];
-      for (const pkg of ['rayner', 'rayner-cli']) {
-        const bytes = Buffer.from(`not installed: ${pkg}`);
-        await writeFile(join(folder, `${pkg}.tgz`), bytes);
-        archives.push({ name: pkg, filename: `${pkg}.tgz`, integrity: 'sha512-' + createHash('sha512').update(bytes).digest('base64') });
-      }
-      const candidate: Manifest = { sourceCommit: commit, packages: archives };
+      const bytes = Buffer.from('not installed: rayner');
+      await writeFile(join(folder, 'rayner.tgz'), bytes);
+      const candidate: Manifest = { name: 'rayner', sourceCommit: commit, filename: 'rayner.tgz', integrity: 'sha512-' + createHash('sha512').update(bytes).digest('base64') };
       change(candidate);
       await writeFile(manifest, JSON.stringify(candidate));
       await assert.rejects(

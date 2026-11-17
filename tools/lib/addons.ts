@@ -2,19 +2,19 @@
 // A scene that draws no Mermaid diagram and asks for no lettering never reaches this module's loaders:
 // it checks, builds, describes and sees with Node alone (docs/REFERENCE.md, "Add-ons").
 //
-// - Diagram capture: the agentic-mermaid and svgpath packages (optional peers of rayner-cli), and
+// - Diagram capture: the agentic-mermaid and svgpath packages (optional peers of rayner), and
 //   Chromium to capture a diagram that scene.snapshots/ does not hold. Pinned snapshots replay
 //   without Chromium; checking a diagram's morph edits needs agentic-mermaid.
 // - Lettering capture: Python with fonttools, brotli, uharfbuzz and python-bidi, and the source fonts
 //   (docs/LETTERING.md). A committed lettering snapshot replays without them.
-import { cliManifest } from './roots.ts';
+import { manifest } from './roots.ts';
 
-/** The npm packages the diagram add-on needs, beyond rayner-cli's own dependencies. */
+/** The npm packages the diagram add-on needs, beyond rayner's own dependencies. */
 export const DIAGRAM_PACKAGES = ['agentic-mermaid', 'svgpath'] as const;
 
 /** A package's pinned version: an optional peer's (an add-on's) or a dependency's. */
-export const pinnedVersion = (name: string): string | undefined => cliManifest.peerDependencies?.[name] ?? cliManifest.dependencies[name];
-/** The npm command that installs these packages at the versions rayner-cli pins. */
+export const pinnedVersion = (name: string): string | undefined => manifest.peerDependencies?.[name] ?? manifest.dependencies[name];
+/** The npm command that installs these packages at the versions rayner pins. */
 export const installCommand = (names: readonly string[]): string =>
   'npm install --save-dev ' + names.map((name) => `${name}@${pinnedVersion(name)}`).join(' ');
 

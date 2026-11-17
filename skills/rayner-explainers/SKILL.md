@@ -110,7 +110,7 @@ A good live step, the step where the machine last plays:
 
 ## Loop
 
-Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner` at the same version, as the [quick start](https://github.com/adewale/rayner#quick-start) shows: from npm once `npm view rayner-cli versions` lists that version, otherwise from archives built in a clone; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the commands, the options and the [add-ons](../../docs/REFERENCE.md#add-ons): a scene with no Mermaid diagram and no lettering needs neither a browser nor Python until `rayner review`, which opens the page in Chromium.
+Commands are `rayner <command>`, from the `rayner` package that scenes import (install it as the [quick start](https://github.com/adewale/rayner#quick-start) shows: from npm once `npm view rayner versions` lists that version, otherwise from the archive built in a clone), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the commands, the options and the [add-ons](../../docs/REFERENCE.md#add-ons): a scene with no Mermaid diagram and no lettering needs neither a browser nor Python until `rayner review`, which opens the page in Chromium.
 
 [Writing your own explainer](https://github.com/adewale/rayner/blob/main/docs/WRITING.md) works one subject (`sort()` with no compare function, `scenes/tutorial/sort-as-text`) through this loop with the real output of each command, and says what explainers here have cost.
 

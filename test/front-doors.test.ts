@@ -69,27 +69,33 @@ test('PRODUCT’s install line names the version this checkout describes, so a r
   assert.match(PRODUCT.installGuide, /#quick-start$/);
 });
 
-test('the quick start builds and installs the archives of the version this checkout describes', () => {
+test('the quick start builds and installs the one archive of the version this checkout describes', () => {
   const readme = read('README.md'), start = readme.indexOf('## Quick start\n');
   const section = readme.slice(start, readme.indexOf('\n## ', start + 1));
   const block = /```sh\n([\s\S]*?)```/.exec(section)![1]!;
-  assert.match(block, /npm ci && npm pack && cd cli && npm pack --pack-destination \.\./);
-  assert.ok(block.includes(`npm install --save-dev ../rayner/rayner-${version}.tgz ../rayner/rayner-cli-${version}.tgz`), block);
+  assert.match(block, /\(cd rayner && npm ci && npm pack\)/);
+  assert.ok(block.includes(`npm install --save-dev ../rayner/rayner-${version}.tgz\n`), block);
+  assert.equal((block.match(/\.tgz/g) ?? []).length, 1, 'one archive');
 });
 
-/** The guides a reader installs from: the README, the command's README, docs/, the FAQ and the skill. */
-const guides = ['README.md', 'cli/README.md', 'FAQ.md', 'skills/rayner-explainers/SKILL.md', ...readdirSync(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`)];
+/** The guides a reader installs from: the README, docs/, the FAQ and the skill. */
+const guides = ['README.md', 'FAQ.md', 'skills/rayner-explainers/SKILL.md', ...readdirSync(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`)];
 
-test('every install of rayner or rayner-cli from npm says where to get a version npm does not have yet', () => {
+test('no guide, and not PRODUCT, names rayner-cli: 0.2.0 is one package, rayner, with the command', () => {
+  assert.deepEqual(guides.filter((file) => read(file).includes('rayner-cli')), []);
+  assert.ok(!PRODUCT.install.includes('rayner-cli'), PRODUCT.install);
+});
+
+test('every install of rayner from npm says where to get a version npm does not have yet', () => {
   const unsaid: string[] = [];
   for (const file of guides) {
     // Each section, from one heading to the next, with its heading taken off.
     for (const section of read(file).split(/\n(?=#{1,4} )/)) {
       const body = section.replace(/^#{1,4} .*\n/, '');
       for (const line of body.split('\n'))
-        if (/\bnpm (?:install|i)\b(?:(?!\.tgz).)*?\s(?:rayner|rayner-cli)(?:@[\w.-]+)?(?=[\s`]|$)/.test(line) && !/quick start|from a clone|built in a clone/i.test(body))
+        if (/\bnpm (?:install|i)\b(?:(?!\.tgz).)*?\srayner(?:@[\w.-]+)?(?=[\s`]|$)/.test(line) && !/quick start|from a clone|built in a clone/i.test(body))
           unsaid.push(`${file}: ${line.trim()}`);
     }
   }
-  assert.deepEqual(unsaid, [], 'point a registry install at the quick start, which builds the packages from a clone until npm lists the version');
+  assert.deepEqual(unsaid, [], 'point a registry install at the quick start, which builds the package from a clone until npm lists the version');
 });

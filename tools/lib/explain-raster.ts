@@ -1,10 +1,10 @@
 import { toSvgString } from '../../src/index.ts';
 import type { Scene } from '../../src/index.ts';
 import { FRAME } from '../../src/internal.ts';
-import { cliManifest } from './roots.ts';
+import { manifest } from './roots.ts';
 
 /** Package ranges, so a missing package's error gives the install line the help gives. */
-const PACKAGES = cliManifest.dependencies;
+const PACKAGES = manifest.dependencies;
 let resvg: typeof import('@resvg/resvg-js') | undefined;
 /** Rasterise an SVG with the embedded fonts only. resvg loads on first use: only PNG output needs it. */
 export async function rasterize(svg: string) {

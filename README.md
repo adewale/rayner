@@ -34,22 +34,22 @@ Each explainer’s `script.md` says what its model is checked against, how, and 
 
 Writing, checking and building an explainer requires Node 24 or later. `rayner review` and diagram capture also need Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported.
 
-These steps are for Rayner 0.2.0, the version this repository describes. Check what npm has with `npm view rayner-cli versions`. Until it lists 0.2.0 (npm's `rayner` 0.1.0 is an earlier, single-package release whose `init` writes a different starter, and there is no `rayner-cli` before 0.2.0), build both packages from a clone and install them from there:
+These steps are for Rayner 0.2.0, the version this repository describes. Check what npm has with `npm view rayner versions`. Until it lists 0.2.0 (npm's `rayner` 0.1.0 is an earlier release whose `init` writes a different starter), build the package from a clone and install it from there:
 
 ```sh
 git clone https://github.com/adewale/rayner
-(cd rayner && npm ci && npm pack && cd cli && npm pack --pack-destination ..)
+(cd rayner && npm ci && npm pack)
 mkdir my-rayner && cd my-rayner
 npm init -y
 npm pkg set type=module
-npm install --save-dev ../rayner/rayner-0.2.0.tgz ../rayner/rayner-cli-0.2.0.tgz
+npm install --save-dev ../rayner/rayner-0.2.0.tgz
 npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-Once npm lists 0.2.0 for both packages, `npm install --save-dev rayner@0.2.0 rayner-cli@0.2.0` replaces the clone and the two archives.
+Once npm lists 0.2.0, `npm install --save-dev rayner@0.2.0` replaces the clone and the archive.
 
-Rayner is two packages at one version. `rayner` is what scenes import: the vocabulary, the drawing kits and the runtime, with no dependencies. `rayner-cli` is the `rayner` command, with the player it bundles into each page, esbuild, TypeScript, Playwright's library (for `review`) and resvg (for PNG contact sheets); it requires `rayner` at exactly its own version. Mermaid diagrams and extra lettering are [add-ons](#add-ons-diagrams-and-lettering).
+Rayner is one package, as 0.1.0 was. Scenes import `rayner`: the vocabulary, the drawing kits and the runtime. The same package carries the `rayner` command, with the player it bundles into each page, and installs what the command needs: esbuild, TypeScript, Playwright's library (for `review`) and resvg (for PNG contact sheets). A host serving the built pages needs none of it. Mermaid diagrams and extra lettering are [add-ons](#add-ons-diagrams-and-lettering).
 
 `init` writes the tutorial’s explainer of LRU and MRU cache replacement: the script (`script.md`), the model (`model.ts`), the model’s test (`model.test.ts`) and the scene (`scene.ts`). Open the URL `preview` prints (port 5174 by default) and switch between **A B C D again** and **C D C D**. Edit `my-explainer/scene.ts` and reload to see the rebuilt page.
 

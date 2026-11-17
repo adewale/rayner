@@ -6,7 +6,7 @@ import { access } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isPlaceholder, normalise, placeholdersIn, stepWords } from '../../explain/internal.ts';
-import { COMPILED, LIB_ROOT } from './roots.ts';
+import { COMPILED, ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 
 /** The model test beside the scene and what its run found: how many tests ran and passed, how many were skipped, and the names of those that failed. */
@@ -30,7 +30,7 @@ const exists = (file: string) => access(file).then(() => true, () => false);
 function raynerResolution(): string {
   const built = COMPILED;
   const map = Object.fromEntries(
-    [...entryPoints()].map(([name, path]) => [name, pathToFileURL(join(LIB_ROOT, built ? `dist/${path}.js` : `${path}.ts`)).href]),
+    [...entryPoints()].map(([name, path]) => [name, pathToFileURL(join(ROOT, built ? `dist/${path}.js` : `${path}.ts`)).href]),
   );
   const hook = `const map=${JSON.stringify(map)};export async function resolve(s,c,next){try{return await next(s,c)}catch(e){if(Object.hasOwn(map,s))return{url:map[s],shortCircuit:true};throw e}}`;
   const register = `import{register}from'node:module';register(${JSON.stringify('data:text/javascript,' + encodeURIComponent(hook))});`;

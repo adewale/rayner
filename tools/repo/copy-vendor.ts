@@ -1,5 +1,5 @@
-// The library ships the shaper once, in dist/vendor/: its compiled src/ imports ../vendor/glyph.js there, and the
-// command's page build reads it there. The maths typesetter is capture-only and ships with rayner-cli.
+// The package ships the shaper once, in dist/vendor/: its compiled src/ imports ../vendor/glyph.js there, and the
+// command's page build reads it there. The maths typesetter is capture-only and ships as vendor/glyph-math.js.
 import { mkdir, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT } from '../lib/roots.ts';

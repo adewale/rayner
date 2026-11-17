@@ -98,7 +98,7 @@ const RULES: Record<string, (i: Import) => boolean> = {
     return ORDER.indexOf(to) > ORDER.indexOf(from);
   },
   player: (i) => i.from.startsWith('app/') && !/^(src|explain|app)\//.test(i.to),
-  // The command (tools/ but the repository's own tooling and oracles) ships as rayner-cli: it imports the library,
+  // The command (tools/ but the repository's own tooling and oracles) ships in rayner as dist/tools/: it imports the library,
   // the player, diagram capture, the vendored shapers, its own modules and packages, never what stays in the repository.
   command: (i) => isCommand(i.from) && i.local && !/^(src|explain|app|integrations|vendor)\//.test(i.to) && !(i.to.startsWith('tools/') && isCommand(i.to)),
   // What ships above the library reaches it as an outside project does, through its entry points, and
@@ -332,6 +332,6 @@ test('each rule rejects a seeded break and allows what the layers allow', () => 
   for (const i of [at('tools/explain.ts', 'test/lib/random-snapshot.ts'), at('tools/lib/explain-build.ts', 'tools/oracle/glyph-math.ts'), at('tools/lib/x.ts', 'scenes/explainers/catalog.ts'), at('tools/lib/x.ts', 'recipes/render.ts')])
     assert.ok(RULES.command!(i), show(i));
   for (const i of [at('tools/lib/explain-check.ts', 'app/embed-closeup.ts'), at('tools/lib/explain-check.ts', 'explain/live.ts'), at('tools/lib/x.ts', 'esbuild'), at('tools/lib/x.ts', 'node:fs'),
-    at('tools/lib/x.ts', 'vendor/glyph.js'), at('tools/explain.ts', 'tools/lib/explain-check.ts'), at('tools/repo/build-cli.ts', 'test/lib/x.ts')])
+    at('tools/lib/x.ts', 'vendor/glyph.js'), at('tools/explain.ts', 'tools/lib/explain-check.ts'), at('tools/repo/build-command.ts', 'test/lib/x.ts')])
     assert.ok(!RULES.command!(i), show(i));
 });
