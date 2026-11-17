@@ -14,15 +14,22 @@ const RADIUS = 0.22;
 /** A spot's height as a y on its lane. */
 const y = (lane: keyof typeof BASE, h: number) => BASE[lane] + h * SCALE;
 
-/** The ground's outline: flat shoulders past the end ideas, and an eased curve between ideas, so each idea sits in a dip. */
+/**
+ * The point on the ground at fractional spot `pos`: between two ideas the ground follows an eased
+ * curve, so each idea sits in a dip. The ball and the ground's outline both use it, so a rolling
+ * ball stays on the surface.
+ */
+function surface(heights: readonly number[], lane: keyof typeof BASE, pos: number): [number, number] {
+  const i = Math.min(Math.max(Math.floor(pos), 0), heights.length - 2), t = Math.min(Math.max(pos - i, 0), 1);
+  const e = (1 - Math.cos(Math.PI * t)) / 2;
+  return [X[i]! + (X[i + 1]! - X[i]!) * t, y(lane, heights[i]! + (heights[i + 1]! - heights[i]!) * e)];
+}
+
+/** The ground's outline: flat shoulders past the end ideas, the eased surface between them. */
 function ground(heights: readonly number[], lane: keyof typeof BASE): [number, number][] {
   const pts: [number, number][] = [[LEFT, y(lane, heights[0]!)]];
-  for (let i = 0; i < heights.length - 1; i++)
-    for (let k = 0; k < 12; k++) {
-      const t = k / 12, e = (1 - Math.cos(Math.PI * t)) / 2;
-      pts.push([X[i]! + (X[i + 1]! - X[i]!) * t, y(lane, heights[i]! + (heights[i + 1]! - heights[i]!) * e)]);
-    }
-  pts.push([X.at(-1)!, y(lane, heights.at(-1)!)], [RIGHT, y(lane, heights.at(-1)!)]);
+  for (let k = 0; k <= (heights.length - 1) * 12; k++) pts.push(surface(heights, lane, k / 12));
+  pts.push([RIGHT, y(lane, heights.at(-1)!)]);
   return pts;
 }
 
@@ -38,8 +45,10 @@ function slope(s: Stage, heights: readonly number[], lane: keyof typeof BASE) {
   return keyed(new Polygon([[LEFT, BASE[lane]], ...top, [RIGHT, BASE[lane]]], { fill: s.look.soft, fillOpacity: 0.55, stroke: s.look.ink, strokeWidth: STROKE.fine }), `${lane}:slope`);
 }
 
-function ball(s: Stage, b: Ball, lane: keyof typeof BASE, fill: string) {
-  return keyed(new Circle({ radius: RADIUS, fill, stroke: s.look.ink, strokeWidth: STROKE.fine }).moveTo([X[b.at]!, y(lane, b.heights[b.at]!) + RADIUS]), `${lane}:ball`);
+/** A ball resting on, or rolling over, its ground. Each throw's ball has its own key, so a new throw fades in at the top. */
+function ball(s: Stage, b: Ball, lane: keyof typeof BASE, fill: string, round: number) {
+  const [x, ground] = surface(b.heights, lane, b.pos ?? b.at);
+  return keyed(new Circle({ radius: RADIUS, fill, stroke: s.look.ink, strokeWidth: STROKE.fine }).moveTo([x, ground + RADIUS]), `${lane}:ball:${round}`);
 }
 
 /** Both lanes: the slope, its ball, and what each lane reads out. */
@@ -72,7 +81,7 @@ export function drawLanes(st: State, s: Stage, { readout }: { readout: boolean }
     parts.push(keyed(label(s, `pushes: ${st.machine.pushes} of ${RUN}`, { at: [RIGHT - 0.1, -0.95], align: 'end', size: TYPE.small }), 'machine:pushes'));
   const says = machineSays(st.machine.at, st.feeling);
   if (says) parts.push(keyed(label(s, says, { at: [RIGHT - 0.1, -2.2], align: 'end', size: TYPE.small }), 'machine:says'));
-  parts.push(ball(s, st.you, 'you', s.look.emphasis), ball(s, st.machine, 'machine', s.look.ink));
+  parts.push(ball(s, st.you, 'you', s.look.emphasis, st.throw), ball(s, st.machine, 'machine', s.look.ink, st.throw));
   return new Group(...parts);
 }
 

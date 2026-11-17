@@ -33,6 +33,8 @@ export type Ball = {
   stopped: string | null;
   /** How many times it has been pushed this throw (the machine only). */
   pushes: number;
+  /** Where the ball is drawn while it rolls, as a fractional spot; absent when it rests on `at`. Only the scene sets it. */
+  pos?: number;
 };
 
 export type State = {
