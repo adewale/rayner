@@ -389,10 +389,15 @@ export function drawNearestNote(soft: string) {
 }
 
 /** A solstice's side view, from the state: June's Earth on the right, December's on the left. */
-export const sideOf = (st: SeasonState, month: 'June' | 'December', colours: Ink) =>
-  month === 'June'
+export const sideOf = (st: SeasonState, month: 'June' | 'December', colours: Ink) => {
+  const picture = month === 'June'
     ? drawSeason('June', JUNE_C, -1, st.latitude, st.place, st.june, colours)
     : drawSeason('December', DEC_C, 1, st.latitude, st.place, st.december!, colours);
+  // The latitude comparison thickens both circles. Keep this presentation in the draw, so
+  // replay and a fresh view of the same state agree on paint as well as geometry.
+  if (st.daylightTable) picture.latitude.setStyle({ strokeWidth: 0.09 });
+  return picture;
+};
 
 /** Where a season's daylight callout points: the middle of the lit part of the place's circle, and the gap down to just under the globe. */
 export function daylightAnchor(S: ReturnType<typeof drawSeason>) {

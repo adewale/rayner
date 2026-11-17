@@ -6,6 +6,8 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- View fidelity also compares rendered SVG paint, path data, draw fraction, paint order and effective clips against a placed redraw. Regression controls cover the previously accepted defects and legitimate state-dependent paths/clips; the seasons latitude emphasis is now derived from state.
+- `npm run bench:rendering` builds and measures matched Rayner/native-SVG fixtures from shared oracle-tested models and scripts, retaining inputs, conformance evidence and browser samples. It establishes rendering outcomes, not author productivity or learning.
 - The unified-diff teaching model follows Git's default refusal to reuse an earlier hunk's postimage, including unchanged context. A deterministic regression preserves the repeated-context counterexample from a failed random campaign; rejection messages retain earlier hunk offsets.
 - Documentation states the bounds of machine exploration and the rendered properties the view comparison checks. The premise-test summary includes unverifiable claims and distinguishes factual grounding from delivery and learning evidence.
 - API rationales may be concise, cite an upstream and remain after an API gains users. The ledger checks nonempty rationale and evidence links; wording adequacy is reviewed rather than decided by word counts or forbidden terms.

@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "lib": ["es2023", "dom", "dom.iterable"], "types": ["node"], "alwaysStrict": false, "tsBuildInfoFile": "../../node_modules/.cache/tsc/rendering.tsbuildinfo" },
+  "include": ["*.ts"]
+}
