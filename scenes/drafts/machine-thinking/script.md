@@ -11,16 +11,16 @@
 ## Check yourself
 
 1. Give the machine only two pushes on the first throw. Where does its ball stop, and why there?
-   At Work harder, where your ball stopped when the answer hurt. Same place, different reason: yours stopped because nothing beside it felt lower, the machine's because it was not run again.
+   At Work harder, where your ball stopped when the answer hurt, though for a different reason: yours stopped because nothing beside it felt lower, and the machine's because it was not run a third time.
 2. After the second throw, with the answer painful, how small would the pain have to be for your ball to roll on to I'm the cause?
    Under 1.6: your ball rests at 2.8, and the answer's ground is 1.2, so 1.2 plus the pain must be below 2.8. On the first throw anything under 2.2 would have done, so each throw that stops short makes the answer harder to reach.
 
 ## Why this explainer
 
-Glazkov's essay works by one picture, a ball rolling over a terrain of mental models, and then by two ways the machine's ball differs: what moves it, and whether feeling takes part. Prose asks the reader to hold both balls in their head at once. Here they roll on the same slope, one above the other, so the reader sees where the paths match and where they split.
+Glazkov's essay works by one picture, a ball rolling over a terrain of mental models, and then by two ways the machine's ball differs: what moves it, and whether feeling takes part. Because prose asks the reader to hold both balls in mind at once, the explainer rolls them on the same slope, one above the other, where the reader can watch the paths match and then split.
 
-The setting is the essay's point about matching results. With the answer painless, both balls end in the same place, and nothing on the surface tells them apart. With it painful, the person's ball stops short of lower ground it can see, which is the essay's claim that a negative feeling keeps us from answers we already have, and the machine rolls on while saying the answer would hurt: logic-feeling.
+The setting carries the essay's point about matching results. With the answer painless, both balls end in the same place, so their stopping place cannot tell them apart. With it painful, the person's ball stops short of lower ground, as the essay says a negative feeling can keep us from answers we already have, while the machine rolls on and says the answer would hurt, which Glazkov calls logic-feeling.
 
 The second throw carries the essay's last mechanism, the ball carving its own grooves. A machine's terrain is fixed while it runs; a person's changes as they think, and in the painful case it makes the avoided answer harder to reach.
 
-The model is a toy. Its tests hold it to the essay's sentences, not to any brain or language model, and the receipt says so.
+Because the model's tests hold it to six sentences from the essay rather than to any brain or language model, the receipt grades it `read`, and the Leaves out line names what the toy omits.
