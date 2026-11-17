@@ -1,0 +1,11 @@
+{
+  "source": "Dimitri Glazkov, \"Machine Thinking\", https://glazkov.com/2025/01/20/machine-thinking/, 20 January 2025, read on 2026-11-17",
+  "claims": [
+    { "id": "downhill", "says": "Driven by gravity, it’s seeking the easiest path down.", "test": "the person's ball only rolls to lower felt ground, and stops where nothing beside it is lower" },
+    { "id": "aversion", "says": "the feeling of even approaching these answers is so intensely negative that it prevents us from visiting them", "test": "a painful answer keeps the person's ball away; a neutral one does not" },
+    { "id": "being-run", "says": "Thinking happens as a matter of “being run”.", "test": "the machine's ball moves when it is run, uphill or down, and stops when its run ends" },
+    { "id": "logic-feeling", "says": "reason about a felt experience without actually being able to have it", "test": "the feeling changes what the machine says, never where its ball goes" },
+    { "id": "grooves", "says": "Our little ball is creating its own grooves in it as it rolls along", "test": "a throw wears grooves into the person's slope and leaves the machine's as it was" },
+    { "id": "matching", "says": "even often producing matching results", "test": "when the answer does not hurt, both balls end on it" }
+  ]
+}
