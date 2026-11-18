@@ -6,6 +6,9 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- `s.prepareDiagrams(specs)` resolves a finite source set before a view draws. Its synchronous drawing function selects a complete captured picture from state, so view fidelity checks reject a stale source picture.
+- Machine check reports retain warnings for labels below 12 px on the whole picture after an event, including labels that pass in a close-up. The check command prints up to five warnings and a verdict with the report path. Review prints its scenario and width-check counts with its receipt path.
+
 - View fidelity also compares rendered SVG paint, path data, draw fraction, paint order and effective clips against a placed redraw. Regression controls cover the previously accepted defects and legitimate state-dependent paths/clips; the seasons latitude emphasis is now derived from state.
 - `npm run bench:rendering` builds and measures matched Rayner/native-SVG fixtures from shared oracle-tested models and scripts, retaining inputs, conformance evidence and browser samples. It establishes rendering outcomes, not author productivity or learning.
 - The unified-diff teaching model follows Git's default refusal to reuse an earlier hunk's postimage, including unchanged context. A deterministic regression preserves the repeated-context counterexample from a failed random campaign; rejection messages retain earlier hunk offsets.

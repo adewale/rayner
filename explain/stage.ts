@@ -18,7 +18,7 @@ import type { BeatPlan } from '../src/animation.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
-import { resolverOf } from './diagram-snapshot.ts';
+import { diagramKey, resolverOf } from './diagram-snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from './diagram-snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
@@ -480,6 +480,30 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         diagrams.add(diagram);
         return diagram.buildPlan(opts.build, opts.runTime);
       }, { ready: reading, late: true });
+    },
+    /**
+     * Resolve a finite set of sources before drawing. The returned synchronous function makes a
+     * fresh, complete picture for a declared source, suitable for view(state => draw(sourceOf(state))).
+     */
+    async prepareDiagrams(specs: readonly DiagramSpec[], opts: { box?: Box | StageRegion } = {}):
+      Promise<(spec: DiagramSpec, picture?: DiagramPicture) => Group> {
+      const withStyle = (spec: DiagramSpec): DiagramSpec =>
+        options.style && spec.style == null ? { ...spec, style: options.style } : spec;
+      const prepared = new Map<string, Diagram>();
+      for (const input of specs) {
+        const spec = withStyle(input);
+        const key = diagramKey(spec);
+        if (prepared.has(key)) continue;
+        const snapshot = await resolverOf(scene, 's.prepareDiagrams()').diagram(spec);
+        const d = new Diagram(scene, spec, snapshot, { box: physical(opts.box) }, true);
+        diagrams.add(d);
+        prepared.set(key, d);
+      }
+      return (spec, picture = {}) => {
+        const d = prepared.get(diagramKey(withStyle(spec)));
+        if (!d) throw new RangeError('s.prepareDiagrams(): source was not declared; include every source the model can draw');
+        return d.picture(picture.marks, { notes: picture.notes, dim: picture.dim, prefix: picture.prefix });
+      };
     },
     /**
      * Show diagram `d` by a view: `draw(state, shown)` gives what it marks, its notes and what stays

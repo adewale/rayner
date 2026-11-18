@@ -289,3 +289,23 @@ afterwards, which shows it by the same view. A walk runs over the view as it is;
   unchanged digits stay and changed digits fade across. With
   `sync({ match: 'index' })` its own interpolation runs, and the number counts
   through the values in between (`0 -> 5 -> 10`).
+
+### Diagram sources selected from state
+
+Resolve the finite source set before making a view. Each draw then selects the full captured
+picture synchronously, including its geometry and description.
+
+```ts
+const sources = [{ source: 'graph LR\nA --> B' }, { source: 'graph LR\nA --> C' }];
+const draw = await s.prepareDiagrams(sources);
+const diagram = view(this, st => draw(sources[st.branch]!), { place: false });
+this.state.branch = 1;
+await this.play(diagram.sync());
+```
+
+The returned function also takes a second argument with `marks`, `notes`, `dim` and `prefix`,
+as `diagramView` does. A source absent from the declared set fails immediately. Preparation
+captures or resolves snapshots without playing animations or adding pictures to the stage.
+A stale source picture fails the usual view redraw comparison. The scene's model test still
+owns the correctness of the source-building function. Existing imperative diagrams retain
+their pinned-snapshot checks.

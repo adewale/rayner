@@ -145,7 +145,8 @@ test('reachable states are found breadth first, each with its shortest events, u
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
   const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
-  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
+  assert.equal(good[0]!.phoneWarnings.length, 3);
+  assert.deepEqual(good.map(({ phoneWarnings, ...m }) => m), [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
   const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different state',
@@ -203,6 +204,13 @@ test('at a live step, every label a reachable state shows reads 12 px on a phone
   assert.deepEqual(await phoneProblems(notedLamp({ note: 0.56, word: 0.6 })), []);
   // The lamp's word at 0.5 reads 11.2 px whole, but it is what the step changed, so its close-up reads it at 12.
   assert.deepEqual(await phoneProblems(notedLamp({ note: 0.56, word: 0.5 })), []);
+  const closeUpOnly = notedLamp({ note: 0.56, word: 0.5 });
+  const warned = (await exploreMachines(await new closeUpOnly(new NullSink()).run(), closeUpOnly))[0]!;
+  assert.ok(warned.phoneWarnings.length > 0);
+  assert.ok(warned.phoneWarnings.some(p => p.includes('whole picture') && p.includes('after a live event')));
+  const readable = notedLamp({ note: 0.56, word: 0.6 });
+  assert.deepEqual((await exploreMachines(await new readable(new NullSink()).run(), readable))[0]!.phoneWarnings, []);
+
   // A machine that never plays is live nowhere: the reader never drives it, so the phone floor does not apply.
   assert.deepEqual(await phoneProblems(notedLamp({ note: 0.4, word: 0.6, play: false })), []);
 });

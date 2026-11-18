@@ -581,7 +581,7 @@ export async function exploreMachines(
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
   only?: { events?: readonly string[] },
-): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
+): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[]; phoneWarnings: string[] }[]> {
   const explored = [];
   if (!layouts && machinesOf(scene).some((m) => m.lastPlayedIn !== null)) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
@@ -604,7 +604,7 @@ export async function exploreMachines(
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
 async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
   const diagramsBefore = diagramsOn(host);
-  const problems: string[] = [], motion: string[] = [];
+  const problems: string[] = [], motion: string[] = [], phoneWarnings: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
   if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
   // From the start, as exploration always has; and from the state the reader finds at the step
@@ -636,7 +636,10 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     sizes.resting(host, step ?? undefined);
     for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
       if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-    if (step !== null) problems.push(...livePhoneProblems(sizes, step).map((p) => `${at}: ${p}`));
+    if (step !== null) {
+      problems.push(...livePhoneProblems(sizes, step).map((p) => `${at}: ${p}`));
+      phoneWarnings.push(...livePhoneProblems(sizes, step, true).map((p) => `${at}: ${p}`));
+    }
     const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
     const words = JSON.stringify(picture?.entries ?? []);
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
@@ -648,7 +651,7 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   }
   host.shown = shownThen;
   const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
-  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion };
+  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion, phoneWarnings };
 }
 
 /**
@@ -660,14 +663,18 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
  * heading is left out, as a phone's stage leaves it out (LegibilitySink). `sizes` measured one
  * resting picture with the step's close-ups.
  */
-function livePhoneProblems(sizes: LegibilitySink, step: string): string[] {
+function livePhoneProblems(sizes: LegibilitySink, step: string, wholeOnly = false): string[] {
   const records = [...[...sizes.labels].filter(([m]) => !isHeading(m)).map(([, r]) => r), ...sizes.staticLabels.values()];
   const problems: string[] = [];
   for (const r of records) {
     if (!(r.px > 0)) continue;
     const whole = r.px * PHONE_WHOLE,
-      best = Math.max(whole, r.inView ? r.phone : 0);
+      best = wholeOnly ? whole : Math.max(whole, r.inView ? r.phone : 0);
     if (round1(best) >= READ_PX) continue;
+    if (wholeOnly) {
+      problems.push(`“${r.text}” reads ${round1(whole)} px on the whole picture at a ${PHONE_PAGE} px phone after a live event at "${step}", under ${READ_PX}; use at least ${PHONE_WHOLE_MIN_SIZE.toFixed(2)} units with the camera at home`);
+      continue;
+    }
     const closest = r.inView && r.phone > whole + 1e-9 ? `, ${round1(r.phone)} px in the best close-up of "${step}" that holds it` : `, and no close-up of "${step}" shows it larger`;
     problems.push(`“${r.text}” reads ${round1(whole)} px on the whole picture at a ${PHONE_PAGE} px phone${closest}, under ${READ_PX}; the player shows a live step's whole picture after each press, so draw it at a size of at least ${PHONE_WHOLE_MIN_SIZE.toFixed(2)} with the camera at home, or bring it into one of the step's close-ups`);
   }
@@ -996,7 +1003,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
-      ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
+      ...(machines.length ? { machines: machines.map(({ events, states, sampled, phoneWarnings }) => ({ events, states, ...(sampled ? { sampled } : {}), phoneWarnings })) } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,

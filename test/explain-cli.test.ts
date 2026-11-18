@@ -272,3 +272,30 @@ test('preview --watch rebuilds at most once more for saves made during a rebuild
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test('machine check keeps JSON on stdout and prints its verdict and report path on stderr', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-summary-'));
+  try {
+    execFileSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'init', join(directory, 'scene'), '--machine'], { cwd: ROOT });
+    const output = join(directory, 'checks');
+    const result = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', join(directory, 'scene', 'scene.ts'), '--out', output], { cwd: ROOT, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.scenarios.length, 1);
+    assert.ok(report.scenarios[0].machines.length > 0);
+    assert.deepEqual(report.scenarios[0].machines[0].phoneWarnings, []);
+    assert.ok(result.stderr.includes('Check passed: 1 scenarios, 0 phone warnings.'));
+    assert.ok(result.stderr.includes(output));
+    const picture = join(directory, 'scene', 'picture.ts');
+    const original = await readFile(picture, 'utf8');
+    assert.ok(original.includes('fontSize: 0.6'));
+    await writeFile(picture, original.replace('fontSize: 0.6', 'fontSize: 0.5'));
+    const warned = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', join(directory, 'scene', 'scene.ts'), '--out', output], { cwd: ROOT, encoding: 'utf8' });
+    assert.equal(warned.status, 0, warned.stderr);
+    assert.ok(JSON.parse(warned.stdout).scenarios[0].machines[0].phoneWarnings.length > 0);
+    assert.match(warned.stderr, /Phone warning: .*whole picture.*after a live event/);
+
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

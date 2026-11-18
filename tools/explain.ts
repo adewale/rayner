@@ -132,7 +132,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const { reviewScene } = await import('./lib/explain-review-scene.ts');
     const artifact = flags.out?.endsWith('.html') ? resolve(flags.out) : undefined;
     const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
-    console.log(JSON.stringify(await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line)), null, 2));
+    const report = await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line));
+    console.log(JSON.stringify(report, null, 2));
+    console.error(`Review passed: ${report.scenarios} scenarios, ${report.stepWidths} step/width checks, ${report.liveStateWidths} live-state/width checks. Report: ${resolve(directory, 'review.json')}`);
     return;
   }
   if (command === 'snapshots') {
@@ -159,9 +161,13 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   }
   if (command === 'check') {
     const { checkProject } = await import('./lib/explain-check.ts');
-    console.log(
-      JSON.stringify(await checkProject(project, flags.out ?? resolve('out/checks', slug)), null, 2),
-    );
+    const directory = flags.out ?? resolve('out/checks', slug);
+    const report = await checkProject(project, directory);
+    console.log(JSON.stringify(report, null, 2));
+    const scenarios = report.scenarios as { machines?: { phoneWarnings: string[] }[] }[];
+    const warnings = scenarios.flatMap(s => (s.machines ?? []).flatMap(m => m.phoneWarnings));
+    for (const warning of [...new Set(warnings)].slice(0, 5)) console.error(`Phone warning: ${warning}`);
+    console.error(`Check passed: ${scenarios.length} scenarios, ${warnings.length} phone warnings. Reports: ${resolve(directory)}`);
     return;
   }
   /** The scenario every --scenario id=value chooses, other settings at their defaults. */

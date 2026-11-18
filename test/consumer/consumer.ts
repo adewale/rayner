@@ -329,6 +329,11 @@ export class Collection extends Scene<CollectionModel> {
     const marked: Mobject = d.picture({ A: { color: s.look.emphasis, as: 'the start' } });
     void [marked, d.order, d.visible.size, d.snapshot.parts.length];
     s.liveDiagram(d);
+    const source = { source: 'graph LR\nA --> B' };
+    const prepared = await s.prepareDiagrams([source], { box: 'main' });
+    const captured: Group = prepared(source, { marks: { A: s.look.emphasis }, notes });
+    void captured;
+
   }
 }
 
