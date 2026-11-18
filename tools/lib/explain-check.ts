@@ -2,7 +2,7 @@ import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLook
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/internal.ts';
-import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
+import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { sceneEntry } from './scene-entry.ts';
@@ -310,8 +310,9 @@ export class ViewSink implements Sink {
 
 /**
  * Text alone misses a mark: a card's lit bar on the wrong row, or a bar left showing, reads the
- * same words. Each part's kind, text, box and opacity, rounded, must match a fresh draw of the
- * step's state, placed where a sync would put it (a placed view keeps its anchor as it changes).
+ * same words. Preserve the structural checks, then compare the actual renderer's records with
+ * a placed fresh draw: paint, path data, paint order and effective rectangular clips. Renderer
+ * identities and memoized strings are not picture content.
  */
 function viewGeometryMismatch(v: View, scene: Scene): string | null {
   const round = (x: number) => Math.round(x * 100) / 100;
@@ -319,8 +320,48 @@ function viewGeometryMismatch(v: View, scene: Scene): string | null {
   const parts = (ms: Mobject[]) => ms.map((x) => JSON.stringify([
     x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null, round(x.style.opacity ?? 1),
   ]));
-  const shown = family(v.current), shows = parts(shown), draws = parts(family(v.placed(scene.state, scene.shown)));
-  if (shows.join() === draws.join()) return null;
+  const expected = v.placed(scene.state, scene.shown);
+  const shown = family(v.current), shows = parts(shown), draws = parts(family(expected));
+  if (shows.join() === draws.join()) {
+    // Outer clips are shared context; child clips belong to the view. Compare their effective
+    // intersection, not clip IDs or redundant authored rectangles.
+    const clip = (a: Box, b: Box): Box => {
+      const x = Math.max(a[0], b[0]), y = Math.max(a[1], b[1]);
+      return [x, y, Math.max(x, Math.min(a[2], b[2])), Math.max(y, Math.min(a[3], b[3]))];
+    };
+    let outer: Box | undefined;
+    for (let parent: Mobject | null = v; parent; parent = parent.parent)
+      if (parent.clipBox) outer = outer ? clip(outer, parent.clipBox) : parent.clipBox;
+    const rendered = (picture: Mobject): string[] => {
+      // A render projection: the real scene and both pictures retain their roots and parents.
+      return renderElements({ mobjects: [picture], frame: scene.frame }, { relative: false }).map((el) => {
+        const attrs = Object.fromEntries(Object.entries(el.attrs).filter(([key]) => key !== 'clip-path').map(([key, value]) => {
+          // Equivalent hex spelling is not a paint difference.
+          if ((key === 'fill' || key === 'stroke') && /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.test(value))
+            value = value.length <= 5 ? '#' + [...value.slice(1)].map((c) => c + c).join('').toLowerCase() : value.toLowerCase();
+          return [key, value];
+        }).sort(([a], [b]) => a! < b! ? -1 : a! > b! ? 1 : 0));
+        const effective = el.clipBox ? outer ? clip(el.clipBox, outer) : el.clipBox : outer;
+        const viewport = effective ? [effective[0], -effective[3], effective[2] - effective[0], effective[3] - effective[1]].map((n) => Math.round(n * UNITS)) : null;
+        return JSON.stringify([el.tag, attrs, el.transform, el.text, viewport]);
+      });
+    };
+    const actualPaint = rendered(v.current), expectedPaint = rendered(expected);
+    const count = Math.max(actualPaint.length, expectedPaint.length);
+    for (let i = 0; i < count; i++) {
+      if (actualPaint[i] === expectedPaint[i]) continue;
+      type Paint = [string, Record<string, string>, string | null, string | null, number[] | null];
+      const actual = actualPaint[i], expected = expectedPaint[i];
+      const a = actual ? JSON.parse(actual) as Paint : null;
+      const b = expected ? JSON.parse(expected) as Paint : null;
+      const short = (value: unknown) => JSON.stringify(value)?.slice(0, 100) ?? 'missing';
+      const changed = a && b ? [...new Set([...Object.keys(a[1]), ...Object.keys(b[1])])]
+        .filter((key) => a[1][key] !== b[1][key]).map((key) => `${key}: ${short(a[1][key])}, state draws ${short(b[1][key])}`) : ['missing part'];
+      if (a && b && JSON.stringify(a[4]) !== JSON.stringify(b[4])) changed.push(`clip: ${short(a[4])}, state draws ${short(b[4])}`);
+      return `the view's rendered part ${i} differs from a fresh draw of the state (${changed.slice(0, 3).join('; ') || 'paint order or element content'}; ${actualPaint.length} parts shown, ${expectedPaint.length} drawn)`;
+    }
+    return null;
+  }
   // Name the first part that differs and has no parts of its own: the bar that moved, not its card.
   const differs = shows.map((p, k) => p !== draws[k]);
   const leaf = differs.findIndex((d, k) => d && !shown[k]!.children.length);
@@ -633,9 +674,9 @@ function livePhoneProblems(sizes: LegibilitySink, step: string): string[] {
   return problems;
 }
 
-/** A picture in full for telling two drawings apart: each part's kind, key, text, box and style. */
+/** A picture for testing state dependence, including changes confined to paths or clips. */
 const pictureDetail = (m: Mobject) =>
-  JSON.stringify(m.family().map((x) => [x.constructor.name, x.key ?? null, 'text' in x ? x.text : null, x.box(), x.style]));
+  JSON.stringify(m.family().map((x) => [x.constructor.name, x.key ?? null, 'text' in x ? x.text : null, x.box(), x.style, x.clipBox ?? null, x.pointArrays().map((p) => [...p])]));
 
 /** Every value of a JSON state changed: numbers moved, strings lengthened, booleans flipped, nulls made 0. */
 function perturbed(value: unknown): unknown {

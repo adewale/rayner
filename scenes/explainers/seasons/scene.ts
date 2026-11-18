@@ -324,9 +324,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await this.play(new FadeOut(spread, { runTime: 0.3 }));
     const extra = drawLatitudeCircles(ORDER.map((k) => ({ ...PLACES[k]!, here: k === key })), soft);
     await this.play(
-      this.find('june-latitude')!.animate.setStyle({ strokeWidth: 0.09 }),
-      this.find('december-latitude')!.animate.setStyle({ strokeWidth: 0.09 }),
-      { runTime: 0.3 },
+      J.globe.sync({ match: 'key', runTime: 0.3 }),
+      D.globe.sync({ match: 'key', runTime: 0.3 }),
     );
     await s.enter(extra, {
       describe: 'The other places’ latitude circles on both views, yellow where lit',

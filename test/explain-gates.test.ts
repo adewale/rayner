@@ -40,6 +40,35 @@ test('a clean scene passes every gate', async () => {
   assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
+test('view fidelity compares rendered paint, paths and clips, with clean and position controls', async (t) => {
+  const alterations = {
+    clean: '',
+    equivalent: "shape.style.fill='#F00';shape.style.stroke='#000';",
+    fill: "shape.style.fill='#00ff00';",
+    stroke: "shape.style.stroke='#00ff00';",
+    width: 'shape.style.strokeWidth=0.2;',
+    dash: "shape.style.dashArray='100 100';",
+    alpha: 'shape.style.fillOpacity=0.2;',
+    path: 'shape.setPolygon([[-1,-1],[1,-1],[-1,1]]);',
+    clip: 'shape.clipBox=[-1,-1,0,1];',
+    fraction: 'shape.style.drawFraction=0.3;',
+    order: 'picture.current.remove(shape);picture.current.insert(0,shape);',
+    'paint-order': 'picture.current.insert(1,picture.current.children[2]);',
+    position: 'shape.shift([0.25,0]);',
+  };
+  for (const [name, alter] of Object.entries(alterations)) await t.test(name, async () => {
+    const source = scene(`await this.step('one',{caption:'The count is one.'});
+      const picture=view(this,st=>new Group(new Text('Count '+st.n,{fontSize:0.8}).shift([0,2]),
+        new Polygon([[-1,-1],[1,-1],[1,1],[-1,1]],{fill:'#ff0000',stroke:'#000000',strokeWidth:0.05})
+        ${name === 'paint-order' ? ",new Polygon([[-1,-1],[1,-1],[1,1],[-1,1]],{fill:'#0000ff',stroke:'#000000',strokeWidth:0.05})" : ''}),{place:false});
+      this.add(picture);const shape=picture.current.children[1];${alter}await this.wait(0.1);`,
+      `import{Group,Polygon}from'rayner';import{view}from'rayner/explain';`, 'state={n:1};');
+    const dir = await write(source);
+    if (name === 'clean' || name === 'equivalent') await checked(dir);
+    else await assert.rejects(checked(dir), /Views in the scene/, name);
+  });
+});
+
 test('a prediction that works passes, and the report names its options, answer and revealing step', async () => {
   const report = await checked(await write(scene(`await this.step('one',{caption:'Guess.',predict:{options:['Yes','No'],answer:1}});${label('hello')}await this.step('two',{caption:'No.'});${label('world', '[0,-2]')}`)));
   assert.deepEqual((report.scenarios as { predictions?: unknown }[])[0]!.predictions, [{ step: 'one', options: ['Yes', 'No'], answer: 'No', reveal: 'two' }]);

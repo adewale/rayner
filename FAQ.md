@@ -6,7 +6,7 @@ When the explanation depends on an input. A cache hit and a cache miss take diff
 
 ## Does a passing `rayner check` or `rayner review` mean my explanation is correct?
 
-No. `check` runs every scenario and fails on motion that pops or jumps, a seeked frame that differs from the played one, text that overlaps or is cut off, and labels too small to read. `review` opens every resting step at phone and desktop widths and checks that each caption's subject is painted. Neither knows whether a caption is true. Put the numbers in a model, test that model against its source, and read the pictures yourself; the [tutorial](docs/TUTORIAL.md) and [reference](docs/REFERENCE.md#checks) say the same.
+No. `check` runs every scenario and applies specific checks for motion, seeking, text overlap, clipping and label size. Its view redraw comparison covers structure and rendered SVG records, including paint, path shape, draw fraction, paint order and effective clips. This is Node redraw agreement, not an independent browser-pixel comparison. Machine exploration is bounded (256 states per origin by default), so larger machines are sampled. `review` opens every resting step at phone and desktop widths and checks that each caption's declared subject is painted; its live-state visits are also a sample. Neither knows whether a caption is true or whether the explanation teaches well. Put the numbers in a model, test that model against its source, and inspect the pictures and motion yourself; [the motion corpus](docs/MOTION-CORPUS.md) records known misses, and [the reference](docs/REFERENCE.md#checks) lists what each check establishes.
 
 ## Do readers need a server, a network connection or JavaScript?
 

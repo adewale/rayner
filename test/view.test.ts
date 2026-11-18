@@ -407,6 +407,37 @@ test('rayner check names a view whose words match its state but whose marks do n
   }
 });
 
+test('view checking accepts state-dependent paths and clips, fresh identities and inherited placement without changing ownership', async () => {
+  const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
+  const { Polygon } = await import('../src/index.ts');
+  const { NullSink } = await import('../src/timeline.ts');
+  for (const kind of ['path', 'clip'] as const) {
+    const checks = new ViewSink();
+    let checkedView: View | undefined;
+    const example = new (class extends Scene<{ flag: boolean }> {
+      override state = { flag: true };
+      override async construct() {
+        await this.step('one');
+        const v = view(this, (state) => {
+          const p = new Polygon(kind === 'path' && state.flag ? [[-1,-1],[1,-1],[-1,1]] : [[-1,-1],[1,-1],[1,1],[-1,1]], { fill: '#123456' });
+          if (kind === 'clip') p.clipBox = state.flag ? [-1,-1,0,1] : [-1,-1,1,1];
+          return p;
+        });
+        checkedView = v;
+        v.scale(0.7).shift([1.2,0.3]);
+        const parent = new Group(v);
+        parent.clipBox = [-3,-3,3,3];
+        this.add(parent);
+      }
+    })(new FanSink([new NullSink(), checks]));
+    await example.run();
+    assert.equal(checks.checked, 1);
+    assert.deepEqual([...checks.problems, ...checks.ignoringProblems()], [], kind);
+    assert.equal(checkedView!.current.parent, checkedView, 'comparison must not reparent either drawing');
+    assert.equal(checkedView!.parent, example.mobjects[0]);
+  }
+});
+
 test('having narrows a state to the shapes that hold its keys and throws on a state of another shape, so check sees the draw read it', async () => {
   type Chaptered = { chapter: 'year'; longitude: number } | { chapter: 'look'; pitch: number };
   class Chapters extends Scene<Chaptered, { lit?: string }> {

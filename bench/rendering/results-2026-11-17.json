@@ -1,0 +1,1778 @@
+{
+  "measurementContext": "Local Linux Chromium run while catalogue validation was also running; timing is descriptive and not a performance guarantee. One author implemented both fixed rendering adapters. No participant outcomes.",
+  "manifest": {
+    "version": 1,
+    "scope": "matched rendering fixture; no author-effort or learning outcomes",
+    "node": "v24.22.1",
+    "sourceCommit": "c3dc36e7ebb2774f31c933a6986c3ec15326914f",
+    "dirty": true,
+    "engineHash": "917321ed77750b88fa8f749c131959338b50cf97e4b8a0a62d46583ab30e99d3",
+    "seed": 20261109,
+    "expanded": false,
+    "inputHash": "e24077a5a76c4eb05c2231a178242e8f7144d0c201383caf7696d7b00768af78",
+    "fontHash": "4aeae1ccca307ddf2b5626fcd96faa5ac6e1833a64eb027903f6fe7c00507b72",
+    "sources": {
+      "shared.ts": "14312a2ed803cf343d0fa6668a9f805a2f6b3d700ded9bc3849563bd7aa90960",
+      "rayner.ts": "faf23f2bafeeba30dd84a09d6bcd6544c1a587902a304964d6a706e885904723",
+      "plain.ts": "f6879d5a348a68c828542e049448be98db08b367a1429ac689c7db1ab9ddb78e",
+      "build.ts": "dec443e08f863dd14ca38aab168686b48bb6c2933d0775757d2d9f7a65501978",
+      "compare.ts": "61314feac5dfd6929d3afde838d6541f10948ca7d6ba44ef3d58887d44d718f6",
+      "model.test.ts": "003024e86619d9b58bbadeb6ded91e230a2d08317314ea99913cd04181c633e4"
+    },
+    "arms": [
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "file": "lower-bound-rayner.html",
+        "bytes": 515705,
+        "gzipBytes": 205809,
+        "artifactHash": "e47a3b6f0e61662981fca25cfe17b107d6e57ce5db8c0d451a848905d3139720",
+        "buildMs": 288.1635299999998
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "file": "lower-bound-native.html",
+        "bytes": 90143,
+        "gzipBytes": 38628,
+        "artifactHash": "a6acfff7d45dada93687dcff00758efc2a0d0d9620ae86bb66a8d23527e6e612",
+        "buildMs": 13.824228000000403
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "file": "circular-queue-rayner.html",
+        "bytes": 517921,
+        "gzipBytes": 204291,
+        "artifactHash": "9dbe1d392031448640a09dca80e592728fb6731a9281cd9923ea702ef17fbc86",
+        "buildMs": 348.8333930000008
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "file": "circular-queue-native.html",
+        "bytes": 90669,
+        "gzipBytes": 38675,
+        "artifactHash": "4d068d720884efd5b87e3661e0e3da44675aed1fff9f4506ae1aa0b01687c279",
+        "buildMs": 29.94277400000101
+      }
+    ]
+  },
+  "results": {
+    "version": 1,
+    "scope": "matched rendering fixture; no author-effort or learning outcomes",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "linux",
+      "arch": "x64",
+      "availableParallelism": 4,
+      "loadAverage": [
+        6.13,
+        3.39,
+        2.04
+      ],
+      "browser": {
+        "path": "/usr/bin/chromium",
+        "version": "156.0.8078.79",
+        "source": "system",
+        "pinned": {
+          "revision": 1248,
+          "version": "156.0.8078.4"
+        },
+        "pinnedInstalled": false,
+        "skipped": []
+      }
+    },
+    "repeats": 3,
+    "manifestHash": "d397311f4df155b96f6b2f47bdde0e1b900e8573c68cf19651e6851e686a18b7",
+    "inputHash": "e24077a5a76c4eb05c2231a178242e8f7144d0c201383caf7696d7b00768af78",
+    "rows": [
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424994753760878
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 31.799987573154258
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s5",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s6",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s5",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s6",
+        "width": 390,
+        "minLabelPx": 13.424998032660332
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s5",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "step": "s6",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s5",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "step": "s6",
+        "width": 1180,
+        "minLabelPx": 31.799995339932853
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s5",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s6",
+        "width": 390,
+        "minLabelPx": 13.424998250553568
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s0",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s1",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s2",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s3",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s4",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s5",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s6",
+        "width": 390,
+        "minLabelPx": 13.424999999999999
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s5",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "step": "s6",
+        "width": 1180,
+        "minLabelPx": 31.799995856059848
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s0",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s1",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s2",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s3",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s4",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s5",
+        "width": 1180,
+        "minLabelPx": 40.05
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "step": "s6",
+        "width": 1180,
+        "minLabelPx": 40.05
+      }
+    ],
+    "timing": [
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 558.6000000014901
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 193
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 190.5
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 540.2999999970198
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 597.1000000014901
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 212.10000000149012
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 491.29999999701977
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 156.59999999403954
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 118.90000000596046
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 287.30000000447035
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-3",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 262
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-3",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 143.09999999403954
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 136.60000000149012
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 299.19999999552965
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 852.8999999985099
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 134.70000000298023
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 121.70000000298023
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 320.1000000014901
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 135.79999999701977
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 390.30000000447035
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 352.69999999552965
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 112.80000000447035
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "case": "target-6",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 113.20000000298023
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "case": "target-6",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 456.8999999985099
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 133.5
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 331.19999999552965
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 307.8999999985099
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 120.89999999850988
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 134
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 393
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 129.39999999850988
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 279.5
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 258.70000000298023
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 114.20000000298023
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-2",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 159.10000000149012
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-2",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 296.29999999701977
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 350.3999999985099
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "width": 390,
+        "repeat": 0,
+        "readyMs": 127
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 181.29999999701977
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "width": 390,
+        "repeat": 1,
+        "readyMs": 290.6000000014901
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 310.79999999701977
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "width": 390,
+        "repeat": 2,
+        "readyMs": 148.40000000596046
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 530.2999999970198
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "width": 1180,
+        "repeat": 0,
+        "readyMs": 135.30000000447035
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 135.79999999701977
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "width": 1180,
+        "repeat": 1,
+        "readyMs": 518.1000000014901
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "case": "capacity-3",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 296.1000000014901
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "case": "capacity-3",
+        "width": 1180,
+        "repeat": 2,
+        "readyMs": 129.89999999850988
+      }
+    ],
+    "artifacts": [
+      {
+        "topic": "lower-bound",
+        "arm": "rayner",
+        "file": "lower-bound-rayner.html",
+        "bytes": 515705,
+        "gzipBytes": 205809,
+        "artifactHash": "e47a3b6f0e61662981fca25cfe17b107d6e57ce5db8c0d451a848905d3139720",
+        "buildMs": 288.1635299999998
+      },
+      {
+        "topic": "lower-bound",
+        "arm": "native",
+        "file": "lower-bound-native.html",
+        "bytes": 90143,
+        "gzipBytes": 38628,
+        "artifactHash": "a6acfff7d45dada93687dcff00758efc2a0d0d9620ae86bb66a8d23527e6e612",
+        "buildMs": 13.824228000000403
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "rayner",
+        "file": "circular-queue-rayner.html",
+        "bytes": 517921,
+        "gzipBytes": 204291,
+        "artifactHash": "9dbe1d392031448640a09dca80e592728fb6731a9281cd9923ea702ef17fbc86",
+        "buildMs": 348.8333930000008
+      },
+      {
+        "topic": "circular-queue",
+        "arm": "native",
+        "file": "circular-queue-native.html",
+        "bytes": 90669,
+        "gzipBytes": 38675,
+        "artifactHash": "4d068d720884efd5b87e3661e0e3da44675aed1fff9f4506ae1aa0b01687c279",
+        "buildMs": 29.94277400000101
+      }
+    ]
+  },
+  "oracleOutput": "\u2714 lower bound agrees with Array.findIndex, including duplicates, absence and empty inputs (9.052819ms)\n\u2714 circular storage agrees with a separate push/shift FIFO across wraps and refusals (15.190946ms)\n\u2714 frozen packets include a changed-condition countercase and complete distinct step inventories (0.428306ms)\n\u2139 tests 3\n\u2139 suites 0\n\u2139 pass 3\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 247.350567\n",
+  "inputs": [
+    {
+      "id": "lower-bound",
+      "question": "Where does a lower-bound search stop?",
+      "answer": "Keep the first position whose value is at least the target",
+      "leaves": "Sorted numeric arrays only; no floating-point ordering or performance claim.",
+      "cases": [
+        {
+          "id": "target-3",
+          "label": "Target 3",
+          "steps": [
+            {
+              "id": "s0",
+              "title": "Search an interval",
+              "line": "Keep the first position whose value is at least the target",
+              "caption": "Find the first value at least 3. Low is included; high is excluded.",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 3,
+                "lo": 0,
+                "hi": 5,
+                "mid": null
+              }
+            },
+            {
+              "id": "s1",
+              "title": "Compare index 2",
+              "line": "Keep this position as a possible answer.",
+              "caption": "Index 2 holds 3. The remaining interval is [0, 2).",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 3,
+                "lo": 0,
+                "hi": 2,
+                "mid": 2
+              }
+            },
+            {
+              "id": "s2",
+              "title": "Compare index 1",
+              "line": "Keep this position as a possible answer.",
+              "caption": "Index 1 holds 3. The remaining interval is [0, 1).",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 3,
+                "lo": 0,
+                "hi": 1,
+                "mid": 1
+              }
+            },
+            {
+              "id": "s3",
+              "title": "Compare index 0",
+              "line": "Discard this value and everything before it.",
+              "caption": "Index 0 holds 1. The remaining interval is [1, 1).",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 3,
+                "lo": 1,
+                "hi": 1,
+                "mid": 0
+              }
+            },
+            {
+              "id": "s4",
+              "title": "Answer: index 1",
+              "line": "Keep the first position whose value is at least the target",
+              "caption": "The interval is empty at 1. That is the first position whose value is at least 3, including when the target itself is absent.",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 3,
+                "lo": 1,
+                "hi": 1,
+                "mid": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "target-6",
+          "label": "Target 6",
+          "steps": [
+            {
+              "id": "s0",
+              "title": "Search an interval",
+              "line": "Keep the first position whose value is at least the target",
+              "caption": "Find the first value at least 6. Low is included; high is excluded.",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 6,
+                "lo": 0,
+                "hi": 5,
+                "mid": null
+              }
+            },
+            {
+              "id": "s1",
+              "title": "Compare index 2",
+              "line": "Discard this value and everything before it.",
+              "caption": "Index 2 holds 3. The remaining interval is [3, 5).",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 6,
+                "lo": 3,
+                "hi": 5,
+                "mid": 2
+              }
+            },
+            {
+              "id": "s2",
+              "title": "Compare index 4",
+              "line": "Keep this position as a possible answer.",
+              "caption": "Index 4 holds 9. The remaining interval is [3, 4).",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 6,
+                "lo": 3,
+                "hi": 4,
+                "mid": 4
+              }
+            },
+            {
+              "id": "s3",
+              "title": "Compare index 3",
+              "line": "Keep this position as a possible answer.",
+              "caption": "Index 3 holds 7. The remaining interval is [3, 3).",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 6,
+                "lo": 3,
+                "hi": 3,
+                "mid": 3
+              }
+            },
+            {
+              "id": "s4",
+              "title": "Answer: index 3",
+              "line": "Keep the first position whose value is at least the target",
+              "caption": "The interval is empty at 3. That is the first position whose value is at least 6, including when the target itself is absent.",
+              "state": {
+                "kind": "search",
+                "values": [
+                  1,
+                  3,
+                  3,
+                  7,
+                  9
+                ],
+                "target": 6,
+                "lo": 3,
+                "hi": 3,
+                "mid": null
+              }
+            }
+          ]
+        }
+      ],
+      "questions": [
+        {
+          "q": "For [2, 2, 5], where should target 2 stop?",
+          "a": "At index 0: the first equal value is still a candidate."
+        },
+        {
+          "q": "For [2, 2, 5], where should target 6 stop?",
+          "a": "At index 3, just after the array."
+        }
+      ]
+    },
+    {
+      "id": "circular-queue",
+      "question": "Can a circular queue reuse an earlier slot?",
+      "answer": "Removing an item frees a slot that insertion can reuse after wrapping",
+      "leaves": "A single-threaded bounded FIFO with refusal on full; no overwrite or concurrency.",
+      "cases": [
+        {
+          "id": "capacity-2",
+          "label": "2 slots",
+          "steps": [
+            {
+              "id": "s0",
+              "title": "An empty circular queue",
+              "line": "Removing an item frees a slot that insertion can reuse after wrapping",
+              "caption": "There are 2 slots. Head removes the oldest value; tail inserts the next value. Size distinguishes full from empty.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  null,
+                  null
+                ],
+                "head": 0,
+                "tail": 0,
+                "size": 0
+              }
+            },
+            {
+              "id": "s1",
+              "title": "Insert 1",
+              "line": "Head 0; tail 1; size 1",
+              "caption": "Head 0; tail 1; size 1. Positions wrap at 2; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  1,
+                  null
+                ],
+                "head": 0,
+                "tail": 1,
+                "size": 1
+              }
+            },
+            {
+              "id": "s2",
+              "title": "Insert 2",
+              "line": "Head 0; tail 0; size 2",
+              "caption": "Head 0; tail 0; size 2. Positions wrap at 2; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  1,
+                  2
+                ],
+                "head": 0,
+                "tail": 0,
+                "size": 2
+              }
+            },
+            {
+              "id": "s3",
+              "title": "Insert 3",
+              "line": "Full: insertion is refused.",
+              "caption": "Full: insertion is refused.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  1,
+                  2
+                ],
+                "head": 0,
+                "tail": 0,
+                "size": 2
+              }
+            },
+            {
+              "id": "s4",
+              "title": "Remove the oldest value",
+              "line": "Head 1; tail 0; size 1",
+              "caption": "Head 1; tail 0; size 1. Positions wrap at 2; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  null,
+                  2
+                ],
+                "head": 1,
+                "tail": 0,
+                "size": 1
+              }
+            },
+            {
+              "id": "s5",
+              "title": "Insert 4",
+              "line": "Head 1; tail 1; size 2",
+              "caption": "Head 1; tail 1; size 2. Positions wrap at 2; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  4,
+                  2
+                ],
+                "head": 1,
+                "tail": 1,
+                "size": 2
+              }
+            },
+            {
+              "id": "s6",
+              "title": "Remove the oldest value",
+              "line": "Head 0; tail 1; size 1",
+              "caption": "Head 0; tail 1; size 1. Positions wrap at 2; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  4,
+                  null
+                ],
+                "head": 0,
+                "tail": 1,
+                "size": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "capacity-3",
+          "label": "3 slots",
+          "steps": [
+            {
+              "id": "s0",
+              "title": "An empty circular queue",
+              "line": "Removing an item frees a slot that insertion can reuse after wrapping",
+              "caption": "There are 3 slots. Head removes the oldest value; tail inserts the next value. Size distinguishes full from empty.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  null,
+                  null,
+                  null
+                ],
+                "head": 0,
+                "tail": 0,
+                "size": 0
+              }
+            },
+            {
+              "id": "s1",
+              "title": "Insert 1",
+              "line": "Head 0; tail 1; size 1",
+              "caption": "Head 0; tail 1; size 1. Positions wrap at 3; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  1,
+                  null,
+                  null
+                ],
+                "head": 0,
+                "tail": 1,
+                "size": 1
+              }
+            },
+            {
+              "id": "s2",
+              "title": "Insert 2",
+              "line": "Head 0; tail 2; size 2",
+              "caption": "Head 0; tail 2; size 2. Positions wrap at 3; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  1,
+                  2,
+                  null
+                ],
+                "head": 0,
+                "tail": 2,
+                "size": 2
+              }
+            },
+            {
+              "id": "s3",
+              "title": "Insert 3",
+              "line": "Head 0; tail 0; size 3",
+              "caption": "Head 0; tail 0; size 3. Positions wrap at 3; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  1,
+                  2,
+                  3
+                ],
+                "head": 0,
+                "tail": 0,
+                "size": 3
+              }
+            },
+            {
+              "id": "s4",
+              "title": "Remove the oldest value",
+              "line": "Head 1; tail 0; size 2",
+              "caption": "Head 1; tail 0; size 2. Positions wrap at 3; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  null,
+                  2,
+                  3
+                ],
+                "head": 1,
+                "tail": 0,
+                "size": 2
+              }
+            },
+            {
+              "id": "s5",
+              "title": "Insert 4",
+              "line": "Head 1; tail 1; size 3",
+              "caption": "Head 1; tail 1; size 3. Positions wrap at 3; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  4,
+                  2,
+                  3
+                ],
+                "head": 1,
+                "tail": 1,
+                "size": 3
+              }
+            },
+            {
+              "id": "s6",
+              "title": "Remove the oldest value",
+              "line": "Head 2; tail 1; size 2",
+              "caption": "Head 2; tail 1; size 2. Positions wrap at 3; a removed slot is available for reuse.",
+              "state": {
+                "kind": "queue",
+                "slots": [
+                  4,
+                  null,
+                  3
+                ],
+                "head": 2,
+                "tail": 1,
+                "size": 2
+              }
+            }
+          ]
+        }
+      ],
+      "questions": [
+        {
+          "q": "Head equals tail. Is the queue necessarily empty?",
+          "a": "No. Size distinguishes full from empty."
+        },
+        {
+          "q": "A full queue removes its oldest value. Can the next insertion succeed?",
+          "a": "Yes. Removal frees one slot, even when the position wraps."
+        }
+      ]
+    }
+  ]
+}

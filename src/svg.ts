@@ -93,10 +93,10 @@ export interface RenderOptions {
 }
 
 /** One record per drawable leaf: { id, tag, attrs, text }. */
-export function renderElements(scene: Scene, { relative = true, cull = false, width = 1280 }: RenderOptions = {}): ElementRecord[] {
+export function renderElements(scene: Pick<Scene, 'mobjects' | 'frame'>, { relative = true, cull = false, width = 1280 }: RenderOptions = {}): ElementRecord[] {
   return perf.span('render.elements', () => renderElementsImpl(scene, relative, cull, width));
 }
-function renderElementsImpl(scene: Scene, relative: boolean, cull: boolean, width: number): ElementRecord[] {
+function renderElementsImpl(scene: Pick<Scene, 'mobjects' | 'frame'>, relative: boolean, cull: boolean, width: number): ElementRecord[] {
   const out: ElementRecord[] = [];
   const view = cull ? scene.frame.box()! : null;
   // Culled: the mobject's box, grown by its stroke, leaves less than 2 output pixels

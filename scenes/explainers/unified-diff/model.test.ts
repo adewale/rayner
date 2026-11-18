@@ -119,8 +119,29 @@ test('on drifted copies of random files, the model places every hunk where git a
     const result = same(change(before, later), patch, JSON.stringify({ before, after, later, context }));
     if (result.ok) { applied++; if (result.placements.some((p) => p.offset)) offset++; } else refused++;
   }), params(120));
-  // The property saw all three outcomes: applied in place, applied at an offset, and refused.
-  assert.ok(applied > 10 && refused > 10 && offset > 3, `applied ${applied}, at an offset ${offset}, refused ${refused}`);
+  // A full generated campaign must see all three outcomes. An exact FC_PATH replay visits only
+  // the counterexample branch, so its distribution is not a campaign coverage measurement.
+  if (!process.env.FC_PATH)
+    assert.ok(applied > 10 && refused > 10 && offset > 3, `applied ${applied}, at an offset ${offset}, refused ${refused}`);
+});
+
+test('a later hunk cannot reuse the context a previous hunk already patched (nightly seed 698884227)', (t) => {
+  if (skipOracle(t, missing)) return;
+  const before = Array<string>(8).fill('a = 1');
+  const after = [...before];
+  after.splice(3, 0, 'x = 9');
+  after.splice(9, 0, 'x = 9');
+  const patch = gitDiff(before, after, 2);
+  assert.equal(parseUnifiedDiff(patch).length, 2, 'the regression requires two hunks');
+  assert.equal(same(before, patch, 'two non-overlapping hunks').ok, true);
+  const drifted = [...before];
+  drifted.splice(3, 0, 'x = 9');
+  // The first hunk moves down into repeated context. Its postimage includes the context the
+  // second hunk would reuse: Git marks all those lines patched, including unchanged context.
+  const result = same(drifted, patch, 'overlapping postimage');
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.failed, 1);
+  assert.deepEqual(gitApply(drifted, patch).file, drifted, 'a rejected patch writes nothing');
 });
 
 test('a patch applies to the file it was made from, at its own lines, and gives the changed file', (t) => {

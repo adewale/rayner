@@ -24,6 +24,7 @@
     "test:embeds": "EXPLAIN_BROWSER=1 node --test test/browser/*.test.ts",
     "release:check": "node tools/repo/prepare-release.ts",
     "bench": "node tools/repo/bench.ts",
+    "bench:rendering": "node bench/rendering/compare.ts",
     "recipes": "node recipes/render.ts"
   },
   "dependencies": {

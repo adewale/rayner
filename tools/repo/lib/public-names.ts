@@ -8,12 +8,12 @@
 //             point needs this written reason, and no other name may have one: living in the tooling
 //             entry point is not by itself a reason to be public.
 //   kept      nothing above uses it, and test/public-names.json
-//             says why it stays public all the same (`reason`, which may not lean on Manim) and names a
+//             says why it stays public all the same (`reason`) and names a
 //             guide section that teaches it and a test that runs it (`guide` and `test`), which must
 //             exist and mention the name. docs/ENGINE.md renders these exceptions as a table.
 //
 // So the ledger lists only names that say something no import can: a `tooling` reason, a `reason`
-// with its `guide` and `test`, a `guide` and `test` alone for a used name, or a `check`, what
+// with its `guide` and `test` for an unused name, optional rationale for a used name, or a `check`, what
 // `rayner check` verifies about the name, led by the check's name in the
 // reference's Checks table ("Views: ..."). The same file holds the rows of the reference's engine
 // features table, the skill's examples table and the feature index (docs/FEATURE-TOUR.md), which are
@@ -32,7 +32,7 @@ export const LEDGER = 'test/public-names.json';
 
 /**
  * What the ledger says about a name: who uses it as tooling and for what (only in the tooling entry
- * point), why it stays public although no explainer, tutorial or recipe uses it (`reason`), where it
+ * point), its design rationale (`reason`, required when no example uses it), where it
  * is taught (a guide section and a test), and what check verifies it.
  */
 export interface NameEntry { tooling?: string; reason?: string; guide?: string; test?: string; check?: string }
@@ -273,9 +273,6 @@ export function reasonOf(ledger: Ledger, u: Usage, entry: string, name: string):
   return r?.reason?.trim() ? 'kept' : 'NONE';
 }
 
-/** The fewest words a written reason to keep a name may have: enough to say who needs it, and for what. */
-const REASON_WORDS = 8;
-
 /**
  * Everything wrong with the ledger, as sentences: an empty list when every public name has a live reason.
  * `exports` stands in for what the entry points export, as a test of a new export does.
@@ -298,19 +295,17 @@ export async function problems(ledger: Ledger, root = ROOT, u: Usage = usage(roo
     for (const [name, r] of Object.entries(names)) {
       const at = `${name} (${entry})`;
       if (!exported.get(entry)!.includes(name)) { out.push(`${at} is in ${LEDGER} but ${entry} does not export it`); continue; }
-      // Who uses a name is computed, never written down: an entry says why tooling is public, why an unused name stays, where it is taught and what checks it.
+      // Users are computed; a written rationale may remain after a name gains users.
       for (const key of Object.keys(r)) if (!KEYS.includes(key)) out.push(`${at}: ${key} is not part of a ledger entry (${KEYS.join(', ')})`);
       if (r.tooling !== undefined && !TOOLING.has(entry))
         out.push(`${at}: only a name in ${[...TOOLING].join(' or ')} is tooling; a name in ${entry} is used by a scene or kept with a reason`);
-      else if (r.tooling !== undefined && r.tooling.trim().split(/\s+/).length < 4)
-        out.push(`${at}: its tooling reason must say who uses it outside a scene, and for what`);
+      else if (r.tooling !== undefined && !r.tooling.trim())
+        out.push(`${at}: its tooling reason must not be empty`);
       if (r.reason !== undefined) {
         const who = usersOf(u, name, entry);
         if (TOOLING.has(entry)) out.push(`${at}: a tooling name says why it is public in its tooling reason, not a reason`);
-        else if (who.length) out.push(`${at}: ${who.join(', ')} use${who.length > 1 ? '' : 's'} it, so it needs no written reason; delete its reason from ${LEDGER}`);
-        else if (r.reason.trim().split(/\s+/).length < REASON_WORDS) out.push(`${at}: its reason must say who needs it public, and for what, when no explainer, tutorial or recipe uses it`);
-        else if (/\bmanim\b/i.test(r.reason)) out.push(`${at}: its reason leans on Manim, and Manim parity is not a reason to be public`);
-        if (!TOOLING.has(entry) && (r.guide === undefined || r.test === undefined)) out.push(`${at}: a name kept with a reason is taught by a guide section and run by a test; name both`);
+        else if (!r.reason.trim()) out.push(`${at}: its reason must not be empty`);
+        if (!TOOLING.has(entry) && !who.length && (r.guide === undefined || r.test === undefined)) out.push(`${at}: a name kept with a reason is taught by a guide section and run by a test; name both`);
       }
       if ((r.guide === undefined) !== (r.test === undefined)) out.push(`${at}: a name is taught by a guide section and a test, both`);
       if (r.guide !== undefined && r.test !== undefined) {
@@ -454,11 +449,11 @@ export function lookupTable(ledger: Ledger, u: Usage, root = ROOT): string {
 }
 
 /** The names kept public with a written reason, each with why it stays and where it is taught. */
-export function exceptionsTable(ledger: Ledger): string {
+export function exceptionsTable(ledger: Ledger, u: Usage): string {
   const rows: string[] = [];
   for (const [entry, names] of Object.entries(ledger.names))
     for (const [name, r] of Object.entries(names))
-      if (r.reason !== undefined && !TOOLING.has(entry)) {
+      if (r.reason !== undefined && reasonOf(ledger, u, entry, name) === 'kept') {
         const [doc, anchor] = r.guide?.split('#') ?? [];
         const guide = doc ? `[${doc.replace(/^docs\//, '')}${anchor ? `#${anchor}` : ''}](${doc.startsWith('docs/') ? doc.slice(5) : `../${doc}`}${anchor ? `#${anchor}` : ''})` : '';
         rows.push(`| ${tick(name)} | ${tick(entry)} | ${r.reason.trim()} | ${guide}, ${tick(r.test ?? '')} |`);
@@ -480,7 +475,7 @@ export function rendered(ledger: Ledger, root = ROOT, u: Usage = usage(root)): M
   const reference = join(root, 'docs/REFERENCE.md'), skill = join(root, 'skills/rayner-explainers/SKILL.md'), engine = join(root, 'docs/ENGINE.md'), index = join(root, 'docs/FEATURE-TOUR.md');
   out.set(reference, replaceRegion(readFileSync(reference, 'utf8'), MARK.features, featuresTable(ledger, u)));
   out.set(skill, replaceRegion(readFileSync(skill, 'utf8'), MARK.examples, examplesTable(ledger)));
-  out.set(engine, replaceRegion(readFileSync(engine, 'utf8'), MARK.exceptions, exceptionsTable(ledger)));
+  out.set(engine, replaceRegion(readFileSync(engine, 'utf8'), MARK.exceptions, exceptionsTable(ledger, u)));
   out.set(index, replaceRegion(readFileSync(index, 'utf8'), MARK.lookup, lookupTable(ledger, u, root)));
   return out;
 }

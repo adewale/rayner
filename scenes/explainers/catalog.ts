@@ -17,7 +17,7 @@ export const PRODUCT = {
   audience: 'It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.',
   /** README.md's second paragraph, and the gallery's. Its last sentence is `The result is ${PUBLISHES}.` */
   description:
-    `The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is ${PUBLISHES}.`,
+    `The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Rayner checks pictures against that model with documented limits on visual fidelity and state exploration. The page states the author's declared grounding; its build receipt identifies the inputs and output. The result is ${PUBLISHES}.`,
   /** What a build publishes, as the description says it: catalog.json's `facts.publishes`. */
   publishes: PUBLISHES[0]!.toUpperCase() + PUBLISHES.slice(1) + '.',
   requirements: 'Node 24 or later to write, check and build. Chromium for rayner review and to capture Mermaid diagrams. Authoring targets Ubuntu and macOS.',
