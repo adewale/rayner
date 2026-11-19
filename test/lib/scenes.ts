@@ -2,7 +2,8 @@
 // engine does, so the golden trace pins the engine rather than an author's
 // edits. `explainer(id)` is what readers see: an explainer's default scenario with
 // its diagram snapshots bound.
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import {readFile} from 'node:fs/promises';
 import { Scene, MoveAlongPath, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
 import { Indicate } from './transient.ts';
 import { NEUTRAL_COLORS } from '../../src/color.ts';
@@ -12,7 +13,11 @@ import { labelOf } from '../../explain/labels.ts';
 import { Card } from '../../explain/panels.ts';
 import { toView } from '../../app/embed-closeup.ts';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
-import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, loadScene, readSnapshots, ROOT } from '../../tools/lib/explain-project.ts';
+import {adoptExplainer, bindSnapshots, resolveSettings} from '../../explain/internal.ts';
+import {withSettings} from '../../explain/testing.ts';
+import {usesOutlineLettering} from '../../src/internal.ts';
+import {letteringRequest, useProjectLettering} from '../../tools/lib/explain-lettering.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const GREY = '#888888';
@@ -56,9 +61,23 @@ export class Fixture extends Scene {
 }
 
 const loaded = new Map<string, Promise<SceneClass>>();
+/** Replay pinned inputs for the one scenario these engine tests use; never capture or trace others. */
+export async function defaultScene(input: string): Promise<SceneClass> {
+  const {Scene: Source, file} = await loadScene(input);
+  adoptExplainer(Source, file, await readFile(join(dirname(file), 'script.md'), 'utf8').catch(() => null), file);
+  // The legacy subset-font collector owns its process-global face installation. Preserve that
+  // path until it can return a self-contained bound class; outline snapshots already do so.
+  if (!usesOutlineLettering(Source) && letteringRequest(Source))
+    return defaultScenario(await collectProject(input, {write: false})).Scene;
+  const Lettered = usesOutlineLettering(Source)
+    ? (await (await import('../../tools/lib/lettering.ts')).prepareLettering(Source, file, false, false))?.Scene ?? Source
+    : Source;
+  await useProjectLettering({});
+  return withSettings(bindSnapshots(Lettered, await readSnapshots(file.replace(/\.[^.]+$/, ''))), resolveSettings(Lettered, {}));
+}
 export const explainer = (id: string): Promise<SceneClass> => {
   if (!loaded.has(id))
-    loaded.set(id, collectProject(join(ROOT, 'scenes/explainers', id), { write: false }).then((p) => defaultScenario(p).Scene));
+    loaded.set(id, defaultScene(join(ROOT, 'scenes/explainers', id)));
   return loaded.get(id)!;
 };
 // One at a time, so the order of collection, and anything a project leaves behind, is the same on

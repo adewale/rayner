@@ -2792,8 +2792,7 @@ test(
                 }
               }
             }
-            await quiet(a.page);
-            await quiet(d.page);
+            await Promise.all([quiet(a.page), quiet(d.page)]);
             const size = await a.page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
             assert.ok(size.w < NARROW_PX);
             const tour = closeUps(layouts.get(step), size.w, size.h), want = tour[0]!;

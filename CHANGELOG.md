@@ -6,6 +6,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- CI file timing handles relative and globbed test paths. The full motion corpus reuses its sample results, default-scene engine fixtures avoid unused scenario preparation, phone/desktop settle waits overlap, and paint-cache comparisons avoid temporary JSON keys while retaining cold-render and paint-invalidation checks.
 - CI now reports 30-second heartbeats and live file timings, validates the shared package candidate before parallel platform checks, reviews the complete catalogue in six story shards, and summarizes unassigned-runner cancellations with targeted retry commands.
 - View fidelity also compares rendered SVG paint, path data, draw fraction, paint order and effective clips against a placed redraw. Regression controls cover the previously accepted defects and legitimate state-dependent paths/clips; the seasons latitude emphasis is now derived from state.
 - `npm run bench:rendering` builds and measures matched Rayner/native-SVG fixtures from shared oracle-tested models and scripts, retaining inputs, conformance evidence and browser samples. It establishes rendering outcomes, not author productivity or learning.
