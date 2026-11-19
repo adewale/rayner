@@ -397,8 +397,8 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-words-dissolve', chapter: 'poppy-conversations', kind: 'glyph dissolve', commit: '0a887ad4', method: 'reverted', events: [],
     what: 'Two steps’ plain view.sync() morphed the ledger’s words glyph by glyph, so they dissolved into rows of dots (#101 item 12); the fix matches words whole.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8 })' },
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6 })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8, match: {by:\'key\',text:\'glyphs\'} })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6, match: {by:\'key\',text:\'glyphs\'} })' },
     ],
   },
   {

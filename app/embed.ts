@@ -623,14 +623,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
     const [w, h] = stageSize(stage), key = `${w} ${h}`;
     if (!scenarioLayouts || w <= 0 || h <= 0 || key === tourSize) return;
+    const prior=tour[stop], [oldW,oldH]=tourSize.split(' ').map(Number);
+    const at=(value:number,before:number,ratio:number)=>Math.abs(value-before)<.01||Math.abs(value-before*ratio)<.01;
+    const framedOpening=window.parent!==window&&narrow()&&follow&&prior&&Math.abs(zoom.k-prior.k)<1e-6&&
+      at(zoom.x,prior.x,w/oldW!)&&at(zoom.y,prior.y,h/oldH!);
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
     stop = Math.min(stop, tour.length - 1);
     // Whether any step of this case tours: then a single-view step keeps the row's place.
     scenarioTours = [...scenarioLayouts.values()].some((layout) => layout === shownLayout ? tour.length > 1 : closeUps(layout, w, h, zoom.max).length > 1);
-    // A raw iframe can start 150 px tall, then grow and lose its scrollbar. The opening must
-    // follow the new stage geometry, just as its tour does; manual pan/Whole picture opt out.
-    if (follow && tour[stop]) zoom.to(tour[stop]!, false);
+    // A raw iframe can start 150 px tall, then grow and lose its scrollbar. Reapply its
+    // opening at the final geometry. Preserve standalone resizing and a reader's manual view.
+    if (framedOpening && tour[stop]) zoom.to(tour[stop]!, false);
   }
   // An authored opening can be the whole frame while its later detail stops
   // zoom in. Whole picture opts out of that tour; manually zooming out from a

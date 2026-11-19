@@ -25,6 +25,18 @@ export function labelOf(m: Mobject): LabelInfo | undefined {
   return typeof info.text === 'string' && info.emRatio ? (info as LabelInfo) : undefined;
 }
 
+/** A diagram legend's mark and words form one reader item. Snapshot keys retain
+ * this relationship even though the imported outlines are sibling groups. */
+export function labelCompanions(label: Mobject, byKey: ReadonlyMap<string, Mobject>): readonly Mobject[] {
+  for (let m: Mobject | null = label; m; m = m.parent) {
+    if (!m.key) continue;
+    const mark = m.key.replace(/(^|:)legend-label:/, '$1legend:');
+    const companion = mark !== m.key ? byKey.get(mark) : undefined;
+    return companion ? [companion] : [];
+  }
+  return [];
+}
+
 /** The smaller affine scale: rotation preserves size; squash and shear reduce it. */
 function smallestScale(a: number, b: number, c: number, d: number): number {
   const x = a * a + b * b, y = c * c + d * d;

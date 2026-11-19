@@ -501,7 +501,7 @@ export function tracePicture(s: Stage, f: Fit): Drawn {
   const label = (name: string) => (name === flat.initial ? 'off' : wordsOf(chart, flat.configurations[name]!).join(' · '));
   const xs = [-5.2, -2.0, 2.4, 5.0],
     top = 2.3,
-    gap = 0.85;
+    gap = 0.78;
   const parts: Mobject[] = ['event', 'statechart: a state per region', 'flat machine: one state', ''].map((h, i) =>
     keyed(new Text(h, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([xs[i]!, top])), `t:head:${i}`),
   );
@@ -519,9 +519,14 @@ export function tracePicture(s: Stage, f: Fit): Drawn {
   });
   const fc = flatCounts(flat),
     cc = chartCounts(chart);
-  const tail = [`Flat: ${counted(fc)}    Statechart: ${counted(cc)}`, 'At run time both are in one combination; regions shrink only the drawing'];
-  tail.forEach((t, i) => parts.push(keyed(new Text(t, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([0, top - rows.length * gap - 0.85 - i * 0.48])), `t:tail:${i}`)));
-  return { group: new Group(...parts), words: [...words, ...tail] };
+  const tail = [
+    {text: `Flat: ${counted(fc)}`, x: -3, row: 0},
+    {text: `Statechart: ${counted(cc)}`, x: 3, row: 0},
+    {text: 'At run time both are in one combination;', x: 0, row: 1},
+    {text: 'regions shrink only the drawing', x: 0, row: 2},
+  ];
+  tail.forEach(({text, x, row}, i) => parts.push(keyed(new Text(text, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([x, top - rows.length * gap - 0.85 - row * 0.48])), `t:tail:${i}`)));
+  return { group: new Group(...parts), words: [...words, ...tail.map(t => t.text)] };
 }
 // The table's extent, header to the last line under it, in its own units.
 export const TRACE: Box = [-6.4, -3.5, 6.2, 2.55];

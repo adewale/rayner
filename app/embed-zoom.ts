@@ -7,7 +7,7 @@
  */
 import { DomSink, mobjectId, unionBoxes, userBox, intersect, pad } from '../src/internal.ts';
 import { VIEWBOX, applyRecords } from '../src/internal.ts';
-import { withoutHeading, labelOf } from '../explain/internal.ts';
+import { withoutHeading, labelOf, labelCompanions } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/internal.ts';
 import type { Box } from '../src/index.ts';
@@ -186,10 +186,11 @@ export class ReaderSink extends DomSink {
   }
   override async frame(scene: Scene, dt = 0): Promise<void> {
     this.labels = new Map();
+    const byKey = this.withoutHeading() ? new Map(scene.familyMembers().filter(m => m.key).map(m => [m.key!, m])) : new Map();
     if (this.withoutHeading()) for (const m of scene.familyMembers()) {
       const label = labelOf(m);
       if (!label?.text.trim()) continue;
-      const family = m.family();
+      const family = [m, ...labelCompanions(m, byKey)].flatMap(part => part.family());
       let box = unionBoxes(family.filter(c => !c.children.length && c.hasPoints()).map(c => {
         const b = c.box();
         return b && pad(b, (c.style.stroke !== 'none' ? c.style.strokeWidth / 2 : 0) + 0.001);
@@ -209,12 +210,17 @@ export class ReaderSink extends DomSink {
     this.signal.throwIfAborted();
     if (viewBox !== undefined && viewBox !== this.svg.getAttribute('data-camera')) this.svg.setAttribute('data-camera', viewBox);
     super[applyRecords](els, this.reader(this.svg.getAttribute('data-camera')!));
+    if(!this.labels.size){
+      const previous=readerLabels.get(this.svg);
+      if(previous){for(const node of previous.keys())node.removeAttribute('data-reader-clipped');readerLabels.delete(this.svg);}
+      return;
+    }
     const nodes = [...this.svg.children].filter(e => e.tagName !== 'defs');
     const labels = new Map<Element, ReaderLabel>();
     for (const [index, rec] of els.entries()) {
       const node = nodes[index]!, label = this.labels.get(rec.id);
       if (label) labels.set(node, label);
-      else node.removeAttribute('data-reader-clipped');
+      else if(node.hasAttribute('data-reader-clipped'))node.removeAttribute('data-reader-clipped');
     }
     readerLabels.set(this.svg, labels);
     clipReaderLabels(this.svg, this.svg.getAttribute('viewBox')!);

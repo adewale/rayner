@@ -1679,14 +1679,21 @@ test(
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
       // Next plays 'check', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
-      const seen: Painted[] = [];
+      // Observe in the browser before the click. Polling over CDP can miss the
+      // entire short glide under load even when the browser paints every frame.
+      await page.evaluate(() => {
+        const w=window as unknown as {cameraFrames:Painted[];cameraObserver:MutationObserver};
+        w.cameraFrames=[];
+        w.cameraObserver=new MutationObserver(()=>{
+          const svg=document.querySelector('.stage svg:not(.leaving)');if(!svg)return;
+          const size=svg.parentElement!.getBoundingClientRect();
+          w.cameraFrames.push({view:svg.getAttribute('viewBox')!,camera:svg.getAttribute('data-camera')!,w:size.width,h:size.height});
+        });
+        w.cameraObserver.observe(document.querySelector('.stage')!,{subtree:true,attributes:true,attributeFilter:['viewBox','data-camera']});
+      });
       await page.locator('.stepper').getByRole('button', { name: 'Next step' }).click();
-      const end = Date.now() + 3000;
-      while (Date.now() < end) {
-        const p = await paintedView(page).catch(() => null);
-        if (p && (!seen.length || seen.at(-1)!.view !== p.view)) seen.push(p);
-        if (p?.camera === home && seen.length > 3) break;
-      }
+      await quiet(page);
+      const seen=await page.evaluate(()=>{const w=window as unknown as {cameraFrames:Painted[];cameraObserver:MutationObserver};w.cameraObserver.disconnect();return w.cameraFrames;});
       const gliding = seen.filter((p) => p.camera !== author.camera && p.camera !== home);
       assert.ok(gliding.length > 0, `the camera glide was seen under the zoom: ${seen.map((p) => p.camera).join(' | ')}`);
       for (const p of seen)

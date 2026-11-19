@@ -23,7 +23,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes, paints, paintsStroke, viewOf, dryRun, FRAME, STAGE_BOX, zoomOf } from '../src/internal.ts';
-import { labelOf, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading, liveSteps } from '../explain/internal.ts';
+import { labelOf, labelCompanions, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading, liveSteps } from '../explain/internal.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 
@@ -187,6 +187,7 @@ function emphasised(leaves: readonly Leaf[]): {box: Box; painted: Box}[] {
 /** Every readable label in the camera's view, in its units: a label's size grows with the camera's zoom. */
 function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
   const out: LayoutLabel[] = [];
+  const byKey = new Map(scene.familyMembers().filter(m => m.key).map(m => [m.key!, m]));
   const view = viewOf(scene),
     zoom = zoomOf(view);
   const walk = (m: Mobject, opacity: number, clip: Box) => {
@@ -197,7 +198,7 @@ function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
     const label = labelOf(m);
     if (label?.text.trim() && (m.style.drawFraction ?? 1) >= 0.95) {
       if (only && !only.has(m)) return;
-      const b = m.box(),
+      const b = unionBoxes([m, ...labelCompanions(m, byKey)].map(part => part.box())),
         seen = b && meet(b, c);
       if (seen)
         out.push({

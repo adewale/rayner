@@ -441,7 +441,7 @@ test('served review rejects hiding the blue artwork revealed by removing a dupli
           });
         }, width);
         await assert.rejects(reviewStoryScenario(page, server.url + '/scene.html', project.scenarios[0]!),
-          /after: changed: blue has hidden or clipped ink/);
+          /after(?: at \d+px)?: changed: blue has hidden or clipped ink/);
         assert.equal(await page.evaluate(() =>
           (window as unknown as { visibleBeforePoison: boolean }).visibleBeforePoison), true, `${width}: visible blue before poison`);
         assert.equal(await page.locator('.stage svg:not(.leaving) path[fill="blue"]').evaluate(e => getComputedStyle(e).opacity),
@@ -650,7 +650,7 @@ test(
           ...claims,
           { step: 'route', targets: [{ key: 'window-route', paint: 'stroke' }] },
         ]),
-        /route: window-route has hidden or clipped ink/,
+        /route(?: at \d+px)?: window-route has hidden or clipped ink/,
         'an explicit arrow claim requires the whole route',
       );
       const outside = project.scenarios.find((v) => v.values.route === 'outside')!;
@@ -991,7 +991,7 @@ test('served review rejects hidden reordered and duplicated layers despite a cha
           });
         }, index);
         await assert.rejects(reviewStoryScenario(poisoned, server.url + '/layers.html', scenario),
-          /after: changed: layer-.* has hidden or clipped ink/, scenario.values.mode);
+          /after(?: at \d+px)?: changed: layer-.* has hidden or clipped ink/, scenario.values.mode);
         assert.equal(await poisoned.evaluate(() =>
           (window as unknown as { visibleBeforePoison: boolean }).visibleBeforePoison), true,
         'each defect starts from actually painted ink');
