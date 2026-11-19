@@ -586,6 +586,11 @@ export class LegibilitySink implements Sink {
         // Unmatched proxy labels can remain wholly invisible while shapes are
         // paired. They are not reader-visible text and must not create zero-size rows.
         if (!glyphs.some(g=>g.style.opacity>0.01&&paints(g.style,{min:0.01}))) continue;
+        const ink=glyphs.length>0&&glyphs.every(g=>g.style.opacity>=0.95&&(g.style.drawFraction??1)>=0.95&&paints(g.style,{min:0.95}));
+        // A glyph-matching shell can combine fading fragments without ever
+        // presenting its nominal word. Measure complete words during motion;
+        // still retain incomplete resting labels so they fail the size gate.
+        if (!completed && !ink) continue;
         if (!this.labels.has(m)) this.labels.set(m, { text, px: 0, phone: 0, inView: false });
         // A camera gliding past does not make a label read: between completed frames a
         // label counts at no more than its size with the camera home.
@@ -593,7 +598,6 @@ export class LegibilitySink implements Sink {
         // The flat SVG renderer paints glyph styles, not their Text container's
         // style. A matching proxy may retain an invisible container while its
         // glyphs become fully painted. Credit only complete, actually painted glyphs.
-        const ink=glyphs.length>0&&glyphs.every(g=>g.style.opacity>=0.95&&(g.style.drawFraction??1)>=0.95&&paints(g.style,{min:0.95}));
         if (ink && viewport && contains(viewport,m.box()!,1e-5)) this.seen(this.labels.get(m)!, credited, shown(m.box()), completed ? step : undefined, isHeading(m));
       }
     }

@@ -2,7 +2,7 @@
 // and the shots do; the last-frame check holds that picture to the step's last played frame.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Rectangle, Group, FadeIn } from '../src/index.ts';
+import { Scene, Text, Rectangle, Group, FadeIn, Transform } from '../src/index.ts';
 import { toSvgString } from '../src/svg.ts';
 import { stage, withoutHeading } from '../explain/stage.ts';
 import { FanSink, FrameCaptureSink, LastFrameSink, LegibilitySink, LookWordsSink, RestingSink } from '../tools/lib/explain-check.ts';
@@ -50,6 +50,32 @@ test('legibility measures flat-rendered glyph paint and ignores a wholly invisib
   await new Painted(sink).run();
   assert.deepEqual([...sink.labels.values()].map(r=>r.text),['painted']);
   assert.ok([...sink.labels.values()][0]!.px>=47);
+});
+
+test('legibility measures complete matched words without inventing labels for partial morph shells', async () => {
+  const sink = new LegibilitySink(new Map(), 1);
+  class Shorten extends Scene {
+    override async construct() {
+      await this.step('shorten');
+      const long = new Text('0.3000000000000000444089…', {fontSize:.6, font:'mono'});
+      this.add(long);
+      await this.wait(.1);
+      const copy = long.copy();this.add(copy);
+      await this.play(new Transform(copy, new Text('0.3', {fontSize:.6, font:'mono', weight:'bold'}).shift([0,-1]), {match:'text',runTime:1.2}));
+    }
+  }
+  await new Shorten(sink).run();
+  assert.ok(sink.labels.size >= 2, 'the source and landed words are both measured');
+  assert.ok([...sink.labels.values()].every(r => r.px >= 14), JSON.stringify([...sink.labels.values()]));
+
+  const faint = new LegibilitySink(new Map(), 1);
+  class Faint extends Scene {
+    override async construct() {
+      await this.step('faint');this.add(new Text('required but faint', {fontSize:.6}).setOpacity(.5));await this.wait(.1);
+    }
+  }
+  await new Faint(faint).run();
+  assert.equal([...faint.labels.values()].find(r => r.text === 'required but faint')?.px, 0, 'an unreadable resting label still rejects');
 });
 
 class Two extends Scene {
