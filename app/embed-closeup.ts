@@ -472,19 +472,20 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     vh = h / (k * s);
   // Centre the full picture in any dimension where it fits; otherwise put the
   // region's top-left corner at the stage's top-left before clamping.
-  const fitsTall = k * FRAME.h * s <= h + 1e-9,
-    fitsWide = k * FRAME.w * s <= w + 1e-9;
-  const zoomOn = ([left, , , top]: Box) =>
-    clampZoom(
+  const zoomOn = ([left, , , top]: Box, scale = k) => {
+    const fitsTall = scale * FRAME.h * s <= h + 1e-9,
+      fitsWide = scale * FRAME.w * s <= w + 1e-9;
+    return clampZoom(
       {
-        k,
-        x: fitsWide ? (w - k * FRAME.w * s) / 2 - k * ox : -k * (ox + (left - STAGE_BOX[0]) * s),
-        y: fitsTall ? (h - k * FRAME.h * s) / 2 - k * oy : -k * (oy + (STAGE_BOX[3] - top) * s),
+        k: scale,
+        x: fitsWide ? (w - scale * FRAME.w * s) / 2 - scale * ox : -scale * (ox + (left - STAGE_BOX[0]) * s),
+        y: fitsTall ? (h - scale * FRAME.h * s) / 2 - scale * oy : -scale * (oy + (STAGE_BOX[3] - top) * s),
       },
       w,
       h,
       max,
     );
+  };
   // Clamping at the frame's edge can move a region; what a close-up shows is the view it lands on.
   const views = tourRegions(painted, vw, vh, bounds).map((r) => {
     const zoom = zoomOn(r);
@@ -513,10 +514,15 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   // the whole label fits a view. Keep the original opening and add a centred view
   // for each readable label that otherwise has no complete view.
   const extra: typeof views = [];
-  for (const { box } of read) {
+  for (const { box, size } of read) {
+    // Large titles need a wider stop than small neighbouring labels. Keep the
+    // detailed grid and frame a large label at its own readable scale.
+    const scale = box[2] - box[0] > vw || box[3] - box[1] > vh
+      ? Math.min(k, Math.max(1, READ_PX / (size * s))) : k;
+    const labelWidth = w / (scale * s), labelHeight = h / (scale * s);
     if (
-      box[2] - box[0] > vw ||
-      box[3] - box[1] > vh ||
+      box[2] - box[0] > labelWidth ||
+      box[3] - box[1] > labelHeight ||
       box[0] < bounds[0] ||
       box[1] < bounds[1] ||
       box[2] > bounds[2] ||
@@ -524,9 +530,9 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     )
       continue;
     const complete = (r: Box) => inside(box[0], box[1], r) && inside(box[2], box[3], r);
-    if ([...views, ...extra].some((v) => complete(v.box))) continue;
-    for (const region of tourRegions([box], vw, vh, bounds)) {
-      const zoom = zoomOn(region),
+    if ([...views, ...extra].some((v) => complete(v.box) && v.zoom.k >= scale - 1e-6)) continue;
+    for (const region of tourRegions([box], labelWidth, labelHeight, bounds)) {
+      const zoom = zoomOn(region, scale),
         shown = viewBox(zoom, w, h);
       if (complete(shown)) extra.push({ zoom, box: shown });
     }

@@ -772,6 +772,8 @@ The report goes to `out/checks/<id>/report.json`. For each scenario it holds the
 | `labelsOutsideCloseUpsAt390` | Labels no estimated close-up shows whole; inspect actual coverage with browser review |
 | `minLabelPx390WholeStage` | Smallest label on that phone without close-ups, over every step. Reported for the whole scenario; a [live step's](#checks) labels are gated (Phone at live steps) |
 
+A tour keeps its detailed views and can add a wider stop for a larger title that does not fit them. Each added label stop uses that label’s own readable scale; uniform type retains one scale. If a line cannot fit even at 12 px, wrap or shorten it in the authored picture.
+
 A picture label that no close-up shows whole is measured at the step's opening zoom, where a reader panning to it finds it. The stage's heading (number, title and line) is not measured on the phone: a narrow stage draws its pictures without it, and the player sets the step's number, title and line as page text under the stepper row. It is measured at 1280 px. A drawing can therefore fill the stage, and a step can open on the whole picture, without the heading's small line counting against it. `smallLabelsAt390` lists the labels under 12 px, smallest first, each with its words, phone size and step.
 
 `watch`, for a scene that declares [`meta.watch`](#scene), gives each step's formatted changes (`{ step, changes, unformatted }`), where `unformatted` names the watched keys skipped because their value cannot be said briefly. It is reported, not gated.

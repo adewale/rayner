@@ -106,15 +106,20 @@ const ARI_CODE = [
   '        return True',
 ];
 // letsencrypt/boulder 4e1779d, wfe2/wfe.go:2290–2297 (validateReplacementOrder) and
-// 2487–2489 (NewOrder); comments shortened.
+// 2487–2489 (NewOrder); comments shortened, expressions wrapped for the phone.
 const EXEMPT_CODE = [
-  '// boulder wfe2/wfe.go:2290–2297, validateReplacementOrder',
-  '// exempt only if it replaces a certificate and is inside its window',
-  'renewalInfo, err := wfe.determineARIWindow(ctx, replaces)',
-  'return replaces, renewalInfo.SuggestedWindow.IsWithin(wfe.clk.Now()), nil',
+  '// boulder wfe2/wfe.go:2290–2297',
+  '// validateReplacementOrder',
+  '// exemption: replacement in its ARI window',
+  'renewalInfo, err := wfe.determineARIWindow(',
+  '    ctx, replaces)',
+  'return replaces, renewalInfo.SuggestedWindow.',
+  '    IsWithin(wfe.clk.Now()), nil',
   '// wfe2/wfe.go:2487–2489, NewOrder',
   'if !isARIRenewal {',
-  '    refundLimits, err = wfe.checkNewOrderLimits(ctx, acct.ID, idents, isRenewal)',
+  '    refundLimits, err =',
+  '        wfe.checkNewOrderLimits(ctx, acct.ID,',
+  '            idents, isRenewal)',
 ];
 
 interface Bar {

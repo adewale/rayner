@@ -48,6 +48,18 @@ test('phone label bounds include painted stroke halos, not only glyph outlines',
   assert.ok(ink.every(p=>b[0]<=p[0]&&b[1]<=p[1]&&b[2]>=p[2]&&b[3]>=p[3]),'every painted halo must fit the planned label');
 });
 
+test('a large title gets a wider readable stop while small labels keep their detail views', () => {
+  const title: Box=[-7,1,7,2], small: Box=[-1,-1,0,-.8];
+  const layout: StepLayout={parts:[[-7,-3,7,3]],lead:0,labels:[{box:title,size:.7},{box:small,size:.2}]};
+  const w=358,h=250,s=stageScale(w,h).s,tour=closeUps(layout,w,h);
+  assert.ok(tour[0]!.k>1,'the small labels retain the detailed opening');
+  for(const {box,size} of layout.labels) assert.ok(tour.some(z=>{
+    const v=viewBox(z,w,h);
+    return v[0]<=box[0]&&v[1]<=box[1]&&v[2]>=box[2]&&v[3]>=box[3]&&size*s*z.k>=READ_PX-1e-6;
+  }),'each label must be complete at a readable scale');
+  assert.ok(tour.some(z=>z.k<tour[0]!.k),'the title has a wider stop');
+});
+
 test('an opening includes readable sibling labels inside its named box', async () => {
   class SiblingLabel extends Scene {
     override async construct() {
@@ -176,17 +188,21 @@ test('a stage NARROW_PX wide or wider keeps the whole picture: one close-up, the
   );
 });
 
-test('every close-up of a step is clamped (the drawing covers the stage) and they share one scale in [1, max]', () => {
+test('every close-up is clamped, and labels at one type size share a scale in [1, max]', () => {
   fc.assert(
     fc.property(layoutArb, stageArb, (layout, { w, h }) => {
       const tour = closeUps(layout, w, h);
       assert.ok(tour.length >= 1);
       for (const z of tour) {
         assert.deepEqual(clampZoom(z, w, h), z);
-        assert.equal(z.k, tour[0]!.k);
         assert.ok(z.k >= 1 && z.k <= ZOOM_MAX);
       }
       assert.deepEqual(closeUp(layout, w, h), tour[0]);
+      // Keeper for the common-scale assertion: mixed type sizes may now need
+      // wider title stops. Uniform type retains the original single scale.
+      const size = Math.min(...layout.labels.map(l => l.size));
+      const uniform = closeUps({...layout, labels:layout.labels.map(l=>({...l,size}))},w,h);
+      for (const z of uniform) assert.equal(z.k, uniform[0]!.k);
     }),
     params(500),
   );
@@ -508,16 +524,16 @@ test('a readable label that fits a permitted view is whole in some close-up', ()
           scale = Math.min(w / 16, h / 9),
           offsetX = (w - 16 * scale) / 2,
           offsetY = (h - 9 * scale) / 2,
-          viewWidth = w / (k * scale),
-          viewHeight = h / (k * scale),
           ceiling = 4.5;
         // Relevance is the documented 0.2-unit padding, not the production selector.
         const near = layout.labels.filter((label) => layout.parts.some((part) =>
           label.box[0] <= part[2] + 0.2 && label.box[2] >= part[0] - 0.2 &&
           label.box[1] <= part[3] + 0.2 && label.box[3] >= part[1] - 0.2));
         const read = near.length ? near : layout.labels;
-        for (const { box } of read) {
-          if (box[2] - box[0] > viewWidth || box[3] - box[1] > viewHeight ||
+        for (const { box, size } of read) {
+          const ownScale = Math.min(k, Math.max(1, READ_PX / (size * scale)));
+          const ownWidth = w / (ownScale * scale), ownHeight = h / (ownScale * scale);
+          if (box[2] - box[0] > ownWidth || box[3] - box[1] > ownHeight ||
               box[0] < -8 || box[2] > 8 || box[1] < -4.5 || box[3] > ceiling) continue;
           // Forward project authored corners into CSS pixels. Do not use the
           // production inverse (viewBox) to decide whether the whole label is shown.
@@ -527,7 +543,7 @@ test('a readable label that fits a permitted view is whole in some close-up', ()
               top = ((4.5 - box[3]) * scale + offsetY) * z.k + z.y,
               bottom = ((4.5 - box[1]) * scale + offsetY) * z.k + z.y,
               slack = 1e-6 * scale * z.k; // existing scene-unit serialization allowance
-            return left >= -slack && right <= w + slack && top >= -slack && bottom <= h + slack;
+            return z.k >= ownScale - 1e-6 && left >= -slack && right <= w + slack && top >= -slack && bottom <= h + slack;
           });
           assert.ok(complete, `label ${JSON.stringify(box)} is split across every view at ${w} × ${h}, max ${max}`);
         }

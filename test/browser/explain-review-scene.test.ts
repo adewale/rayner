@@ -167,6 +167,26 @@ test('trust-proxy range subjects contain both settings and all six independently
   }
 });
 
+test('certificate timeline titles and smaller dates remain complete in standalone and framed phone tours', {skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for mixed-size timeline tours'}, async () => {
+  const {ROOT} = await import('../../tools/lib/explain-project.ts');
+  const {buildExplainer,buildLoader} = await import('../../tools/lib/explain-build.ts');
+  const {serve} = await import('../../tools/lib/explain-serve.ts');
+  const {launch} = await import('../../tools/lib/browser.ts');
+  const {reviewStoryScenario} = await import('../../tools/lib/explain-story-review.ts');
+  const folder=await mkdtemp(join(tmpdir(),'rayner-timeline-tour-'));
+  let server: Awaited<ReturnType<typeof serve>>|undefined, browser: Awaited<ReturnType<typeof launch>>|undefined;
+  try {
+    const project=await collectProject(join(ROOT,'scenes/explainers/cert-renewal'),{write:false});
+    await buildExplainer(project,join(folder,'scene.html'));await buildLoader(join(folder,'loader.js'));
+    server=await serve(folder,0,'scene.html');browser=await launch();
+    const page=await browser.newPage(), scenario=project.scenarios[0]!, claims=await reviewSubjects(project);
+    const standalone=await reviewStoryScenario(page,server.url+'/scene.html',scenario,claims);
+    const framed=await reviewStoryScenario(page,server.url+'/scene.html',scenario,claims,undefined,undefined,true);
+    assert.deepEqual(standalone.filter(r=>r.step==='limit').map(r=>r.width),[390,1180]);
+    assert.deepEqual(framed.map(r=>[r.step,r.width]),scenario.trace.steps.map(s=>[s.step,390]));
+  } finally {await browser?.close();server?.close();await rm(folder,{recursive:true,force:true});}
+});
+
 
 test('dictionary review retains six claim sets and checks four main openings plus two reference steps', async () => {
   const {ROOT} = await import('../../tools/lib/explain-project.ts');
