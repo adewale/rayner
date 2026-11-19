@@ -90,9 +90,9 @@ test('companion claims bind to actual scene ink', async () => {
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
-test('trust-proxy range comparisons retain all factual subjects and review every list request at both widths', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for range comparison tours' }, async () => {
+test('trust-proxy retains the framed CDN label and every list request’s factual subjects at both widths', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for range comparison tours' }, async () => {
   const { ROOT } = await import('../../tools/lib/explain-project.ts');
-  const { buildExplainer } = await import('../../tools/lib/explain-build.ts');
+  const { buildExplainer, buildLoader } = await import('../../tools/lib/explain-build.ts');
   const { serve } = await import('../../tools/lib/explain-serve.ts');
   const { launch } = await import('../../tools/lib/browser.ts');
   const { reviewStoryScenario} = await import('../../tools/lib/explain-story-review.ts');
@@ -104,6 +104,7 @@ test('trust-proxy range comparisons retain all factual subjects and review every
     assert.equal(project.scenarios.length, 12);
     const claims = await reviewSubjects(project);
     await buildExplainer(project, join(folder, 'scene.html'));
+    await buildLoader(join(folder, 'loader.js'));
     server = await serve(folder, 0, 'scene.html');
     browser = await launch();
     const page = await browser.newPage();
@@ -113,6 +114,10 @@ test('trust-proxy range comparisons retain all factual subjects and review every
       const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([key, value]) => scenario.values[key] === value));
       const frames = await storyFrames(scenario.Scene, applicable);
       assert.ok(frames.get('ranges'));
+      if (index === 0) {
+        const framed = await reviewStoryScenario(page, server.url + '/scene.html', scenario, claims, undefined, undefined, true);
+        assert.deepEqual(framed.map(r => [r.step, r.width]), scenario.trace.steps.map(s => [s.step, 390]));
+      }
       if (scenario.values.trust !== 'list') continue;
       const output = join(folder, String(index));
       const { mkdir } = await import('node:fs/promises');

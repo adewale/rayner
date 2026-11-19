@@ -5,9 +5,9 @@
  * pointer, double-click about the point clicked. Once zoomed, a drag pans, and
  * so does a click or tap, which centres the point under it (no drag needed).
  */
-import { DomSink, mobjectId, unionBoxes, userBox, intersect, pad } from '../src/internal.ts';
+import { DomSink, mobjectId, userBox, intersect } from '../src/internal.ts';
 import { VIEWBOX, applyRecords } from '../src/internal.ts';
-import { withoutHeading, labelOf, labelCompanions } from '../explain/internal.ts';
+import { withoutHeading, labelOf, labelCompanions, labelPaintBox } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/internal.ts';
 import type { Box } from '../src/index.ts';
@@ -190,11 +190,8 @@ export class ReaderSink extends DomSink {
     if (this.withoutHeading()) for (const m of scene.familyMembers()) {
       const label = labelOf(m);
       if (!label?.text.trim()) continue;
-      const family = [m, ...labelCompanions(m, byKey)].flatMap(part => part.family());
-      let box = unionBoxes(family.filter(c => !c.children.length && c.hasPoints()).map(c => {
-        const b = c.box();
-        return b && pad(b, (c.style.stroke !== 'none' ? c.style.strokeWidth / 2 : 0) + 0.001);
-      }));
+      const parts = [m, ...labelCompanions(m, byKey)], family = parts.flatMap(part => part.family());
+      let box = labelPaintBox(parts);
       if (!box) continue;
       for (let a: typeof m | null = m; a && box; a = a.parent) if (a.clipBox) box = intersect(box, a.clipBox);
       if (!box) continue;

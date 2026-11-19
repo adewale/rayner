@@ -4,8 +4,9 @@
 // without diagram code still carries this module, and none of explain/diagrams.ts.
 
 import { Group, Text, VMobject } from '../src/index.ts';
-import type { Mobject, Vec } from '../src/index.ts';
+import type { Box, Mobject, Vec } from '../src/index.ts';
 import { matchingFrameFor, interpolateData } from '../src/mobject.ts';
+import { pad, unionBoxes } from '../src/box.ts';
 import { textRun, advanceBox } from '../src/text.ts';
 import type { TextShaping } from '../src/text-context.ts';
 import { SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
@@ -35,6 +36,15 @@ export function labelCompanions(label: Mobject, byKey: ReadonlyMap<string, Mobje
     return companion ? [companion] : [];
   }
   return [];
+}
+
+/** Reader framing and clipping share the actual outline bounds, including text
+ * halos. One extra SVG unit accommodates the renderer's path formatting. */
+export function labelPaintBox(parts: readonly Mobject[]): Box | null {
+  return unionBoxes(parts.flatMap(part => part.family()).filter(m => !m.children.length && m.hasPoints()).map(m => {
+    const box = m.box();
+    return box && pad(box, (m.style.stroke !== 'none' && m.style.strokeOpacity > 0 ? m.style.strokeWidth / 2 : 0) + .001);
+  }));
 }
 
 /** The smaller affine scale: rotation preserves size; squash and shear reduce it. */

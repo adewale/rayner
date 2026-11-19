@@ -23,7 +23,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes, paints, paintsStroke, viewOf, dryRun, FRAME, STAGE_BOX, zoomOf } from '../src/internal.ts';
-import { labelOf, labelCompanions, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading, liveSteps } from '../explain/internal.ts';
+import { labelOf, labelCompanions, labelPaintBox, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading } from '../explain/internal.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 
@@ -50,8 +50,6 @@ export interface LayoutLabel {
 }
 /** What a step's resting picture holds, for framing it; boxes and sizes in the camera's view units. */
 export interface StepLayout {
-  /** A machine may move context between presses; retain the authored tour's camera coverage. */
-  dynamic?: true;
   /** Authored comparison, independent of incidental changed code or notes. */
   opening?: { box: Box; labels: LayoutLabel[]; zoom?: number };
   /**
@@ -198,7 +196,8 @@ function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
     const label = labelOf(m);
     if (label?.text.trim() && (m.style.drawFraction ?? 1) >= 0.95) {
       if (only && !only.has(m)) return;
-      const b = unionBoxes([m, ...labelCompanions(m, byKey)].map(part => part.box())),
+      const parts = [m, ...labelCompanions(m, byKey)];
+      const b = unionBoxes([m.box(), labelPaintBox(parts)]),
         seen = b && meet(b, c);
       if (seen)
         out.push({
@@ -345,7 +344,6 @@ export function layoutSink(): { sink: LayoutSink; layouts: Map<string, StepLayou
         // in the tour even when only a nearby label changed this step.
         ...partsOf([...changes, ...intent]),
         labels,
-        ...(liveSteps(scene).has(step.path) ? {dynamic:true as const} : {}),
         ...(box ? { opening: { box: toView(box, view), labels: subjectLabels, ...(openingOf(scene).zoom === undefined ? {} : {zoom: openingOf(scene).zoom}) } } : {}),
         ...(stress.length ? { stress } : {}),
       });
@@ -455,43 +453,6 @@ export function stressStarts(layout: StepLayout): [number, number][] {
  * A narrow ReaderSink leaves the stage heading out, so the whole authored frame is
  * available to the picture; no close-up reserves space for the undrawn heading.
  */
-/** Nudge a crop into the gaps between labels while preserving its complete subjects. */
-function completeLabels(z: Zoom, layout: StepLayout, w: number, h: number, max: number, others: Box[]): Zoom {
-  const original = viewBox(z, w, h), {s, ox, oy} = stageScale(w, h);
-  const contains = (outer: Box, inner: Box) => outer[0] <= inner[0] + 1e-6 && outer[1] <= inner[1] + 1e-6 && outer[2] >= inner[2] - 1e-6 && outer[3] >= inner[3] - 1e-6;
-  const partial = (box: Box) => layout.labels.filter(l => overlaps(l.box, box, {touching: false}) && !contains(box, l.box)).length;
-  let count = partial(original);
-  if (!count) return z;
-  const anchors = [...layout.labels.map(l => l.box), ...(layout.opening ? [layout.opening.box] : [])].filter(b => contains(original, b));
-  const coversChanges = (views: Box[]) => layout.parts.every(part => {
-    const edges = [part[0], part[2], ...views.flatMap(v => [v[0],v[2]]).filter(x => x > part[0] && x < part[2])].sort((a,b) => a-b);
-    const xs = [...edges, ...edges.slice(1).map((x,i) => (x+edges[i]!) / 2)];
-    return xs.every(x => {
-      const intervals = views.filter(v => v[0] <= x + 1e-8 && v[2] >= x - 1e-8).map(v => [v[1],v[3]]).sort((a,b) => a[0]!-b[0]!);
-      let reached = part[1];
-      for (const [lo,hi] of intervals) {
-        if (lo! > reached + 1e-8) break;
-        reached = Math.max(reached,hi!);
-        if (reached >= part[3] - 1e-8) return true;
-      }
-      return false;
-    });
-  });
-  const width = original[2] - original[0], height = original[3] - original[1];
-  const near = (values: number[], current: number) => [...new Set(values)].sort((a,b) => Math.abs(a-current)-Math.abs(b-current)).slice(0,12);
-  const xs = near([original[0], ...layout.labels.flatMap(l => [l.box[0] - 0.04, l.box[2] + 0.04 - width])], original[0]);
-  const ys = near([original[1], ...layout.labels.flatMap(l => [l.box[1] - 0.04, l.box[3] + 0.04 - height])], original[1]);
-  let best = z;
-  for (const left of xs) for (const bottom of ys) {
-    const candidate = clampZoom({k:z.k, x:-z.k * (ox + (left-STAGE_BOX[0])*s), y:-z.k * (oy + (STAGE_BOX[3]-bottom-height)*s)},w,h,max);
-    const box = viewBox(candidate,w,h);
-    if (!anchors.every(a => contains(box,a))) continue;
-    const clipped = partial(box);
-    if (clipped < count && coversChanges([...others,box])) { best = candidate; count = clipped; if (!count) return best; }
-  }
-  return best;
-}
-
 export function closeUps(layout: StepLayout | undefined, w: number, h: number, max = ZOOM_MAX): Zoom[] {
   const whole = [clampZoom(IDENTITY, w, h, max)];
   if (!layout || (!layout.parts.length && !layout.opening) || !(w > 0) || !(h > 0) || w >= NARROW_PX) return whole;
@@ -596,10 +557,8 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   for (const z of [...opening, views[open]!.zoom, ...first, ...rest])
     if (!zooms.some((o) => Math.abs(o.k - z.k) < 1e-6 && Math.abs(o.x - z.x) < 1e-6 && Math.abs(o.y - z.y) < 1e-6))
       zooms.push(z);
-  const adjusted = [...zooms];
-  if (!layout.dynamic) for (let i = 0; i < adjusted.length; i++) adjusted[i] = completeLabels(adjusted[i]!, layout, w, h, max, adjusted.filter((_,j) => i !== j).map(z => viewBox(z,w,h)));
   const complete: Zoom[] = [];
-  for (const zoom of adjusted)
+  for (const zoom of zooms)
     if (!complete.some(z => Math.abs(z.k-zoom.k) < 1e-6 && Math.abs(z.x-zoom.x) < 1e-6 && Math.abs(z.y-zoom.y) < 1e-6)) complete.push(zoom);
   return complete;
 }

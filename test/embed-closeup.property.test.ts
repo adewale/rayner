@@ -29,6 +29,25 @@ import {
 } from '../app/embed-closeup.ts';
 import type { StepLayout } from '../app/embed-closeup.ts';
 
+test('phone label bounds include painted stroke halos, not only glyph outlines', async () => {
+  let ink: Box[] = [];
+  class Halo extends Scene {
+    override async construct() {
+      await this.step('halo');
+      const label = new Text('CDN', {fontSize:.2}).setStroke('#fff', .2);
+      ink = label.family().filter(m => !m.children.length && m.hasPoints()).map(m => {
+        const b = m.box()!, half = m.style.strokeWidth / 2;
+        return [b[0]-half,b[1]-half,b[2]+half,b[3]+half];
+      });
+      this.add(label);await this.wait(.1);
+    }
+  }
+  const layout=(await stepLayouts(Halo)).get('halo')!;
+  assert.equal(layout.labels.length,1);assert.ok(ink.length>0);
+  const b=layout.labels[0]!.box;
+  assert.ok(ink.every(p=>b[0]<=p[0]&&b[1]<=p[1]&&b[2]>=p[2]&&b[3]>=p[3]),'every painted halo must fit the planned label');
+});
+
 test('an opening includes readable sibling labels inside its named box', async () => {
   class SiblingLabel extends Scene {
     override async construct() {
@@ -262,7 +281,7 @@ test('a step opens on its lead part: whole when it fits the view, else from its 
       for (const [x, y] of corners)
         assert.ok(x >= v[0] - slack && x <= v[2] + slack && y >= v[1] - slack && y <= v[3] + slack, `${x},${y} not in ${v}`);
     }),
-    params(500),
+    params<[StepLayout, {w:number;h:number}]>(500, {examples: [[{parts:[[0,4.5,0,4.5],[0,0,0,0]],lead:0,labels:[{box:[0,0,0,.922222222222223],size:.05}]},{w:120,h:161}]]}),
   );
 });
 
