@@ -6,6 +6,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- CI now reports 30-second heartbeats and live file timings, validates the shared package candidate before parallel platform checks, reviews the complete catalogue in six story shards, and summarizes unassigned-runner cancellations with targeted retry commands.
 - Dated motion-audit evidence is archived on the `evidence` branch, not in the source tree; `docs/evidence/archive.json` records one Git object hash per bundle and a test verifies them, with corrections to the archive noted beside it rather than edited into it. Living docs cite only commits a full clone resolves, and permalinks only paths that exist at their commit. The motion corpus edits a frozen copy of the Poppy chapters, so redesigning a chapter cannot move its figures, and its full run requires each frozen baseline to be clean.
 - Nested transition entrants retain target parent slots and clips; whole-picture fades preserve each child’s relative opacity. Visible travel requires actual changing composited ink per physical trip, and text checks track glyph occurrences and clipped paint. Check, film and review share a bounded state/presentation inventory; film publishes complete owned generations under a lock it recovers when its holder has died and corpus credit requires successful workers and the declared target.
 

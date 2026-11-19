@@ -40,11 +40,55 @@ jobs:
           npm ci
           node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts test/explain-writing.test.ts scenes/tutorial/*/model.test.ts
 
-  check:
+  # Validate and retain the candidate early. Every platform installs these exact bytes;
+  # runner acquisition can overlap the expanded tests instead of starting half an hour later.
+  package:
     needs: scope
     if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RAYNER_REQUIRE_ORACLES: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          check-latest: true
+          cache: npm
+      - run: npm ci
+      - name: Keep browsers in a cached folder
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright-core install --with-deps --only-shell chromium
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-lmodern
+          python3 -m venv out/lettering-venv
+          out/lettering-venv/bin/pip install -r tools/lettering-requirements.txt
+          LETTERING_CJK=1 RAYNER_LETTERING_PYTHON="$PWD/out/lettering-venv/bin/python" bash tools/lettering-outline-fonts.sh
+          echo "RAYNER_LETTERING_PYTHON=$PWD/out/lettering-venv/bin/python" >> "$GITHUB_ENV"
+      - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 node tools/repo/ci-tests.ts "$(command -v npm)" run release:check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rayner-package-${{ github.sha }}
+          path: out/release/
+          if-no-files-found: error
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
+          overwrite: true
+
+  check:
+    needs: [scope, package]
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04  # the pinned image the embed tests were validated on
-    timeout-minutes: 60  # full suite, browser gates and installed capture; catalog/story run separately
+    timeout-minutes: 60  # full suite and browser gates; candidate, catalog/story run separately
     env:
       # An explainer oracle CI is meant to run (CPython 3.12, rustc, the fork base) fails here
       # instead of skipping (scenes/explainers/lib/oracle.ts; docs/TESTING.md lists them).
@@ -84,16 +128,7 @@ jobs:
       - run: npm run check          # tsc -b over every project (emits dist/); compile a TS consumer against it
       - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts # full properties from the committed seed (properties.yml draws fresh ones), independent oracles and raster boundaries
       # Product gates reuse this job and its Chromium installation; no scheduled lane.
-      - run: |
-          node tools/repo/ci-tests.ts "$(command -v npm)" run test:embeds
-      - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check  # retain the exact tested archive, rayner
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: rayner-package-${{ github.sha }}
-          path: out/release/
-          if-no-files-found: error
-          retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
-          overwrite: true  # a re-run of a failed job uploads again under the same name
+      - run: npm run test:embeds
 
   catalog:
     needs: scope
@@ -142,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2, 3]
+        part: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -169,14 +204,14 @@ jobs:
         with:
           name: rayner-catalog-${{ github.sha }}
           path: out/explainers/
-      - run: node tools/repo/ci-tests.ts "$(command -v npm)" run demos:review -- --shard ${{ matrix.part }}/3
+      - run: node tools/repo/ci-tests.ts "$(command -v npm)" run demos:review -- --shard ${{ matrix.part }}/6
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: rayner-story-${{ github.sha }}-${{ matrix.part }}
           path: |
-            out/review/shard-${{ matrix.part }}-of-3/
-            out/validation/browser-review-shard-${{ matrix.part }}-of-3.json
+            out/review/shard-${{ matrix.part }}-of-6/
+            out/validation/browser-review-shard-${{ matrix.part }}-of-6.json
           if-no-files-found: error
           retention-days: 7
           overwrite: true
@@ -224,7 +259,7 @@ jobs:
           merge-multiple: true
           path: out/
       - if: needs.scope.outputs.full == 'true'
-        run: node tools/repo/explain-review-merge.ts
+        run: node tools/repo/explain-review-merge.ts --shards 6
       - if: needs.scope.outputs.full == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -252,10 +287,10 @@ jobs:
     runs-on: ubuntu-24.04  # reports only; nothing here needs the named platform
     timeout-minutes: 5
     steps:
-      - run: echo 'No code changed, so there is nothing to run on this platform.'
+      - run: echo 'Scope accepted prose-only validation or a complete identical-tree campaign; fresh platform validation is not requested.'
 
   compatibility:
-    needs: [scope, check]
+    needs: [scope, package]
     if: needs.scope.outputs.full == 'true'
     strategy:
       fail-fast: false
@@ -302,7 +337,7 @@ jobs:
         with:
           name: rayner-package-${{ github.sha }}
           path: out/release/
-      - run: EXPLAIN_BROWSER=1 npm run pack:smoke -- --manifest out/release/manifest.json
+      - run: EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts "$(command -v npm)" run pack:smoke -- --manifest out/release/manifest.json
         # Install the exact primary candidate, rayner, on Linux and both Mac architectures.
       # Real browser diversity replaces four duplicate Chromium/property runs.
       - if: matrix.os == 'macos-26' && matrix.node == '24'
@@ -320,3 +355,21 @@ jobs:
             out/validation/webkit.json
           if-no-files-found: warn
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
+
+  ci-status:
+    if: always() && needs.scope.outputs.full == 'true'
+    needs: [scope, package, check, catalog, story, compatibility]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Report job timings and unassigned cancellations
+        continue-on-error: true  # Diagnostic API availability is not a new correctness gate.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/repo/ci-status.ts

@@ -14,7 +14,7 @@ test('only prose uses the small owner; every tracked executable input forces ful
 });
 test('reusing a campaign requires every owner to have run successfully, the unprotected macOS 26 Safari lane included', () => {
   const jobs = requiredJobs.map(name => ({name, conclusion: 'success'}));
-  assert.equal(jobs.length, 8);
+  assert.equal(jobs.length, 9);
   assert.ok(requiredJobs.includes('compatibility (macos-26, 24)'));
   assert.equal(completedCampaign(jobs), true);
   for (let i = 0; i < jobs.length; i++) {
@@ -57,4 +57,25 @@ test('a prose run reports every required compatibility context, and is never a c
 
   const prose = requiredJobs.map(name => ({name, conclusion: name === 'check' || name === 'catalog' ? 'skipped' : 'success'}));
   assert.equal(completedCampaign(prose), false);
+});
+
+test('CI platform checks consume the early validated candidate and six story shards feed a complete final gate', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const job = (name: string) => workflow.split(new RegExp(`^  ${name}:$`, 'm'))[1]!.split(/^  [a-z-]+:$/m)[0]!;
+  for (const name of ['check', 'compatibility']) {
+    assert.match(job(name), /needs: \[scope, package\]/);
+    assert.doesNotMatch(job(name), /needs: \[scope, check\]/);
+  }
+  assert.match(job('package'), /run release:check/);
+  assert.match(job('package'), /name: rayner-package-\$\{\{ github.sha \}\}/);
+  assert.match(job('compatibility'), /name: rayner-package-\$\{\{ github.sha \}\}/);
+  assert.doesNotMatch(job('check'), /run release:check/);
+  assert.match(job('story-part'), /part: \[1, 2, 3, 4, 5, 6\]/);
+  assert.match(job('story-part'), /--shard \$\{\{ matrix.part \}\}\/6/);
+  assert.match(job('story-part'), /browser-review-shard-\$\{\{ matrix.part \}\}-of-6.json/);
+  assert.match(job('story'), /explain-review-merge.ts --shards 6/);
+  assert.match(job('story'), /test "\$CATALOG_RESULT" = success && test "\$STORY_RESULT" = success/);
+  assert.ok(requiredJobs.includes('package'));
+  assert.match(job('ci-status'), /if: always\(\)/);
+  assert.match(job('ci-status'), /needs: \[scope, package, check, catalog, story, compatibility\]/);
 });
