@@ -39,7 +39,7 @@ export default class Statecharts extends Scene<Model, Shown> {
   } satisfies ExplainerMeta;
 
   override async construct() {
-    const s = stage(this, { style: 'github-light', headingSize: 0.54 });
+    const s = stage(this, { style: 'github-light', heading: false });
     const playerChart = player(2),
       coffeeFlat = flatCounts(flatten(coffee())),
       coffeePlain = flatten(coffee()).transitions.filter((t) => t.from !== 'off' && t.to !== 'off').length,
@@ -53,6 +53,8 @@ export default class Statecharts extends Scene<Model, Shown> {
 
     const FULL = regionBox('full', { top: 3.05 });
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
+    const liveFrame: Box = [-7.3, -3.9, 7.3, 3.9];
+    const liveBig = (b: Box) => fit(b, liveFrame, scaleFor(b, liveFrame));
 
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
@@ -66,7 +68,7 @@ export default class Statecharts extends Scene<Model, Shown> {
         case 'copies':
           return coffeePicture(s, big(coffeeLayout('flat').bounds), 'flat', { follow: [], lit: Object.keys(COFFEE.ys).map((id) => `c:arrow:${id}:POWER_OFF:off`) });
         case 'parent':
-          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
+          return coffeePicture(s, liveBig(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] });
         case 'multiply':
           return flatPicture(s, playerChart, big(FLAT.bounds), { follow: [], lit: [] });
         case 'grid':
@@ -78,7 +80,7 @@ export default class Statecharts extends Scene<Model, Shown> {
         case 'question':
           return coffeePicture(s, big(coffeeLayout('question').bounds), 'question', { follow: [], lit: [] });
         case 'frother':
-          return coffeePicture(s, big(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
+          return coffeePicture(s, liveBig(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
       }
     };
     this.state = { current: null } satisfies Model;

@@ -1,3 +1,4 @@
+import { route, TYPE } from '../../../explain/drawing.ts';
 import { Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec, Box } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
@@ -304,12 +305,13 @@ export const coffeeLayout = (mode: CoffeeMode) => {
   const wide = mode === 'frother',
     short = mode !== 'flat' && mode !== 'plain';
   const on: Box = wide ? [-5.45, -3.35, 2.35, 3.2] : [-5.45, -2.9, -0.7, 3.2];
+  if (mode === 'chart' || mode === 'frother') on[0] = -6.35;
   const offX = wide ? 5.35 : 3.0;
   const off: Place = short ? { center: [offX, 1.25], size: [1.3, 2.4] } : { center: [offX, -0.05], size: [1.3, 5.0] };
   const bounds: Box = mode === 'question' ? [-6.4, -3.75, 7.3, 3.45] : wide ? [-6.4, -4.15, 6.2, 3.45] : [-6.4, -3.75, 5.0, 3.45];
   return { on, off, bounds, onPlace: { center: [(on[0] + on[2]) / 2, (on[1] + on[3]) / 2], size: [on[2] - on[0], on[3] - on[1]] } as Place };
 };
-export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch = false): Drawn {
+export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look): Drawn {
   const chart = mode === 'frother' ? coffeeWithFrother() : coffee(),
     lay = coffeeLayout(mode),
     parts: Mobject[] = [],
@@ -420,17 +422,68 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, di
     );
     words.push(`${FORGOT} → off: POWER_OFF missing (marked)`);
   }
-  if (dispatch) {
-    // Who answers POWER_OFF while brewing: brewing first, then its parent.
-    const lines = ['POWER_OFF while brewing (green):', '1. brewing: no POWER_OFF', '2. its parent on: has it → off'];
-    lines.forEach((text, i) =>
-      parts.push(keyed(new Text(text, { fontSize: L * f.k, color: i ? s.look.ink : s.look.soft }).moveTo(f.at([2.35, -0.95 - i * 0.55])), `c:dispatch:${i}`)),
-    );
-    words.push(...lines);
-  }
   const n = mode === 'plain' ? { states: places.size, transitions: arrows.length } : mode === 'flat' ? flatCounts(flatten(byHand(chart, FORGOT, 'POWER_OFF'))) : chartCounts(chart);
   const kind = mode === 'plain' ? 'State machine' : mode === 'flat' ? 'Flat' : 'Statechart';
   if (mode !== 'question') parts.push(note(s, f, lay.bounds, `${kind}: ${counted(n)}`));
+  if (mode === 'chart' || mode === 'frother') {
+    // Live states must read without a tour after a press. Geometry keeps its keys for choreography.
+    for (const part of parts) if (part instanceof Text) part.scale(TYPE.small / part.fontSize);
+    for (const event of ['POWER_OFF', 'POWER_ON']) {
+      const key = event === 'POWER_OFF' ? 'c:arrow:grinding:POWER_OFF:off|label' : 'c:arrow:off:POWER_ON:idle|label';
+      const index = parts.findIndex(part => part.key === key);
+      const y = event === 'POWER_OFF' ? lay.off.center[1] + 1.6 : lay.off.center[1] - 0.9;
+      const x = (lay.on[2] + lay.off.center[0] - lay.off.size[0] / 2) / 2;
+      const color = look.lit.includes(key.slice(0, -6)) ? s.look.emphasis : s.look.soft;
+      parts[index] = keyed(new Group(
+        keyed(new Text('POWER', { fontSize: TYPE.small, color }).moveTo(f.at([x, y])), `${key}:power`),
+        keyed(new Text(event === 'POWER_OFF' ? 'OFF' : 'ON', { fontSize: TYPE.small, color }).moveTo(f.at([x, y - 0.8])), `${key}:verb`),
+      ), key);
+    }
+    for (const [from, event, to] of [['idle', 'START', 'grinding'], ['grinding', 'GROUND', 'brewing'], ['brewing', 'BREWED', 'ready']] as const) {
+      parts.find(part => part.key === `c:arrow:${from}:${event}:${to}|label`)!.moveTo(f.at([-4.65, (COFFEE.ys[from]! + COFFEE.ys[to]!) / 2]));
+    }
+    const takeKey = 'c:arrow:ready:TAKE:idle';
+    const takeStyle = arrowStyle(s, f, look.lit.includes(takeKey));
+    const take = keyed(new Arrow(
+      f.at([-6.05, COFFEE.ys.idle!]), f.at([-3.67, COFFEE.ys.idle!]), takeStyle,
+    ), takeKey);
+    const returnPath = route(
+      f.at([-3.67, COFFEE.ys.ready!]), f.at([-6.05, COFFEE.ys.ready!]),
+      f.at([-6.05, COFFEE.ys.idle!]), f.at([-3.67, COFFEE.ys.idle!]),
+    ).setStyle(takeStyle);
+    take.line.become(returnPath);
+    parts[parts.findIndex(part => part.key === takeKey)] = take;
+    parts.find(part => part.key === `${takeKey}|label`)!.moveTo(f.at([-4.9, -2.65]));
+    if (mode === 'frother') {
+      for (const part of parts) {
+        const key = part.key ?? '';
+        const movesWithFrother = key.startsWith('c:still') || key.startsWith('c:frothing') ||
+          key.startsWith('c:start:frother') || key.startsWith('c:arrow:still:') ||
+          key.startsWith('c:arrow:frothing:') || key === 'c:region:frother';
+        if (movesWithFrother) part.shift([-COFFEE.frotherX * f.k, 0]);
+      }
+      for (const [event, from, to, y] of [['FROTH', 'still', 'frothing', 0.4], ['STOP', 'frothing', 'still', -0.4]] as const) {
+        parts.find(part => part.key === `c:arrow:${from}:${event}:${to}|label`)!.moveTo(f.at([1.25, y]));
+      }
+      for (const part of parts) {
+        const key = part.key ?? '';
+        if (key.startsWith('c:still') || key.startsWith('c:start:frother')) part.shift([0, 0.3 * f.k]);
+        if (key.startsWith('c:frothing')) part.shift([0, -0.3 * f.k]);
+      }
+      for (const [from, event, to, x, y] of [['still', 'FROTH', 'frothing', 0.15, 0.78], ['frothing', 'STOP', 'still', -0.15, -0.78]] as const) {
+        const key = `c:arrow:${from}:${event}:${to}`;
+        parts[parts.findIndex(part => part.key === key)] = keyed(new Arrow(f.at([x, y]), f.at([x, -y]), arrowStyle(s, f, look.lit.includes(key))), key);
+      }
+      parts.find(part => part.key === 'c:region:brewing cycle')!.moveTo(f.at([-2.2, -3.05]));
+      parts.find(part => part.key === 'c:region:frother')!.moveTo(f.at([1.25, -3.05]));
+      const divider = parts.findIndex(part => part.key === 'c:divider');
+      const segments: [number, number][] = [[-2.6, -1.8], [-1, -0.4], [0.4, 1], [1.7, 3.05]];
+      parts.splice(divider, 1, ...segments.map(([a, b], i) => keyed(new Line(
+        f.at([-1.15, a]), f.at([-1.15, b]),
+        { stroke: s.look.soft, strokeWidth: 0.026 * f.k, dashArray: `${0.14 * f.k} ${0.1 * f.k}` },
+      ), `c:divider:${i}`)));
+    }
+  }
   return { group: new Group(...parts), words };
 }
 

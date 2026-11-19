@@ -6,6 +6,8 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- The statecharts coffee and frother live pictures use the phone-safe type floor, separate labels from their routes, and read in one whole-picture view. The owning regression explores all five coffee and nine frother configurations.
+
 - Author and catalog review repeat phone steps and sampled live states inside the production loader's iframe. Receipts bind the framed inventory, retain each tour stop, and report whole-picture label sizes, partly visible labels and tour overlap. Author review writes measured initial embed heights beside its retained HTML.
 - A machine may set `liveStart: 'start'` so reader events begin before a nonterminal authored resting state. Buttons, links and Reset use the same model start, with regressions through the phone player.
 - A plain view sync replaces changed keyed words whole, using the same staged default as a machine transition. The halfway regression verifies the old and new glyph sets are both absent at the handoff.
