@@ -938,6 +938,8 @@ The player keeps the title, picture, navigation and explanation in one card. **N
 
 Next stays above the prose so caption length does not move it. The current step's number, title and line lead into its caption in normal flow. On phones, zoom, copy-link and fullscreen tools follow the explanation; on wider pages they sit beside Next. Score audio controls remain immediately below their picture. The stage is keyboard-focusable, names its current subject and exposes a picture description. During playback it is marked `aria-busy`.
 
+Live event controls sit beside the picture in the wide rail. On narrow pages they follow the picture's navigation and precede the prose, so an event's result and its button can remain visible together.
+
 Scenarios appear beside the title. By default, the step list is a side rail at widths of at least 1100 px and a closed **All n steps** disclosure below the words otherwise. A standalone width floor can defer the rail until it fits beside the picture. The transcript retains every scenario, including when JavaScript is unavailable.
 
 A scene with [`meta.watch`](#scene) shows its named state changes below the caption as “Label: before → after.” Empty change rows are hidden. Headings and captions use their natural height; they do not reserve space for another step's longer prose. On a standalone page the stage's height cap leaves room for the header, the stepper row, the step heading and the first two lines of the caption, so a reader at 1280 × 800 or 1366 × 768 sees the picture and the start of what it means without scrolling.

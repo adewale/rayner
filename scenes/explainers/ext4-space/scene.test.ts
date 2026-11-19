@@ -1,10 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diagramOf, loadSnapshots } from '../../../explain/testing.ts';
-import type { DiagramSnapshot } from '../../../explain/index.ts';
+import type { Sink } from '../../../src/index.ts';
+import { diagramOf, loadProject, loadSnapshots } from '../../../explain/testing.ts';
+import type { DiagramSnapshot, View } from '../../../explain/index.ts';
+import Ext4Space from './scene.ts';
 import { TiB, space } from './model.ts';
 
 const store = await loadSnapshots('scenes/explainers/ext4-space');
+
+test('the animated answer pie follows its recorded source in every disk and reserve scenario', async () => {
+  const project = await loadProject(Ext4Space, import.meta.dirname);
+  let checked = 0;
+  for (const { Scene } of project.scenarios) {
+    const sink: Sink = {
+      skipUntil: Infinity,
+      async frame() {},
+      async stepEnd(scene, step) {
+        if (step.name !== 'df' && step.name !== 'reserve') return;
+        const pies = scene.mobjects.filter((m): m is View =>
+          'draw' in m && typeof m.draw === 'function' && m.family().some(p => p.key === 'slice:Users can write'));
+        assert.equal(pies.length, 1);
+        const pie = pies[0]!;
+        const words = (picture: ReturnType<View['draw']>) => picture.family().flatMap(m => 'text' in m && typeof m.text === 'string' ? [m.text] : []);
+        const landed = words(pie.current);
+        assert.ok(landed.length > 0, 'the captured labels are present');
+        assert.deepEqual(landed, words(pie.draw(scene.state, scene.shown)));
+        assert.ok(pie.family().some(p => p.key === (step.name === 'df' ? 'slice:Not available' : 'slice:Root reserve')));
+        if (step.name === 'reserve') {
+          const staleState = { ...scene.state, reserve: undefined };
+          assert.notDeepEqual(landed, words(pie.draw(staleState, {})), 'the old source must disagree with the landed answer');
+        }
+        checked++;
+      },
+    };
+    await new Scene(sink).run();
+  }
+  assert.equal(checked, 18);
+});
 
 async function described(text: string) {
   const s = Object.values(store).find((x): x is DiagramSnapshot => x.family === 'pie' && x.spec.source.includes(text));

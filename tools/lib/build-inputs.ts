@@ -5,7 +5,7 @@ import { listTree, relativePosix, sha256 } from './hash.ts';
 
 // Runtime assets are deliberately broad; Node tools follow the actual producer
 // imports. A reviewer, benchmark or release-script edit does not change a page.
-const producers = ['tools/lib/explain-build.ts', 'tools/lib/explain-project.ts', 'tools/lib/explain-shots.ts', 'tools/repo/lib/explain-gallery.ts', 'tools/repo/lib/explain-embed-size.ts', 'tools/repo/lib/explain-site-describe.ts'];
+const producers = ['tools/lib/explain-build.ts', 'tools/lib/explain-project.ts', 'tools/lib/explain-shots.ts', 'tools/repo/lib/explain-gallery.ts', 'tools/lib/explain-embed-size.ts', 'tools/repo/lib/explain-site-describe.ts'];
 export async function buildInputs(root: string) {
   root = resolve(root);
   const compiled = COMPILED;

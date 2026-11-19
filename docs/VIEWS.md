@@ -299,6 +299,7 @@ picture synchronously, including its geometry and description.
 const sources = [{ source: 'graph LR\nA --> B' }, { source: 'graph LR\nA --> C' }];
 const draw = await s.prepareDiagrams(sources);
 const diagram = view(this, st => draw(sources[st.branch]!), { place: false });
+s.keep(diagram);
 this.state.branch = 1;
 await this.play(diagram.sync());
 ```

@@ -503,8 +503,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   stepper.after(views);
   // A live step's controls (docs/MACHINES.md, "The player"): one button per event of the machine
   // the step last played, then Undo and Reset, and a polite line that says what each event did.
-  // Under the caption (and its changes), so neither Next nor the caption moves as the reader steps
-  // onto a live step; a step without a machine hides the row.
+  // Beside the picture on wide pages, directly after its navigation on narrow pages, so the
+  // reader can press an event and see its effect without first scrolling through the caption.
   const liveRow = el('div', undefined, 'live'),
     liveLede = el('p', undefined, 'live-lede'),
     liveEvents = el('div', undefined, 'live-events'),
@@ -529,7 +529,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // so the reader commits before the answer, and on the revealing step what they chose and the
   // answer. The choice is kept for this page load, by scenario and step. Moving on never waits for
   // a choice. Where it sits is placeLive's: beside the picture on a wide page, at the top of the rail,
-  // else under the caption (and its changes), before the live row, as the live row sits.
+  // else under the caption (and its changes).
   const predictRow = el('section', undefined, 'predict'),
     predictReveal = el('div', undefined, 'predict-reveal'),
     predictAsk = el('div', undefined, 'predict-ask'),
@@ -547,16 +547,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   (changes ?? caption).after(predictRow);
   // On a wide page the steps list is a rail beside the picture (placeRail), and the live row joins
   // it, at its top: the reader presses an event and watches the picture change without scrolling,
-  // which under the caption at 1280 × 800 put the buttons below the fold. On a narrow page it stays
-  // under the caption. Run after placeRail, on the same changes.
-  // A prediction's row moves with it, to the rail's top on a wide page and under the caption otherwise.
+  // which under the caption at 1280 × 800 put the buttons below the fold. On a narrow page the
+  // events follow the picture's navigation; predictions still follow the caption's question.
   const placeLive = () => {
     const beside = steps.parentElement === railBody;
-    if (liveRow.parentElement === (beside ? railBody : words)) return;
+    if (liveRow.parentElement === (beside ? railBody : player) && predictRow.parentElement === (beside ? railBody : words)) return;
     const active = document.activeElement,
       focused = liveRow.contains(active) || predictRow.contains(active) ? (active as HTMLElement) : undefined;
     if (beside) railBody.prepend(predictRow, liveRow);
-    else (changes ?? caption).after(predictRow, liveRow);
+    else {
+      views.after(liveRow);
+      (changes ?? caption).after(predictRow);
+    }
     focused?.focus({preventScroll:true});
   };
   placeLive();

@@ -14,7 +14,7 @@ How to put a built page on a website. The contracts it relies on (URL parameters
 
    The `rayner` command comes with the `rayner` package; in a checkout, use `npm run rayner -- review ...`. A host serving the page needs no package. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
 
-2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader.
+2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader. The host loader is about 3.3 KB minified, with a 9 KB test budget. It loads each page's runtime and embedded fonts inside its iframe.
 
 3. Send the headers in `cache.html.headers.json` as HTTP response headers for that file. The CSP pins the page's inline script and style by hash, so a CDN that rewrites or minifies the HTML breaks it; rebuild instead.
    - `frame-ancestors` works only as a response header, never from a `<meta>` tag. The recipe allows any site to frame the page (`frame-ancestors *`); replace `*` with your own origins to restrict it.

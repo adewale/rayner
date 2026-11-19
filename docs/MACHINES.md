@@ -265,8 +265,8 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 
 ## The player
 
-At the step where a machine last played, the reader can drive it: one button per event under the
-step's caption, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
+At the step where a machine last played, the reader can drive it: one button per event beside the
+picture on a wide page, or directly below its navigation on a narrow page, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
 gives the reader-facing contract: what the buttons say, how a refused event explains itself, what
 Undo, Reset and the keyboard do, and what a screen reader hears. Every one of the eighteen machines
 is live at its step, in every scenario that plays it (oauth-pkce without the attacker plays none).

@@ -1,5 +1,5 @@
 import type { Frame, Page } from 'playwright-core';
-import { htmlEscape } from '../../explain/trace.ts';
+import { htmlEscape } from '../../explain/internal.ts';
 
 const hosts = new WeakSet<Page>();
 

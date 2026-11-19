@@ -283,7 +283,7 @@ test('machine check keeps JSON on stdout and prints its verdict and report path 
     const report = JSON.parse(result.stdout);
     assert.equal(report.scenarios.length, 1);
     assert.ok(report.scenarios[0].machines.length > 0);
-    assert.deepEqual(report.scenarios[0].machines[0].phoneWarnings, []);
+    assert.equal('phoneWarnings' in report.scenarios[0].machines[0], false);
     assert.ok(result.stderr.includes('Check passed: 1 scenarios, 0 phone warnings.'));
     assert.ok(result.stderr.includes(output));
     const picture = join(directory, 'scene', 'picture.ts');

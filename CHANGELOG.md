@@ -6,6 +6,10 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Phone live controls follow the picture navigation before the prose, keeping statechart event presses and their changed picture visible together. Resizing preserves event focus.
+- Prepared diagram sources survive `s.clear()`. The ext4 answer pie now selects its source from recorded model state, with checks across all nine settings combinations.
+- The host loader shares only its localized frame label with the player, reducing its minified output from about 16 KB to 3.3 KB under a 9 KB regression budget.
+
 - The statecharts coffee and frother live pictures use the phone-safe type floor, separate labels from their routes, and read in one whole-picture view. The owning regression explores all five coffee and nine frother configurations.
 
 - Author and catalog review repeat phone steps and sampled live states inside the production loader's iframe. Receipts bind the framed inventory, retain each tour stop, and report whole-picture label sizes, partly visible labels and tour overlap. Author review writes measured initial embed heights beside its retained HTML.

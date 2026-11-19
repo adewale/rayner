@@ -1314,7 +1314,7 @@ test('the neutral tile stays independent of the scenario palette, including befo
 });
 // player-tile T6: the published height at 640 px is the height the loader gives the frame there.
 test('known heights: mr-cache measures three heights above the floor, and the loader at 640 px settles the frame at heights["640"] within 2 px', options, async () => {
-  const { measureEmbed, embedSizeProblems } = await import('../../tools/repo/lib/explain-embed-size.ts');
+  const { measureEmbed, embedSizeProblems } = await import('../../tools/lib/explain-embed-size.ts');
   const size = await measureEmbed(browser, embed, 'mr-cache.html');
   assert.deepEqual(embedSizeProblems(size), [], JSON.stringify(size));
   // Natural captions can make a phone page shorter; the settled heights and loader agreement are the contract.
@@ -1413,8 +1413,8 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
   // Heading and caption lengths and tour controls cannot shift a path while the reader steps:
   // the heading keeps the tallest heading's height, its line the tallest title's place, and the
   // caption the tallest caption's height, so what follows the caption does not move either.
-  // A narrow page's prediction or live row follows the caption's words rather than that reserve
-  // (embed.css), so on those steps only the stepper and the caption's top are held.
+  // A narrow live row precedes the words; normalize its measured height when comparing prose
+  // positions. Interactive captions use their own height rather than the tallest-caption reserve.
   // Opening the separate source disclosure deliberately changes the page's height.
   let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
@@ -1444,14 +1444,16 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
           }, { before, step, i });
           await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
           if (await page.locator('.lede .line').isVisible())
-            path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY).toFixed(1)));
+            path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY - (document.querySelector('.player > .live:not([hidden])')?.getBoundingClientRect().height ?? 0)).toFixed(1)));
           const { head, bottom, rowFollows } = await page.evaluate(() => {
             const top = (s: string) => document.querySelector(s)!.getBoundingClientRect().top + scrollY;
             const caption = document.querySelector('.words > .caption')!.getBoundingClientRect();
+            const live = document.querySelector('.player > .live:not([hidden])');
+            const liveHeight = live?.getBoundingClientRect().height ?? 0;
             return {
-              head: [top('.stepper'), caption.top + scrollY].map((v) => v.toFixed(1)).join(' '),
-              bottom: (caption.bottom + scrollY).toFixed(1),
-              rowFollows: !!document.querySelector('.words > .caption ~ .predict:not([hidden]), .words > .caption ~ .live:not([hidden])'),
+              head: [top('.stepper'), caption.top + scrollY - liveHeight].map((v) => v.toFixed(1)).join(' '),
+              bottom: (caption.bottom + scrollY - liveHeight).toFixed(1),
+              rowFollows: !!live || !!document.querySelector('.words > .caption ~ .predict:not([hidden])'),
             };
           });
           path.heads.add(head);

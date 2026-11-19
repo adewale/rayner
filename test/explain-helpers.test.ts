@@ -1071,7 +1071,9 @@ test('prepared diagram sources draw synchronously from state and reject a stale 
       const draw = await s.prepareDiagrams([spec, other, spec]);
       assert.equal(this.time, before, 'preparation does not play a hidden scene');
       const first = draw(spec);
+      await s.clear();
       const second = draw(spec);
+      assert.ok(second.family().some(m => m.key === 'B'), 'prepared sources survive clearing the stage');
       assert.notEqual(first, second);
       assert.ok(first.family().some(m => m.key === 'B'));
       assert.ok(!draw(other).family().some(m => m.key === 'B'));

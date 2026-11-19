@@ -171,8 +171,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const directory = flags.out ?? resolve('out/checks', slug);
     const report = await checkProject(project, directory);
     console.log(JSON.stringify(report, null, 2));
-    const scenarios = report.scenarios as { machines?: { phoneWarnings: string[] }[] }[];
-    const warnings = scenarios.flatMap(s => (s.machines ?? []).flatMap(m => m.phoneWarnings));
+    const scenarios = report.scenarios as { machines?: { phoneWarnings?: string[] }[] }[];
+    const warnings = scenarios.flatMap(s => (s.machines ?? []).flatMap(m => m.phoneWarnings ?? []));
     for (const warning of [...new Set(warnings)].slice(0, 5)) console.error(`Phone warning: ${warning}`);
     console.error(`Check passed: ${scenarios.length} scenarios, ${warnings.length} phone warnings. Reports: ${resolve(directory)}`);
     return;

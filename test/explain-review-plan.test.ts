@@ -203,7 +203,7 @@ test('story receipts expire when caption claims, served runtime or review depend
       'tools/repo/explain-review.ts', 'tools/repo/explain-review-merge.ts',
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
       'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
-      'tools/lib/explain-live-review.ts', 'tools/lib/review-reader.ts', 'tools/repo/lib/explain-embed-size.ts',
+      'tools/lib/explain-live-review.ts', 'tools/lib/review-reader.ts', 'tools/lib/explain-embed-size.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));

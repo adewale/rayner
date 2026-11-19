@@ -1,4 +1,4 @@
-import { measureEmbed, embedSizeProblems } from '../repo/lib/explain-embed-size.ts';
+import { measureEmbed, embedSizeProblems } from './explain-embed-size.ts';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, readdir, mkdir, mkdtemp, rm, copyFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';

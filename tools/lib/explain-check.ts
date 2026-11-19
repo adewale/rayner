@@ -1003,7 +1003,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
-      ...(machines.length ? { machines: machines.map(({ events, states, sampled, phoneWarnings }) => ({ events, states, ...(sampled ? { sampled } : {}), phoneWarnings })) } : {}),
+      ...(machines.length ? { machines: machines.map(({ events, states, sampled, phoneWarnings }) => ({ events, states, ...(sampled ? { sampled } : {}), ...(phoneWarnings.length ? { phoneWarnings } : {}) })) } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,

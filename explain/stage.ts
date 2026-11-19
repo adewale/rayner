@@ -496,7 +496,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         if (prepared.has(key)) continue;
         const snapshot = await resolverOf(scene, 's.prepareDiagrams()').diagram(spec);
         const d = new Diagram(scene, spec, snapshot, { box: physical(opts.box) }, true);
-        diagrams.add(d);
         prepared.set(key, d);
       }
       return (spec, picture = {}) => {

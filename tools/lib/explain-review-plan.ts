@@ -186,7 +186,7 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     'tools/lib/explain-review-plan.ts',
     'tools/lib/explain-live-review.ts',
     'tools/lib/review-reader.ts',
-    'tools/repo/lib/explain-embed-size.ts',
+    'tools/lib/explain-embed-size.ts',
     'tools/lib/explain-serve.ts',
     'tools/lib/explain-reader-shell.ts',
     'tools/lib/explain-check.ts',
