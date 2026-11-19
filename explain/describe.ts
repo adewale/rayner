@@ -11,7 +11,7 @@ import type { LogStart } from './live.ts';
 import { predictionsOf, teachingIndices } from './script.ts';
 import type { Prediction, StepKind } from './script.ts';
 import { traceRun } from '../src/trace.ts';
-import { canonicalJson } from '../src/json.ts';
+import { canonicalJson, cloneJson } from '../src/json.ts';
 import type { Scene, SceneState } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
@@ -152,7 +152,10 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     draw = options.drawings ?? true,
     // Each step's picture as text, drawn as the step ends: every one from the run that traces it.
     drawings = new Map<string, string>(),
+    // A trace can add evidence through addJson(); the live model receives only scene.state.
+    modelAtRest = new Map<string, SceneState>(),
     { trace, scene } = await traceRun(Bound, {}, (ran, step) => {
+      modelAtRest.set(step.path, cloneJson(ran.state, 'describeExplainer()', 'scene.state') as SceneState);
       if (draw === true || draw === step.path) drawings.set(step.path, restingDrawing(ran));
     }),
     paper = paperOf(scene),
@@ -200,7 +203,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
   const machines: MachineDescription[] = machinesOf(scene).map((machine) => {
     const walked = machine.explore(), states = walked.states.length;
     const step = machine.lastPlayedIn;
-    const rest = step === null ? undefined : trace.steps.find((s) => s.step === step)?.after;
+    const rest = step === null ? undefined : modelAtRest.get(step);
     const base = rest && lives.get(step!)?.machine === machine ? logStart(machine, rest) : null;
     const live = base === null ? undefined : canonicalJson(base.state) === canonicalJson(machine.spec.start) ? walked : machine.explore(base.state);
     return {

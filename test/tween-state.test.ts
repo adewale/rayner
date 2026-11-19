@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Succession, AnimationGroup } from '../src/index.ts';
+import { Scene, Rectangle, Succession, AnimationGroup, linear } from '../src/index.ts';
 import type { Sink } from '../src/index.ts';
 import { StringSink, SnapshotSink } from '../src/svg.ts';
 import { NullSink, renderFrame } from '../src/timeline.ts';
 import { Machine, tweenState, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { thereAndBack } from '../extras/index.ts';
+import type { ViewPlace } from '../explain/index.ts';
 
 type Pair = { x: number; y: number };
 const host = () => { const s = new Scene<Pair>(new NullSink()); s.state = { x: 0, y: 0 }; return s; };
@@ -117,4 +118,72 @@ test('shared sampling preserves there-and-back endpoints and permits sequential 
     tweenState(s, (t) => ({ x: 1 + t, y: 1 + t }), { views, runTime: 0.1 }),
   ]));
   assert.deepEqual(s.state, { x: 2, y: 2 });
+});
+
+test('default placement keeps intrinsic height and width changes at their model dimensions on every frame', async () => {
+  let checked = 0;
+  class DefaultPlaced extends Scene<{ n: number }> {
+    override state = { n: 0 };
+    tall = view(this, (st) => new Rectangle({ width: 1, height: 1 + st.n }));
+    wide = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }));
+    override async construct() {
+      this.add(this.tall, this.wide);
+      await tweenState(this, (t) => ({ n: t }), { views: [this.tall, this.wide], runTime: 0.2, rateFunc: linear });
+    }
+  }
+  const scene = new DefaultPlaced({ async frame(ran) {
+    const s = ran as DefaultPlaced;
+    if (!s.mobjects.includes(s.tall)) return;
+    checked++;
+    close(s.tall.current.height(), 1 + s.state.n); close(s.tall.current.width(), 1);
+    close(s.wide.current.width(), 1 + s.state.n); close(s.wide.current.height(), 1);
+  } });
+  await scene.run();
+  assert.equal(checked, 6);
+  assert.deepEqual(scene.state, { n: 1 });
+  close(scene.tall.current.height(), 2); close(scene.wide.current.width(), 2);
+});
+
+test('sampled fits preserve moved and scaled anchors through returning tweens, later syncs and rebuilds', async () => {
+  for (const place of ['left', 'center', 'right'] as const satisfies readonly ViewPlace[]) {
+    const s = new Scene<{ n: number }>(new NullSink());
+    s.state = { n: 0 };
+    const v = view(s, (st) => new Rectangle({ width: 1 + st.n, height: 2 + st.n }), { place });
+    v.scale(2.5).moveTo([3, -1]); s.add(v);
+    const anchor = () => { const b = v.current.box()!; return [place === 'left' ? b[0] : place === 'right' ? b[2] : (b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; };
+    const start = anchor();
+    const fits = (n: number) => {
+      close(v.current.width(), 2.5 * (1 + n)); close(v.current.height(), 2.5 * (2 + n));
+      anchor().forEach((coordinate, i) => close(coordinate, start[i]!));
+    };
+    // The first tween also covers the existing one-view API, which shares the same sampler.
+    await v.tween((t) => ({ n: t }), { runTime: 0.2, rateFunc: linear }); fits(1);
+    s.state = { n: 2 };
+    await v.sync({ match: 'index', runTime: 0.2 }); fits(2);
+    await tweenState(s, (t) => ({ n: 2 + t }), { views: [v], runTime: 0.2, rateFunc: thereAndBack }); fits(2);
+    await v.tween((t) => ({ n: 2 * (1 - t) }), { runTime: 0.2, rateFunc: linear }); fits(0);
+    s.state = { n: 3 }; v.rebuild(); fits(3);
+  }
+});
+
+test('default placed and scaled sampled pictures seek to the same frames as a full run', async () => {
+  class Sized extends Scene<{ n: number }> {
+    override async construct() {
+      this.state = { n: 0 };
+      const tall = view(this, (st) => new Rectangle({ width: 1, height: 1 + st.n })).scale(1.5).moveTo([-2, 1]);
+      const wide = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: 'left' }).scale(0.75).moveTo([2, -1]);
+      this.add(tall, wide);
+      await tweenState(this, (t) => ({ n: t }), { views: [tall, wide], runTime: 0.6, rateFunc: linear });
+      this.state = { n: 2 };
+      await this.play(tall.sync({ match: 'index', runTime: 0.2 }), wide.sync({ match: 'index', runTime: 0.2 }));
+      await tweenState(this, (t) => ({ n: 2 * (1 - t) }), { views: [tall, wide], runTime: 0.4, rateFunc: linear });
+      close(tall.current.height(), 1.5); close(wide.current.width(), 0.75);
+    }
+  }
+  const full = new StringSink(); await new Sized(full).run();
+  assert.equal(full.frames.length, 37);
+  for (const k of [36, 17, 30, 1, 24, 18, 6, 0]) {
+    const snap = new SnapshotSink(); await renderFrame(Sized, k, snap);
+    assert.equal(snap.svg, full.frames[k], `placed seek ${k}`);
+  }
 });

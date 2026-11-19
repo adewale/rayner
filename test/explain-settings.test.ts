@@ -80,6 +80,31 @@ test('typed settings read the same defaults and bound URL values, and refuse an 
   assert.deepEqual({ ...settingsOf(new Removed(new NullSink())) }, {});
   assert.throws(() => settingsOf(new Removed(new NullSink()), Literal), /setting this scene does not have/);
 });
+
+test('a base-class settings accessor projects its keys and retains a derived scenario\'s selected values', () => {
+  class Base extends Scene {
+    static settings: readonly Setting[] = [
+      { id: 'mode', label: 'Mode', default: 'one', options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] },
+    ];
+  }
+  class Derived extends Base {
+    static override settings = [
+      ...Base.settings,
+      { id: 'extra', label: 'Extra', default: 'two', options: [{ value: 'two', label: 'Two' }, { value: 'three', label: 'Three' }] },
+    ];
+  }
+  const defaults = new Derived(new NullSink());
+  assert.deepEqual({ ...settingsOf(defaults, Base) }, { mode: 'one' });
+  assert.deepEqual({ ...settingsOf(defaults, Derived) }, { mode: 'one', extra: 'two' });
+
+  const Bound = withSettings(Derived, Object.fromEntries(new URLSearchParams('mode=two&extra=three')));
+  const chosen = new Bound(new NullSink());
+  const base = settingsOf(chosen, Base);
+  assert.deepEqual({ ...base }, { mode: 'two' });
+  assert.ok(Object.isFrozen(base));
+  assert.deepEqual({ ...settingsOf(chosen) }, { mode: 'two', extra: 'three' });
+  assert.deepEqual(settingsOf(chosen, Derived), settingsOf(chosen));
+});
 // ---- properties ------------------------------------------------------------------
 const RESERVED = ['step', 'sent', 'parentOrigin', 'theme'];
 /** Ids from the documented pattern, including every inherited Object.prototype name that matches it. */

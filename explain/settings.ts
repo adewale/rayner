@@ -187,6 +187,7 @@ export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values:
 /**
  * The scene's selected values. Pass its class to infer IDs and option values from literal
  * `static settings = [...] as const`; an instance's type alone does not carry its static members.
+ * A base class selects only its own declared keys, using the derived scene's selected values.
  * Without the class, dynamically declared settings keep their string-record type.
  */
 export function settingsOf<const Declarations extends readonly Setting[]>(scene: Scene<any, any>, Source: SettingsClass & { settings: Declarations }): Settings<Declarations>;
@@ -197,10 +198,13 @@ export function settingsOf(scene: Scene<any, any>, Source?: SettingsClass): Sett
   // the definition whose type we return, so a narrowed type never conceals incompatible values.
   const selected = (values: Settings): Settings => {
     if (!Source) return values;
-    const checked = resolveSettings(Source, values);
-    if (Object.keys(checked).some((id) => !Object.hasOwn(values, id)))
-      throw new TypeError('settingsOf(): the supplied class declares a setting this scene does not have');
-    return checked;
+    const projection: Record<string, string> = Object.create(null);
+    for (const { id } of Source.settings ?? []) {
+      if (!Object.hasOwn(values, id))
+        throw new TypeError('settingsOf(): the supplied class declares a setting this scene does not have');
+      projection[id] = values[id]!;
+    }
+    return resolveSettings(Source, projection);
   };
   for (let c: object | null = scene.constructor; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
     const settings = bound.get(c);

@@ -284,6 +284,8 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   private readonly views: readonly View<Mobject, S, Sh>[];
   private readonly host: Scene<S, Sh>;
   private readonly draw: (t: number) => readonly Mobject[];
+  /** The intrinsic sizes and external scales of the last pictures prepared for adoption. */
+  private fits: ViewFit[] = [];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
 
@@ -293,9 +295,18 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
     this.views = views;
     this.draw = (t) => {
       host.state = cloneJson(stateAt(t), call, 'stateAt(t)') as Scene<S, Sh>['state'];
-      return views.map((v) => v.placed(host.state));
+      const frames = views.map((v) => v.measure(fresh(paintedFor(host, v.draw(host.state, host.shown)), v.current)));
+      this.fits = frames.map((frame) => frame.fit);
+      return frames.map((frame) => frame.picture);
     };
   }
+
+  // Follow adopts all prepared pictures before their fits are recorded. A sampled intrinsic
+  // height change must not look like an author-applied scale at the next sample or sync.
+  private commitFits(): void { this.fits.forEach((fit, i) => this.views[i]!.commit(fit)); }
+  protected override doBegin(): void { super.doBegin(); this.commitFits(); }
+  protected override doInterpolate(alpha: number): void { super.doInterpolate(alpha); this.commitFits(); }
+  protected override doFinish(alpha: number = this.rateFunc(1)): void { super.doFinish(alpha); this.commitFits(); }
 
   /** The picture on screen now: what this writes once it begins. */
   override targets(): Mobject[] { return [stateTarget(this.host), ...(this.follow?.targets() ?? this.views.map((v) => v.current))]; }

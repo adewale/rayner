@@ -7,7 +7,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 ### Correctness and evidence
 
 - Machine exploration reports actual graph closure for each origin before deduplicating states, including a live origin already present in a capped start traversal. Limits must be finite positive integers. A machine refuses a view bound to another scene.
-- State sampling reserves the scene's model write before an action plays. Simultaneous writers reject early; `tweenState(scene, stateAt, { views })` samples once and redraws several independent views together. The shared-orbit recipe verifies frame and seek agreement.
+- State sampling reserves the scene's model write before an action plays. Simultaneous writers reject early; `tweenState(scene, stateAt, { views })` samples once and redraws several independent views together. The shared-orbit recipe verifies frame and seek agreement. Sampled views retain intrinsic size changes and externally applied scale through later samples, syncs and seeks.
 - Staged steps keep their locally typed input in `StepRecord.state`; they no longer replace the scene's persistent model. Trace `before` and `after` retain that model, while descriptions, fidelity helpers and watched reader changes select the local specimen when present.
 - Descriptions expose step kinds, teaching order, resolved predictions and their reveal steps, and completeness from the actual live origin. `see` retains these distinctions.
 

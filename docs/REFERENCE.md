@@ -603,7 +603,9 @@ class Requests extends Scene {
 
 The class argument supplies the type without repeating a union or casting a value: a misspelt ID
 does not compile, and `which` can only be `'hit'` or `'miss'`. The class must be the scene's own
-class or a base class; selected values are checked against its declaration too. A bound scenario
+class or a base class; the result contains only that class's declared settings, checked against
+its options. A base-class accessor keeps the derived scenario's selected values and leaves out
+settings added by the subclass; it refuses a missing key or an incompatible value. A bound scenario
 from `withSettings` still reads its selected values. Dynamic definitions and the one-argument
 `settingsOf(this)` retain the `Readonly<Record<string, string>>` fallback. URL values stay strings
 and are validated at runtime in either form; type inference does not make an unchecked URL valid.

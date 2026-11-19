@@ -9,7 +9,9 @@ import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { idsOf, stepIdsOf } from './lib/steps.ts';
 import { RestingSink } from '../tools/lib/explain-check.ts';
-import { Scene } from '../src/index.ts';
+import { Scene, Rectangle } from '../src/index.ts';
+import { Machine, view } from '../explain/index.ts';
+import { liveBase, liveSteps } from '../explain/live.ts';
 import { describeScenario } from '../explain/describe.ts';
 import { seeText } from '../tools/lib/explain-see.ts';
 
@@ -102,6 +104,31 @@ test('describe follows the all-detail fallback and reports a broken prediction i
   assert.match(d.predictionProblems![0]!, /names reveal "missing", which is not a step/);
   assert.match(seeText('details', d, 'second'), /Path: detail · teaching step 2 of 2/);
   assert.match(seeText('details', d, 'second'), /Prediction problem: .*names reveal "missing"/);
+});
+
+test('machine descriptions use the player\'s raw model origin while step descriptions retain trace-only JSON', async () => {
+  class WithEvidence extends Scene<{ n: number }> {
+    override state = { n: 0 };
+    override async construct() {
+      this.addJson(() => ({ aux: 'trace only' }));
+      await this.step('live');
+      const picture = view(this, st => new Rectangle({ width: 1 + st.n }), { place: false });
+      this.add(picture);
+      const machine = new Machine(this, {
+        start: { n: 0 }, events: ['inc'], views: [picture], match: 'index', runTime: 0,
+        // Trace annotations are not model inputs. Adding one would falsely make rest terminal.
+        next: st => Object.keys(st).length === 1 && st.n < 3 ? { n: st.n + 1 } : undefined,
+      });
+      await machine.send('inc');
+    }
+  }
+  const ran = await new WithEvidence({ skipUntil: Infinity, async frame() {} }).run();
+  const actual = await liveBase(WithEvidence, 'live', liveSteps(ran).get('live')!);
+  assert.deepEqual(actual.base, { from: 'rest', state: { n: 1 } });
+  const described = await describeScenario(WithEvidence, {}, { drawings: false });
+  assert.deepEqual(described.steps[0]!.state, { n: 1, aux: 'trace only' });
+  assert.equal(described.machines!.length, 1);
+  assert.deepEqual(described.machines![0]!.live, { ...actual.base, states: 3, complete: true });
 });
 
 test('a step\'s resting picture has one text drawing: rayner check\'s restingFrames is describe\'s drawing, the heading left out of both', async () => {
