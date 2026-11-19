@@ -134,7 +134,14 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
     const report = await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line));
     console.log(JSON.stringify(report, null, 2));
-    console.error(`Review passed: ${report.scenarios} scenarios, ${report.stepWidths} step/width checks, ${report.liveStateWidths} live-state/width checks. Report: ${resolve(directory, 'review.json')}`);
+    const phone = report.results.flatMap(s => [...s.steps, ...s.framedSteps]).filter(s => s.width === 390);
+    const maximumViews = Math.max(0, ...phone.map(s => s.views));
+    const maximumOverlap = Math.max(0, ...phone.map(s => s.maximumTourOverlap));
+    const minima = phone.flatMap(s => s.minimumLabelPxWholeStage === null ? [] : [s.minimumLabelPxWholeStage]);
+    const smallest = minima.length ? Math.min(...minima).toFixed(1) + ' px' : 'no labels';
+    const clipped = phone.reduce((n, s) => n + s.partiallyVisibleLabels.reduce((m, v) => m + v.labels.length, 0), 0);
+    console.error(`Phone: whole-picture minimum ${smallest}; ${clipped} partly visible labels across views; up to ${maximumViews} views per step; greatest tour-view overlap ${Math.round(maximumOverlap * 100)}%. Screenshots: ${resolve(directory)}`);
+    console.error(`Review passed: ${report.scenarios} scenarios, ${report.stepWidths} step/width checks, ${report.liveStateWidths} live-state/width checks, ${report.framedStepWidths} framed phone steps and ${report.framedLiveStateWidths} framed live states. Report: ${resolve(directory, 'review.json')}`);
     return;
   }
   if (command === 'snapshots') {

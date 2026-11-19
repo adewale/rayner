@@ -180,3 +180,21 @@ The repository's tests run against local files, so check the deployed page too:
 - Inside a frame, your page's background shows at the tile's corners, and the tile's footer has "Open the explainer".
 - With `--origin`, `<id>.oembed.json` is served as JSON and the page's head links to it.
 - Record the `artifactHash` from the receipt beside the URL you published. For the collection, compare the served bytes with `deployment.json`; valid CSP hashes alone do not prove that the latest reviewed page was deployed.
+
+A loader resize conversation needs an exact HTTP or HTTPS parent origin. A sandboxed host with
+an opaque origin, a file URL, or a raw iframe without `parentOrigin` uses a fixed-height iframe
+with inner scrolling. Set its height explicitly, using the exported `<id>.embed.json` measurements
+at 390, 640 and 900 px as a starting point. Include `allow="fullscreen"` when offering enlargement.
+Load one chapter at a time when a series would otherwise load several complete HTML artifacts;
+each includes its runtime and fonts. Inspect the actual built byte sizes for the selected chapters.
+
+An author-side `rayner review` checks every scenario standalone at phone and desktop widths and
+inside the real loader's iframe at 390 px. Its receipt counts framed steps and sampled live states
+separately, and the `framed/` subdirectories retain their screenshots. Caption subjects declared
+for the standalone page must also be painted in that frame. A scene edited during review fails
+with a changed-source diagnostic. Finish concurrent edits and rerun the review on stable input.
+
+An author-side review also measures the default scenario's initial framed height at 390, 640 and
+900 px and writes an `<page>.embed.json` file beside the retained HTML. With `review --out answer.html`,
+that file is `answer.embed.json`. The receipt records its path and measured sizes. These are initial
+heights for a raw iframe. The loader follows later size changes as the reader moves between steps.

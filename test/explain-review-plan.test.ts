@@ -53,7 +53,13 @@ function receipts(expected: PlannedScenario[], total: number): ReviewReceipt[] {
       })))) } : {}),
     });
   }
+  for (const p of parts) for (const c of p.results) {
+    c.framedSteps = c.steps.filter(s => s.width === 390).map(s => structuredClone(s));
+    c.framedLive = c.live?.filter(s => s.width === 390).map(s => structuredClone(s));
+  }
   for (const p of parts) {
+    p.framedStepWidths = p.results.reduce((n, c) => n + (c.framedSteps?.length ?? 0), 0);
+    p.framedLiveStateWidths = p.results.reduce((n, c) => n + (c.framedLive?.length ?? 0), 0);
     p.scenarios = p.results.length;
     p.stepWidths = p.results.reduce((n, c) => n + c.steps.length, 0);
     p.liveStateWidths = p.results.reduce((n, c) => n + (c.live?.length ?? 0), 0);
@@ -197,7 +203,7 @@ test('story receipts expire when caption claims, served runtime or review depend
       'tools/repo/explain-review.ts', 'tools/repo/explain-review-merge.ts',
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
       'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
-      'tools/lib/explain-live-review.ts',
+      'tools/lib/explain-live-review.ts', 'tools/lib/review-reader.ts', 'tools/repo/lib/explain-embed-size.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
@@ -363,4 +369,15 @@ test('live states: the built description names the live steps; a receipt must vi
     const plan = await readStoryPlan(root);
     assert.deepEqual(plan.scenarios.map((c) => c.live), [['press'], undefined]);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('shard receipts require framed phone steps and the same sampled live states', () => {
+  const expected: PlannedScenario[] = [{ scene: 'live', settings: {}, steps: ['press'], live: ['press'], narrowOpenings: narrowObligations(['press']) }];
+  for (const field of ['framedSteps', 'framedLive'] as const) {
+    const parts = receipts(expected, 1);
+    parts[0]!.results[0]![field] = [];
+    if (field === 'framedSteps') parts[0]!.framedStepWidths = 0;
+    else parts[0]!.framedLiveStateWidths = 0;
+    assert.throws(() => mergeStoryReviews(parts, expected, 'catalog', 'code'), /framed/);
+  }
 });

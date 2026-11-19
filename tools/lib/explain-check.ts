@@ -826,7 +826,7 @@ export async function bareRuntime(project: Project, plugins: Plugin[] = []): Pro
   });
   const script = new vm.Script(b.outputFiles[0]!.text + ';globalThis.result=bare.run(globalThis.values)');
   return async (values) => {
-    const context = vm.createContext({ TextEncoder, TextDecoder, atob, values: JSON.parse(JSON.stringify(values)) });
+    const context = vm.createContext({ TextEncoder, TextDecoder, atob, URL, URLSearchParams, values: JSON.parse(JSON.stringify(values)) });
     script.runInContext(context);
     return JSON.parse(JSON.stringify(await context.result));
   };

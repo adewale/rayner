@@ -21,7 +21,8 @@ import { perf } from '../src/perf.ts';
 import { hasUpdaters } from '../src/mobject.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
-import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation, matchRows } from '../src/animation.ts';
+import { Transform } from '../src/index.ts';
 import { advanceBox } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
@@ -504,4 +505,23 @@ test('a play\'s lagRatio has nothing to stagger in a tween, which draws one samp
   const plain = await frames({});
   assert.ok(plain.length > 20);
   assert.deepEqual(await frames({ lagRatio: 1 }), plain);
+});
+
+test('a plain view sync replaces changed keyed words as whole words with staged fades', () => {
+  const scene = new Scene<{ word: string }>(new StringSink());
+  scene.state = { word: 'before' };
+  const picture = view(scene, st => keyed(new Group(keyed(new Text(st.word), 'word')), 'readout'));
+  scene.add(picture);
+  scene.state.word = 'after';
+  const sync = new ViewSync(picture);
+  beginAnimation(sync);
+  const inner = sync.inner as Transform;
+  assert.equal(inner[matchRows].moves.length, 0);
+  assert.ok(inner[matchRows].fadesOut.length > 0);
+  assert.ok(inner[matchRows].fadesIn.length > 0);
+  interpolateAnimation(sync, 0.5);
+  assert.ok(inner[matchRows].fadesOut.every(r => r.sub.style.opacity === 0));
+  assert.ok(inner[matchRows].fadesIn.every(r => r.sub.style.opacity === 0));
+  finishAnimation(sync);
+  assert.deepEqual(picture.texts, ['after']);
 });

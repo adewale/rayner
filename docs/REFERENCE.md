@@ -788,6 +788,30 @@ These checks establish deterministic behaviour and readable pictures. They do no
 
 Live machine reports also retain `phoneWarnings` for labels below 12 px on the whole picture immediately after a press, even when a close-up passes the legibility gate. `rayner check` prints those warnings and a verdict summary to standard error. Structured reports remain on standard output. `review` prints a summary with its scenario and width-check counts and receipt path.
 
+### Planning the phone picture
+
+The camera at home shows 16 × 9 scene units, with x from −8 to 8 and y from −4.5 to 4.5.
+A 390 px standalone page has a 358 px stage after its side spacing. A label's em size in pixels
+is its scene size multiplied by 358 / 16 when the whole picture is shown. A 0.56-unit label is
+12.53 px there and 44.8 px on a 1280 px stage. Measure actual shaped words with `Text.width()`;
+font choice, weight and the letters themselves change their width.
+
+The stage heading sits near y = 3.8, or 3.98 with a line underneath. Use named stage regions
+for content below it. With `stage(this, { heading: false })`, the artwork has the whole stage;
+the player still prints the step title and line as page text below the stepper.
+
+Draw a live step to read as a whole picture before adding detail. A press shows the whole picture,
+so a tour cannot make its immediate result readable. A dense landscape picture produces several
+phone crops. Review every stop, including the neighbours at its edges. Name both shapes and their
+sibling text in `s.opening()` when their labels are separate keyed parts, for example
+`s.opening(...view.current.family().filter(m => keys.includes(m.key)))`.
+
+`review` now repeats phone checks in an iframe mounted by the actual loader, retains screenshots
+under `framed/`, and writes each additional tour stop as a `.viewN.png` file. Each step's receipt
+reports `maximumTourOverlap`, the greatest intersection-over-union area between two distinct
+viewports in its tour. Values approaching 1 expose nearly repeated crops for an author to inspect.
+The receipt also lists partially visible labels per stop and the smallest whole-picture label in CSS pixels. The command summarizes these measurements and the maximum view count and overlap across standalone and framed phone steps.
+
 ## Command line
 
 ### Add-ons

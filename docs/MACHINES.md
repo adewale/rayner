@@ -57,6 +57,7 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
 | `match` | How the views morph without an authored transition (default `{ by: 'key', text: 'whole' }`, a [`Match`](MATCHING.md): keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
+| `liveStart` | Set to `'start'` to let reader events begin at the model's `start` even when the step's resting state can still move. The guided replay stays authored. Reset restores the step's picture and clears the event log. Omit it for the usual resting-state start and automatic fallback at a terminal state. |
 | `limit` | The most states exploration visits from one origin (default 256) |
 
 The machine's state is the scene's model: `new Machine(this, spec)` on a `Scene<S, Sh>`, its `spec` a `MachineSpec<S, E>` for events `E`, types
@@ -484,3 +485,15 @@ the stage and keeps the stage describing it.
 - **Building a transition when its schedule is built.** In a replay, the second event's
   transition held the first picture, which the first event's finish had replaced. It is built
   when its turn comes.
+
+### Protocol outcomes and story bounds
+
+A request that happens and receives an error response is a transition. Record that response in
+the model so the picture and its description can show it. A refusal represents an event that
+cannot happen in that state. An HTTP 401 response alone does not make the request a refused event.
+A story `bound` applies to an event the model accepts; applying it where `next` already refuses
+fails `check`, because the model's refusal already explains that event.
+
+The page and the bare-runtime check provide `URL` and `URLSearchParams`. Protocol models can use
+their standard relative-path resolution, query decoding and normalization. They still run without
+DOM or Node APIs in the bare-runtime check.

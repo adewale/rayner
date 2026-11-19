@@ -44,8 +44,8 @@ export interface SyncOptions extends PlayOptions {
   /**
    * How the old picture's parts pair with the new one's, as a Transform's `match` pairs them
    * (see Match): by glyph, by shape, by position in the family, by the keys the picture's parts
-   * carry, or by your own key. Default 'key': parts pair by the keys the picture gives them. A
-   * 'key' sync whose pictures carry no keys below their roots is refused; key the parts, or say
+   * carry, or by your own key. Default 'key': parts pair by the keys the picture gives them,
+   * with changed keyed words replaced whole. A 'key' sync whose pictures carry no keys below their roots is refused; key the parts, or say
    * 'text', 'shapes' or 'index'.
    */
   match?: Match;
@@ -230,8 +230,9 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
     // morph's own time is linear: this sync's rate function eases it.
     const staged = this.staged, rateFunc = linear;
+    const transformMatch: Match = match === 'key' ? { by: 'key', text: 'whole' } : match;
     const inner = match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
-      : new Transform(old, next, { match, replace: false, staged, rateFunc });
+      : new Transform(old, next, { match: transformMatch, replace: false, staged, rateFunc });
     inner.lagRatio = this.lagRatio;
     this.inner = inner; this.next = next;
     return inner;

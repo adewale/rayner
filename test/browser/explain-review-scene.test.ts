@@ -52,8 +52,16 @@ test('an outside author reviews every served scenario and width; a false caption
     assert.equal(createHash('sha256').update(artifact).digest('hex'), result.artifactHash);
     assert.ok((await readFile(result.artifact + '.headers.json', 'utf8')).includes('Content-Security-Policy'));
     assert.ok((await readFile(join(folder, 'public', 'loader.js'), 'utf8')).length);
+    assert.equal(result.embedFile, join(folder, 'public', 'answer.embed.json'));
+    assert.deepEqual(JSON.parse(await readFile(result.embedFile, 'utf8')), result.embedSize);
+    assert.deepEqual(Object.keys(result.embedSize.heights).sort(), ['390', '640', '900']);
     assert.equal(result.scenarios, 2);
     assert.equal(result.stepWidths, 4);
+    assert.equal(result.framedStepWidths, 2);
+    assert.ok(result.results.every(c => c.framedSteps.every(s => s.minimumLabelPxWholeStage !== null && s.minimumLabelPxWholeStage > 0)));
+    assert.ok(result.results.every(c => c.framedSteps.every(s => s.maximumTourOverlap === 0 && s.partiallyVisibleLabels.length === 0)));
+    assert.deepEqual(result.results.map(c => c.framedSteps.map(s => s.width)), [[390], [390]]);
+    assert.ok(existsSync(join(output, '0', 'framed', 'one.390.png')));
     assert.deepEqual(result.results.map(c => c.steps.map(s => s.width)), [[390, 1180], [390, 1180]]);
     assert.deepEqual(result.consoleErrors, []);
     assert.deepEqual(result.runtimeConnections, []);
@@ -164,5 +172,38 @@ test('dictionary review retains six claim sets and checks four main openings plu
       ['question', 'broken', 'marker', 'missing']);
     assert.deepEqual(openings.filter(o => !o.reviewed).map(o => [o.step, o.reason]),
       [['hash', 'detail-step'], ['collision', 'detail-step']]);
+  }
+});
+
+test('framed review rejects paint hidden only inside the loader iframe', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for iframe paint controls' }, async () => {
+  const { buildExplainer, buildLoader } = await import('../../tools/lib/explain-build.ts');
+  const { serve } = await import('../../tools/lib/explain-serve.ts');
+  const { launch } = await import('../../tools/lib/browser.ts');
+  const { reviewStoryScenario } = await import('../../tools/lib/explain-story-review.ts');
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-framed-poison-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    await writeFile(join(directory, 'scene.ts'), source);
+    const project = await collectProject(directory, { write: false });
+    await buildExplainer(project, join(directory, 'scene.html'));
+    await buildLoader(join(directory, 'loader.js'));
+    server = await serve(directory, 0, 'scene.html');
+    const page = await browser.newPage();
+    const scenario = project.scenarios[0]!;
+    const claims = [{ step: 'one', targets: [{ text: 'Answer' }] }];
+    const baseline = await reviewStoryScenario(page, server.url + '/scene.html', scenario, claims, undefined, undefined, true);
+    assert.deepEqual(baseline.map(r => [r.step, r.width]), [['one', 390]]);
+    await page.addInitScript(() => {
+      if (window.parent === window) return;
+      document.addEventListener('rayner:step', () => {
+        const svg = document.querySelector<SVGElement>('.stage svg');
+        if (svg) svg.style.opacity = '0';
+      });
+    });
+    assert.equal((await reviewStoryScenario(page, server.url + '/scene.html', scenario, claims)).length, 2);
+    await assert.rejects(reviewStoryScenario(page, server.url + '/scene.html', scenario, claims, undefined, undefined, true), /hidden|paint|subject|ink/i);
+  } finally {
+    await browser.close(); server?.close(); await rm(directory, { recursive: true, force: true });
   }
 });

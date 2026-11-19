@@ -1,3 +1,4 @@
+import { measureEmbed, embedSizeProblems } from '../repo/lib/explain-embed-size.ts';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, mkdtemp, rm, copyFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
@@ -63,6 +64,7 @@ export async function reviewScene(project: Project, directory: string, subjectsF
   let browser: Awaited<ReturnType<typeof launch>> | undefined;
   try {
     const { receipt } = await buildExplainer(project, join(temporary, 'scene.html'));
+    await buildLoader(join(temporary, 'loader.js'));
     server = await serve(temporary, 0, 'scene.html');
     browser = await launch('rayner review');
     const used = chromiumUsed(browser)!;
@@ -84,7 +86,11 @@ export async function reviewScene(project: Project, directory: string, subjectsF
         const steps = await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, output);
         // The pictures a reader reaches by pressing a live step's events (docs/MACHINES.md, "The player").
         const live = await reviewLiveStates(page, server.url + '/scene.html', scenario, await liveSubjects(scenario, project.Scene.meta?.lang), output);
-        results.push({ settings: scenario.values, steps, ...(live.length ? { live } : {}) });
+        const framedOutput = join(output, 'framed');
+        await mkdir(framedOutput, { recursive: true });
+        const framedSteps = await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, framedOutput, undefined, true);
+        const framedLive = await reviewLiveStates(page, server.url + '/scene.html', scenario, await liveSubjects(scenario, project.Scene.meta?.lang), framedOutput, true);
+        results.push({ settings: scenario.values, steps, ...(live.length ? { live } : {}), framedSteps, framedLive });
       }
       assert.deepEqual(errors, [], 'reader console errors');
       assert.deepEqual(connections, [], 'reader external connections');
@@ -93,6 +99,8 @@ export async function reviewScene(project: Project, directory: string, subjectsF
       await writeFile(join(directory, 'failure.json'), JSON.stringify({ error: String(error), errors, connections }, null, 2));
       throw error;
     }
+    const embedSize = await measureEmbed(browser, server.url, 'scene.html');
+    assert.deepEqual(embedSizeProblems(embedSize), [], 'measured embed sizes');
     const after = await buildInputs(ROOT);
     assert.equal(after.hash, inputs.hash, 'build inputs changed during review');
     assert.equal(await reviewCodeHash(ROOT, after.hash), reviewer, 'review inputs changed during review');
@@ -104,10 +112,15 @@ export async function reviewScene(project: Project, directory: string, subjectsF
       await copyFile(join(temporary, 'scene.html' + suffix), retained + suffix);
     assert.equal(hash(await readFile(retained)), receipt.artifactHash, 'retain the exact reviewed page');
     await buildLoader(join(dirname(retained), 'loader.js'));
+    const embedFile = retained.replace(/\.html$/, '') + '.embed.json';
+    await writeFile(embedFile, JSON.stringify(embedSize, null, 2) + '\n');
     const report = {
+      embedFile, embedSize,
       version: 1, scene: project.Scene.meta?.id ?? 'scene', sourceHash: project.sourceHash,
       buildHash: inputs.hash, reviewCodeHash: reviewer, artifact: retained, artifactHash: receipt.artifactHash, subjectsHash: hash(JSON.stringify(subjects)),
       scenarios: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0),
+      framedStepWidths: results.reduce((n, c) => n + c.framedSteps.length, 0),
+      framedLiveStateWidths: results.reduce((n, c) => n + c.framedLive.length, 0),
       liveStateWidths: results.reduce((n, c) => n + (c.live?.length ?? 0), 0), results,
       consoleErrors: errors, runtimeConnections: connections,
       browser: { name: 'chromium', path: used.path, version: used.version, source: used.source },

@@ -6,6 +6,11 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Author and catalog review repeat phone steps and sampled live states inside the production loader's iframe. Receipts bind the framed inventory, retain each tour stop, and report whole-picture label sizes, partly visible labels and tour overlap. Author review writes measured initial embed heights beside its retained HTML.
+- A machine may set `liveStart: 'start'` so reader events begin before a nonterminal authored resting state. Buttons, links and Reset use the same model start, with regressions through the phone player.
+- A plain view sync replaces changed keyed words whole, using the same staged default as a machine transition. The halfway regression verifies the old and new glyph sets are both absent at the handoff.
+- The bare-runtime checker provides the browser's `URL` and `URLSearchParams` APIs for protocol models, with a normal check regression.
+
 - `s.prepareDiagrams(specs)` resolves a finite source set before a view draws. Its synchronous drawing function selects a complete captured picture from state, so view fidelity checks reject a stale source picture.
 - Machine check reports retain warnings for labels below 12 px on the whole picture after an event, including labels that pass in a close-up. The check command prints up to five warnings and a verdict with the report path. Review prints its scenario and width-check counts with its receipt path.
 

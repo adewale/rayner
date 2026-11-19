@@ -1,9 +1,10 @@
+import { openReviewReader } from './review-reader.ts';
 import { readerShellProblems, cropTest } from './explain-reader-shell.ts';
 import type { ReaderShell } from './explain-reader-shell.ts';
 // Served-story evidence: Node declares the expected objects; native SVG geometry
 // establishes which of their actual painted paths the reader can see.
 import assert from 'node:assert/strict';
-import type { Page } from 'playwright-core';
+import type { Frame, Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/internal.ts';
 import { clipPathOf, serializeElement, userBox, UNITS, dryRun, intersect, nonempty, pad, pointsBox, unionBoxes, paints, mobjectId } from '../../src/internal.ts';
@@ -447,7 +448,7 @@ export function covered(target: Rect, views: readonly Rect[]): boolean {
 }
 
 /** Inspect actual DOM paths, rather than projecting an expected box over potentially absent artwork. */
-export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
+export async function inspectStoryFrame(page: Page | Frame, frame: StoryFrame) {
   const width = await page.locator('.stage').evaluate((stage) => stage.clientWidth);
   const slots = elementSlots(frame, width);
   return page.locator('.stage svg:not(.leaving)').evaluate((node, { expected, slots, authorBox, units }) => {
@@ -706,7 +707,7 @@ export function verifyStoryTargets(
 /** Named subjects must contribute pixels and their labels must retain their
  * glyph cores in the actual opening. Small native-browser rasters preserve
  * clips, paint order and effective styles without per-glyph screenshots. */
-async function verifyNarrowPaint(page: Page, frame: StoryFrame, named: { name: string; indices: number[]; label?: boolean }[], step: string) {
+async function verifyNarrowPaint(page: Page | Frame, frame: StoryFrame, named: { name: string; indices: number[]; label?: boolean }[], step: string) {
   // Record indices to painted-element indices: a narrow stage leaves its heading's records out.
   const width = await page.locator('.stage').evaluate((stage) => stage.clientWidth),
     slots = elementSlots(frame, width);
@@ -872,26 +873,27 @@ async function reviewNarrowOpening(
   scenario: Project['scenarios'][number],
   step: string,
   frame: StoryFrame,
+  framed = false,
 ): Promise<NarrowOpeningReview> {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto(`${url}?${stepQuery(scenario.values, step)}`);
-  await page.waitForSelector('[data-ready=true]');
-  await page.waitForFunction(
+  const reader = await openReviewReader(page, `${url}?${stepQuery(scenario.values, step)}`, framed);
+  await reader.waitForSelector('[data-ready=true]');
+  await reader.waitForFunction(
     (name) =>
       (window as unknown as { raynerReviewStep?: string }).raynerReviewStep === name &&
       document.querySelector('[aria-current=step]')?.getAttribute('data-step') === name &&
       !document.querySelector('#content.loading'),
     step,
   );
-  await page.locator('.leaving').waitFor({ state: 'detached' });
-  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
-  assert.equal(await page.evaluate(() => innerWidth), 320);
+  await reader.locator('.leaving').waitFor({ state: 'detached' });
+  await reader.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+  assert.equal(await reader.evaluate(() => innerWidth), 320);
   assert.equal(
-    await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+    await reader.evaluate(() => document.documentElement.scrollWidth > innerWidth),
     false,
     `${step} at 320px: page overflows`,
   );
-  const opening = await inspectStoryFrame(page, frame),
+  const opening = await inspectStoryFrame(reader, frame),
     targets = frame.targets.filter((target) => target.opening);
   const verified = verifyStoryTargets(frame, [opening], step, 320, targets);
   const indices = new Set(targets.flatMap((target) => target.indices));
@@ -909,7 +911,7 @@ async function reviewNarrowOpening(
     minimumLabelPx = minimumLabelPx === null ? pixels : Math.min(minimumLabelPx, pixels);
   }
   assert.ok(verified.size, `${step} at 320px: no opening subject is painted`);
-  await verifyNarrowPaint(page, frame, [
+  await verifyNarrowPaint(reader, frame, [
     ...targets.map(target => ({name: target.name, indices: target.indices})),
     ...labels.map(label => ({name: `label ${label.text}`, indices: label.indices.filter(index => indices.has(index)), label: true})),
   ], step);
@@ -932,6 +934,7 @@ export async function reviewStoryScenario(
   declared: readonly StorySubject[] = [],
   directory?: string,
   shell?: ReaderShell,
+  framed = false,
 ) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   if (!initialized.has(page)) {
@@ -944,6 +947,7 @@ export async function reviewStoryScenario(
     }, STEP_TYPE);
     initialized.add(page);
   }
+  let reader: Frame = page.mainFrame();
   const applicable = declared.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));
   const frames = await storyFrames(scenario.Scene, applicable),
     results = [];
@@ -954,76 +958,101 @@ export async function reviewStoryScenario(
     else
       narrow.set(
         obligation.step,
-        await reviewNarrowOpening(page, url, scenario, obligation.step, frames.get(obligation.step)!),
+        await reviewNarrowOpening(page, url, scenario, obligation.step, frames.get(obligation.step)!, framed),
       );
   }
   assert.equal(narrow.size, scenario.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
   assert.equal(frames.size, scenario.trace.steps.length, 'every traced step has a resting frame');
-  for (const viewport of REVIEW_VIEWPORTS) {
+  for (const viewport of (framed ? [PHONE_VIEWPORT] : REVIEW_VIEWPORTS)) {
     await page.setViewportSize(viewport);
     for (const [index, step] of scenario.trace.steps.entries()) {
       const query = stepQuery(scenario.values, step.step);
       // Start each width as a fresh reader. Then use the real step buttons:
       // Next view preserves automatic following, and each step must reset its
       // tour to the opening. This also exercises retained/restored DOM frames.
-      if (index === 0) await page.goto(`${url}?${query}`);
+      if (index === 0) reader = await openReviewReader(page, `${url}?${query}`, framed);
       else
-        await page.locator('button[data-step]').evaluateAll((buttons, name) => {
+        await reader.locator('button[data-step]').evaluateAll((buttons, name) => {
           const button = buttons.find((b) => b.getAttribute('data-step') === name) as HTMLButtonElement | undefined;
           if (!button) throw new Error(`missing step button ${name}`);
           button.click();
         }, step.step);
-      await page.waitForSelector('[data-ready=true]');
-      await page.waitForFunction(
+      await reader.waitForSelector('[data-ready=true]');
+      await reader.waitForFunction(
         (name) =>
           (window as unknown as { raynerReviewStep?: string }).raynerReviewStep === name &&
           document.querySelector('[aria-current=step]')?.getAttribute('data-step') === name &&
           !document.querySelector('#content.loading'),
         step.step,
       );
-      await page.locator('.leaving').waitFor({ state: 'detached' });
-      await page.evaluate(
+      await reader.locator('.leaving').waitFor({ state: 'detached' });
+      await reader.evaluate(
         () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
       );
       if (index === 0 && shell) {
-        assert.deepEqual(await page.evaluate(readerShellProblems, shell), [], 'reader shell');
-        if (viewport.width === DESKTOP_VIEWPORT.width && shell.crop) assert.deepEqual(await page.evaluate(cropTest, shell.crop), [], 'standalone tile');
+        assert.deepEqual(await reader.evaluate(readerShellProblems, shell), [], 'reader shell');
+        if (viewport.width === DESKTOP_VIEWPORT.width && shell.crop) assert.deepEqual(await reader.evaluate(cropTest, shell.crop), [], 'standalone tile');
       }
-      assert.equal(await page.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
-      assert.equal(await page.locator('.caption').innerText(), stepWords(step).caption);
-      assert.ok(await page.locator('.stage path').count(), `${step.step}: no artwork`);
+      assert.equal(await reader.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
+      assert.equal(await reader.locator('.caption').innerText(), stepWords(step).caption);
+      assert.ok(await reader.locator('.stage path').count(), `${step.step}: no artwork`);
       assert.equal(
-        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        await reader.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
         `${step.step}: page overflows`,
       );
       const frame = frames.get(step.step)!;
-      const opening = await inspectStoryFrame(page, frame),
+      const measured = { ...frame, targets: [...frame.targets, { name: 'labels', indices: frame.labels.flatMap(l => l.indices), opening: false }] };
+      const opening = await inspectStoryFrame(reader, measured),
         views = [opening];
       if (directory)
-        await page.locator('.stage').screenshot({
+        await reader.locator('.stage').screenshot({
           path: join(directory, `${encodeURIComponent(step.step)}.${viewport.width}.png`),
           animations: 'disabled',
         });
-      const next = page.locator('.view-controls > button').first();
+      const next = reader.locator('.view-controls > button').first();
       const visited = new Set([opening.viewBox]);
       if ((await next.isVisible()) && (await next.isEnabled()))
         for (let n = 0; n < frame.records.length + 1; n++) {
           await next.click();
-          await page.evaluate(
+          await reader.evaluate(
             () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
           );
-          const view = await inspectStoryFrame(page, frame),
+          const view = await inspectStoryFrame(reader, measured),
             key = view.viewBox;
           if (visited.has(key)) break;
           visited.add(key);
           views.push(view);
+          if (directory) await reader.locator('.stage').screenshot({
+            path: join(directory, `${encodeURIComponent(step.step)}.${viewport.width}.view${views.length}.png`), animations: 'disabled',
+          });
           assert.ok(n < frame.records.length, `${step.step}: close-up tour did not terminate`);
         }
       const verified = verifyStoryTargets(frame, views, step.step, viewport.width);
       assert.ok(verified.size, `${step.step}: no story subject is painted in a reader view`);
+      const wholeLabelPixels = frame.labels.flatMap(label => {
+        const ink = opening.ink.filter(p => label.indices.includes(p.index) && p.visible && intersect(p.shown, opening.viewport));
+        return ink.length ? [label.size * Math.min(...ink.map(p => p.scale))] : [];
+      });
+      const partiallyVisibleLabels = views.flatMap((view, index) => {
+        const labels = frame.labels.filter(label => {
+          const ink = view.ink.filter(p => label.indices.includes(p.index));
+          return ink.some(p => p.visible && intersect(p.shown, view.viewport)) &&
+            !ink.every(p => p.visible && p.complete && covered(p.box, [view.viewport]));
+        }).map(label => label.text);
+        return labels.length ? [{ view: index + 1, labels }] : [];
+      });
+      let maximumTourOverlap = 0;
+      for (const [i, a] of views.entries()) for (const b of views.slice(i + 1)) {
+        const overlap = intersect(a.viewport, b.viewport);
+        const area = (r: Rect) => Math.max(0, r[2] - r[0]) * Math.max(0, r[3] - r[1]);
+        if (overlap) maximumTourOverlap = Math.max(maximumTourOverlap, area(overlap) / (area(a.viewport) + area(b.viewport) - area(overlap)));
+      }
       results.push({
         step: step.step,
+        maximumTourOverlap,
+        minimumLabelPxWholeStage: wholeLabelPixels.length ? Math.min(...wholeLabelPixels) : null,
+        partiallyVisibleLabels,
         width: viewport.width,
         views: views.length,
         targets: [...verified],
@@ -1033,7 +1062,7 @@ export async function reviewStoryScenario(
   }
   assert.deepEqual(
     results.map(({ step, width }) => ({ step, width })),
-    REVIEW_WIDTHS.flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
+    (framed ? [PHONE_VIEWPORT.width] : REVIEW_WIDTHS).flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
     'every traced step must be reviewed exactly once at each width',
   );
   return results;

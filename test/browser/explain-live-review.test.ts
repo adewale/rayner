@@ -128,6 +128,8 @@ test('rayner review visits the live states and records them in its receipt', opt
     await writeFile(join(dir, 'scene.ts'), lamp(false));
     const result = await reviewScene(await collectProject(dir, { write: false }), join(dir, 'review'));
     assert.equal(result.liveStateWidths, 4);
+    assert.equal(result.framedLiveStateWidths, 2);
+    assert.deepEqual(result.results[0]!.framedLive.map(s => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390]]);
     assert.deepEqual(result.results[0]!.live!.map((s) => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390], ['press', ['UP'], 1180], ['press', ['DOWN'], 1180]]);
     assert.deepEqual(JSON.parse(await readFile(join(dir, 'review/review.json'), 'utf8')).results[0].live, result.results[0]!.live);
   } finally {
@@ -145,5 +147,38 @@ test('`rayner init --machine` writes a scene that `rayner review` passes as writ
     for (const s of result.results[0]!.live!.filter((s) => s.width === 390)) assert.ok(s.changedLabelPx! >= 12, `${s.sent}: what the press changed reads at ${s.changedLabelPx} px on a phone`);
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('liveStart reaches earlier model states through real buttons and survives links and Reset', options, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-live-start-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    const input = lamp(false);
+    assert.ok(input.includes('views:[picture],runTime:0.3'));
+    await writeFile(join(dir, 'scene.ts'), input.replace('views:[picture],runTime:0.3', "views:[picture],runTime:0.3,liveStart:'start'"));
+    const project = await collectProject(dir, { write: false });
+    await buildExplainer(project, join(dir, 'scene.html'));
+    server = await serve(dir, 0, 'scene.html');
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    await page.goto(server.url + '/scene.html?step=press');
+    await page.waitForSelector('.live:not([hidden])');
+    assert.equal(await page.locator('[data-event=DOWN]').getAttribute('aria-disabled'), 'true', 'the model starts off although the guided picture ended dim');
+    await page.getByRole('button', { name: 'Brighter', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP');
+    await page.getByRole('button', { name: 'Brighter', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP,UP');
+    const link = page.url();
+    assert.equal(new URL(link).searchParams.get('sent'), 'UP,UP');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP,UP');
+    assert.equal(await page.locator('[data-event=UP]').getAttribute('aria-disabled'), 'true');
+    await page.getByRole('button', { name: 'Reset: the step’s own picture', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === '');
+    assert.equal(new URL(page.url()).searchParams.has('sent'), false);
+    assert.equal(await page.locator('[data-event=DOWN]').getAttribute('aria-disabled'), 'true');
+  } finally {
+    await browser.close(); server?.close(); await rm(dir, { recursive: true, force: true });
   }
 });

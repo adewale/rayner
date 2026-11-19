@@ -129,7 +129,7 @@ morphs with `new Transform(old, next, { match })`:
 
 | `match` | pairs | good for |
 |---|---|---|
-| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
+| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, changed keyed words are replaced whole and unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
 | `{ by: 'key', fallback?, unkeyed?, text? }` | as `'key'`, saying what unkeyed parts and relabelled words do | `fallback` to keep unkeyed parts too, `text: 'whole'` when a keyed word's change is a new identity |
 | `'text'` | glyphs by character | a bare `Text` readout, code without keys: unchanged characters stay where they are |
 | `'index'` | family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
