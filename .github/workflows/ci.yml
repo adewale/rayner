@@ -86,7 +86,7 @@ jobs:
 
   check:
     needs: [scope, package]
-    if: needs.scope.outputs.full == 'true'
+    if: always() && needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04  # the pinned image the embed tests were validated on
     timeout-minutes: 60  # full suite and browser gates; candidate, catalog/story run separately
     env:
@@ -94,6 +94,10 @@ jobs:
       # instead of skipping (scenes/explainers/lib/oracle.ts; docs/TESTING.md lists them).
       RAYNER_REQUIRE_ORACLES: '1'
     steps:
+      - name: Require the validated package candidate
+        env:
+          PACKAGE_RESULT: ${{ needs.package.result }}
+        run: test "$PACKAGE_RESULT" = success
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
