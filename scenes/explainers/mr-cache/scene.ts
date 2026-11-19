@@ -83,9 +83,9 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
         { value: 'miss', label: 'Cache miss' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const which = settingsOf(this).request as 'hit' | 'miss',
+    const which = settingsOf(this, CacheMRExplainer).request,
       s = stage(this, { headingSize: 0.6, style: STYLE });
 
     await readerFrames(s, which, answerOf(this), { kind: 'short' });

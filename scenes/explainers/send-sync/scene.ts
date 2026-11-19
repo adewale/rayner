@@ -3,7 +3,7 @@ import { stage, settingsOf, answerOf, view, having } from '../../../explain/inde
 import { card, code } from '../../../explain/drawing.ts';
 import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
-import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
+import type { Wrapper, Quadrant, Layer } from './model.ts';
 import { SIZE, SPOT, QUADRANT, chart, LEFT, RIGHT, ZOOM, valueName, columnLines, quadrantMap } from './picture.ts';
 
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in model.ts
@@ -87,13 +87,13 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
         { value: 'rc', label: 'Rc<i32>' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const wrapper = values.wrapper as Wrapper,
-      inner = values.inner as Inner;
+    const values = settingsOf(this, SendSyncExplainer);
+    const wrapper = values.wrapper,
+      inner = values.inner;
     const s = stage(this, { style: 'hand-drawn', headingSize: 0.6 });
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */

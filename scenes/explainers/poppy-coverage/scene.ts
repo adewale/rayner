@@ -5,7 +5,7 @@ import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../
 import { beats, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
-import type { Company, CoverageEvent, World } from './model.ts';
+import type { CoverageEvent, World } from './model.ts';
 import {
   BOARD_AT, LANES, NOTE_AT, PALETTE, REACH_AT, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT,
   drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,
@@ -54,11 +54,11 @@ export default class Coverage extends Scene<World, {}> {
         { value: 'honest', label: 'Honest' },
       ],
     },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
   override state = start('hostile');
 
   override async construct() {
-    const company = settingsOf(this).company as Company, hostile = company === 'hostile';
+    const company = settingsOf(this, Coverage).company, hostile = company === 'hostile';
     // The story's worlds, from the model, so the words say what it computed.
     const after = STORY.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);

@@ -95,11 +95,11 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
       default: 'P1',
       options: PARTICIPANTS.map((p) => ({ value: p, label: p })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const p = settingsOf(this).participant as Participant;
+    const p = settingsOf(this, GnomeFilesExplainer).participant;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.look.ink,
       colours = s.look;

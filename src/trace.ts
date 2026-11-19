@@ -7,6 +7,8 @@
 // traces hash as they did before the channel existed.
 
 import type { EndedStep, Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
+import { stepStateOf } from './scene.ts';
+import { cloneJson } from './json.ts';
 import type { Jsonified } from './json.ts';
 
 /**
@@ -28,6 +30,8 @@ export interface StepRecord<S extends object = SceneState, Sh extends object = S
   /** The model when the step began and when it ended (Scene.stateJson). */
   before: S;
   after: S;
+  /** A staged step's local specimen, when present. Its shape belongs to that step, not to the scene's model type. */
+  state?: SceneState;
   /** What was shown when the step ended, apart from the model (Scene.shownJson); absent when nothing was. */
   shown?: Sh;
   /** What the step recorded with Scene.record(), when it recorded anything. */
@@ -52,7 +56,10 @@ export interface Trace<S extends object = SceneState, Sh extends object = SceneS
  * `any`, gives a plain Trace.
  */
 export type TraceOf<C> = 0 extends 1 & C ? Trace
-  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<string extends keyof S ? Jsonified<S> : Jsonified<S> & { walks?: unknown }, string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState>
+  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<
+    unknown extends S ? SceneState : string extends keyof S ? Jsonified<S> : Jsonified<S> & { walks?: unknown },
+    unknown extends Sh ? SceneState : string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState
+  >
   : Trace;
 
 /**
@@ -90,12 +97,13 @@ export class TraceSink implements Sink {
     if (!begun) return;
     this.#begun.delete(s);
     // The keys in the order a trace has always written them: what began, then how it ended.
-    const after = scene.stateJson(), shown = scene.shownJson();
+    const after = scene.stateJson(), shown = scene.shownJson(), state = stepStateOf(s);
     const record: StepRecord = {
       ...begun,
       t1: round(scene.time), frame1: scene.frameCount,
       ...(s.hold != null && s.holdFrame != null ? { hold: round(s.hold), holdFrame: s.holdFrame } : {}),
       after,
+      ...(state ? { state: cloneJson(state, 'traceScene()', 'step.state') } : {}),
       ...(Object.keys(shown).length ? { shown } : {}),
       ...(s.evidence?.length ? { evidence: s.evidence.slice() } : {}),
     };

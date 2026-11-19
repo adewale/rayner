@@ -6,7 +6,7 @@
 
 import { Animation, AnimationGroup, MadeAtTurn, Succession } from '../src/animation.ts';
 import type { Match } from '../src/animation.ts';
-import { SetState } from './state.ts';
+import { SetState, stateTarget } from './state.ts';
 import { canonicalJson } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
@@ -71,7 +71,7 @@ export interface MachineSpec<S extends object, E extends string> {
   match?: Match;
   /** Each event's morph or transition, in seconds (default 0.6), or a function of the event and the states either side. */
   runTime?: number | ((t: { event: E; before: S; after: S }) => number);
-  /** The most states `rayner check` explores (default 256); a larger machine is sampled breadth first up to it. */
+  /** A positive finite integer: the most states explored per origin (default 256); a larger machine is sampled breadth first up to it. */
   limit?: number;
 }
 
@@ -150,8 +150,12 @@ export class Machine<S extends object, E extends string> {
     if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
     for (const [event, label] of Object.entries<string | undefined>(spec.labels ?? {}))
       if (!label?.trim()) throw new RangeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
-    // Exploration redraws any reachable state after the run, which needs each picture to be a function
-    // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
+    if (spec.limit !== undefined && (!Number.isInteger(spec.limit) || spec.limit <= 0))
+      throw new RangeError('new Machine(): limit must be a positive finite integer');
+    // A structurally compatible View may belong to a different scene; its sync would read that
+    // scene while this machine updates this one. Reject the mismatch before registering it.
+    if (spec.views.some((view) => !view.belongsTo(scene)))
+      throw new RangeError('new Machine(): every view must belong to this scene; make it with view(scene, draw)');
     this.scene = scene;
     this.spec = frozenSpec(spec);
     machinesOf(scene).push(this as unknown as Machine<object, string>);
@@ -230,7 +234,7 @@ export class Machine<S extends object, E extends string> {
    */
   send(event: E, from: S = this.scene.state): Action {
     const schedule = this.schedule(event, from);
-    return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule);
+    return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule, [stateTarget(this.scene)]);
   }
 
   /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the views' finish. */
@@ -294,7 +298,7 @@ export class Machine<S extends object, E extends string> {
       at = this.after(at, e)!;
       return step;
     }));
-    return turnAction(this.scene, 'machine.replay()', schedule.runTime, () => schedule);
+    return turnAction(this.scene, 'machine.replay()', schedule.runTime, () => schedule, events.length ? [stateTarget(this.scene)] : []);
   }
 
   /**
@@ -303,23 +307,32 @@ export class Machine<S extends object, E extends string> {
    * up to `limit` states. States are compared as JSON, whatever the order of their keys.
    */
   reachable(from: S = this.spec.start): { state: S; path: E[] }[] {
-    const start = from;
-    const seen = new Map<string, { state: S; path: E[] }>([[canonicalJson(start), { state: start, path: [] }]]);
+    return this.explore(from).states;
+  }
+
+  /**
+   * @internal A bounded breadth-first walk and whether it exhausted the graph from this origin.
+   * Reaching the limit alone does not mean sampling: the admitted states may be the whole graph.
+   * At the limit, inspect their outgoing edges until an unvisited state proves truncation.
+   * Keep this result before combining origins; deduplicating states cannot establish completeness.
+   */
+  explore(from: S = this.spec.start): { states: { state: S; path: E[] }[]; complete: boolean } {
+    const seen = new Map<string, { state: S; path: E[] }>([[canonicalJson(from), { state: from, path: [] }]]);
     const queue = [...seen.values()];
-    while (queue.length && seen.size < this.spec.limit) {
-      const { state, path } = queue.shift()!;
+    for (let at = 0; at < queue.length; at++) {
+      const { state, path } = queue[at]!;
       for (const event of this.spec.events) {
         const next = this.after(state, event);
         if (next === undefined) continue;
         const key = canonicalJson(next);
         if (seen.has(key)) continue;
+        if (seen.size === this.spec.limit) return { states: [...seen.values()], complete: false };
         const entry = { state: next, path: [...path, event] };
         seen.set(key, entry);
         queue.push(entry);
-        if (seen.size >= this.spec.limit) break;
       }
     }
-    return [...seen.values()];
+    return { states: [...seen.values()], complete: true };
   }
 }
 
@@ -333,7 +346,7 @@ function frozenSpec<S extends object, E extends string>(spec: MachineSpec<S, E>)
   // replays a page has no structuredClone.
   const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
   const start = copy(spec.start);
-  const kept = { match: { by: 'key', text: 'whole' } as Match, runTime: 0.6, limit: 256, ...spec };
+  const kept = { match: { by: 'key', text: 'whole' } as Match, runTime: 0.6, ...spec, limit: spec.limit ?? 256 };
   return Object.freeze(Object.defineProperties(kept, {
     start: { get: () => copy(start), enumerable: true },
     events: { value: Object.freeze([...spec.events]), enumerable: true },

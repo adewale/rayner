@@ -153,6 +153,23 @@ test('a Transform to \'saved\' without saveState() says what to do', async () =>
   await assert.rejects(run(async (s) => { await s.play(new Transform(new Rectangle({ width: 2, height: 2 }), 'saved')); }), /saveState/);
 });
 
+test('JavaScript Transform calls refuse saved-state mode options and a copy that declines handover', () => {
+  const source = new Rectangle(), target = new Circle();
+  for (const options of [
+    { match: 'text' }, { match: 'index' }, { fromCopy: true }, { fromCopy: false },
+    { replace: true }, { replace: false }, { ordered: false }, { staged: false }, { fadeMismatches: true },
+  ]) {
+    const name = Object.keys(options)[0]!;
+    assert.throws(() => new Transform(source, 'saved', options as never),
+      (error: unknown) => error instanceof Error && error.message.includes(`drop \`${name}\``), name);
+  }
+  assert.throws(() => new Transform(source, 'saved', Object.create({ match: 'text' })), /drop `match`/);
+  assert.throws(() => new Transform(source, target, { fromCopy: true, replace: false } as never), /drop `replace: false`/);
+  assert.doesNotThrow(() => new Transform(source, 'saved', { runTime: 0.5 }));
+  assert.equal(new Transform(source, target, { fromCopy: true }).replace, true);
+  assert.equal(new Transform(source, target, { fromCopy: false, replace: false }).replace, false);
+});
+
 // ---- fromCopy ----------------------------------------------------------------
 
 test('fromCopy leaves the source alone and the scene holding the target', async () => {

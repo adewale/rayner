@@ -43,9 +43,9 @@ export default class BloomFilter extends Scene<Row, {}> {
         { value: '32', label: '32 bits' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const size = Number(settingsOf(this).bits) as 16 | 32,
+    const size = Number(settingsOf(this, BloomFilter).bits) as 16 | 32,
       m = bloomStory(size),
       other = bloomStory(size === 16 ? 32 : 16),
       full = saturation(size),

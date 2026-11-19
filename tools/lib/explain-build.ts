@@ -128,7 +128,7 @@ export async function buildExplainer(
         const href = `?${stepQuery(values, s.step)}`,
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
-          changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
+          changes = watchedChanges({ before: trace.steps[i - 1]?.state ?? s.before, after: s.state ?? s.after }, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
         const entry = `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
         const live = liveLines[n]!.get(s.step);
         // A prediction's question and options on the step that asks it, its answer only on the step that reveals it.

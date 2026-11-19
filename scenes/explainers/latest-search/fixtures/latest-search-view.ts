@@ -49,13 +49,13 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
         { value: 'old-first', label: 'A then B' },
       ],
     },
-  ];
+  ] as const;
   chart: View | null = null;
 
   override async construct() {
-    const values = settingsOf(this);
+    const values = settingsOf(this, LatestSearchExplainer);
     const guarded = values.guard === 'on';
-    const order = values.order as CompletionOrder;
+    const order = values.order;
     // The displayed states come from resolving real JavaScript promises in an
     // explicit order. There is no network, clock or simulated response time.
     const [run, without, withGuard] = await Promise.all([

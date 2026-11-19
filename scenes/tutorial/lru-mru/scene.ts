@@ -17,11 +17,11 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
       'https://www.vldb.org/conf/1985/P127.PDF',
     ],
   } satisfies ExplainerMeta;
-  static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
+  static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }] as const;
 
   override async construct() {
     const s = stage(this, { style: 'nord', headingSize: 0.54 });
-    const next = settingsOf(this).next as keyof typeof NEXT;
+    const next = settingsOf(this, LruMru).next;
     const requests = [...('ABCD' + NEXT[next])];
     const trace = { lru: run('lru', SIZE, requests), mru: run('mru', SIZE, requests) };
 

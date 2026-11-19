@@ -5,7 +5,7 @@ import type { ExplainerMeta, Setting, Transition } from '../../../explain/index.
 import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { OTHER_USER, STORY, TAMPERS, next, start } from './model.ts';
-import type { Policy, SealWorld, Tamper, Verdict } from './model.ts';
+import type { SealWorld, Tamper, Verdict } from './model.ts';
 import { ALL_SHOWN, PALETTE, SOURCE, drawWorld, punchOrder, sayWorld, sourceOf } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -40,12 +40,12 @@ export default class Sessions extends Scene<SealWorld, Shown> {
         { value: 'required', label: 'nothing optional' },
       ],
     },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
   override state = start('remembers');
   override shown: Shown = { links: 0 };
 
   override async construct() {
-    const policy = settingsOf(this).company as Policy, remembers = policy === 'remembers';
+    const policy = settingsOf(this, Sessions).company, remembers = policy === 'remembers';
     // The world after each tamper of the story, from the model, so the words say what it computed.
     const after = STORY.reduce<SealWorld[]>((worlds, t) => {
       const world = next(worlds.at(-1)!, t);

@@ -152,9 +152,9 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
         { value: '150000', label: euros(150000) },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const values = settingsOf(this),
+    const values = settingsOf(this, QuotientFamilialExplainer),
       enfants = Number(values.enfants),
       rni = Number(values.revenu);
     const r: Impot = impot(rni, enfants),

@@ -69,9 +69,9 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         { value: 'sydney', label: 'Sydney' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const key = settingsOf(this).place!,
+    const key = settingsOf(this, SeasonsExplainer).place,
       place = PLACES[key]!,
       s = stage(this, { headingSize: 0.6, style: 'tokyo-night' });
     const soft = s.look.soft;

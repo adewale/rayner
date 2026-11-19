@@ -9,7 +9,7 @@ import type { StepRecord } from '../src/trace.ts';
 import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../src/fonts.ts';
 import type { Mobject } from '../src/mobject.ts';
-import { viewMismatch } from './view.ts';
+import { viewMismatch, viewInput } from './view.ts';
 import type { View } from './view.ts';
 import { Diagram } from './diagrams.ts';
 import type { DiagramSnapshot } from './diagram-snapshot.ts';
@@ -31,12 +31,12 @@ const json = (value: unknown) => (value === undefined ? 'undefined' : JSON.strin
 
 /**
  * Fail unless the step named `step` ended with each field of `expected` in its state (the trace's
- * `after`): the scene against the program it explains. Fields `expected` does not name are not
+ * local `state`, or the model's `after`): the scene against the program it explains. Fields `expected` does not name are not
  * compared. Throws a RangeError when the trace has no such step, and an Error naming the field,
  * its value and the expected value when one differs.
  */
-export function assertStepState(trace: { readonly steps: readonly Pick<StepRecord<object>, 'step' | 'after'>[] }, step: string, expected: Readonly<Record<string, unknown>>): void {
-  const after = trace.steps.find((s) => s.step === step)?.after;
+export function assertStepState(trace: { readonly steps: readonly Pick<StepRecord<object>, 'step' | 'after' | 'state'>[] }, step: string, expected: Readonly<Record<string, unknown>>): void {
+  const record = trace.steps.find((s) => s.step === step), after = record?.state ?? record?.after;
   if (!after) throw new RangeError(`assertStepState(): no step "${step}" ended; the steps are ${trace.steps.map((s) => s.step).join(', ')}`);
   for (const [key, value] of Object.entries(expected)) {
     const actual = (after as Record<string, unknown>)[key];
@@ -78,7 +78,7 @@ export async function assertViewFollowsState(
   const checks: ({ mismatch: string | null } | null)[] = [];
   const sink = new TraceSink({ atRest: (scene) => {
     const v = pick(scene), end = sink.steps().at(-1)!;
-    checks.push(v ? { mismatch: viewMismatch(v, end.after, { shown: end.shown ?? {}, draw: draw ?? v.draw }) } : null);
+    checks.push(v ? { mismatch: viewMismatch(v, v[viewInput](end.after), { shown: end.shown ?? {}, draw: draw ?? v.draw }) } : null);
   } });
   await new Explainer(sink).run();
   let checked = 0;

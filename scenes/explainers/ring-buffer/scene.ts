@@ -1,12 +1,12 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
 import type { View, Choreography, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Machine, view, answerOf } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
 import type { CodeBlockOptions } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
-import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
+import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, drawOverview, sayOverview, sayRing } from './picture.ts';
 import type { Ink } from './picture.ts';
 
 // RingBuffer from ./model.ts, without the `this.`s.
@@ -54,7 +54,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
         { value: 'full', label: 'Push 7 into five slots' },
       ],
     },
-  ];
+  ] as const;
   /** head, tail and length in the middle of the ring: a View of `this.state`. */
   readout?: View;
   /** The card's Operation and Result values: a View of `this.state`. */
@@ -67,7 +67,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
   code?: View;
 
   override async construct() {
-    const which = settingsOf(this).operations!,
+    const which = settingsOf(this, RingBufferExplainer).operations,
       s = stage(this, { headingSize: 0.6, style: 'dusk' }),
       ink = s.look.ink;
 
@@ -78,8 +78,34 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
 
     // The queue the ring replaces: an array whose pop moves every value left.
     await readerFrames(s, { kind: 'short' });
-    const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
+    // The reading path keeps the ring and its order together. The implementation below is optional.
+    const overviewStart = ringStart(SLOTS), overviewStory = ringStory(which);
+    this.state = overviewStart;
     await this.step('slots', {
+      title: 'Keep the slots still; move head and tail',
+      line: 'H is the next slot to read; T is the next slot to write.',
+      caption: `${answerOf(this)}. Push writes at tail; pop reads at head. Queue order starts at head, so a value can stay in its slot while its place in the queue changes. The diagram keeps the slots, markers and queue order together; Details shows the implementation.`,
+      predict: { options: ['Both at slot 0', 'Head at slot 0, tail at slot 4'], answer: 'Both at slot 0' },
+    });
+    await s.clear();
+    const overview = view(this, st => drawOverview(st, s), { place: false });
+    await s.enter(overview, { describe: () => sayOverview(this.state) });
+    const overviewMachine = new Machine<RingState, RingEvent>(this, {
+      start: overviewStart, events: ['push', 'pop'], next: ringNext, views: [overview], runTime: 0.4,
+      bound: (st, event) => event === 'push' && st.next > 9 ? 'This story pushes the values 1 to 9' : undefined,
+    });
+    const overviewReplays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
+    for (let i = 0; i < overviewReplays.length; i++) {
+      await this.step(['fill', 'next', 'result'][i]!, {
+        title: i === 0 ? 'Both markers return to 0; length says full' : which === 'wrap' ? i === 1 ? 'Pop 1 and 2; the other values stay put' : 'Answer: reuse slots 0 and 1, with no stored value moved' : i === 1 ? 'Push 6 is refused: every slot is occupied' : 'Push 7 is refused too; the queue is unchanged',
+        line: i === 2 ? `Queue order: ${queueOrder(overviewStory.at(-1)!.result).join(', ')}.` : i === 0 ? 'Length distinguishes a full ring from an empty one.' : 'The slot numbers stay fixed.',
+        caption: i === 0 ? 'Five pushes fill slots 0 to 4. Tail wraps to 0, where head already points, but length is now 5. The same marker positions can mean empty or full: the count tells them apart.' : which === 'wrap' ? i === 1 ? 'Pop reads 1 at head, then 2, and advances head to slot 2. Values 3, 4 and 5 stay in their original slots. Tail still points at slot 0, the first place a push can reuse.' : 'Push 6 writes slot 0 and push 7 writes slot 1. No stored value moves. Head and tail meet at slot 2, and reading from head gives 3, 4, 5, 6, 7. The markers decide queue order, not the slot numbers. Try push or pop below, or open Details to inspect the code.' : 'A full buffer refuses a push before changing its slots or markers. This ring keeps its existing values rather than overwriting the oldest. Pop below to make room, then push again; Details shows the implementation.',
+      });
+      await overviewMachine.replay(overviewReplays[i]!);
+    }
+    const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
+    await this.step('implementation-slots', {
+      kind: 'detail',
       title: 'Answer: keep the values still, and move two markers instead',
       line: 'Predict: after five pushes, where are head and tail?',
       // Where the model's ring leaves both markers after the fifth push.
@@ -283,7 +309,8 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       : [{ options: ['Throws Full', 'Overwrites 1', 'Writes past slot 4'], answer: next.error === 'Full' ? 'Throws Full' : 'Overwrites 1' }];
     const replays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
     for (let g = 0; g < replays.length; g++) {
-      await this.step(['fill', 'next', 'result'][g]!, {
+      await this.step(['implementation-fill', 'implementation-next', 'implementation-result'][g]!, {
+        kind: 'detail',
         title:
           g === 0
             ? 'Answer: both back at slot 0, so only length says full'

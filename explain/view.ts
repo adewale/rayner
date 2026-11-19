@@ -14,10 +14,10 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Enclosing, Transform, knownTransform } from '../src/animation.ts';
+import { Enclosing, Transform, knownTransform, cleanUp } from '../src/animation.ts';
 import type { Animation } from '../src/animation.ts';
 import { linear } from '../src/rate.ts';
-import { Follow } from './state.ts';
+import { Follow, stateTarget } from './state.ts';
 import type { Match, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import { Text } from '../src/text.ts';
@@ -62,8 +62,17 @@ export interface TweenOptions extends Pick<PlayOptions, 'runTime' | 'rateFunc'> 
   lagRatio?: never;
 }
 
+/** One sampled scene model, redrawn by every listed view at the same eased time. */
+export interface TweenStateOptions<S extends object = any, Sh extends object = any> extends TweenOptions {
+  /** Views of this scene's model. Each is redrawn from the same sampled state; list each once. */
+  views: readonly View<Mobject, S, Sh>[];
+}
+
 /** What fitting a freshly built picture gives (see View.measure): its unplaced size, and the scale it was given. */
 interface ViewFit { size: [number, number]; scale: number }
+
+/** @internal A view's input binding; a symbol keeps it out of animation-builder method inference. */
+export const viewInput = Symbol('viewInput');
 
 /**
  * A picture rebuilt from state. `current` is the picture on screen; the View
@@ -72,12 +81,14 @@ interface ViewFit { size: [number, number]; scale: number }
  * model and shown types, which its draw reads; a bare `View` is a view of any scene.
  */
 export class View<M extends Mobject = Mobject, S extends object = any, Sh extends object = any> extends Group {
-  /** @internal Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
+  /** @internal Draws the bound input: the scene's current model, or a staged step's local state. Called at construction and at each sync's begin(). */
   build: () => M;
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
   readonly draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
-  private readonly host: Scene<S, Sh>;
+  private readonly host: Scene<any, Sh>;
+  /** A staged step's input, when this picture belongs to a local specimen instead of the model. */
+  private readonly localState: S | undefined;
   /** The point a rebuilt picture keeps (see ViewOptions.place). */
   private readonly place: ViewPlace | false;
   /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
@@ -90,11 +101,12 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * draw that check can call again. A draw can still read variables outside the state; the checks
    * catch that when a redraw disagrees.
    */
-  constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOptions = {}) {
+  constructor(scene: Scene<any, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOptions = {}, localState?: S) {
     super();
     this.host = scene;
+    this.localState = localState;
     // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
-    this.build = () => paintedFor(scene, draw(scene.state, scene.shown)); this.draw = draw; this.place = place; this.scaleK = 1;
+    this.build = () => paintedFor(scene, draw(this[viewInput](scene.state), scene.shown)); this.draw = draw; this.place = place; this.scaleK = 1;
     const first = fresh(this.build(), null);
     this.builtSize = layoutSize(first);
     this.add(first);
@@ -105,6 +117,12 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 
   /** The strings the picture shows, in family order: what the fidelity check compares. */
   get texts(): string[] { return pictureText(this.current); }
+
+  /** @internal Whether this view reads this scene's model, rather than another host or a local specimen. */
+  belongsTo(scene: Scene<any, any>): boolean { return this.host === scene && this.localState === undefined; }
+
+  /** @internal The input a fidelity check redraws: the local specimen, or the checked scene's model. */
+  [viewInput](state: S): S { return this.localState ?? state; }
 
   /**
    * An action (see Action) that rebuilds the picture when its turn comes (so after any state
@@ -124,11 +142,8 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * and keep the family shape the view's draw gives (as a Follow's draw does). An action, as
    * sync() is.
    */
-  tween(stateAt: (t: number) => S, { runTime = 1, rateFunc }: TweenOptions = {}): Action {
-    return turnAction(this.host, 'view.tween()', runTime, () => new ViewTween<S, Sh>(this, (t) => {
-      this.host.state = cloneJson(stateAt(t), 'view.tween()', 'stateAt(t)') as Scene<S, Sh>['state'];
-      return this.placed(this.host.state);
-    }, rateFunc ? { runTime, rateFunc } : { runTime }));
+  tween(stateAt: (t: number) => S, opts: TweenOptions = {}): Action {
+    return sampledState<S, Sh>(this.host, stateAt, { ...opts, views: [this] }, 'view.tween()');
   }
 
   /**
@@ -190,10 +205,10 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 
 /**
  * An action of one beat, `runTime` long, whose animation `make` makes when the beat's turn comes:
- * what view.sync(), view.tween(), machine.send() and machine.replay() return.
+ * what view.sync(), view.tween(), tweenState(), machine.send() and machine.replay() return.
  */
-export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation): Action {
-  return action(scene, name, () => ({ value: undefined, beats: [{ runTime, play: () => [make()] }] }));
+export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation, targets?: readonly Mobject[]): Action {
+  return action(scene, name, () => ({ value: undefined, beats: [{ runTime, targets, play: () => [make()] }] }));
 }
 
 /**
@@ -261,32 +276,65 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
 }
 
 /**
- * The animation a tween() action plays: a Follow of the view's draw over t from 0 to 1, writing into the
- * picture on screen when it begins, not when it was made. In `new Succession([view.sync(), view.tween(f)])`
- * the sync swaps in a new picture first, and the tween draws into that one.
+ * A sampled model and its dependent views: one Follow draws every view over t from 0 to 1,
+ * writing the pictures on screen when it begins. A preceding sync can swap in a new picture;
+ * the tween takes that one. The shared model target also reserves the nonvisual write.
  */
-class ViewTween<S extends object, Sh extends object> extends Enclosing {
-  private readonly view: View<Mobject, S, Sh>;
-  private readonly draw: (t: number) => Mobject;
+class StateTween<S extends object, Sh extends object> extends Enclosing {
+  private readonly views: readonly View<Mobject, S, Sh>[];
+  private readonly host: Scene<S, Sh>;
+  private readonly draw: (t: number) => readonly Mobject[];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
 
-  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: TweenOptions) {
-    super(view.current, opts);
-    this.view = view;
-    this.draw = draw;
+  constructor(host: Scene<S, Sh>, views: readonly View<Mobject, S, Sh>[], stateAt: (t: number) => S, opts: TweenOptions, call: string) {
+    super(views[0]!.current, opts);
+    this.host = host;
+    this.views = views;
+    this.draw = (t) => {
+      host.state = cloneJson(stateAt(t), call, 'stateAt(t)') as Scene<S, Sh>['state'];
+      return views.map((v) => v.placed(host.state));
+    };
   }
 
   /** The picture on screen now: what this writes once it begins. */
-  override targets(): Mobject[] { return [this.follow ? this.mobject : this.view.current]; }
+  override targets(): Mobject[] { return [stateTarget(this.host), ...(this.follow?.targets() ?? this.views.map((v) => v.current))]; }
 
   /** The Follow's own time is linear: this tween's rate function eases it. */
   protected override enclose(): Follow {
-    this.mobject = this.view.current;
-    return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject], rateFunc: linear }));
+    const targets = this.views.map((v) => v.current), members = targets.flatMap((m) => m.family());
+    if (new Set(members).size !== members.length) throw new Error('tweenState(): views overlap; list independent views, not a view and one inside it');
+    this.mobject = targets[0]!;
+    return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets, rateFunc: linear }));
   }
 
+  /** @internal The model write target is bookkeeping, never a resting picture. */
+  override [cleanUp](scene: Scene): void { super[cleanUp](scene); scene.remove(stateTarget(this.host)); }
+
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
+}
+
+/**
+ * Sample the scene's model once at each eased time, then redraw every listed view from that state.
+ * `stateAt(t)` must depend only on t, return JSON, and preserve each view's family shape. The
+ * action reserves the scene's state: a simultaneous model writer is refused before it begins.
+ * Like view.tween(), this is seekable and single-use; a preceding sync's new picture is used.
+ */
+export function tweenState<S extends object, Sh extends object>(
+  scene: Scene<S, Sh>, stateAt: (t: number) => NoInfer<S>, options: TweenStateOptions<NoInfer<S>, NoInfer<Sh>>,
+): Action {
+  return sampledState(scene, stateAt, options, 'tweenState()');
+}
+
+function sampledState<S extends object, Sh extends object>(
+  scene: Scene<S, Sh>, stateAt: (t: number) => S, { views, runTime = 1, rateFunc }: TweenStateOptions<S, Sh>, call: string,
+): Action {
+  if (!views.length) throw new RangeError(`${call}: it needs the views to redraw, views: [a, b, ...]`);
+  if (new Set(views).size !== views.length) throw new Error(`${call}: a view is listed twice; list each view once`);
+  for (const v of views) if (!(v instanceof View) || !v.belongsTo(scene))
+    throw new Error(`${call}: every view must read this scene's model; make it with view(scene, draw)`);
+  const selected = [...views], opts = rateFunc ? { runTime, rateFunc } : { runTime };
+  return turnAction(scene, call, runTime, () => new StateTween(scene, selected, stateAt, opts, call), [stateTarget(scene)]);
 }
 
 /** `m`, its parts given `scene`'s colours where they still hold a default. */

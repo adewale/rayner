@@ -40,10 +40,10 @@ export default class BirthdayParadox extends Scene<{}, {}> {
       default: '23',
       options: [10, 23, 40].map((n) => ({ value: String(n), label: String(n) })),
     },
-  ];
+  ] as const;
   override async construct() {
     const answer = answerOf(this);
-    const m = birthdayStory(Number(settingsOf(this).people)),
+    const m = birthdayStory(Number(settingsOf(this, BirthdayParadox).people)),
       n = m.people;
     const shared = m.shared.map((d) => d.date);
     const five = m.growth.find((r) => r.people === 5)!,

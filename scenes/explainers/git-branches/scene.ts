@@ -23,9 +23,9 @@ export default class GitBranches extends Scene<{}, {}> {
         { value: 'linear', label: 'Main stays at the shared commit' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const advanced = settingsOf(this).history === 'diverged',
+    const advanced = settingsOf(this, GitBranches).history === 'diverged',
       frames = gitStory(advanced),
       before = frames[4]!,
       merged = frames[5]!,

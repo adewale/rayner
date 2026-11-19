@@ -192,6 +192,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
   // The opening compares a family's atomic numbers. The complete table is
   // context there; give the comparison its own readable native drawing.
   const compact = state.note === 'column';
+  const schematic = state.note === 'stack';
   // The fill step lays the runs side by side in rows, before the table exists.
   const packed = state.layout === 'rows';
   const heliumOverNeon = state.helium !== 'over-be';
@@ -202,7 +203,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
     onlyFamily = !!state.family;
   const memberZ = new Set(members.map((m) => m.z));
   const picture = new Group();
-  for (let col = 1; !compact && !packed && col <= 18; col++) {
+  for (let col = 1; !compact && !packed && !schematic && col <= 18; col++) {
     const hot = band && col === group;
     picture.add(
       new Text(String(col), { fontSize: 0.24, color: hot ? INK : SOFT, weight: hot ? 'bold' : 'normal' }).moveTo([
@@ -215,7 +216,8 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
     // In the family step, only the column stays; in the fill step, only the cells filled so far.
     if (onlyFamily && !memberZ.has(p.z)) continue;
     if (packed && p.z > lit) continue;
-    const [x, y] = packed ? PACKED[p.z - 1]! : cellAt(p.z, heliumOverNeon);
+    const [x, originalY] = packed ? PACKED[p.z - 1]! : cellAt(p.z, heliumOverNeon);
+    const y = schematic ? p.group != null || p.z === 2 ? 2.05 - (p.period - 1) * 0.5 : -2.7 - (p.period - 6) * 0.55 : originalY;
     const chosen = p.z === z;
     // Solid in its run's colour: every cell from the stack step on, the cells filled so far
     // in the fill step, and in the blocks step the chosen element's own electrons.
@@ -226,7 +228,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
       number = solid ? PAPER : SOFT;
     const cell = new Rectangle({
       width: packed ? PK_W : CELL_W,
-      height: packed ? PK_H : CELL_H,
+      height: schematic ? 0.44 : packed ? PK_H : CELL_H,
       cornerRadius: 0,
       fill,
       fillOpacity: 1,
@@ -235,7 +237,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
     }).moveTo([x, y]);
     if (!compact) keyed(cell, `periodic-cell:${p.z}`);
     picture.add(cell);
-    if (compact) continue;
+    if (compact || schematic) continue;
     const letters = new Text(p.symbol, {
       fontSize: packed ? 0.23 : 0.3,
       color: letter,
@@ -266,7 +268,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
       }).moveTo([colX(group), (top + bottom) / 2]),
     );
   // Where rows 2 and 3 laid their runs of 6 before sliding them over the runs of 6 below.
-  if (state.slid)
+  if (state.slid && !schematic)
     for (const row of [2, 3]) {
       const x0 = colX(3) - CELL_W / 2,
         x1 = colX(8) + CELL_W / 2;
@@ -306,20 +308,26 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
   // named s, d, p and f only once the blocks step has named them.
   if (state.strip) {
     const named = state.strip === 'named';
+    const stripY = schematic ? -1.4 : STRIP_Y;
     const span = (from: number, to: number, block: Block, label: string) => {
       const x0 = colX(from) - CELL_W / 2,
         x1 = colX(to) + CELL_W / 2;
       picture.add(
-        new Line([x0, STRIP_Y], [x1, STRIP_Y], { stroke: BLOCK[block], strokeWidth: 0.05 }),
-        new Line([x0, STRIP_Y - 0.09], [x0, STRIP_Y + 0.09], { stroke: BLOCK[block], strokeWidth: 0.035 }),
-        new Line([x1, STRIP_Y - 0.09], [x1, STRIP_Y + 0.09], { stroke: BLOCK[block], strokeWidth: 0.035 }),
-        new Text(label, { fontSize: 0.22, color: INK }).moveTo([(x0 + x1) / 2, STRIP_Y - 0.22]),
+        new Line([x0, stripY], [x1, stripY], { stroke: BLOCK[block], strokeWidth: 0.05 }),
+        new Line([x0, stripY - 0.09], [x0, stripY + 0.09], { stroke: BLOCK[block], strokeWidth: 0.035 }),
+        new Line([x1, stripY - 0.09], [x1, stripY + 0.09], { stroke: BLOCK[block], strokeWidth: 0.035 }),
+        keyed(new Text(schematic ? String(CAPACITY[block]) : label, { fontSize: schematic ? 0.72 : 0.22, color: INK }).moveTo([(x0 + x1) / 2, stripY - (schematic ? 0.55 : 0.22)]), schematic ? `periodic-width:${block}` : `periodic-width-label:${block}`),
       );
     };
     span(1, 2, 's', named ? 's: 2 columns' : '2 columns');
     span(3, 12, 'd', named ? 'd: 10 columns' : '10 columns');
     span(13, 18, 'p', named ? 'p: 6 columns' : '6 columns');
-    if (!onlyFamily)
+    if (schematic) {
+      picture.add(
+        keyed(new Text('14', { fontSize: 0.72, color: INK }).moveTo([-6.6, -2.97]), 'periodic-width:f'),
+        new Text('Columns in each run', { fontSize: 0.68, color: INK }).moveTo([0, -4]),
+      );
+    } else if (!onlyFamily)
       [named ? 'f: 14 columns,' : '14 columns,', 'no group', 'number'].forEach((line, i) =>
         picture.add(
           new Text(line, { fontSize: 0.22, color: INK }).moveTo(
@@ -406,8 +414,8 @@ export function drawNotes(state: PeriodicState, { z, group, members, jumps, fami
     }
   }
   if (note === 'stack') {
-    // Where the scenario's last electron lands, in the empty first row.
-    say(String(state.landingRun ?? ''), [NOTE_X, rowY(1) - 0.04], { size: 0.28 });
+    // The block relationship is the opening argument; individual labels return in the next step.
+    say(`${Name}: column ${state.landed}`, [-0.8, 2.05], { size: 0.68, edge: [0, 0], bold: true });
   }
   if (note === 'blocks') {
     // The scenario's configuration and where its last electron lands, in the empty space above the d block.
@@ -484,7 +492,7 @@ export function sayPeriodic(st: PeriodicState, { z, group, name, Name, members, 
         : note === 'fill'
           ? `No table yet: one cell per element, ${name} (${z}) in bold.`
           : note === 'stack'
-            ? `Periodic table of 118 elements with ${name} (${z}) in bold and helium over beryllium.`
+            ? `An unlabelled 118-cell block schematic with widths 2, 10 and 6 across, and two runs of 14 below. The next step restores individual element labels.`
             : `Periodic table of 118 elements with group ${group} outlined and ${name} (${z}) in bold.`,
   );
   if (note === 'column')
@@ -506,7 +514,7 @@ export function sayPeriodic(st: PeriodicState, { z, group, name, Name, members, 
     const lengths = st.runs ?? [];
     said.push(`Note: ${name}’s ${z} electrons are runs of ${lengths.join(', ')}.`);
   }
-  if (note === 'stack') said.push(`Note: ${String(st.landingRun ?? '')}.`);
+  if (note === 'stack') said.push(`Note: ${Name}, column ${st.landed}. Rows 2–3 have no run of 10.`);
   if (note === 'names') said.push('The run widths are named s, p, d and f, and helium has moved above neon because its first shell is full.');
   if (note === 'blocks') said.push(`Note: ${(st.landing ?? []).join(' ')}`);
   if (st.slid)

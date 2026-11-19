@@ -16,6 +16,27 @@ const SIZE = 0.26;
 /** A stop's name without the feed's " (Demo)". */
 export const stopNameIn = (feed: Feed, id: string) => feed.stops.find((s) => s.stop_id === id)!.stop_name!.replace(/ \(Demo\)$/, '');
 
+/** The route list and the dated service are different things; show their counts together. */
+export function drawDaySummary(date: GtfsDate, routes: number, active: number, total: number, s: Stage): Group {
+  const picture = new Group(
+    new Text(`${upperFirst(weekday(date))} ${shortDate(date)}`, { fontSize: 0.62, color: s.look.ink }).moveTo([0, 2.5]),
+    new Text('A route row promises no dated departure', { fontSize: 0.62, color: s.look.soft }).moveTo([0, -3.7]),
+  );
+  for (const [id, x, count, title, detail] of [
+    ['routes', -3.5, routes, 'Routes defined', 'in routes.txt'],
+    ['trips', 3.5, active, 'Trips active', `of ${total}, on this date`],
+  ] as const) {
+    const number = keyed(new Text(String(count), { fontSize: 1.5, color: id === 'trips' && count === 0 ? s.look.bad : s.look.ink }).moveTo([x, 1.4], [0, 1]), `gtfs-summary:${id}:count`);
+    const label = new Text(title, { fontSize: 0.68, color: s.look.ink }).moveTo([x, number.box()![1] - 0.3], [0, 1]);
+    const note = new Text(detail, { fontSize: 0.62, color: s.look.soft }).moveTo([x, label.box()![1] - 0.25], [0, 1]);
+    picture.add(keyed(new Group(
+      new Rectangle({ width: 6.3, height: 5, cornerRadius: 0.18, fill: s.look.raised, stroke: s.look.rule, strokeWidth: 0.035 }).moveTo([x, -0.8]),
+      number, label, note,
+    ), `gtfs-summary:${id}`));
+  }
+  return picture;
+}
+
 /** Lines of text in the right column, wrapped to its width, from its top down; heads in bold. */
 export function drawColumn(rows: readonly (string | { head: string })[], { ink, emphasis }: { ink: string; emphasis: string }): Group {
   const out: Text[] = [];

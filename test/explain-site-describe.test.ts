@@ -70,7 +70,7 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
 });
 
 test("an explainer's llms.txt summary is the first sentence of its default scenario's first caption", () => {
-  const step = (caption: string) => ({ step: 's', title: 'T', line: '', caption, start: 0, end: 1, state: {}, changed: {}, picture: '' });
+  const step = (caption: string) => ({ step: 's', kind: 'main' as const, title: 'T', line: '', caption, start: 0, end: 1, state: {}, changed: {}, picture: '' });
   const d: ExplainerDescription = {
     schema: 1,
     id: 'x',
@@ -79,8 +79,8 @@ test("an explainer's llms.txt summary is the first sentence of its default scena
     sources: [],
     settings: [{ id: 'n', label: 'N', default: 'b', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }],
     scenarios: [
-      { values: { n: 'a' }, name: 'N: A', duration: 1, steps: [step('Not the default.')] },
-      { values: { n: 'b' }, name: 'N: B', duration: 1, steps: [step('Version 4.3.3 sets  it.\nThe rest is detail.')] },
+      { values: { n: 'a' }, name: 'N: A', duration: 1, teaching: ['s'], steps: [step('Not the default.')] },
+      { values: { n: 'b' }, name: 'N: B', duration: 1, teaching: ['s'], steps: [step('Version 4.3.3 sets  it.\nThe rest is detail.')] },
     ],
   };
   assert.equal(summaryOf(d), 'Version 4.3.3 sets it.');

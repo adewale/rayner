@@ -19,19 +19,27 @@ export function seeText(id: string, c: ScenarioDescription, step?: string): stri
   const s = step == null ? c.steps.at(-1) : c.steps.find((x) => x.step === step);
   if (!s) throw new RangeError(`the scene has no step ${JSON.stringify(step)}; its steps are ${names.join(', ')}`);
   const changed = Object.entries(s.changed).map(([k, { before, after }]) => `${k}: ${value(before)} → ${value(after)}`);
+  const teaching = c.teaching.indexOf(s.step);
   return [
     s.drawing ?? '',
     '',
     `${id} · step ${names.indexOf(s.step) + 1} of ${names.length}: ${s.step}${c.name ? ` · ${c.name}` : ''}`,
+    `Path: ${s.kind} · ${teaching < 0 ? 'outside the teaching path' : `teaching step ${teaching + 1} of ${c.teaching.length}`}`,
     `Title: ${s.title}`,
     ...(s.line ? [`Line: ${s.line}`] : []),
     ...(s.caption ? [`Caption: ${s.caption}`] : []),
     ...(s.picture ? [`Picture: ${s.picture}`] : []),
     ...(s.events ? [`Events: ${s.events.join(', ')}`] : []),
-    changed.length ? `Changed: ${changed.join('; ')}` : 'Changed: nothing in scene.state',
+    ...(s.predict ? [`Prediction: ${s.predict.prompt ? `${s.predict.prompt} ` : ''}${s.predict.options.join(' / ')}; answer: ${s.predict.options[s.predict.answer]}; revealed at ${s.predict.reveal}`] : []),
+    ...(s.reveals ? [`Reveals predictions from: ${s.reveals.join(', ')}`] : []),
+    changed.length ? `Changed: ${changed.join('; ')}` : 'Changed: nothing in the step state',
     // What the whole scenario holds on every frame and lets events drive, so a reader of one step knows what is checked.
     ...(c.invariants ? [`Invariants checked on every frame: ${c.invariants.join('; ')}`] : []),
-    ...(c.machines ?? []).map((x) => `Events a reader could send: ${x.events.join(', ')} (${x.states} states${x.sampled ? ', sampled' : ''})`),
+    ...(c.machines ?? []).flatMap((x) => [
+      `Machine events: ${x.events.join(', ')} (${x.states} states from start, ${x.complete ? 'complete' : 'sampled'})`,
+      ...(x.live ? [`Live at ${x.step}, from ${x.live.from}: ${x.live.states} states, ${x.live.complete ? 'complete' : 'sampled'}`] : []),
+    ]),
+    ...(c.predictionProblems ?? []).map((problem) => `Prediction problem: ${problem}`),
   ].join('\n');
 }
 

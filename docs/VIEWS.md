@@ -65,13 +65,44 @@ Every way to change the picture changes the state and lets the views draw it. Th
 | --- | --- | --- |
 | Change the model for a step and show the change | Assign `this.state` (or one field), then `await v.sync()` | A sync draws the state as it is when it begins, so a change made before the play is the one it shows. This is the common case: about 250 assignments to the state and 80 syncs in the collection. Several model steps in a row are a loop of assignments and plays (periodic-groups' fill step, the choreography recipe) |
 | Let the reader drive the model with events, and check explored states within a declared limit | A [`Machine`](MACHINES.md): `machine.replay(events)` in the scene, `machine.send(event)` for one | Each event adopts the state the tested `next` computes at its turn in the schedule, then the views' sync or the event's transition play: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Eighteen explainers](MACHINES.md) and three tutorial scenes |
-| Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, sets its state, clears the stage and fades in its `draw` as a view of that state, so `rayner check` redraws every step from its state. 38 lists in 26 explainers |
-| Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))` | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
+| Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, binds its local input without changing `scene.state`, clears the stage and fades in its `draw` as a view of that input, so `rayner check` redraws every step from its state. 38 lists in 26 explainers |
+| Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))`, or `tweenState(scene, stateAt, { views })` for several views | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
 | Author an event's motion part by part | The transition's `t.choreograph(v)`, and `c.follow` for parts that follow one number | It names the keyed parts of the view's picture now and of its picture of the next state, animates them in your order, and `rest()` moves the parts no call named to their places, so the transition still ends on the state's picture ([authored transitions](MACHINES.md#refused-events-bounds-and-authored-transitions)) |
 
 A sync, a tween, a machine's `send` and `replay`, and the stage's and diagrams' verbs are all [actions](REFERENCE.md#actions), so they play the same way: awaited, or together in one play, `this.play(v.sync(), d.walk(hops))`, or in turn in a `Succession`. Each plays once, and a step that ends with one made in it and never played fails, so an action cannot be left unplayed by mistake. They differ in when they read the state: a sync, a tween and a machine's events draw the state as it is when their turn comes, while a stage or diagram verb is decided when it is called, so what it shows does not follow a change of state made after the call: draw state in a view.
 
 A machine's schedule is built before it plays, so its events change the state at their turns inside it, with an animation of its own that only machines use; a scene's own code changes the state by assignment.
+
+## Comparing independent models
+
+The [LRU/MRU comparison](https://github.com/adewale/rayner/blob/main/scenes/explainers/cache-policies/scene.ts) sends the same request to
+two independent caches. Each policy reads only its own cache. The explanation stores both results
+and their shared request history in one explicit product state:
+
+```ts
+function request(before: Comparison, key: Key): Comparison {
+  return {
+    lru: requestCache('lru', before.lru, key),
+    mru: requestCache('mru', before.mru, key),
+    history: [...before.history, key],
+  };
+}
+
+this.state = request(this.state, 'D');
+await this.play(left.sync(), right.sync(), stream.sync());
+```
+
+The three named views (`cache:lru`, `cache:mru`, `cache:stream`) project the same committed input.
+The live `Machine` uses this same `request` function; Undo and Reset replay one request log and
+restore both caches together. The [owning tests](https://github.com/adewale/rayner/blob/main/scenes/explainers/cache-policies/scene.test.ts)
+check every guided request against hand-worked results and each view's input. The
+[player integration test](https://github.com/adewale/rayner/blob/main/test/cache-comparison-live.test.ts)
+checks Send, Undo and Reset against those same independent expectations.
+
+This composition fits models that share an input sequence and checkpoints. The author defines the
+complete next state, so no registry or automatic merging of partial writes is needed. Independence
+of the two policy calculations does not imply independent clocks: this comparison intentionally
+advances both on each request.
 
 ## API
 
@@ -84,6 +115,7 @@ view.texts              // the strings it shows, in family order
 view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Action: await it or compose it; by key and staged unless told otherwise (SyncOptions: PlayOptions with match and staged)
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 view.tween((t) => state, { runTime, rateFunc }?)   // an Action: the state at t, drawn at every frame (above); TweenOptions, which has no lagRatio: one state is drawn whole
+tweenState(scene, (t) => state, { views: [a, b], runTime, rateFunc }) // one model sample shared by several views; TweenStateOptions
 ```
 
 `sync()` and `rebuild()` are one pair: each redraws the view from the state as it is
@@ -96,6 +128,14 @@ it would jump, which the motion check reports.
 Most draws read only the model, `state`. A picture that depends on which of several
 pictures is showing, which is not part of the model, reads it from `shown`, the
 scene's `this.shown`.
+
+For several pictures of one continuously changing model, use `tweenState` from
+`rayner/explain`. It samples `stateAt(t)` once and gives that state to every listed
+view before drawing the frame. Each view must belong to the same scene. Two
+simultaneous `view.tween` calls would both replace that scene's whole state, so the
+scheduler refuses them before either sampler runs; sequence them or use one shared
+sampler. The same write check covers a machine's state adoption. Ordinary unrelated
+picture animations can still run alongside the sampled views.
 
 A scene whose state changes shape by chapter declares the shapes, as a union or as one
 record with optional parts, and a draw of one chapter narrows to its shape:

@@ -4,7 +4,7 @@ import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta, Setting } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
 import { AFTER, BEFORE, COPIES, LOOKALIKE, NAME, PATCH, apply, header, newSide, oldSide, placed, report, sectionAt } from './model.ts';
-import type { CopyId, Hunk, PatchState } from './model.ts';
+import type { Hunk, PatchState } from './model.ts';
 import { CHAR, PITCH, SIZE, codeAt, fileAt, linesBox, numberAt, rowY, stack, wordsAt } from './picture.ts';
 import { listed } from '../lib/format.ts';
 
@@ -35,11 +35,11 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
   } satisfies ExplainerMeta;
   static settings = [
     { id: 'copy', label: 'Since the patch was made, your copy', default: 'moved', options: [{ value: 'moved', label: 'gained two lines at the top' }, { value: 'edited', label: 'had its port changed' }] },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
 
   override async construct() {
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    const which = settingsOf(this).copy as CopyId, copy = [...COPIES[which]];
+    const which = settingsOf(this, UnifiedDiff).copy, copy = [...COPIES[which]];
     const [hunk] = parseUnifiedDiff(PATCH) as [Hunk], head = header(hunk), old = oldSide(hunk);
     const made = apply(BEFORE, [hunk]), yours = apply(copy, [hunk]);
     if (!made.ok) throw new Error('the patch applies to the file it was made from');

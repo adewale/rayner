@@ -2,7 +2,7 @@ import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
 import type { Card } from '../../../explain/drawing.ts';
-import type { LayoutDirection, ExplainerMeta } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
 /** The two cards' placement and the one field-direction override, as the code panel prints them. */
@@ -45,11 +45,11 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
         { value: 'ltr', label: 'Left to right' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const direction = settingsOf(this).direction as LayoutDirection,
+    const direction = settingsOf(this, LayoutDirectionExplainer).direction,
       rtl = direction === 'rtl';
     const s = stage(this, { style: 'nord', direction, headingSize: 0.6 });
     const reading = rtl ? 'right-to-left' : 'left-to-right';

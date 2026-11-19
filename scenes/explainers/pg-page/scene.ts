@@ -113,12 +113,12 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
         { value: 'int4-text', label: 'int4 + text' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const column = values.column as Column;
+    const values = settingsOf(this, PgPageExplainer);
+    const column = values.column;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const colours = s.look;
     const c = scenarioOf(column, 100),

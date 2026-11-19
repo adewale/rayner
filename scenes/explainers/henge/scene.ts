@@ -4,7 +4,7 @@ import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage, answerOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import { henge, declination, sunset, clock, dayName, REFRACTION, PLACES, OTHER } from './model.ts';
-import type { Place, Seen } from './model.ts';
+import type { Seen } from './model.ts';
 import { dome, year, look, globes, crossedBy } from './sky.ts';
 import { annual, overhead, offWest, offEast } from './picture.ts';
 import { streetView, halfAndFull, globe } from './place.ts';
@@ -49,10 +49,10 @@ export default class Henge extends Scene<HengeState, {}> {
   } satisfies ExplainerMeta;
   static settings = [{ id: 'place', label: 'Place', default: 'manhattan', options: [
     { value: 'manhattan', label: 'Manhattan: 42nd Street, 29° north of west' }, { value: 'chicago', label: 'Chicago: Randolph Street, due west' },
-  ] }];
+  ] }] as const;
   override async construct() {
     const answer = answerOf(this);
-    const m = henge(settingsOf(this).place as Place), where = m.where, manhattan = m.place === 'manhattan';
+    const m = henge(settingsOf(this, Henge).place), where = m.where, manhattan = m.place === 'manhattan';
     const other = PLACES[OTHER[m.place]];
     const [december, , june] = m.seasons;
     const day = ({ latitude, declination, hourAngle }: { latitude: number; declination: number; hourAngle: number }) => ({ latitude, declination, hourAngle });

@@ -6,11 +6,11 @@ import { drawTower, sayTower } from './picture.ts';
 
 export default class Hanoi extends Scene<Tower, {}> {
   static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] } satisfies ExplainerMeta;
-  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
+  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }] as const;
   override state = start(3);
 
   override async construct() {
-    const n = Number(settingsOf(this).disks), moves = solve(n), few = (moves.length - 1) / 2;
+    const n = Number(settingsOf(this, Hanoi).disks), moves = solve(n), few = (moves.length - 1) / 2;
     const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`, first = moves[0]!.at(-1);
     this.state = start(n);
     const s = stage(this, { headingSize: 0.54 });

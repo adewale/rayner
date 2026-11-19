@@ -89,9 +89,9 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
         { value: 'second', label: 'Second drawing' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const which = settingsOf(this).hand as string,
+    const which = settingsOf(this, PenAndPencil).hand,
       seed = SEEDS[which as keyof typeof SEEDS],
       s = stage(this, { style: STYLE, headingSize: 0.6 });
     const facts = timelineFacts(WORLD);

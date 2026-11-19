@@ -40,9 +40,9 @@ export default class PythonDict extends Scene<DictState, {}> {
         { value: '16', label: '16: plum' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const key = Number(settingsOf(this).key),
+    const key = Number(settingsOf(this, PythonDict).key),
       m = dictStory(key),
       sixteen = dictStory(16).before,
       eight = dictStory(8).before;

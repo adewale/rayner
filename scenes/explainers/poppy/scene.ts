@@ -52,11 +52,11 @@ export default class Poppy extends Scene<World, {}> {
         { value: 'read-only', label: 'Read only' },
       ],
     },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
   override state = start(APPROVALS['read-write']!);
 
   override async construct() {
-    const approves = APPROVALS[settingsOf(this).approve!]!, scopes = approves.join(' and ');
+    const approves = APPROVALS[settingsOf(this, Poppy).approve]!, scopes = approves.join(' and ');
     // The world after each event of the story, from the model, so the words say what it computed.
     const after = STORY.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);

@@ -6,6 +6,10 @@ import { groundingLabel, groundingSentence } from './grounding.ts';
 import type { Grounding } from './grounding.ts';
 import { renderText } from '../src/ascii.ts';
 import { machinesOf } from './machine.ts';
+import { liveSteps, logStart } from './live.ts';
+import type { LogStart } from './live.ts';
+import { predictionsOf, teachingIndices } from './script.ts';
+import type { Prediction, StepKind } from './script.ts';
 import { traceRun } from '../src/trace.ts';
 import { canonicalJson } from '../src/json.ts';
 import type { Scene, SceneState } from '../src/index.ts';
@@ -19,6 +23,8 @@ import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
 /** One step of one scenario. Times are seconds on the scene's clock. */
 export interface StepDescription {
   step: string;
+  /** The authored path, with the default made explicit. A detail can still be on an all-detail scenario's teaching path. */
+  kind: StepKind;
   title: string;
   /** The few words under the title, drawn on the picture; empty when the step has none. */
   line: string;
@@ -27,7 +33,7 @@ export interface StepDescription {
   end: number;
   /** When the caption-reading hold begins, if the step has one. */
   hold?: number;
-  /** The model, `scene.state`, when the step ends. */
+  /** The step's local specimen when it has one; otherwise the model, `scene.state`, when the step ends. */
   state: SceneState;
   /** What was shown apart from the model (`scene.shown`), when anything was; the picture is described in `picture`. */
   shown?: SceneState;
@@ -44,19 +50,26 @@ export interface StepDescription {
   drawing?: string;
   /** The events a machine replayed in this step, in order (`{ kind: 'event' }` evidence); absent when none. */
   events?: string[];
+  /** The player's resolved prediction: answer is an option index, and reveal names the later step. */
+  predict?: Pick<Prediction, 'prompt' | 'options' | 'answer' | 'reveal'>;
+  /** Asking steps whose predictions this step reveals, in asking order. */
+  reveals?: string[];
 }
 /**
- * A model the scene lets events drive (src/machine.ts): what a reader could do, and where from.
- * `states` counts the states those events reach, breadth first up to the machine's limit
- * (`sampled` when it was reached), each of which `rayner check` draws and checks.
+ * A model the scene lets events drive: what a reader could do, and where from. `states`,
+ * `complete` and `sampled` describe exploration from `start`; `live` describes the reader's origin
+ * separately. A complete walk exhausted the graph, including when its size equals the limit.
  */
 export interface MachineDescription {
   events: string[];
   start: SceneState;
   states: number;
+  complete: boolean;
   sampled?: true;
-  /** The step where the reader can drive it: the step it last played in (docs/MACHINES.md, "The player"); absent when it never played. */
+  /** The step it last played in; absent when it never played. `live` is present only for the machine whose controls the player shows there. */
   step?: string;
+  /** The actual reader origin at step end (or the reset start), absent when this machine has no live controls. Counts may overlap start's. */
+  live?: { from: LogStart; state: SceneState; states: number; complete: boolean; sampled?: true };
 }
 /** One scenario: a combination of setting values, as a reader picks it under the title. */
 export interface ScenarioDescription {
@@ -73,6 +86,10 @@ export interface ScenarioDescription {
   invariants?: string[];
   /** The models the scene lets events drive; absent when none. */
   machines?: MachineDescription[];
+  /** Step IDs in the player's teaching order; detail steps are skipped unless all steps are details. */
+  teaching: string[];
+  /** Invalid prediction declarations, as the player/check read them; absent when none. */
+  predictionProblems?: string[];
   steps: StepDescription[];
 }
 export interface ExplainerDescription {
@@ -139,10 +156,11 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       if (draw === true || draw === step.path) drawings.set(step.path, restingDrawing(ran));
     }),
     paper = paperOf(scene),
-    steps: StepDescription[] = [];
-  for (const s of trace.steps) {
-    const before = s.before,
-      after = s.after,
+    steps: StepDescription[] = [],
+    { predictions, problems: predictionProblems } = predictionsOf(trace.steps);
+  for (const [index, s] of trace.steps.entries()) {
+    const before = trace.steps[index - 1]?.state ?? s.before,
+      after = s.state ?? s.after,
       shown = withoutPicture(s.shown),
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))
@@ -151,6 +169,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     const words = stepWords(s);
     const d: StepDescription = {
       step: s.step,
+      kind: s.meta.kind ?? 'main',
       title: words.title,
       line: words.line,
       caption: words.caption,
@@ -160,24 +179,38 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       state: after,
       ...(Object.keys(shown).length ? { shown } : {}),
       changed,
-      ...(Scene.meta?.watch ? { watched: watchedChanges(s, Scene.meta.watch, Scene.meta.lang) } : {}),
+      ...(Scene.meta?.watch ? { watched: watchedChanges({ before, after }, Scene.meta.watch, Scene.meta.lang) } : {}),
       picture: pictureSummary(s.shown),
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
     if (events.length) d.events = events;
+    const prediction = predictions.find((p) => p.step === s.step);
+    if (prediction) {
+      const { prompt, options, answer, reveal } = prediction;
+      d.predict = { ...(prompt ? { prompt } : {}), options, answer, reveal };
+    }
+    const reveals = predictions.filter((p) => p.reveal === s.step).map((p) => p.step);
+    if (reveals.length) d.reveals = reveals;
     const drawn = drawings.get(s.step);
     if (drawn !== undefined) d.drawing = drawn;
     steps.push(d);
   }
   const invariants = [...scene.invariants.keys()];
+  const lives = liveSteps(scene);
   const machines: MachineDescription[] = machinesOf(scene).map((machine) => {
-    const states = machine.reachable().length;
+    const walked = machine.explore(), states = walked.states.length;
+    const step = machine.lastPlayedIn;
+    const rest = step === null ? undefined : trace.steps.find((s) => s.step === step)?.after;
+    const base = rest && lives.get(step!)?.machine === machine ? logStart(machine, rest) : null;
+    const live = base === null ? undefined : canonicalJson(base.state) === canonicalJson(machine.spec.start) ? walked : machine.explore(base.state);
     return {
       events: [...machine.spec.events],
       start: JSON.parse(JSON.stringify(machine.spec.start)) as SceneState,
       states,
-      ...(states >= machine.spec.limit ? { sampled: true as const } : {}),
+      complete: walked.complete,
+      ...(!walked.complete ? { sampled: true as const } : {}),
       ...(machine.lastPlayedIn === null ? {} : { step: machine.lastPlayedIn }),
+      ...(base && live ? { live: { from: base.from, state: base.state as SceneState, states: live.states.length, complete: live.complete, ...(!live.complete ? { sampled: true as const } : {}) } } : {}),
     };
   });
   return {
@@ -187,6 +220,8 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     ...(paper ? { paper } : {}),
     ...(invariants.length ? { invariants } : {}),
     ...(machines.length ? { machines } : {}),
+    teaching: teachingIndices(trace.steps).map((i) => trace.steps[i]!.step),
+    ...(predictionProblems.length ? { predictionProblems } : {}),
     steps,
   };
 }

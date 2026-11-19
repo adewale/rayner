@@ -3,6 +3,7 @@ import { pictureWordsAt, assertSteps } from '../../../explain/testing.ts';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
 import type FontMetrics from './scene.ts';
+import type { LayoutState, RulersState } from './picture.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
@@ -13,10 +14,10 @@ export async function check(trace: TraceOf<typeof FontMetrics>, values: Record<s
   // Text's advance box uses float32 endpoints; allow their rounding,
   // while keeping the printed hundredths independently exact below.
   // The ruler measures the opening's lower row again, at its size 0.9.
-  assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after.advance) - em.Regular * 0.9) < 1e-6);
+  assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.state!.advance) - em.Regular * 0.9) < 1e-6);
   // The first check reverses the opening: measured in Garamond, drawn in JetBrains Mono (12 cells of 0.54),
   // the marker 0.5 after the measured width lands 1.57 before the drawn phrase ends.
-  const layout = trace.steps.find(s => s.step === 'layout')!.after.layout;
+  const layout = trace.steps.find(s => s.step === 'layout')!.state!.layout as LayoutState['layout'];
   assert.ok(Math.abs(layout.wrong - 12 * 0.54) < 1e-5 && Math.abs(layout.actual - em.Regular * 0.9) < 1e-6);
   const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
   assert.equal(overlap, '1.57');
@@ -25,7 +26,7 @@ export async function check(trace: TraceOf<typeof FontMetrics>, values: Record<s
   // phrase's start: JetBrains Mono's 12 cells of 0.54 and Garamond's own advances. Every Garamond advance is
   // narrower than the cell, so the gap between matching stops grows at each glyph, ending at the opening's
   // 2.07; the marker sits 0.5 past the Mono ruler's end, where the opening's upper row put it.
-  const rulers = trace.steps.find(s => s.step === 'rulers')!.after.rulers;
+  const rulers = trace.steps.find(s => s.step === 'rulers')!.state!.rulers as RulersState['rulers'];
   assert.equal(rulers.measured.length, 13);
   assert.equal(rulers.drawn.length, 13);
   rulers.measured.forEach((x, i) => assert.ok(Math.abs(x - i * 0.54) < 1e-5, `Mono stop ${i}: ${x}`));

@@ -173,12 +173,12 @@ export default class WcagMapExplainer extends Scene<WcagState, { map?: MapShown 
       default: '2.4',
       options: ['1.4', '2.4', '2.5', '4.1'].map((g) => ({ value: g, label: `${g} ${guideline(g).name}` })),
     },
-  ];
+  ] as const;
 
   override async construct() {
-    const values = settingsOf(this);
-    const level = values.level as Level,
-      open = values.guideline!;
+    const values = settingsOf(this, WcagMapExplainer);
+    const level = values.level,
+      open = values.guideline;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const t20 = tally('2.0', level),
       t21 = tally('2.1', level),

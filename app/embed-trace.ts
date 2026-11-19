@@ -39,14 +39,14 @@ export function playerTrace(trace: Trace, watch: Readonly<Record<string, string>
   const { fps, duration, frames } = trace;
   return {
     fps, duration, frames,
-    steps: trace.steps.map(({ step, t0, frame0, t1, frame1, hold, holdFrame, meta, shown, before, after }) => ({
+    steps: trace.steps.map(({ step, t0, frame0, t1, frame1, hold, holdFrame, meta, shown, before, after, state }, index) => ({
       step, t0, frame0, t1, frame1,
       ...(hold !== undefined ? { hold } : {}),
       ...(holdFrame !== undefined ? { holdFrame } : {}),
       meta,
       ...(shown !== undefined ? { shown } : {}),
-      before: keep(before),
-      after: keep(after),
+      before: keep(trace.steps[index - 1]?.state ?? before),
+      after: keep(state ?? after),
     })),
   };
 }

@@ -129,13 +129,13 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
       default: 'guest',
       options: (Object.keys(COPIES) as Copy[]).map((value) => ({ value, label: COPIES[value] })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const change = values.change as Change,
-      copy = values.copy as Copy;
+    const values = settingsOf(this, IcalRecurrenceExplainer);
+    const change = values.change,
+      copy = values.copy;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const after = organiserCopy(change);
 

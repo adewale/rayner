@@ -72,12 +72,12 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
 
   static settings = [{ id: 'second', label: 'Second route', default: 'madrid', options: [
     { value: 'madrid', label: 'Madrid to New York' }, { value: 'equator', label: 'Two cities on the equator' },
-  ] }];
+  ] }] as const;
 
   override async construct() {
     const answer = answerOf(this);
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    const second = settingsOf(this).second as 'madrid' | 'equator';
+    const second = settingsOf(this, GreatCircle).second;
     const westKm = rhumb(M.from, M.to).km;
     const pairs: Pair[] = [
       [{ code: 'A', city: 'A', lat: 0, lon: -75 }, { code: 'B', city: 'B', lat: 0, lon: -15 }],

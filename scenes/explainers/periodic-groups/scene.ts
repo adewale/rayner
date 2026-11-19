@@ -78,13 +78,13 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
         { value: 'he', label: 'Helium' },
       ],
     },
-  ];
+  ] as const;
   table: View | null = null;
   notes: View | null = null;
 
   override async construct() {
     const answer = answerOf(this);
-    const choice = settingsOf(this).element as Choice;
+    const choice = settingsOf(this, PeriodicGroupsExplainer).element;
     const symbol = ELEMENTS[choice],
       z = atomicNumber(symbol),
       name = nameOf(symbol),

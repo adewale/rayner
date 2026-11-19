@@ -30,11 +30,11 @@ export default class FloatSum extends Scene<SumState, {}> {
   } satisfies ExplainerMeta;
   static settings = [
     { id: 'sum', label: 'Sum', default: 'two-tenths', options: [{ value: 'two-tenths', label: '0.1 + 0.2' }, { value: 'three-tenths', label: '0.1 + 0.3' }] },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
 
   override async construct() {
     const s = stage(this, { style: 'nord', headingSize: 0.6 });
-    const m = sumStory(SUMS[CHOICE[settingsOf(this).sum as keyof typeof CHOICE]]);
+    const m = sumStory(SUMS[CHOICE[settingsOf(this, FloatSum).sum]]);
     const { a, b, expected } = m, sum = `${a} + ${b}`;
     const base: SumState = { a, b, expected, equal: m.equal, prints: m.prints, expectedPrints: m.expectedPrints, stored: [], ticks: [] };
     const kept = m.stored.map(({ typed, double }) => ({ typed, double }));

@@ -2,7 +2,7 @@ import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, ke
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
-import { setDrawn, keepOnTop } from '../src/scene.ts';
+import { setDrawn, keepOnTop, setStepState } from '../src/scene.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
@@ -692,30 +692,28 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       });
     },
     /**
-     * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in
-     * its picture, a view of that state: `rayner check` holds it to its draw as it holds every view.
+     * Present steps in turn: each clears the stage and fades in a view of its own local state;
+     * `rayner check` holds it to its draw as it holds every view. The scene's model is unchanged.
      * `kind: 'short'` marks the steps as the reader's short path before the main one; each step's
      * own `kind` overrides the list's. Each step is typed by its own state, so one list can hold
      * steps whose states differ: its draw and describe read that step's state. The steps' states
-     * are theirs, not the scene's model type; a scene that reads `this.state` after them sets it first.
+     * are theirs, not the scene's model type; the trace records each as `StepRecord.state`.
      */
     async steps<T extends readonly object[] | []>(list: { readonly [K in keyof T]: StepOf<T[K]> }, { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
       for (const step of list as readonly StagedStep<object>[]) {
         const kind = step.kind ?? listKind;
-        await scene.step(step.id, {
+        const begun = await scene.step(step.id, {
           title: step.title, line: step.line, caption: step.caption,
           ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}), ...(step.predict ? { predict: step.predict } : {}),
         });
         await this.clear({ runTime: 0.18 });
-        const state = cloneJson(step.state, 's.steps()', 'state', ` (step ${JSON.stringify(step.id)})`) as object;
-        // The step's state is the scene's while the step shows: a view of it, which check redraws.
-        const host = scene as unknown as Scene<object, Sh>;
-        host.state = { ...state };
-        const picture = new View(host, (st) => {
+        const state = cloneJson(step.state, 's.steps()', 'state', ` (step ${JSON.stringify(step.id)})`);
+        setStepState(begun, state);
+        const picture = new View(scene, (st: object) => {
           const drawn = step.draw(st, this as StageApi);
           if (kind === 'short') keyed(drawn, 'reader-picture');
           return drawn;
-        }, { place: false });
+        }, { place: false }, state);
         const drawing = picture.current;
         // What the step is about, when that is less than the whole drawing: a phone opens on it.
         const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];

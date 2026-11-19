@@ -2,7 +2,7 @@ import { Scene } from '../../../src/index.ts';
 import { Machine, answerOf, settingsOf, stage, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting } from '../../../explain/index.ts';
 import { beats, flight } from '../../../explain/drawing.ts';
-import { EVENTS, bound, next, sorted, start, type Compare, type SortEvent, type State } from './model.ts';
+import { EVENTS, bound, next, sorted, start, type SortEvent, type State } from './model.ts';
 import { drawSort } from './picture.ts';
 
 const PLACES = ['First', 'Between 1 and 9', 'Last'];
@@ -13,13 +13,13 @@ export default class SortAsText extends Scene<State, {}> {
   } satisfies ExplainerMeta;
   static settings = [
     { id: 'compare', label: 'Compare function', default: 'none', options: [{ value: 'none', label: 'none' }, { value: 'numbers', label: '(a, b) => a - b' }] },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
 
   override state = start('none');
 
   override async construct() {
     const s = stage(this);
-    const compare = settingsOf(this).compare as Compare;
+    const compare = settingsOf(this, SortAsText).compare;
     const asText = compare === 'none';
     this.state = start(compare);
     const picture = view(this, (st) => drawSort(s, st));

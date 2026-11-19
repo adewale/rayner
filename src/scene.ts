@@ -74,6 +74,14 @@ export interface Step {
  */
 export type EndedStep = Step & { t1: number; frame1: number };
 
+// A teaching step can show a locally typed specimen without replacing the scene's model.
+// Keep the binding on the step identity: no author field or following step can overwrite it.
+const stepStates = new WeakMap<Step, JsonObject>();
+/** @internal Bind the local input drawn by a staged step. */
+export function setStepState(step: Step, state: JsonObject): void { stepStates.set(step, state); }
+/** @internal A staged step's local input, separate from Scene.state. */
+export function stepStateOf(step: Step): JsonObject | undefined { return stepStates.get(step); }
+
 /**
  * One fact recorded during a step (see Scene.record): what an animation did,
  * such as the hunks a TransformDiff animated. JSON, like the state.
@@ -162,7 +170,7 @@ function captionWords(caption: string): number {
 }
 
 /** A scene class, as traceScene(), renderFrame() and the registries take it. */
-export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
+export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene<any, any>;
 
 /**
  * Two animations in one play() must not drive the same mobject (or one

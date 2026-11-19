@@ -105,13 +105,13 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
       default: 'isdigit',
       options: PREDICATES.map((p) => ({ value: p, label: `${p}()` })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const scriptAnswer = answerOf(this);
-    const values = settingsOf(this);
-    const id = values.char as CharId,
-      guard = values.guard as Predicate;
+    const values = settingsOf(this, IsDigitExplainer);
+    const id = values.char,
+      guard = values.guard;
     const c = CHARS[id];
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const type = numericType(c),

@@ -8,9 +8,12 @@ import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { TraceSink, loadFonts } from '../explain/testing.ts';
 import type { EndedStep, SceneClass, SceneState } from '../src/index.ts';
-import { withSettings } from '../explain/testing.ts';
-import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
+import { withIntent, withSettings } from '../explain/testing.ts';
+import RingBufferScene from '../scenes/explainers/ring-buffer/scene.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
+import { readFileSync } from 'node:fs';
+
+const RingBufferExplainer = withIntent(RingBufferScene, readFileSync('scenes/explainers/ring-buffer/script.md', 'utf8'), 'scenes/explainers/ring-buffer/script.md');
 
 await loadFonts();
 Scene.captionWpm = Infinity;

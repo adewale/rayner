@@ -11,7 +11,10 @@ export interface Setting {
   default: string;
   options: readonly { value: string; label: string }[];
 }
-export type Settings = Readonly<Record<string, string>>;
+/** Resolved string values, with literal IDs and options when the declarations are known. */
+export type Settings<Declarations extends readonly Setting[] = readonly Setting[]> = {
+  readonly [S in Declarations[number] as S['id']]: S['options'][number]['value'];
+};
 /**
  * How the explainer's own player looks: palette and corner cues, an optional standalone stage-width
  * floor in CSS pixels (at most 4096), and `outline`: show every step's title in the steps rail from
@@ -73,6 +76,8 @@ export type ExplainerClass = SceneClass & {
   meta?: ExplainerMeta;
   settings?: readonly Setting[];
 };
+/** Settings do not depend on the instance's domain-state or presentation-state shape. */
+type SettingsClass = (new (...args: ConstructorParameters<SceneClass>) => Scene<any, any>) & Pick<ExplainerClass, 'settings'>;
 // Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
 const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
   id: true, title: true, lang: true, sources: true, lettering: true, textContext: true,
@@ -160,6 +165,8 @@ export const settingsProblem = (error: unknown): SettingsProblem =>
  * Validate declarations and selections once, at the author/URL boundary. It reads only the class's
  * `settings`, so `{ settings: [setting] }` stands for a scene that declares one.
  */
+export function resolveSettings<const Declarations extends readonly Setting[]>(Scene: { settings: Declarations }, values?: Settings): Settings<Declarations>;
+export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values?: Settings): Settings;
 export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values: Settings = {}): Settings {
   const result: Record<string, string> = Object.create(null);
   for (const s of Scene.settings ?? []) {
@@ -177,12 +184,29 @@ export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values:
   return Object.freeze(result);
 }
 
-export function settingsOf(scene: Scene): Settings {
+/**
+ * The scene's selected values. Pass its class to infer IDs and option values from literal
+ * `static settings = [...] as const`; an instance's type alone does not carry its static members.
+ * Without the class, dynamically declared settings keep their string-record type.
+ */
+export function settingsOf<const Declarations extends readonly Setting[]>(scene: Scene<any, any>, Source: SettingsClass & { settings: Declarations }): Settings<Declarations>;
+export function settingsOf(scene: Scene<any, any>, Source?: SettingsClass): Settings;
+export function settingsOf(scene: Scene<any, any>, Source?: SettingsClass): Settings {
+  if (Source && !(scene instanceof Source)) throw new TypeError('settingsOf(): the supplied class must be this scene\'s class or one of its base classes');
+  // A bound subclass may override the declarations of the supplied base class. Revalidate against
+  // the definition whose type we return, so a narrowed type never conceals incompatible values.
+  const selected = (values: Settings): Settings => {
+    if (!Source) return values;
+    const checked = resolveSettings(Source, values);
+    if (Object.keys(checked).some((id) => !Object.hasOwn(values, id)))
+      throw new TypeError('settingsOf(): the supplied class declares a setting this scene does not have');
+    return checked;
+  };
   for (let c: object | null = scene.constructor; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
     const settings = bound.get(c);
-    if (settings) return settings;
+    if (settings) return selected(settings);
   }
-  return resolveSettings(scene.constructor as ExplainerClass);
+  return selected(resolveSettings(scene.constructor as ExplainerClass));
 }
 
 /**

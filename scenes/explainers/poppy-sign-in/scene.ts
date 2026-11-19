@@ -4,7 +4,7 @@ import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../
 import { beats, flight, pass, route } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { CARDS, SIGN_IN_EVENTS, STORY, next, start } from './model.ts';
-import type { Flow, SignInEvent, World } from './model.ts';
+import type { SignInEvent, World } from './model.ts';
 import {
   ADDRESS_AT, DESK, PALETTE, THIEF_AT,
   codeToken, drawWorld, requestToken, sayWorld,
@@ -56,12 +56,12 @@ export default class SignIn extends Scene<World, Shown> {
         { value: 'device', label: 'Device Sign-In' },
       ],
     },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
   override state = start('direct');
   override shown: Shown = { password: true };
 
   override async construct() {
-    const flow = settingsOf(this).flow as Flow, device = flow === 'device', story = STORY[flow];
+    const flow = settingsOf(this, SignIn).flow, device = flow === 'device', story = STORY[flow];
     // The world after each event of the story, from the model, so the words say what it computed.
     const after = story.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);

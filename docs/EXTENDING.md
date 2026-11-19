@@ -319,7 +319,9 @@ Each extension point has one rule for what happens when two of them act on the s
 
 ## Test an extension
 
-Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner`, `renderFrame` and `toSvgString` give the picture at a frame. The invariants recipe's sink runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner`, `renderFrame` and `toSvgString` give the picture at a frame. The invariants recipe's sink runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+
+The [shared-orbit recipe](../recipes/shared-orbit.ts) gives two independently mounted views one sampled state with `tweenState(scene, stateAt, { views })`. Its point and radius agree on every frame and after seeking. `view.tween` is the single-view form; parallel samplers writing the same scene state are refused. Run `npm run recipes -- --scene shared-orbit` to write its SVG and trace.
 
 ## Composition, compositionality and modularity
 

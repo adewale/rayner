@@ -6,6 +6,11 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Machine exploration reports actual graph closure for each origin before deduplicating states, including a live origin already present in a capped start traversal. Limits must be finite positive integers. A machine refuses a view bound to another scene.
+- State sampling reserves the scene's model write before an action plays. Simultaneous writers reject early; `tweenState(scene, stateAt, { views })` samples once and redraws several independent views together. The shared-orbit recipe verifies frame and seek agreement.
+- Staged steps keep their locally typed input in `StepRecord.state`; they no longer replace the scene's persistent model. Trace `before` and `after` retain that model, while descriptions, fidelity helpers and watched reader changes select the local specimen when present.
+- Descriptions expose step kinds, teaching order, resolved predictions and their reveal steps, and completeness from the actual live origin. `see` retains these distinctions.
+
 - View fidelity also compares rendered SVG paint, path data, draw fraction, paint order and effective clips against a placed redraw. Regression controls cover the previously accepted defects and legitimate state-dependent paths/clips; the seasons latitude emphasis is now derived from state.
 - `npm run bench:rendering` builds and measures matched Rayner/native-SVG fixtures from shared oracle-tested models and scripts, retaining inputs, conformance evidence and browser samples. It establishes rendering outcomes, not author productivity or learning.
 - The unified-diff teaching model follows Git's default refusal to reuse an earlier hunk's postimage, including unchanged context. A deterministic regression preserves the repeated-context counterexample from a failed random campaign; rejection messages retain earlier hunk offsets.
@@ -14,6 +19,11 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 - Failed random campaigns retain logs and replay commands for 30 days, with a testing/release triage procedure.
 
 ### Authoring explainers
+
+- `settingsOf(this, MyScene)` infers literal setting identifiers and option unions from `static settings = [...] as const`. The dynamic one-argument form remains available. The catalog and tutorial examples use the typed form.
+- `Transform` mode overloads refuse incompatible saved-state and copy options at compile time as well as at JavaScript admission. `TransformOptions` is a union; custom option types extend it with an intersection.
+- Ring buffer's reading path keeps fixed slots, head/tail markers and queue order together, with implementation code in Details. Periodic groups opens its stack step on an unlabelled block-width schematic; GTFS compares defined routes with dated active trips before the optional timetable.
+- The cache-policies explainer drives independent LRU and MRU models with the same request stream, displays their views together and lets readers choose a bounded continuation. It uses one explicit product-state transition without a model registry or implicit partial-state merging.
 
 - An explainer is a folder: `script.md` states its intent, `model.ts` holds the system's rules, `scene.ts` explains it, and a picture module draws a state where that is worth separating. `rayner init` writes the tutorial's explainer this way.
 - `rayner init --blank <directory>` starts an explainer of your own, `--question "…"` giving its title: a script whose intent header says on each line what to write, a model stub, a model test whose oracle test fails until it compares the model with something real, and a scene that draws one step from the model's state. Each part still to write says `TODO:`, and `rayner check` fails with a numbered to-do list of them, in order: the intent header, its Checked against and Grounding lines, the model test, then the picture. A Grounding line that is still a placeholder gives no grade. [Tutorial](docs/TUTORIAL.md#start-your-own)

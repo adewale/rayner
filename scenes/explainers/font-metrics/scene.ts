@@ -9,7 +9,6 @@ import type { CutsState, Pen } from './picture.ts';
 // natural EB Garamond measurements with recorded Inter estimates, so its stretch factors describe these two
 // labels, not a general conversion between the fonts.
 const DIAGRAM = 'graph LR\nA["Ink"] --> B["Paper"]';
-type Widths = 'natural' | 'recorded';
 
 /** The cuts' advances, and each diagram word's stretch once the layout is measured. */
 type FontState = CutsState & { stretch?: Record<string, number> };
@@ -38,10 +37,10 @@ export default class FontMetrics extends Scene<FontState, {}> {
         { value: 'recorded', label: 'Inter estimates' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
-    const widths = settingsOf(this).widths as Widths;
+    const widths = settingsOf(this, FontMetrics).widths;
     const s = stage(this, { headingSize: 0.6, style: 'pen-and-ink' });
     const color = s.look.ink;
     /** The phrase in EB Garamond at the rows' size, drawn afresh for each picture. */

@@ -102,7 +102,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           const expected =
             step.name === 'fill' || v.values.operations === 'full' ? [1, 2, 3, 4, 5] : [6, 7, 3, 4, 5];
           for (const [i, n] of expected.entries()) {
-            const slot = scene.familyMembers().find((m) => m.key === `ring:value:${i}`);
+            const slot = scene.familyMembers().find((m) => m.key === `overview:value:${i}`);
             assert.ok(slot);
             assert.deepEqual(
               slot
@@ -112,6 +112,13 @@ test('token introductions and the ring’s fill and result steps draw the indepe
               [String(n)],
             );
           }
+          const markers = scene.find('overview:readout:2');
+          const at = step.name === 'result' && v.values.operations === 'wrap' ? 2 : 0;
+          assert.ok(markers instanceof Text);
+          assert.equal(markers.text, `H head: ${at}   T tail: ${at}`);
+          const queue = scene.find('overview:readout:1');
+          assert.ok(queue instanceof Text);
+          assert.equal(queue.text, [...expected.slice(at), ...expected.slice(0, at)].join('  '));
           frames++;
         },
       },
@@ -137,7 +144,7 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
               : v.values.stop === 'airport'
                 ? [v.values.date === '2007-06-09' ? 3 : 1, 0]
                 : [0, 2];
-          const day = scene.state.departures as { departures: unknown[]; headways: unknown[] };
+          const day = v.trace.steps.find((s) => s.step === 'departures')!.state!.departures as { departures: unknown[]; headways: unknown[] };
           assert.equal(day.departures.length, fixed);
           assert.equal(day.headways.length, frequency);
           const words = scene

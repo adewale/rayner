@@ -54,10 +54,10 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
 | `end(state)` | Where the story ends: the reason when `state` is finished, else `undefined`. From a finished state every event the model would take is beyond the story with this reason, and its refusals stay refusals, so a live step that ends finished starts the reader from `start` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
-| `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
+| `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) of this machine's scene; a view of another scene is refused at construction |
 | `match` | How the views morph without an authored transition (default `{ by: 'key', text: 'whole' }`, a [`Match`](MATCHING.md): keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
-| `limit` | The most states exploration visits from one origin (default 256) |
+| `limit` | A positive finite integer: the most states exploration visits from one origin (default 256) |
 
 The machine's state is the scene's model: `new Machine(this, spec)` on a `Scene<S, Sh>`, its `spec` a `MachineSpec<S, E>` for events `E`, types
 `start`, `next`, `bound`, `end`, the transitions and the views by `S`. A scene whose machine drives
@@ -207,9 +207,12 @@ last played in, the stage the reader saw it on, by the player's own run (`runLiv
 there, while that run can still play. A machine that never played is explored on a fresh run of
 the scene as it ends. A machine whose
 views are not on that stage is reported, since its states could not be checked. Exploration
-visits states breadth first from `start`. When the machine's state at that step is not one
-of those and some event moves it, exploration also visits states reachable from there, since
-the player lets the reader send events from there. Each origin visits up to `limit` states. Each state is redrawn as a resting
+visits states breadth first from `start` and from the reader's origin at the live step. The latter
+is the step's resting state when some event moves it, otherwise the machine's start, as in the
+player. Each distinct origin gets up to `limit` states, even when the live origin appears in the
+start's bounded walk. Overlapping states are drawn once, after each origin's completeness is
+recorded. A walk is complete only when its graph is exhausted: exactly `limit` states can still
+be the whole graph, while an unvisited successor proves truncation. Each state is redrawn as a resting
 picture, and fails if it
 
 - has colliding text or a connector over a label (the same rules as resting pictures),
@@ -253,9 +256,12 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
   request boxes hold only their answer, at 0.58 units, 13 px in the whole picture on a phone,
   with the request's name under it and its arrival time over it, so they pass. Exploration does
   not check states the review does not visit.
-- **A large machine is sampled.** Exploration stops at `limit` states per origin, so
+- **A large machine is sampled.** Exploration retains up to `limit` states per origin, so
   ring-buffer's 256 states are a sample, and a reader can press their way to a ring no check drew.
-  `describeExplainer` counts states from `start` only.
+  `sampled` means at least one origin had an unvisited successor, not merely that a count equalled
+  the limit. `describeExplainer` keeps `states`, `complete` and `sampled` for the walk from `start`,
+  and reports the live origin's state, count and completeness separately in `live`; their counts
+  may overlap. The browser review's small sample does not complete a truncated Node walk.
 - **The oracle is XState's explored graph.** `scenes/explainers/statecharts/oracle/statecharts.ts` records every
   configuration XState reaches and where every event leads, for every chart. The model is
   compared with that whole graph, and generated event sequences walk it too, so no XState

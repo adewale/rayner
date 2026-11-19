@@ -142,7 +142,7 @@ The four grades ([`explain/grounding.ts`](https://github.com/adewale/rayner/blob
 | `read` | A specification or source was read and transcribed; nothing was run | **poppy** and its seven sibling chapters: the Personal Agent Protocol draft, with tests naming the section each rule comes from, and the project's published JSON Schemas copied into `fixtures/` |
 | `none` | Nothing outside the model's own tests | **seasons**: the model computes cited formulas, and its tests check them by property and by hand-worked values |
 
-The grades run from strongest to weakest. Take the first of these that your subject allows:
+These labels describe how the evidence was obtained. Its strength also depends on independence, coverage, relevance and version: a live check of one easy case can establish less than a careful recording or specification comparison. Choose the approach that fits your subject:
 
 1. **Can the real thing run where the tests run?** Then run it: the grade is `live`. A language's built-in (`sort()`, `len()`, `Intl.Segmenter`), a CLI (`git`, `rustc`) or a library can all be called from a test.
 2. **Can you run it once by hand?** Then record it: the grade is `recorded`. A database server, a Docker image or a paid API fits here. Keep the program that ran it in `oracle/`, have it write its answers to `fixtures/`, and make `model.test.ts` compare the model with the fixture. Write down in the fixture, or beside the constants, exactly what was run: the version, the date and the commands, as pg-page's comment does. You can keep both kinds. python-dict has the fixture its oracle wrote, `fixtures/cpython-dict.json`, and a test that runs the oracle again when CPython 3.12 is there.
@@ -397,7 +397,7 @@ import { Scene } from 'rayner';
 import { Machine, answerOf, settingsOf, stage, view } from 'rayner/explain';
 import type { ExplainerMeta, Setting } from 'rayner/explain';
 import { beats, flight } from 'rayner/drawing';
-import { EVENTS, bound, next, sorted, start, type Compare, type SortEvent, type State } from './model.ts';
+import { EVENTS, bound, next, sorted, start, type SortEvent, type State } from './model.ts';
 import { drawSort } from './picture.ts';
 
 const PLACES = ['First', 'Between 1 and 9', 'Last'];
@@ -408,13 +408,13 @@ export default class SortAsText extends Scene<State, {}> {
   } satisfies ExplainerMeta;
   static settings = [
     { id: 'compare', label: 'Compare function', default: 'none', options: [{ value: 'none', label: 'none' }, { value: 'numbers', label: '(a, b) => a - b' }] },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
 
   override state = start('none');
 
   override async construct() {
     const s = stage(this);
-    const compare = settingsOf(this).compare as Compare;
+    const compare = settingsOf(this, SortAsText).compare;
     const asText = compare === 'none';
     this.state = start(compare);
     const picture = view(this, (st) => drawSort(s, st));
@@ -469,7 +469,7 @@ export default class SortAsText extends Scene<State, {}> {
 
 Read it from the top.
 
-**Sources and the setting.** `static meta` names the sources, which the page lists. `static settings` declares the changed condition as a setting with two options. Each option is a scenario: the reader switches between them, and `check` and `review` visit both. Inside `construct`, `settingsOf(this).compare` is the option this scenario runs with, and `asText` is the flag every caption branches on.
+**Sources and the setting.** `static meta` names the sources, which the page lists. `static settings` declares the changed condition as a setting with two options. `as const` keeps their literal names, and `settingsOf(this, SortAsText).compare` is typed as `'none' | 'numbers'`, with no cast or repeated union. Each option is a scenario: the reader switches between them, and `check` and `review` visit both. Inside `construct`, `asText` is the flag every caption branches on.
 
 **The stage and the view.** `stage(this)` draws the paper and a heading that follows each step's title and line. `view(this, (st) => drawSort(s, st))` makes the picture a view of `this.state`: when a step changes the state, `picture.sync()` moves the picture to match. `check` redraws every view from every step's state and fails one that differs, so the picture cannot drift from the state.
 
@@ -721,4 +721,4 @@ The whole folder adds the oracle, fixtures, `answers.ts`, `fidelity.ts`, `scene.
 - After all eight chapters passed `check` and `review`, every transition and live press was filmed at 200 ms intervals and looked at. That found 63 motion defects that no check flagged (item 14): moving parts over labels, two copies of one thing visible at once, answers readable before their cause arrived, motion that carried layout rather than meaning, transitions too long to sit through. `check`'s keyed-motion check now catches jumps, flicker, words readable before their cause lands and a token over a label's words. Brought back into the current scenes, 26 of 59 of those defects are caught ([the motion corpus](MOTION-CORPUS.md)); a token over a drawing, two copies of one thing apart, and a transition too long to sit through are still yours to see.
 - A code review then found five model defects, fixed in [#103](https://github.com/adewale/rayner/pull/103).
 
-**What to budget for.** The files are the small part. The time goes on the steps this guide spends its length on: the script review, the oracle (recording a run takes as long as the run's setup), a model test that you have seen fail, the first draft's check failures, which section 8 shows are routine, and looking at every phone view and a few transitions frame by frame. A `read` or `none` explainer is cheaper to make and is worth less to a reader, and its receipt says so.
+**What to budget for.** The files are the small part. The time goes on the steps this guide spends its length on: the script review, the oracle (recording a run takes as long as the run's setup), a model test that you have seen fail, the first draft's check failures, which section 8 shows are routine, and looking at every phone view and a few transitions frame by frame. A `read` or `none` label says which outside evidence is absent; it does not determine the explainer's cost or value to a reader. The receipt should make that boundary clear, while review considers the evidence's coverage and the explanation's usefulness.

@@ -101,7 +101,8 @@ test('`rayner see` prints a step: its resting picture as text, title, caption, p
       scene = join(ROOT, 'scenes/explainers/ring-buffer/scene.ts'),
       svg = join(folder, 'result.svg');
     const out = execFileSync(process.execPath, [cli, 'see', scene, 'result', '--out', svg], { encoding: 'utf8' });
-    assert.match(out, /^ring-buffer · step 5 of 5: result/m);
+    assert.match(out, /^ring-buffer · step 5 of 9: result/m);
+    assert.match(out, /^Path: main · teaching step 5 of 5$/m);
     assert.match(out, /^Title: \S/m);
     assert.match(out, /^Caption: \S/m);
     // What the step changed, from the trace: the model's ring after the last pushes.
@@ -125,18 +126,19 @@ test('`rayner see` prints describeExplainer\'s words for the step, so the two ca
     c = d.scenarios.find((c) => c.values.attacker === 'no')!;
   for (const s of c.steps) assert.equal(await seeStep(project, v, s.step), seeText('oauth-pkce', c, s.step));
   // The text is the description's fields and nothing else: a made-up description prints as it says.
-  const step = { step: 'a', title: 'One', line: '', caption: '', start: 0, end: 1, state: {}, changed: {}, picture: '' };
+  const step = { step: 'a', kind: 'main' as const, title: 'One', line: '', caption: '', start: 0, end: 1, state: {}, changed: {}, picture: '' };
   const made: ScenarioDescription = {
     values: {},
     name: 'Size: 3',
     duration: 2,
+    teaching: ['a', 'b'],
     steps: [
       step,
       { ...step, step: 'b', title: 'Two', line: 'A line.', caption: 'Cap.', state: { n: 1 }, changed: { n: { after: 1 }, gone: { before: 'x' } }, picture: 'A box.', drawing: 'DRAWN' },
     ],
   };
-  assert.equal(seeText('x', made), 'DRAWN\n\nx · step 2 of 2: b · Size: 3\nTitle: Two\nLine: A line.\nCaption: Cap.\nPicture: A box.\nChanged: n: — → 1; gone: "x" → —');
-  assert.equal(seeText('x', made, 'a'), '\n\nx · step 1 of 2: a · Size: 3\nTitle: One\nChanged: nothing in scene.state');
+  assert.equal(seeText('x', made), 'DRAWN\n\nx · step 2 of 2: b · Size: 3\nPath: main · teaching step 2 of 2\nTitle: Two\nLine: A line.\nCaption: Cap.\nPicture: A box.\nChanged: n: — → 1; gone: "x" → —');
+  assert.equal(seeText('x', made, 'a'), '\n\nx · step 1 of 2: a · Size: 3\nPath: main · teaching step 1 of 2\nTitle: One\nChanged: nothing in the step state');
   assert.throws(() => seeText('x', made, 'c'), /the scene has no step "c"/);
 });
 

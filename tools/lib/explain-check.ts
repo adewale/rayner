@@ -1,9 +1,11 @@
 import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName, scriptOf } from '../../explain/internal.ts';
+import { viewInput } from '../../explain/internal.ts';
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/internal.ts';
 import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
+import { logStart } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
@@ -290,13 +292,15 @@ export class ViewSink implements Sink {
     for (const m of scene.familyMembers()) {
       if (!isView(m)) continue;
       this.checked++;
-      const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
+      const state = m[viewInput](scene.state);
+      if (state !== scene.state) this.states.push(structuredClone(state));
+      const mismatch = viewMismatch(m, state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
       // Asked at each step's end that shows the view, while the scene is as the step left it (a draw
       // may read live parts of the scene), until one shows the picture depends on the state: a list
       // that is empty at first and grows later shows it only later.
       if (this.proven.has(m)) continue;
-      const others = viewIgnoresState(m, scene.state, scene.shown, this.states);
+      const others = viewIgnoresState(m, state, scene.shown, this.states);
       if (others === null) { this.proven.add(m); this.unproven.delete(m); }
       else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others });
     }
@@ -320,7 +324,7 @@ function viewGeometryMismatch(v: View, scene: Scene): string | null {
   const parts = (ms: Mobject[]) => ms.map((x) => JSON.stringify([
     x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null, round(x.style.opacity ?? 1),
   ]));
-  const expected = v.placed(scene.state, scene.shown);
+  const expected = v.placed(v[viewInput](scene.state), scene.shown);
   const shown = family(v.current), shows = parts(shown), draws = parts(family(expected));
   if (shows.join() === draws.join()) {
     // Outer clips are shared context; child clips belong to the view. Compare their effective
@@ -609,12 +613,17 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
   // From the start, as exploration always has; and from the state the reader finds at the step
   // where the machine is live, since the player lets the reader send events from there too.
-  const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
+  const startWalk = machine.explore();
+  const fromStart = startWalk.states.map((r) => ({ ...r, origin: '' }));
   const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
   const stepState = jsonObject(host.state, 'machine state') as object;
-  const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
-  const fromStep = step === null || seen.has(canonicalJson(stepState)) || !answers ? []
-    : machine.reachable(stepState).filter((r) => !seen.has(canonicalJson(r.state))).map((r) => ({ ...r, origin: `from the state at "${step}", ` }));
+  const live = step === null ? null : logStart(machine, stepState);
+  // Each distinct origin gets its own budget, even if the live origin is in the start's capped
+  // prefix. Retain completeness before removing states already checked from the other origin.
+  const liveWalk = live === null || canonicalJson(live.state) === canonicalJson(machine.spec.start)
+    ? undefined : machine.explore(live.state);
+  const fromStep = (liveWalk?.states ?? []).filter((r) => !seen.has(canonicalJson(r.state)))
+    .map((r) => ({ ...r, origin: `from the state at "${step}", ` }));
   const reached = [...fromStart, ...fromStep];
   const shownThen = host.shown;
   // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
@@ -647,7 +656,7 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     motion.push(...played.motion);
   }
   host.shown = shownThen;
-  const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
+  const sampled = !startWalk.complete || liveWalk?.complete === false;
   return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion };
 }
 
@@ -1017,9 +1026,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch
         ? {
-            watch: v.trace.steps.map((s) => {
+            watch: v.trace.steps.map((s, index) => {
               const unformatted: string[] = [];
-              const changes = watchedChanges(s, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
+              const changes = watchedChanges({ before: v.trace.steps[index - 1]?.state ?? s.before, after: s.state ?? s.after }, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
               return { step: s.step, changes, unformatted };
             }),
           }

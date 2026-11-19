@@ -7,6 +7,7 @@ import { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';
 import { outputs, recipes } from '../recipes/render.ts';
 import { SampledOrbit, MorphedOrbit, invariantFailures } from '../recipes/invariants.ts';
+import SharedOrbit from '../recipes/shared-orbit.ts';
 
 test('document recipe accepts data, computes both routes, and exposes the model result in picture text and trace', async () => {
   for (const cached of [false, true]) {
@@ -94,13 +95,30 @@ test('parameter animations capture starts in succession and reject another write
 });
 
 test('every supported recipe produces nonempty SVG, its state and a named-step trace through public APIs', async () => {
-  assert.deepEqual(Object.keys(recipes), ['document', 'extensions', 'continuous', 'choreography', 'invariants']);
+  assert.deepEqual(Object.keys(recipes), ['document', 'extensions', 'continuous', 'choreography', 'invariants', 'shared-orbit']);
   for (const SceneClass of Object.values(recipes)) {
     const result = await outputs(SceneClass);
     assert.match(result.svg, /^<svg/);
     assert.ok(result.state && typeof result.state === 'object');
     assert.ok(result.trace.steps.length >= 2);
   }
+});
+
+test('one shared orbit sample keeps both mounted views consistent on every frame and after seeking', async () => {
+  const full = new StringSink();
+  let checked = 0;
+  await new SharedOrbit({ async frame(scene) {
+    await full.frame(scene);
+    if (!scene.find('orbit:point') || !scene.find('orbit:radius')) return;
+    const angle = scene.state.angle as number;
+    const point = scene.find('orbit:point')!.children[0] as { center(): number[] };
+    const radius = scene.find('orbit:radius')!.children[0] as unknown as { end(): number[] };
+    const expected = [3 * Math.cos(angle), 3 * Math.sin(angle)];
+    for (const got of [point.center(), radius.end()]) for (let i = 0; i < 2; i++) assert.ok(Math.abs(got[i]! - expected[i]!) < 1e-5);
+    checked++;
+  } }).run();
+  assert.ok(checked >= 30, 'intermediate frames were actually checked');
+  for (const frame of [0, 7, 15, 30]) assert.equal(toSvgString(await renderFrame(SharedOrbit, frame)), full.frames[frame]);
 });
 
 test('invariant recipe: the sampled orbit holds its claim on every frame, the morphed one fails exactly where it cuts across', async () => {

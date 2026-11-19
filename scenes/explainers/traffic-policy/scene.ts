@@ -173,13 +173,13 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       default: '3-1-0',
       options: (Object.keys(PLACEMENTS) as PlacementKey[]).map((k) => ({ value: k, label: PLACEMENTS[k].join(', ') })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this),
-      policy = values.policy as Policy,
-      key = values.pods as PlacementKey,
+    const values = settingsOf(this, TrafficPolicyExplainer),
+      policy = values.policy,
+      key = values.pods,
       other: Policy = policy === 'local' ? 'cluster' : 'local';
     const counts = PLACEMENTS[key],
       pods = podsOf(counts),

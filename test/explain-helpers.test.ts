@@ -909,7 +909,7 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Diagram', 'Machine', 'answerOf', 'having', 'isRefusal', 'mermaid', 'refuse', 'regionBox', 'settingsOf', 'stage', 'view',
+    'Diagram', 'Machine', 'answerOf', 'having', 'isRefusal', 'mermaid', 'refuse', 'regionBox', 'settingsOf', 'stage', 'tweenState', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
@@ -948,7 +948,7 @@ test('loadProject draws a scene\'s lettering from the scene.lettering.json besid
   // Outline lettering: font-metrics' italic and its Garamond measurements need its snapshot, which the class alone lacks.
   await assert.rejects(traceScene(FontMetrics), /new Text\(\): italic text needs meta\.lettering\.styles/);
   const metrics = await loadProject(FontMetrics, 'scenes/explainers/font-metrics');
-  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after;
+  const layout = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.state!.layout as { actual: number; wrong: number };
   assert.ok(layout.actual < layout.wrong, `Garamond ${layout.actual} is narrower than JetBrains Mono ${layout.wrong}`);
   // Subset lettering: the pinned Greek cuts draw every Greek letter during the runs, and the embedded faces, which draw none, return after.
   takeMissingGlyphs();

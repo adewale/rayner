@@ -109,7 +109,7 @@ draws it, hands that frame to the sink it is given (none by default) and returns
 a number past the end gives the final frame. It counts the frames before it
 without drawing them, and never finds a frame by a rounded time. Frame `k` is at time
 `k / fps`. `traceScene` returns a `Trace`,
-`{ fps, duration, frames, steps }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the model before and after each step and what was shown at its end, not every
+`{ fps, duration, frames, steps }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the persistent model before and after each step, an optional local `state` for a staged specimen, and what was shown at its end, not every
 intermediate value; call `scene.stateJson()` at chosen sample times for those. It runs the
 scene into a `TraceSink`, whose `steps()` are those records: hand one to a run of your own to
 trace it beside other output.

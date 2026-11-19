@@ -84,10 +84,10 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
         { value: 'edit', label: 'Edit hello.txt' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
     const answer = answerOf(this);
-    const which = settingsOf(this).change,
+    const which = settingsOf(this, GitExplainer).change,
       add = which === 'add',
       repo = new Repo(),
       s = stage(this, { headingSize: 0.6, style: STYLE }),

@@ -245,10 +245,10 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         { value: 'nudge', label: 'A nudge each frame' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
     const answer = answerOf(this);
-    const motion = settingsOf(this).motion as Motion;
+    const motion = settingsOf(this, LanternExplainer).motion;
     const s = stage(this, { headingSize: 0.6, style: STYLE });
     const ink = s.look.ink,
       emphasis = s.look.emphasis,

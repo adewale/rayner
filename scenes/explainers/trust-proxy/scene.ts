@@ -233,13 +233,13 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       default: 'direct',
       options: REQUEST_KEYS.map((q) => ({ value: q, label: REQUEST_LABEL[q] })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const scriptAnswer = scriptAnswerOf(this);
-    const values = settingsOf(this),
-      trustKey = values.trust as TrustKey,
-      reqKey = values.request as RequestKey;
+    const values = settingsOf(this, TrustProxyExplainer),
+      trustKey = values.trust,
+      reqKey = values.request;
     const req = REQUESTS[reqKey],
       got = atExpress(req),
       trust = TRUSTS[trustKey],

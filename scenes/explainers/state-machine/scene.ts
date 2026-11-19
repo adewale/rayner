@@ -1,5 +1,4 @@
 import { frames, RING, drawSocketCard, branchSpans, drawTrails, drawRing, drawBranch, walkToken, SEND_LINES } from './picture.ts';
-import type { When } from './picture.ts';
 import { Scene, Text, Create, FadeIn, AnimationGroup, Succession } from '../../../src/index.ts';
 import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
@@ -46,13 +45,13 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
         { value: 'closing', label: 'Right after close()' },
       ],
     },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
   override state = socketStart();
   /** The socket's card, rebuilt from scene.state at every sync. */
   readout!: View<Card>;
 
   override async construct() {
-    const which = settingsOf(this).when as When,
+    const which = settingsOf(this, StateMachineExplainer).when,
       s = stage(this, { headingSize: 0.6, style: 'dracula' });
     // Where the page's machine starts: a new socket, or one whose open handler has sent "hi".
     const start: SocketState = which === 'connecting' ? socketStart() : { ...socketReplay(['server accepts', 'send()']), event: null, result: null, branch: null };

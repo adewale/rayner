@@ -218,12 +218,12 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       default: 'fixed30',
       options: (Object.keys(RULES) as Rule[]).map((k) => ({ value: k, label: RULES[k].name })),
     },
-  ];
+  ] as const;
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this),
-      key = values.lifetime as LifetimeKey,
-      rule = values.rule as Rule,
+    const values = settingsOf(this, CertRenewalExplainer),
+      key = values.lifetime,
+      rule = values.rule,
       other: Rule = rule === 'fraction' ? 'fixed30' : 'fraction',
       life = LIFETIMES[key],
       short = key === '160h',

@@ -17,6 +17,7 @@ import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
 import { liveBase, logStart, runLive } from '../explain/live.ts';
 import { whenReady, beginAnimation, interpolateAnimation, finishAnimation, matchRows } from '../src/animation.ts';
+import { describeScenario } from '../explain/describe.ts';
 
 await loadFonts();
 
@@ -141,6 +142,93 @@ test('reachable states are found breadth first, each with its shortest events, u
     next: (s, e) => (e === 'FLIP' ? { b: 1 - s.b, a: s.a } : { a: s.a, b: 1 - s.b }),
   });
   assert.deepEqual(flip.reachable().map((r) => r.path), [[], ['FLIP']]);
+});
+
+test('machine exploration distinguishes a closed graph exactly at its limit from an equally sized truncated prefix', () => {
+  const scene = new Scene<Lamp>(new NullSink());
+  const closed = new Machine(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: 3 });
+  assert.deepEqual(closed.explore(), { states: [
+    { state: { level: 0 }, path: [] },
+    { state: { level: 1 }, path: ['UP'] },
+    { state: { level: 2 }, path: ['UP', 'UP'] },
+  ], complete: true });
+  const growing = new Machine(scene, { start: { level: 0 }, events: ['UP'], next: (s) => ({ level: s.level + 1 }), views: [], limit: 3 });
+  assert.deepEqual(growing.reachable(), closed.reachable(), 'identical retained states do not imply identical coverage');
+  assert.equal(growing.explore().complete, false);
+  const singleton = new Machine(scene, { start: { level: 0 }, events: ['STAY'], next: (s) => s, views: [], limit: 1 });
+  assert.deepEqual(singleton.explore(), { states: [{ state: { level: 0 }, path: [] }], complete: true });
+});
+
+test('Machine rejects invalid exploration limits at JavaScript boundaries before registration', () => {
+  const scene = new Scene<Lamp>(new NullSink());
+  for (const limit of [0, -1, 1.5, Infinity, -Infinity, NaN, '3', new Number(3), null, {}]) {
+    assert.throws(() => new Machine(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: limit as number }),
+      /^RangeError: new Machine\(\): limit must be a positive finite integer$/);
+    assert.equal(machinesOf(scene).length, 0);
+  }
+  const defaulted = new Machine(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: undefined });
+  assert.equal(defaulted.spec.limit, 256);
+});
+
+test('Machine rejects a same-shaped view of another scene before it can read the wrong state', () => {
+  const left = new Scene<Lamp>(new NullSink()), right = new Scene<Lamp>(new NullSink());
+  left.state = right.state = { level: 0 };
+  const foreign = view(left, (s) => new Rectangle({ width: 1 + s.level, height: 1 }));
+  assert.throws(() => new Machine(right, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [foreign] }),
+    /^RangeError: new Machine\(\): every view must belong to this scene/);
+  assert.equal(machinesOf(right).length, 0);
+  const own = view(right, (s) => new Rectangle({ width: 1 + s.level, height: 1 }));
+  assert.doesNotThrow(() => new Machine(right, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [own] }));
+});
+
+/** The start is either absorbing, or the first state of the same chain as the live origin. */
+function originScene(limit: number, absorbingStart: boolean) {
+  return class Origins extends Scene<{ n: number }> {
+    override state = { n: 1 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st) => keyed(new Text(`state ${st.n}`, { fontSize: 0.6 }), 'state'));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine(this, {
+        start: { n: 0 }, events: ['NEXT', 'RESET'], views: [picture], limit, runTime: 0.05,
+        next: (st, event) => event === 'RESET' ? (absorbingStart ? { n: 0 } : undefined)
+          : st.n === 0 && absorbingStart ? st : st.n === 6 ? undefined : { n: st.n + 1 },
+      });
+      await this.step('press');
+      await this.play(machine.send('NEXT'));
+    }
+  };
+}
+
+test('check retains each origin\'s completeness before deduplicating their overlapping states, and describe reports both', async () => {
+  for (const limit of [3, 6]) {
+    const Source = originScene(limit, true);
+    const ran = await new Source(new NullSink()).run();
+    const [checked] = await exploreMachines(ran, Source);
+    assert.equal(checked!.states, limit);
+    assert.equal(checked!.sampled, limit === 3);
+    assert.deepEqual(checked!.problems, []);
+    const described = await describeScenario(Source, {}, { drawings: false });
+    assert.equal(described.machines!.length, 1);
+    assert.deepEqual(described.machines![0], {
+      events: ['NEXT', 'RESET'], start: { n: 0 }, states: 1, complete: true, step: 'press',
+      live: { from: 'rest', state: { n: 2 }, states: limit, complete: limit === 6, ...(limit === 3 ? { sampled: true } : {}) },
+    });
+  }
+});
+
+test('a live origin already in the start\'s sampled prefix still gets its own exploration budget', async () => {
+  const Source = originScene(3, false);
+  const ran = await new Source(new NullSink()).run();
+  const [checked] = await exploreMachines(ran, Source);
+  // From start: 0,1,2. From rest: 2,3,4. Skipping a previously seen origin would miss 3 and 4.
+  assert.equal(checked!.states, 5);
+  assert.equal(checked!.sampled, true);
+  assert.deepEqual(checked!.problems, []);
+  const [described] = (await describeScenario(Source, {}, { drawings: false })).machines!;
+  assert.deepEqual([described!.states, described!.complete, described!.sampled], [3, false, true]);
+  assert.deepEqual(described!.live, { from: 'rest', state: { n: 2 }, states: 3, complete: false, sampled: true });
 });
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
@@ -554,6 +642,28 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
   assert.deepEqual((await exploreMachines(ends, Ends))[0]!.problems, []);
   // A live step that ends finished starts the reader's events from the machine's start.
   assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
+  assert.deepEqual((await describeScenario(Ends, {}, { drawings: false })).machines![0]!.live,
+    { from: 'start', state: { level: 0 }, states: 3, complete: true });
+});
+
+test('describe exposes live-origin coverage only for the machine that owns the step\'s controls', async () => {
+  class SharedStep extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const picture = view(this, (st) => new Rectangle({ width: 1 + st.level, height: 1 }));
+      this.add(picture);
+      const spec = { start: { level: 0 }, events: ['UP'], views: [picture], next: (st: Lamp) => ({ level: (st.level + 1) % 3 }), runTime: 0.05 };
+      const first = new Machine(this, spec), last = new Machine(this, spec);
+      await this.step('press');
+      await this.play(first.send('UP'));
+      await this.play(last.send('UP'));
+    }
+  }
+  const { machines } = await describeScenario(SharedStep, {}, { drawings: false });
+  assert.equal(machines!.length, 2);
+  assert.deepEqual(machines!.map((m) => m.step), ['press', 'press']);
+  assert.equal(machines![0]!.live, undefined, 'the first machine is not the one whose buttons the player shows');
+  assert.deepEqual(machines![1]!.live, { from: 'rest', state: { level: 2 }, states: 3, complete: true });
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {

@@ -64,9 +64,9 @@ test('the public story compares both rules and shows each ticket decision in bot
     }
     // Both runs start and land the searches at the same ticks, so one set of bars serves both tracks.
     assert.deepEqual(on.lifetimes,off.lifetimes);
-    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
+    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.state,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
     for(const step of v.trace.steps.filter(s=>s.step==='reader-first'||s.step==='reader-ticket')){
-      const r=having(step.after,'ticket','accepted');
+      const r=having(step.state!,'ticket','accepted');
       assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
     }
   }

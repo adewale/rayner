@@ -129,12 +129,12 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
         label: m === DEFAULT_RESERVE ? `-m ${m} (default)` : `-m ${m}`,
       })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const size = values.size as Size,
+    const values = settingsOf(this, Ext4SpaceExplainer);
+    const size = values.size,
       m = Number(values.reserve);
     const name = SIZES[size].label;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });

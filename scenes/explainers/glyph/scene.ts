@@ -63,9 +63,9 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
         { value: 'mono', label: 'JetBrains Mono' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const font = settingsOf(this).font as FontName,
+    const font = settingsOf(this, GlyphExplainer).font,
       other: FontName = font === 'sans' ? 'mono' : 'sans',
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
       ink = s.look.ink,

@@ -57,10 +57,10 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
         { value: 'random', label: 'Opens a random unchosen door' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const settings = settingsOf(this),
-      host = settings.host as Host,
+    const settings = settingsOf(this, MontyHall),
+      host = settings.host,
       other: Host = host === 'informed' ? 'random' : 'informed',
       // The first pick is A: picking B or C only relabels the doors.
       choice = 0,

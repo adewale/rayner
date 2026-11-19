@@ -113,6 +113,22 @@ with nothing after it. `stateAt` must be a function of `t` alone and return JSON
 The great-circle explainer turns its globe this way, and the henge explainer runs its
 year and lowers its camera.
 
+Several views can follow the same model without competing state writers:
+
+```ts
+import { tweenState } from 'rayner/explain';
+await tweenState(this, (t) => ({ angle: Math.PI * t }), {
+  views: [orbit, angleReadout], runTime: 1, rateFunc: linear,
+});
+```
+
+`tweenState` samples one state and redraws all listed views from it. Each view must
+read this scene's model, and appear once. It reserves the model write as well as the
+pictures, so a simultaneous tween or machine state adoption is refused. Its targets
+are the pictures on screen when its turn begins, including pictures swapped in by
+earlier syncs. The family-shape, easing, seeking and single-use contracts are the
+same as `view.tween`.
+
 Parts of an authored transition follow with `c.follow(spec, opts)` on the
 transition's choreography, `spec` a `FollowSpec`, `{ from, to, draw }`:
 

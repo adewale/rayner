@@ -6,7 +6,7 @@ import { stage, settingsOf, answerOf, Machine, view, having } from '../../../exp
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
 import type { RaceStep, LatestSearchState } from './picture.ts';
 import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from './model.ts';
-import type { CompletionOrder, RaceState, RaceEvent } from './model.ts';
+import type { RaceState, RaceEvent } from './model.ts';
 
 // The story (script.md): the race without a guard first, then the ticket as its fix. Search A is
 // the keystroke "ca", search B the latest keystroke "cat". The two timelines that show the page are
@@ -35,9 +35,9 @@ export default class LatestSearchExplainer extends Scene<LatestSearchState, {}> 
         { value: 'old-first', label: '“ca” answers first' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const order = settingsOf(this).order as CompletionOrder;
+    const order = settingsOf(this, LatestSearchExplainer).order;
     const s = stage(this, { style: 'github-dark', headingSize: 0.6 });
     const { race, overwrite, middle, guard, events } = await story(order, answerOf(this));
     const isRace = (st: object): st is RaceState => 'log' in st && 'guarded' in st;

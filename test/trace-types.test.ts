@@ -8,7 +8,7 @@ import { Scene } from '../src/index.ts';
 import { loadProject, traceScene, withSettings } from '../explain/testing.ts';
 import { bindSnapshots } from '../explain/internal.ts';
 import type { Jsonified, StepRecord, Trace, TraceOf } from '../explain/testing.ts';
-import type { EndedStep, SceneState, Step } from '../src/index.ts';
+import type { EndedStep, SceneClass, SceneState, Step } from '../src/index.ts';
 import LatestSearch from '../scenes/explainers/latest-search/scene.ts';
 
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -47,6 +47,7 @@ test('traceScene types every state from the scene class, and an untyped scene gi
   same<TraceOf<typeof Typed>, Trace<Jsonified<Model> & { walks?: unknown }, Jsonified<{ lit?: string }> & Record<string, unknown>>>(true);
   same<TraceOf<typeof Untyped>, Trace>(true);
   same<TraceOf<any>, Trace>(true);
+  same<TraceOf<SceneClass>, Trace>(true);
   const trace = await traceScene(Typed);
   const after = trace.steps[0]!.after;
   const count: number = after.count;
@@ -67,6 +68,25 @@ test('traceScene types every state from the scene class, and an untyped scene gi
   void plain;
   const loose = await traceScene(Untyped);
   assert.equal(loose.steps[0]!.after.anything, 1);
+});
+
+test('an interface-initialized state is a valid scene constructor and its trace keeps concrete field types', async () => {
+  interface Counter { count: number; label: string }
+  const initial = (): Counter => ({ count: 7, label: 'seven' });
+  class InterfaceState extends Scene<Counter, {}> {
+    override state = initial();
+    override async construct() { await this.step('one'); this.state.count++; }
+  }
+  const constructor: SceneClass = InterfaceState;
+  const trace = await traceScene(InterfaceState);
+  const count: number = trace.steps[0]!.after.count;
+  const label: string = trace.steps[0]!.after.label;
+  assert.deepEqual({ count, label }, { count: 8, label: 'seven' });
+  const erased = await traceScene(constructor);
+  const unknown: unknown = erased.steps[0]!.after.count;
+  // @ts-expect-error an erased constructor's model remains unknown JSON, not any
+  const unsafe: number = erased.steps[0]!.after.count;
+  void [unknown, unsafe];
 });
 
 test('the classes withSettings and bindSnapshots bind, and loadProject, keep the scene type', async () => {

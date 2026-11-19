@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text } from '../src/index.ts';
-import { TraceSink } from '../explain/testing.ts';
+import { TraceSink, assertStepState } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
 import type { StagedStep, Stage } from '../explain/index.ts';
 import { FanSink, ViewSink } from '../tools/lib/explain-check.ts';
@@ -36,8 +36,8 @@ const step = (id: string, n: number, draw: StagedStep<{ n: number }>['draw']) =>
 
 test('stage.steps records each state, draws it as a view of that state, and every view redraws the same at its step\'s end', async () => {
   const { scene, trace, checked, problems } = await run(() => [1, 2, 3].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
-  // The model is the step's state and nothing else: which picture is showing is not part of it.
-  assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 1 }, { n: 2 }, { n: 3 }]);
+  assert.deepEqual(trace.steps.map((s) => s.state), [{ n: 1 }, { n: 2 }, { n: 3 }]);
+  assert.deepEqual(trace.steps.map((s) => s.after), [{}, {}, {}], 'local specimens leave the scene model intact');
   assert.ok(trace.steps.every((s) => s.shown?.picture), 'what the stage shows is traced apart, as shown');
   assert.deepEqual({ checked, problems }, { checked: 3, problems: [] });
   // The shown picture is the step's drawing, described by its words.
@@ -47,7 +47,7 @@ test('stage.steps records each state, draws it as a view of that state, and ever
 
 test('a short path records each model as the state, marks its steps short, and redraws from it', async () => {
   const { trace, checked, problems } = await run(() => [4, 5].map((n) => step(`r${n}`, n, (st, s) => words(s, st.n))), 'short');
-  assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 4 }, { n: 5 }]);
+  assert.deepEqual(trace.steps.map((s) => s.state), [{ n: 4 }, { n: 5 }]);
   assert.deepEqual(trace.steps.map((s) => s.meta.kind), ['short', 'short']);
   assert.deepEqual({ checked, problems }, { checked: 2, problems: [] });
 });
@@ -112,6 +112,40 @@ test('stage.steps types each step by its own state, so one list holds steps whos
     }
   }
   void Mixed;
+});
+
+test('heterogeneous staged inputs preserve the typed model during frames, callbacks and the following ordinary step', async () => {
+  const observed: number[] = [], trace = new TraceSink(), checks = new ViewSink();
+  class Persistent extends Scene<{ count: number }> {
+    override state = { count: 7 };
+    override async construct() {
+      const model = this.state;
+      this.onStepEnd(() => { observed.push(this.state.count); assert.equal(this.state, model); });
+      const s = stage(this);
+      await s.steps([
+        { id: 'local-count', title: 'Count', line: 'Count.', caption: 'The local count.', state: { n: 3 }, draw: (st, api) => words(api, st.n) },
+        { id: 'local-name', title: 'Name', line: 'Name.', caption: 'The local name.', state: { label: 'seven' }, draw: (st) => new Text(st.label) },
+      ]);
+      assert.equal(this.state.count, 7);
+      await this.step('model');
+      await s.clear({ runTime: 0 });
+      this.state.count++;
+      await this.wait(0.1);
+    }
+  }
+  const frameCounts: number[] = [];
+  const scene = new Persistent(new FanSink([trace, checks, { async frame(sc) { frameCounts.push((sc as Persistent).state.count); } }]));
+  await scene.run();
+  assert.deepEqual(observed, [7, 7, 8]);
+  assert.ok(frameCounts.length > 5);
+  assert.ok(frameCounts.every((count) => count === 7 || count === 8), 'every frame can read the typed model');
+  assert.deepEqual(trace.steps().map((s) => s.before), [{ count: 7 }, { count: 7 }, { count: 7 }]);
+  assert.deepEqual(trace.steps().map((s) => s.after), [{ count: 7 }, { count: 7 }, { count: 8 }]);
+  assert.deepEqual(trace.steps().map((s) => s.state), [{ n: 3 }, { label: 'seven' }, undefined]);
+  assertStepState({ steps: trace.steps() }, 'local-name', { label: 'seven' });
+  assertStepState({ steps: trace.steps() }, 'model', { count: 8 });
+  assert.equal(checks.checked, 2);
+  assert.deepEqual([...checks.problems, ...checks.ignoringProblems()], []);
 });
 
 test('a staged step’s prediction reaches its step’s metadata, where the player and check read it', async () => {

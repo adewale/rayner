@@ -89,12 +89,12 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
         { value: '4', label: '4 tokens' },
       ],
     },
-  ];
+  ] as const;
   /** The state readout: a View of scene.state, checked against the trace at every step. */
   readout: View | null = null;
 
   override async construct() {
-    const rate = Number(settingsOf(this).rate),
+    const rate = Number(settingsOf(this, TokenBucketExplainer).rate),
       s = stage(this, { headingSize: 0.6, style: 'github-dark' });
     const colours = s.look;
 

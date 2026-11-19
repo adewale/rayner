@@ -106,10 +106,10 @@ export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> 
         { value: 'complete', label: 'Labels yes to Reply' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
     const answer = answerOf(this);
-    const edit = settingsOf(this).edit as Edit,
+    const edit = settingsOf(this, MermaidExplainer).edit,
       missing = edit === 'missing',
       swapped = edit === 'swapped',
       s = stage(this, { headingSize: 0.6, style: STYLE });

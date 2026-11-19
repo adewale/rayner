@@ -76,12 +76,12 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         { value: 'no-scope', label: 'Signed in, no browser scope' },
       ],
     },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
   override state = start('signed in');
   override shown: Shown = SHOWN_START;
 
   override async construct() {
-    const signIn = SIGN_INS[settingsOf(this).signin!]!, story = storyOf(signIn);
+    const signIn = SIGN_INS[settingsOf(this, PoppyBrowser).signin]!, story = storyOf(signIn);
     // The world after each event of the story, from the model, so the words say what it computed.
     const after = story.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);

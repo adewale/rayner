@@ -146,7 +146,7 @@ export function watchedChanges(
  * Refuse a `meta.watch` that cannot work: not a record, more than eight entries, an empty key or
  * label, or a key that is never in the state of any step of any scenario (`steps`, all scenarios' steps).
  */
-export function checkWatch(watch: unknown, steps: readonly { before: SceneState; after: SceneState }[]): void {
+export function checkWatch(watch: unknown, steps: readonly { before: SceneState; after: SceneState; state?: SceneState }[]): void {
   if (watch === undefined) return;
   if (!watch || typeof watch !== 'object' || Array.isArray(watch))
     throw new TypeError('meta.watch: it must be a record from a state key to the label readers see');
@@ -155,7 +155,7 @@ export function checkWatch(watch: unknown, steps: readonly { before: SceneState;
   for (const [key, label] of entries) {
     if (!key) throw new TypeError('meta.watch: it has an empty key');
     if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${JSON.stringify(key)} an empty label`);
-    if (!steps.some((s) => Object.hasOwn(s.before, key) || Object.hasOwn(s.after, key)))
+    if (!steps.some((s) => Object.hasOwn(s.before, key) || Object.hasOwn(s.state ?? s.after, key)))
       throw new RangeError(`meta.watch: it names ${JSON.stringify(key)}, which is never in the scene's state at any step of any scenario`);
   }
 }

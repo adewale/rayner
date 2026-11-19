@@ -4,7 +4,7 @@ Rayner makes an explanation of what this version of this system does, drawn from
 
 The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Rayner checks pictures against that model with documented limits on visual fidelity and state exploration. The page states the author's declared grounding; its build receipt identifies the inputs and output. The result is one HTML page of steps and a transcript, with no runtime network requests.
 
-Each step records the model's state. At the end of every step, `rayner check` compares each view's structure and rendered SVG records with a fresh drawing of that state; staged steps use the same check. This includes paint, path shape, draw fraction, paint order and effective clips at the renderer's precision. It is redraw agreement in Node, not an independent browser-pixel comparison. Machines are explored up to their declared limit (256 states per origin by default); larger machines are sampled, and readers can reach states no check visited. A Mermaid diagram is checked against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. [What the checks establish](docs/REFERENCE.md#checks) and [machine limits](docs/MACHINES.md#what-check-does-with-a-machine) describe the boundaries. The page opens from a file, a static host or an embed.
+Each step records the model's state; a staged step also records its own local input without replacing that model. At the end of every step, `rayner check` compares each view's structure and rendered SVG records with a fresh drawing of its bound input. This includes paint, path shape, draw fraction, paint order and effective clips at the renderer's precision. It is redraw agreement in Node, not an independent browser-pixel comparison. Machines are explored up to their declared limit (256 states per origin by default); larger machines are sampled, and readers can reach states no check visited. A Mermaid diagram is checked against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. [What the checks establish](docs/REFERENCE.md#checks) and [machine limits](docs/MACHINES.md#what-check-does-with-a-machine) describe the boundaries. The page opens from a file, a static host or an embed.
 
 A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, and each step is drawn from the model's state. The view checks can catch the wrong slot label; the model's independent tests establish which label belongs there.
 
@@ -160,11 +160,11 @@ import { drawTower, sayTower } from './picture.ts';
 
 export default class Hanoi extends Scene<Tower, {}> {
   static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] } satisfies ExplainerMeta;
-  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
+  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }] as const;
   override state = start(3);
 
   override async construct() {
-    const n = Number(settingsOf(this).disks), moves = solve(n), few = (moves.length - 1) / 2;
+    const n = Number(settingsOf(this, Hanoi).disks), moves = solve(n), few = (moves.length - 1) / 2;
     const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`, first = moves[0]!.at(-1);
     this.state = start(n);
     const s = stage(this, { headingSize: 0.54 });

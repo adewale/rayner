@@ -23,7 +23,7 @@ import {
   weekGrid,
 } from './model.ts';
 import type { Band, Cell, GtfsDate, Row, ServiceDay } from './model.ts';
-import { drawColumn, drawWeek, departuresPicture, stopNameIn } from './picture.ts';
+import { drawColumn, drawDaySummary, drawWeek, departuresPicture, stopNameIn } from './picture.ts';
 import { listed, numberWord, upperFirst } from '../lib/format.ts';
 
 // Sources, all at google/transit commit 3c9e7b9: the GTFS Schedule reference (lines quoted in
@@ -98,7 +98,6 @@ const FULL: Box = [-7.8, -4.25, 7.8, 3.25];
 const ZOOM = 1.2;
 
 const STOPS = { airport: 'BEATTY_AIRPORT', stagecoach: 'STAGECOACH' } as const;
-type StopKey = keyof typeof STOPS;
 /** A stop's name without the feed's " (Demo)". */
 const stopName = (id: string) => stopNameIn(FEED, id);
 const route = (id: string) => FEED.routes.find((r) => r.route_id === id)!;
@@ -182,14 +181,14 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
         { value: 'stagecoach', label: 'Stagecoach Hotel & Casino' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const date: GtfsDate = values.date!.replace(/-/g, ''),
+    const values = settingsOf(this, GtfsExplainer);
+    const date: GtfsDate = values.date.replace(/-/g, ''),
       before = addDays(date, -1),
-      stopKey = values.stop as StopKey,
+      stopKey = values.stop,
       stopId = STOPS[stopKey];
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
 
@@ -221,15 +220,17 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
           : `none of the ${FEED.trips.length} trips`;
     await this.step('day-before', {
       title: `On ${longDate(before)}, the sample feed runs ${of(was.length)}`,
-      line: `Predict: which of these bars still run the next day, ${longDate(date)}?`,
-      // How many of the day's trips the model's calendar still runs the next day.
-      predict: { options: ['All of them', 'Some of them', 'None of them'], answer: ((kept) => (kept === was.length ? 0 : kept ? 1 : 2))(was.filter((t) => tripsToday.includes(t)).length) },
-      caption: `Google’s sample GTFS feed, the CSV files a transit agency gives trip planners, describes an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the timetable it follows. A one-off trip spans first departure to last arrival; a repeating trip, the hours its vehicles leave the first stop. Bars marked “no service” do not run that day. On ${shortDate(before)} ${
+      line: `Predict: how many trips run the next day, ${longDate(date)}?`,
+      predict: { options: ['0 trips', '4 trips', '7 trips', '11 trips'], answer: `${tripsToday.length} trips` },
+      caption: `Google’s sample GTFS feed describes an invented Demo Transit Authority with ${FEED.routes.length} bus routes. The left count is the route list; the right count is how many trips run on this date. On ${shortDate(before)} ${
         wasServices.length === 2 ? 'both timetables run' : wasServices.length ? `only ${wasServices[0]} runs` : 'neither runs'
-      }.`,
+      }. Change the date without changing the route list: what will happen to the active trips?`,
     });
-    const chart = await s.show({ source: ganttSource(FEED, before) }, { box: FULL });
     this.state.dayBefore = { date: before, running: was.map((t) => t.trip_id!) };
+    await s.enter(view(this, st => {
+      const day = having(st, 'dayBefore').dayBefore;
+      return drawDaySummary(day.date, FEED.routes.length, day.running.length, FEED.trips.length, s);
+    }, { place: false }));
 
     // ------------------------------------------------------------------ day
     const edits = ganttEdits(FEED, before, date);
@@ -253,8 +254,19 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
           : ''
       } To see why, follow one trip, AB1, from its route to its dates.`,
     });
-    await chart.morph({ source: ganttSource(FEED, date) }, { ops: edits });
+    await s.clear();
     this.state.day = { date, running: tripsToday.map((t) => t.trip_id!), edits: edits.length };
+    await s.enter(view(this, st => {
+      const day = having(st, 'day').day;
+      return drawDaySummary(day.date, FEED.routes.length, day.running.length, FEED.trips.length, s);
+    }, { place: false }));
+
+    // The complete timetable is available in Details, after the main comparison has been read whole.
+    await this.step('day-chart-before', { kind: 'detail', title: `Trip times on ${longDate(before)}`, caption: 'One bar per trip, grouped by service_id. A repeating trip spans the hours vehicles leave its first stop; a one-off trip spans its first departure to last arrival. A bar marked no service does not run on this date.' });
+    await s.clear();
+    const chart = await s.show({ source: ganttSource(FEED, before) }, { box: FULL });
+    await this.step('day-chart', { kind: 'detail', title: `Trip times on ${longDate(date)}`, caption: `The same route and trip rows, on the next date. The calendar changes which services run, leaving ${tripsToday.length} active trips. The main path now follows AB1 from its route row to those calendar rules.` });
+    await chart.morph({ source: ganttSource(FEED, date) }, { ops: edits });
 
     // ------------------------------------------------------------------ route-trip
     const tripsByRoute = FEED.routes.map(

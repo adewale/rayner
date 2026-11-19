@@ -21,8 +21,8 @@ export interface FidelityRun {
 /**
  * An explainer's fidelity check: every step's state against the program it explains, for one
  * scenario. A check whose steps hold the scene's model declares its trace typed from the scene,
- * `trace: TraceOf<typeof Explainer>` (`FidelityCheck<typeof Explainer>`); one that reads a staged
- * step's own state takes a plain Trace.
+ * `trace: TraceOf<typeof Explainer>` (`FidelityCheck<typeof Explainer>`). A staged step's optional
+ * `state` is a local JSON record in either a typed or plain trace; narrow its fields when read.
  */
 export type FidelityCheck<C = SceneClass> = (trace: TraceOf<C>, values: Record<string, string>, run: FidelityRun) => void | Promise<void>;
 

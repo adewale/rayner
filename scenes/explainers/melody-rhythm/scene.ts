@@ -3,7 +3,6 @@ import type { AudioClip } from '../../../explain/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { musicStory, NOTE_NAMES } from './model.ts';
-import type { Timing } from './model.ts';
 import { scorePicture } from './picture.ts';
 import type { Look } from './picture.ts';
 
@@ -61,10 +60,10 @@ export default class MelodyRhythm extends Scene<{}, {}> {
         { value: 'straight', label: 'Keep the same timing as A' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const v = settingsOf(this),
-      m = musicStory(v.timing as Timing, BPM),
+    const v = settingsOf(this, MelodyRhythm),
+      m = musicStory(v.timing, BPM),
       different = m.movedStarts > 0;
     // B's notes that start on bar 2's 1, by index: none when G holds across the bar line.
     const onTheOne = (clip: AudioClip) => clip.notes.flatMap((n, i) => (n.at === 4 ? [`${clip.id}-${i}`] : []));

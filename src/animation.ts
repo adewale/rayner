@@ -478,7 +478,7 @@ export interface KeyMatch {
   fallback?: MatchKey;
 }
 
-export interface TransformOptions extends AnimationOptions {
+export type TransformOptions = AnimationOptions & {
   /**
    * The scene holds `target` afterwards. Default false for a morph by index; true when parts are
    * matched (the source ends holding faded parts and copies of the target's new ones) and with
@@ -507,7 +507,17 @@ export interface TransformOptions extends AnimationOptions {
    * the play begins, so it is the mobject as the play found it whatever the argument order. Default false.
    */
   fromCopy?: boolean;
-}
+} & ({ fromCopy?: false; replace?: boolean } | { fromCopy: true; replace?: true });
+
+/** A saved-state transform changes the original by index, with no matching or handover options. */
+type SavedTransformOptions = AnimationOptions & {
+  match?: never;
+  fromCopy?: never;
+  replace?: never;
+  ordered?: never;
+  staged?: never;
+  fadeMismatches?: never;
+};
 
 /**
  * What a Transform knows of its target as it begins: `owned`, built for it alone, so it is used without
@@ -585,11 +595,16 @@ export class Transform extends Animation {
   #state!: Mobject;
   #same = false;
 
-  constructor(mobject: Mobject, target: Mobject | 'saved', { replace, match = 'index', ordered, staged = false, fadeMismatches = true, fromCopy = false, ...opts }: TransformOptions = {}) {
+  constructor(mobject: Mobject, target: Mobject, options?: TransformOptions);
+  constructor(mobject: Mobject, target: 'saved', options?: SavedTransformOptions);
+  constructor(mobject: Mobject, target: Mobject | 'saved', options?: SavedTransformOptions);
+  constructor(mobject: Mobject, target: Mobject | 'saved', options: TransformOptions | SavedTransformOptions = {}) {
+    const { replace, match = 'index', ordered, staged = false, fadeMismatches = true, fromCopy = false, ...opts } = options;
     super(fromCopy ? new Group() : mobject, opts);
     const key = keyOfMatch(match);
     this.#toSaved = target === 'saved';
-    if (this.#toSaved && (key || fromCopy || replace)) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop ${key ? '`match`' : fromCopy ? '`fromCopy`' : '`replace`'}`);
+    const savedOption = this.#toSaved && ['match', 'fromCopy', 'replace', 'ordered', 'staged', 'fadeMismatches'].find((name) => name in options);
+    if (savedOption) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop \`${savedOption}\``);
     if (fromCopy && replace === false) throw new Error('new Transform(): with fromCopy the copy hands over to the target, so the scene holds the target; drop `replace: false`');
     this.target = target === 'saved' ? mobject : target;
     this.replace = replace ?? (key !== null || fromCopy);
@@ -1555,6 +1570,8 @@ export abstract class MadeAtTurn extends AnimationGroup {
  */
 export interface Beat {
   runTime: number;
+  /** The writes known before the beat makes its animations; checked before a play begins. */
+  targets?: readonly Mobject[];
   play: () => ScheduledAnimation[];
   after?: () => void;
 }
@@ -1583,7 +1600,7 @@ function checkBeatTime(call: string, beat: Beat, made: readonly ScheduledAnimati
 class BeatPlay extends MadeAtTurn {
   readonly #beat: Beat;
   constructor(beat: Beat, call: string) {
-    super(call, 'a beat', beat.runTime);
+    super(call, 'a beat', beat.runTime, beat.targets);
     this.#beat = beat;
   }
   protected override make(): ScheduledAnimation[] {

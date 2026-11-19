@@ -9,6 +9,9 @@ import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { idsOf, stepIdsOf } from './lib/steps.ts';
 import { RestingSink } from '../tools/lib/explain-check.ts';
+import { Scene } from '../src/index.ts';
+import { describeScenario } from '../explain/describe.ts';
+import { seeText } from '../tools/lib/explain-see.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
   // As the tools describe it: collected, so its id is its folder's name.
@@ -29,18 +32,19 @@ test('describeExplainer gives every scenario and step: the words, the state the 
       assert.equal(s.title, t.meta.title);
       assert.equal(s.line, t.meta.line ?? '', `${s.step}: the line under the title`);
       assert.equal(s.caption, t.meta.caption);
-      const state = t.after, picture = t.shown?.picture;
-      assert.deepEqual(s.state, state, `${s.step}: state is the trace's model; the picture is traced as shown`);
+      assert.equal(s.kind, t.meta.kind ?? 'main');
+      const state = t.state ?? t.after, picture = t.shown?.picture;
+      assert.deepEqual(s.state, state, `${s.step}: state is the trace's local specimen or model; the picture is traced as shown`);
       assert.ok(picture === undefined || s.picture.length > 0, `${s.step}: the picture in words`);
-      const before = t.before;
+      const before = trace.steps[i - 1]?.state ?? t.before;
       const changedKeys = [...new Set([...Object.keys(before), ...Object.keys(state)])]
         .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(state[key]));
       assert.deepEqual(Object.keys(s.changed).sort(), changedKeys.sort(), `${s.step}: complete changed-key set`);
       for (const [k, change] of Object.entries(s.changed)) {
         // A side is there exactly when the value was set, so the JSON says the same as the object.
-        assert.equal('before' in change, k in t.before);
+        assert.equal('before' in change, k in before);
         assert.equal('after' in change, k in state);
-        assert.deepEqual(change.before, t.before[k]);
+        assert.deepEqual(change.before, before[k]);
         assert.deepEqual(change.after, state[k]);
         assert.notDeepEqual(change.before, change.after);
       }
@@ -54,6 +58,50 @@ test('describeExplainer gives every scenario and step: the words, the state the 
   assert.deepEqual(result.changed.tail, { before: 0, after: 2 });
   // JSON-safe: what an agent reads from a file is what the function returned.
   assert.deepEqual(JSON.parse(JSON.stringify(d)), d);
+});
+
+test('describe and see retain step kinds, teaching order and resolved prediction/reveal metadata', async () => {
+  class Paths extends Scene {
+    override async construct() {
+      await this.step('ask', { kind: 'short', predict: { prompt: 'Which number?', options: ['Zero', 'One'], answer: 'One' } });
+      await this.step('aside', { kind: 'detail' });
+      await this.step('answer', { predict: { options: ['Same', 'Different'], answer: 0, reveal: 'finish' } });
+      await this.step('notes', { kind: 'detail' });
+      await this.step('finish');
+    }
+  }
+  const d = await describeScenario(Paths, {}, { drawings: false });
+  assert.deepEqual(d.teaching, ['ask', 'answer', 'finish']);
+  assert.deepEqual(d.steps.map((s) => s.kind), ['short', 'detail', 'main', 'detail', 'main']);
+  assert.deepEqual(d.steps.map((s) => s.predict ?? null), [
+    { prompt: 'Which number?', options: ['Zero', 'One'], answer: 1, reveal: 'answer' },
+    null, { options: ['Same', 'Different'], answer: 0, reveal: 'finish' }, null, null,
+  ]);
+  assert.deepEqual(d.steps.map((s) => s.reveals ?? []), [[], [], ['ask'], [], ['answer']]);
+  assert.equal(d.predictionProblems, undefined);
+  assert.match(seeText('paths', d, 'ask'), /Path: short · teaching step 1 of 3/);
+  assert.match(seeText('paths', d, 'ask'), /Prediction: Which number\? Zero \/ One; answer: One; revealed at answer/);
+  assert.match(seeText('paths', d, 'aside'), /Path: detail · outside the teaching path/);
+  assert.match(seeText('paths', d, 'answer'), /Reveals predictions from: ask/);
+  assert.deepEqual(JSON.parse(JSON.stringify(d)), d);
+});
+
+test('describe follows the all-detail fallback and reports a broken prediction instead of claiming a reveal', async () => {
+  class Details extends Scene {
+    override async construct() {
+      await this.step('first', { kind: 'detail', predict: { options: ['Yes', 'No'], answer: 0 } });
+      await this.step('second', { kind: 'detail', predict: { options: ['Yes', 'No'], answer: 1, reveal: 'missing' } });
+    }
+  }
+  const d = await describeScenario(Details, {}, { drawings: false });
+  assert.deepEqual(d.teaching, ['first', 'second']);
+  assert.equal(d.steps[0]!.predict!.reveal, 'second');
+  assert.deepEqual(d.steps[1]!.reveals, ['first']);
+  assert.equal(d.steps[1]!.predict, undefined);
+  assert.equal(d.predictionProblems!.length, 1);
+  assert.match(d.predictionProblems![0]!, /names reveal "missing", which is not a step/);
+  assert.match(seeText('details', d, 'second'), /Path: detail · teaching step 2 of 2/);
+  assert.match(seeText('details', d, 'second'), /Prediction problem: .*names reveal "missing"/);
 });
 
 test('a step\'s resting picture has one text drawing: rayner check\'s restingFrames is describe\'s drawing, the heading left out of both', async () => {

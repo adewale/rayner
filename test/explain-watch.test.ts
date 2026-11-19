@@ -149,6 +149,7 @@ test('a change reads "Label: before → after", "Label: after" or "Label: remove
 test('checkWatch refuses a watch that cannot work and names the problem', () => {
   const steps = [{ before: {}, after: { tokens: 5 } }, { before: { tokens: 5 }, after: { tokens: 0, gone: 1 } }];
   checkWatch(undefined, steps);
+  checkWatch({ specimen: 'Specimen' }, [{ before: {}, after: {}, state: { specimen: 1 } }]);
   checkWatch({ tokens: 'Tokens', gone: 'Gone' }, steps);
   assert.throws(() => checkWatch({ nope: 'Nope' }, steps), /meta\.watch: it names "nope", which is never in the scene's state/);
   assert.throws(() => checkWatch({ tokens: '   ' }, steps), /meta\.watch: it gives "tokens" an empty label/);

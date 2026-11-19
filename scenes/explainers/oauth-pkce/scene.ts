@@ -78,9 +78,9 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
         { value: 'no', label: 'No' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const attacker = settingsOf(this).attacker === 'yes';
+    const attacker = settingsOf(this, OAuthExplainer).attacker === 'yes';
     const digest = sha256(VERIFIER),
       challenge = pkceChallenge(VERIFIER),
       s = stage(this, { headingSize: 0.6, style: STYLE });

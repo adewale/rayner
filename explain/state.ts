@@ -1,19 +1,26 @@
 // Rayner's animations of state: SetState adopts a model state at its place in a schedule built
 // before it plays (each event of a machine's send and replay), and Follow writes the pictures of
-// one sampled number into its targets (under view.tween and a transition's follow). Kept out of
+// one sampled number into its targets (under view.tween, tweenState and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
 import { Animation, playsOn } from '../src/animation.ts';
 import type { AnimationOptions } from '../src/animation.ts';
-import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
+import { Group, Mobject as MobjectClass, keyed } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { cloneJson } from '../src/json.ts';
 import type { JsonObject } from '../src/json.ts';
 import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 
-// A shared, non-drawing target makes simultaneous SetStates on one Scene
-// visible to play()'s ordinary overlap check. Separate scenes do not conflict.
+// A shared, non-drawing target makes model writers on one Scene visible to
+// play()'s ordinary overlap check. Separate scenes do not conflict.
 const stateTargets = new WeakMap<object, Group>();
+
+/** @internal The shared write target for a scene's model, including sampled changes. */
+export function stateTarget(host: object): Group {
+  let target = stateTargets.get(host);
+  if (!target) { target = keyed(new Group(), 'Scene.state'); stateTargets.set(host, target); }
+  return target;
+}
 
 /** @internal */
 export interface SetStateOptions {
@@ -36,9 +43,7 @@ export class SetState<S extends object = SceneState> extends Animation {
   constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
-    let target = stateTargets.get(host);
-    if (!target) { target = new Group(); stateTargets.set(host, target); }
-    super(target, { runTime: 0, remover: true });
+    super(stateTarget(host), { runTime: 0, remover: true });
     this[playsOn] = host;
     this.event = event;
     this.snapshot = snapshot;
