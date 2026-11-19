@@ -51,6 +51,12 @@ const CAUGHT: readonly string[] = [
  * The one entry early words catches (poppy-last-object-lingers) takes most of a minute, so it runs with FULL=1.
  */
 const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades'];
+const selected = process.env.FULL ? CORPUS : CORPUS.filter(e => SAMPLE.includes(e.id));
+let campaign: ReturnType<typeof runCorpus> | undefined;
+// Both assertions share one immutable campaign. FULL runs 59 unique variants, not 59 plus 3.
+const resultsOfCampaign = () => campaign ??= runCorpus(selected, {bases: false,
+  progress: r => console.error(`[motion corpus] ${r.id}: ${r.error ? 'ERROR' : r.caught ? 'caught' : 'missed'} (${(r.ms / 1000).toFixed(1)}s)`),
+});
 
 test('every corpus entry still applies to the current Poppy scenes, and names its events', async () => {
   const files = new Map<string, string>();
@@ -70,15 +76,18 @@ test('every corpus entry still applies to the current Poppy scenes, and names it
 test('a sample of the corpus: a defect each for covers, small words and flicker is caught', async () => {
   const entries = CORPUS.filter((e) => SAMPLE.includes(e.id));
   // The catalog's gate keeps the scenes as they are free of findings, so no baseline is run here.
-  const { results } = await runCorpus(entries, { bases: false });
-  for (const r of results) {
+  const { results } = await resultsOfCampaign();
+  const sample = results.filter(r => SAMPLE.includes(r.id));
+  assert.deepEqual(sample.map(r => r.id), entries.map(e => e.id));
+  for (const r of sample) {
     assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
     assert.ok(r.caught, `${r.id} is no longer caught`);
   }
 });
 
 test('the whole corpus: every defect caught when recall was measured is still caught', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it checks every corpus entry, about 14 minutes on four cores' }, async () => {
-  const { results } = await runCorpus(CORPUS, { bases: false });
+  const { results } = await resultsOfCampaign();
+  assert.deepEqual(results.map(r => r.id), CORPUS.map(e => e.id), 'every unique variant ran once, in corpus order');
   for (const r of results) assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
   const caught = results.filter((r) => r.caught).map((r) => r.id);
   assert.deepEqual(CAUGHT.filter((id) => !caught.includes(id)), [], 'entries no longer caught');

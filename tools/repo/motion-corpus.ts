@@ -40,13 +40,14 @@ export function runInChild(id: string, full = false): Promise<EntryResult> {
  * With `bases: false` (the catalog's gate keeps each baseline free of findings) none is run.
  */
 export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 4, full = false, bases = true, progress }: { jobs?: number; full?: boolean; bases?: boolean; progress?: (r: EntryResult) => void } = {}): Promise<{ results: EntryResult[]; baselines: EntryResult[] }> {
-  const pool = async (ids: readonly string[], fullRun: boolean) => {
+  const pool = async (ids: readonly string[], fullRun: boolean, completed?: (r: EntryResult, i: number) => EntryResult) => {
     const out = new Array<EntryResult>(ids.length);
     let next = 0;
     const worker = async () => {
       while (next < ids.length) {
         const i = next++;
-        out[i] = await runInChild(ids[i]!, fullRun);
+        const result = await runInChild(ids[i]!, fullRun);
+        out[i] = completed ? completed(result, i) : result;
       }
     };
     await Promise.all(Array.from({ length: Math.min(jobs, ids.length) }, worker));
@@ -55,8 +56,11 @@ export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 4, ful
   const chapters = bases ? [...new Set(entries.map((e) => e.chapter))] : [];
   const baselines = await pool(chapters.map((c) => baseline(c).id), true);
   const byChapter = new Map(chapters.map((c, i) => [c, baselines[i]!] as const));
-  const results = (await pool(entries.map((e) => e.id), full)).map((r, i) => againstBaseline(r, byChapter.get(entries[i]!.chapter)));
-  for (const r of results) progress?.(r);
+  const results = await pool(entries.map((e) => e.id), full, (r, i) => {
+    const result = againstBaseline(r, byChapter.get(entries[i]!.chapter));
+    progress?.(result); // Report each completion, including its baseline subtraction, while others run.
+    return result;
+  });
   return { results, baselines };
 }
 

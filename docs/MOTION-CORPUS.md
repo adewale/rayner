@@ -22,6 +22,8 @@ node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 
 `test/motion-corpus.test.ts` checks that every entry's edits still apply, runs a sample by default (one entry each for covers, small words and flicker; 16 s), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry (14 minutes on four cores) and fails if one caught when recall was measured is missed. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
+The sample and full assertions share one campaign. In `FULL=1`, each of the 59 variants runs once and the three sample assertions inspect those same results; the normal run still executes only the three samples. Baseline subtraction and input-order results are preserved. A progress callback receives each adjusted result as its child finishes, rather than waiting for the entire pool.
+
 ## Recall
 
 Measured on 2026-11-15, focused runs, the catalog as of this page. Before: 3 of 59 (5%). After: 26 of 59 (44%). The "which rule" column names the rules whose findings were the entry's own (not in its chapter's baseline).
