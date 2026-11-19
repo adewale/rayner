@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/timeline.ts';
-import { collectProject } from '../../tools/lib/explain-project.ts';
+import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
@@ -181,4 +181,27 @@ test('liveStart reaches earlier model states through real buttons and survives l
   } finally {
     await browser.close(); server?.close(); await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('statecharts live pictures read whole on phones in both standalone and framed reviews', options, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-statecharts-phone-'));
+  try {
+    const project = await collectProject(join(ROOT, 'scenes/explainers/statecharts'), { write: false });
+    const result = await reviewScene(project, directory);
+    assert.equal(result.scenarios, 1);
+    assert.equal(result.liveStateWidths, 20);
+    assert.equal(result.framedLiveStateWidths, 10);
+    const scenario = result.results[0]!;
+    const liveSteps = [...scenario.steps.filter(s => s.width === 390), ...scenario.framedSteps]
+      .filter(s => s.step === 'parent' || s.step === 'frother');
+    assert.equal(liveSteps.length, 4);
+    for (const step of liveSteps) {
+      assert.equal(step.views, 1);
+      assert.ok(step.minimumLabelPxWholeStage !== null && step.minimumLabelPxWholeStage >= 12);
+      assert.deepEqual(step.partiallyVisibleLabels, []);
+    }
+    for (const state of [...scenario.live!, ...scenario.framedLive]) {
+      assert.ok(state.minimumLabelPx1280 !== null && state.minimumLabelPx1280 >= 44.79);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

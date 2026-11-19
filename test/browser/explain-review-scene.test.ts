@@ -65,10 +65,13 @@ test('an outside author reviews every served scenario and width; a false caption
     assert.deepEqual(result.results.map(c => c.steps.map(s => s.width)), [[390, 1180], [390, 1180]]);
     assert.deepEqual(result.consoleErrors, []);
     assert.deepEqual(result.runtimeConnections, []);
+    const stale = [join(output, '0', 'one.390.view99.png'), join(output, '0', 'framed', 'one.390.view99.png')];
+    for (const file of stale) await writeFile(file, 'old screenshot');
     await writeFile(claims, JSON.stringify({ version: 2, subjects: [{ step: 'one', targets: [{ text: 'Missing answer' }] }] }));
     await assert.rejects(reviewScene(project, output), /story target Missing answer is missing/);
     await assert.rejects(readFile(join(output, 'review.json')), { code: 'ENOENT' });
     assert.deepEqual(await readFile(published), artifact, 'a failed review preserves the last reviewed page');
+    for (const file of stale) await assert.rejects(readFile(file), { code: 'ENOENT' });
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 

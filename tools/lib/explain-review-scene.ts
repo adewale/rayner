@@ -1,6 +1,6 @@
 import { measureEmbed, embedSizeProblems } from '../repo/lib/explain-embed-size.ts';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdir, mkdtemp, rm, copyFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir, mkdir, mkdtemp, rm, copyFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { reviewCodeHash } from './explain-review-plan.ts';
@@ -82,12 +82,17 @@ export async function reviewScene(project: Project, directory: string, subjectsF
     try {
       for (const [index, scenario] of project.scenarios.entries()) {
         const output = join(directory, String(index));
-        await mkdir(output, { recursive: true });
+        const framedOutput = join(output, 'framed');
+        // Remove stale view captures from a previous run.
+        for (const folder of [output, framedOutput]) {
+          await mkdir(folder, { recursive: true });
+          const entries = await readdir(folder, { withFileTypes: true });
+          await Promise.all(entries.filter(entry => entry.isFile() && /\.(?:320|390|1180)(?:\.view\d+|\.whole)?\.png$/.test(entry.name))
+            .map(entry => rm(join(folder, entry.name))));
+        }
         const steps = await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, output);
         // The pictures a reader reaches by pressing a live step's events (docs/MACHINES.md, "The player").
         const live = await reviewLiveStates(page, server.url + '/scene.html', scenario, await liveSubjects(scenario, project.Scene.meta?.lang), output);
-        const framedOutput = join(output, 'framed');
-        await mkdir(framedOutput, { recursive: true });
         const framedSteps = await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, framedOutput, undefined, true);
         const framedLive = await reviewLiveStates(page, server.url + '/scene.html', scenario, await liveSubjects(scenario, project.Scene.meta?.lang), framedOutput, true);
         results.push({ settings: scenario.values, steps, ...(live.length ? { live } : {}), framedSteps, framedLive });
