@@ -58,6 +58,9 @@ before(async () => {
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
+  const camera = await collectProject('test/fixtures/camera-composition', { write: false });
+  projects.set('camera-composition', camera);
+  await buildExplainer(camera, join(folder, 'camera-composition.html'));
   // A real scene counts executions without adding player hooks or changing its artwork; a run after
   // the first (a step rendered on demand) can wait as it reaches step-1, as an asynchronous render does.
   const probe=join(folder,'playback-probe');await mkdir(probe);
@@ -1648,7 +1651,7 @@ test(
     }
   },
 );
-// The author's camera (lantern's 'begin' step focuses the camera on Mobject and Animation) and the reader's
+// The fixture explicitly frames half the stage, then glides home. The author's camera and the reader's
 // zoom compose: Whole picture is the author's frame, a zoom narrows it, and the camera's glide home in the
 // next step plays under a held zoom.
 test(
@@ -1660,7 +1663,7 @@ test(
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
-      await visitReader(page, embed + '/lantern.html?step=begin');
+      await visitReader(page, embed + '/camera-composition.html?step=focus');
       await quiet(page);
       const rect = (v: string) => v.split(' ').map(Number);
       const home = '-8000 -4500 16000 9000';
@@ -1678,7 +1681,7 @@ test(
       const [cx, cy, cw, ch] = rect(zoomed.camera) as [number, number, number, number],
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
-      // Next plays 'check', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
+      // Next plays 'home', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
       // Observe in the browser before the click. Polling over CDP can miss the
       // entire short glide under load even when the browser paints every frame.
       await page.evaluate(() => {
@@ -1709,11 +1712,11 @@ test(
       try {
         const small = await phone.newPage();
         small.on('pageerror', (e) => errors.push(e.message));
-        await visitReader(small, embed + '/lantern.html?step=begin');
+        await visitReader(small, embed + '/camera-composition.html?step=focus');
         await quiet(small);
         const p = await paintedView(small);
         assert.equal(p.camera, author.camera, 'the phone shows the same author frame');
-        const layout = (await stepLayouts(projects.get('lantern')!.scenarios[0]!.Scene)).get('begin');
+        const layout = (await stepLayouts(projects.get('camera-composition')!.scenarios[0]!.Scene)).get('focus');
         const want = closeUps(layout, p.w, p.h)[0]!,
           got = zoomOf(p);
         if (want.k === 1) assert.equal(got, null);
