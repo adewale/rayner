@@ -174,8 +174,8 @@ try {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
-  await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
-  await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
+  // Keep every fixture named by the consumer config, including negative API controls.
+  await cp(join(ROOT, 'test/consumer'), folder, { recursive: true });
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
   // Every explainer, its tests and every recipe, engine imports rewritten to the entry points, type-check
   // against the packed declarations, where @internal members are left out.
