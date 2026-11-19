@@ -70,6 +70,8 @@ test('CI platform checks consume the early validated candidate and six story sha
   assert.match(job('package'), /name: rayner-package-\$\{\{ github.sha \}\}/);
   assert.match(job('compatibility'), /name: rayner-package-\$\{\{ github.sha \}\}/);
   assert.doesNotMatch(job('check'), /run release:check/);
+  assert.match(job('check'), /if: always\(\) && needs.scope.outputs.full == 'true'/);
+  assert.match(job('check'), /run: test "\$PACKAGE_RESULT" = success/);
   assert.match(job('story-part'), /part: \[1, 2, 3, 4, 5, 6\]/);
   assert.match(job('story-part'), /--shard \$\{\{ matrix.part \}\}\/6/);
   assert.match(job('story-part'), /browser-review-shard-\$\{\{ matrix.part \}\}-of-6.json/);
