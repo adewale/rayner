@@ -485,6 +485,30 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
   assert.equal(pages, shellFixtures.length);
   assert.equal(languages.size,2,'English and French both visited');
 });
+
+test('reader shell recognizes phone event controls without accepting empty gaps around them', options, async () => {
+  const { PRODUCT } = await import('../../scenes/explainers/catalog.ts');
+  const project = projects.get('token-bucket')!, scenario = defaultScenario(project);
+  const step = [...scenario.live!.keys()][0]!;
+  const contract = { chrome: readerChrome(chromeFor(project.Scene.meta?.lang)), home: PRODUCT.home,
+    scenarios: project.Scene.settings?.length ?? 0, steps: teachingSpecs(project, scenario.values).map(s => s.step) };
+  await readerPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' },
+    `${embed}/token-bucket.html?${new URLSearchParams({ ...scenario.values, step })}`, async page => {
+      const row = page.locator('.player > .live:not([hidden])');
+      await row.waitFor();
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+      // Each real gap must still fail under the page's CSP; controls are content, not a waiver.
+      await row.evaluate(el => { el.style.marginTop = '200px'; });
+      assert.ok((await page.evaluate(readerShellProblems, contract)).includes('empty space separates navigation from the live controls'));
+      await row.evaluate(el => { el.style.marginTop = ''; el.style.marginBottom = '200px'; });
+      assert.ok((await page.evaluate(readerShellProblems, contract)).includes('empty space separates navigation from the step heading'));
+      await row.evaluate(el => { el.style.marginBottom = ''; });
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.waitForSelector('.rail-body > .live:not([hidden])');
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+    });
+});
 // player-guidance G1: under the caption, what the step changed of the state the author watches.
 const changesOf = (page: Page) =>
   page.evaluate(() => {
