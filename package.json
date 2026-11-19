@@ -21,7 +21,7 @@
     "check:budgets": "node tools/repo/page-budgets.ts",
     "pack:smoke": "node tools/repo/explain-package-smoke.ts",
     "site:export": "node tools/repo/explain-site.ts",
-    "test:embeds": "EXPLAIN_BROWSER=1 node --test test/browser/*.test.ts",
+    "test:embeds": "EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test test/browser/*.test.ts",
     "release:check": "node tools/repo/prepare-release.ts",
     "bench": "node tools/repo/bench.ts",
     "bench:rendering": "node bench/rendering/compare.ts",
