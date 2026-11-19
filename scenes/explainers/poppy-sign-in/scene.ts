@@ -158,7 +158,7 @@ export default class SignIn extends Scene<World, Shown> {
       trick: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
         // Up from below the stage beside the counter, clear of the agent's tag, then across to where it is stopped.
-        return beats(c, flight(c, 'trick', [[-0.25, -4.6], [-0.25, -2.0]], { move: 0.8 }), { fresh: FRESH, then: ['barrier'] });
+        return beats(c, flight(c, 'trick', [[2.2, -4.6], [2.2, -2.0]], { move: 0.8 }), { fresh: FRESH, then: ['barrier'] });
       },
       thief: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
@@ -201,7 +201,7 @@ export default class SignIn extends Scene<World, Shown> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.4 : 1.8) : event === 'ask' ? 2.6 : 1.6),
+      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 4.45 : 2.8) : event === 'ask' ? 4.1 : 2.35),
       transition,
     });
     const replay = (from: number, to: number) => machine.replay(story.slice(from, to));

@@ -79,6 +79,26 @@ async function stageAt(where: Page | Frame, step: string) {
   });
 }
 
+test('a raw iframe replans and reapplies its opening after growing from the browser default height', options, async () => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'});
+  try {
+    const page = await context.newPage();
+    hostBody = `<!doctype html><style>body{margin:0}iframe{width:100%;border:0}</style><iframe src="${embed!.url}/closer.html"></iframe>`;
+    await page.goto(host);
+    const handle = await page.waitForSelector('iframe'), frame = (await handle.contentFrame())!;
+    await frame.waitForSelector('[data-ready=true]');
+    await stageAt(frame, STEPS[0]!);
+    await page.locator('iframe').evaluate(el => { el.style.height = '1000px'; });
+    await frame.waitForFunction(() => innerHeight === 1000);
+    await stageAt(frame, STEPS[0]!);
+    const resized = await frame.locator('.stage svg:not(.leaving)').evaluate(el => el.getAttribute('viewBox'));
+    await frame.goto(frame.url());
+    await frame.waitForSelector('[data-ready=true]');
+    await stageAt(frame, STEPS[0]!);
+    assert.equal(await frame.locator('.stage svg:not(.leaving)').evaluate(el => el.getAttribute('viewBox')), resized, 'resized opening equals a fresh opening at the final size');
+  } finally { await context.close(); }
+});
+
 /** The stage on every step, standalone and framed by the loader, at a 390 × 844 phone. */
 async function phoneStages(id: string) {
   const sizes: Record<'standalone' | 'framed', { w: number; h: number; narrow: boolean }[]> = { standalone: [], framed: [] };

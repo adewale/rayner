@@ -29,6 +29,37 @@ import {
 } from '../app/embed-closeup.ts';
 import type { StepLayout } from '../app/embed-closeup.ts';
 
+test('an opening includes readable sibling labels inside its named box', async () => {
+  class SiblingLabel extends Scene {
+    override async construct() {
+      const s = stage(this, {heading: false});
+      await this.step('box');
+      const box = new Rectangle({width: 3, height: 2});
+      const label = new Text('A sibling label', {fontSize: 0.2});
+      this.add(box, label);
+      s.opening(box);
+    }
+  }
+  const layout = (await stepLayouts(SiblingLabel)).get('box')!;
+  assert.ok(layout.opening!.labels.length > 0);
+  const opening = closeUp(layout, 358, 448);
+  assert.ok(layout.opening!.labels.every(l => l.size * stageScale(358, 448).s * opening.k >= READ_PX - 1e-6));
+});
+
+test('an author can request a close-up even when the whole picture already reads', async () => {
+  class Requested extends Scene {
+    override async construct() {
+      const s = stage(this, {heading:false});
+      await this.step('detail');
+      const subject = new Group(new Rectangle({width:3,height:2}),new Text('Large',{fontSize:0.7}));
+      this.add(subject);s.opening(subject,{zoom:2});
+    }
+  }
+  const layout=(await stepLayouts(Requested)).get('detail')!;
+  assert.equal(layout.opening!.zoom,2);
+  assert.ok(closeUps(layout,358,447.5)[0]!.k>=2);
+});
+
 test('changed regions include visible stroke width before clipping to the authored viewport', async () => {
   await fc.assert(fc.asyncProperty(
     fc.integer({min: 1, max: 6}), fc.integer({min: 1, max: 6}),

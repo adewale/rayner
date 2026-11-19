@@ -234,9 +234,10 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
+  let keptZoom: number | undefined;
   /** What each view diagramView made draws: diagramView again with another draw replaces it. */
   const viewDraws = new WeakMap<View<Mobject, S, Sh>, { draw: (state: S, shown: Sh) => DiagramPicture }>();
-  scene.onStep(() => opening(scene, ...kept));
+  scene.onStep(() => opening(scene, ...kept, {zoom: keptZoom}));
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
   stagePalettes.set(scene, () => ({ ...colors }));
@@ -561,12 +562,13 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      * With `{ keep: true }` last, they are the opening of this step and of every later one, until
      * another kept opening replaces them (none clears them); a step's own opening still wins for
      * that step. For a picture that stays on stage while the steps change it, such as a machine's view. */
-    opening(...args: Mobject[] | [...Mobject[], { keep: boolean }]) {
+    opening(...args: Mobject[] | [...Mobject[], { keep?: boolean; zoom?: number }]) {
       const last = args.at(-1);
       const keep = !!last && !(last instanceof Mobject) && (last as { keep: boolean }).keep;
       const subjects = (last && !(last instanceof Mobject) ? args.slice(0, -1) : args) as Mobject[];
-      if (keep) kept = [...subjects];
-      opening(scene, ...subjects);
+      const zoom = last && !(last instanceof Mobject) ? last.zoom : undefined;
+      if (keep) { kept = [...subjects]; keptZoom = zoom; }
+      opening(scene, ...subjects, {zoom});
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
     code(lines: readonly string[], opts: CodeBlockOptions = {}): Action<CodeBlock> {

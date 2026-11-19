@@ -8,6 +8,7 @@ import { Animation, AnimationGroup, MadeAtTurn, Succession } from '../src/animat
 import type { Match } from '../src/animation.ts';
 import { SetState } from './state.ts';
 import { canonicalJson } from '../src/json.ts';
+import { cloneJson } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
@@ -36,6 +37,9 @@ export interface MachineSpec<S extends object, E extends string> {
    * refused, why, so the buttons, their reasons and the model cannot disagree.
    */
   next: (state: S, event: E) => S | Refusal | undefined;
+  /** A transient response, kept as shown.result for views and traces, outside durable state identity.
+   * Called only for accepted events. Return undefined to clear the previous response. */
+  result?: (t: { event: E; before: S; after: S }) => SceneState | undefined;
   /**
    * Where the explainer's story stops though the model would go on: the reason, in the reader's
    * words, when `event` from `state` is beyond the story (the client sends ten requests), else
@@ -87,6 +91,8 @@ export interface Transition<S, E> {
   event: E;
   before: S;
   after: S;
+  /** The transient response of this accepted event, when the model supplies result(). */
+  result?: SceneState;
   /** `view`'s picture of `after`, placed where the view will finish. Throws for a view the machine does not have. */
   target(view: View): Mobject;
   /** `choreograph(view.current, target(view))`: the view's parts, from what it shows now to its target. */
@@ -162,8 +168,8 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * @internal What the scene showed when this machine last played (`scene.shown`), or null before it played.
-   * A machine never changes what is shown; a guided tour may change it between events. Exploration
-   * draws every reachable state under the last, and the live player explores under it too.
+   * A guided tour may change presentation between events. A machine with result() also replaces
+   * shown.result. Exploration and the live player retain the other presentation fields.
    */
   get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
 
@@ -226,7 +232,16 @@ export class Machine<S extends object, E extends string> {
       if (!placed.has(view)) placed.set(view, view.placed(after));
       return placed.get(view)!;
     };
-    return { event, before, after, target, choreograph: (view) => choreograph(view.current, target(view)) };
+    const result = this.spec.result?.({event, before, after});
+    return { event, before, after, ...(result === undefined ? {} : {result}), target, choreograph: (view) => choreograph(view.current, target(view)) };
+  }
+
+  /** @internal Adopt an accepted event's transient result; exploration uses the same presentation path. */
+  present(event: E, before: S, after: S): void {
+    if (!this.spec.result) return;
+    const {result: _previous, ...shown} = this.scene.shown;
+    const result = this.spec.result({event, before, after});
+    this.scene.shown = result === undefined ? shown : {...shown, result: cloneJson(result, 'machine.result()', 'result')};
   }
 
   /**
@@ -254,8 +269,9 @@ export class Machine<S extends object, E extends string> {
     return new Succession([
       new SetState(this.scene, (current) => {
         if (canonicalJson(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${JSON.stringify(before)} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
-        this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
+        this.present(event, before, after);
+        this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         return after;
       }, { event }),
       transition
@@ -366,6 +382,12 @@ class WhenItsTurnComes extends MadeAtTurn {
   }
   protected override make(): ScheduledAnimation[] {
     return [this.#make()];
+  }
+  protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
+    const duration = Math.max(0, ...made.map(a => a.runTime));
+    if (duration > this.runTime + 1e-8)
+      throw new RangeError(`${this.call}: authored transition lasts ${duration.toFixed(3)} s but the event allows ${this.runTime.toFixed(3)} s; increase the machine runTime or shorten the transition instead of compressing its fades`);
+    return super.slots(made);
   }
 }
 

@@ -6,7 +6,8 @@
 // take a gone one out. rest() moves every keyed part no call has handled to its target, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, Enclosing, FadeIn, FadeOut, MoveAlongPath, Transform } from '../src/animation.ts';
+import { Animation, AnimationGroup, Create, Enclosing, FadeIn, FadeOut, MoveAlongPath, Succession, Transform } from '../src/animation.ts';
+import { Text } from '../src/text.ts';
 import type { AnimationOptions, TransformOptions } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { FollowSpec } from './state.ts';
@@ -23,13 +24,22 @@ import { keyed } from '../src/index.ts';
  */
 class Joining extends Enclosing {
   readonly #inner: Animation;
-  constructor(part: Mobject, inner: Animation, { remover }: AnimationOptions) {
+  readonly #before?: () => void;
+  readonly #after?: () => void;
+  constructor(part: Mobject, inner: Animation, { remover }: AnimationOptions, before?: () => void, after?: () => void) {
     super(part, { runTime: inner.runTime, rateFunc: linear, remover });
     this.#inner = inner;
+    this.#before = before;
+    this.#after = after;
   }
   protected override enclose(): Animation {
+    this.#before?.();
     this.mobject.restore();
     return this.#inner;
+  }
+  protected override doFinish(end = this.rateFunc(1)): void {
+    super.doFinish(end);
+    if (end === 1) this.#after?.();
   }
 }
 
@@ -81,7 +91,7 @@ export interface Choreography {
    */
   travel(key: string, token: Mobject, path: VMobject, times?: { appear?: number; move?: number; leave?: number }): { appear: Animation; move: Animation; leave: Animation };
   /** Every keyed part not yet handled: morphed when both pictures have it, faded in or out when one does. */
-  rest(opts?: AnimationOptions): AnimationGroup;
+  rest(opts?: AnimationOptions & {text?: 'whole' | 'glyphs'}): AnimationGroup;
 }
 
 /**
@@ -92,6 +102,7 @@ export interface Choreography {
 export function choreograph(current: Mobject, target: Mobject): Choreography {
   const now = keyedParts(current), want = keyedParts(target);
   const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
+  const replacements = new Map<string, Mobject>();
   // A part that has left may enter again, once: replacing a part in place with a new one.
   const claim = (key: string, entering = false) => {
     if (done.has(key) && !(entering && left.has(key))) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already animated; name each part in one call`);
@@ -140,12 +151,39 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
     enter(key, how = {}, opts = {}) {
       const target = to(key);
       const like = how.from !== undefined ? from(how.from) : target;
+      if (now.has(key)) {
+        claim(key);
+        const old = from(key), part = target.copy();
+        part.saveState(); part.setOpacity(0); current.add(part);
+        replacements.set(key, part);
+        return new Joining(part, new FadeIn(part, opts), opts, () => {
+          if (current.family().includes(old)) throw new Error(`t.choreograph(): leave ${JSON.stringify(key)} must play before its replacement enters`);
+        });
+      }
+      if (how.from !== undefined) {
+        // Keep the target's family and keys intact. A temporary source copy travels/morphs,
+        // then hands its identical final ink to the target instead of replacing opaque leaves.
+        const part = make(key, target), proxy = like.copy();
+        for (const [i, m] of proxy.family().entries()) if (i === 0 || m.key !== undefined) keyed(m, `${key}:source:${i}:${m.key ?? 'part'}`);
+        proxy.saveState(); proxy.setOpacity(0);
+        // The copy emerges from behind its source instead of covering the source's words.
+        current.insert(0,proxy);
+        return new Joining(proxy, new Transform(proxy, target, {match: 'shapes', ...opts}), opts, undefined, () => {
+          current.remove(proxy); part.restore();
+        });
+      }
       const part = make(key, like);
-      const inner = how.from !== undefined ? new Transform(part, target, opts) : how.create ? new Create(part, opts) : new FadeIn(part, opts);
+      const inner = how.create ? new Create(part, opts) : new FadeIn(part, opts);
       return new Joining(part, inner, opts);
     },
     leave(key, opts = {}) {
       const part = from(key);
+      const replacement = replacements.get(key);
+      if (replacement) {
+        replacements.delete(key);
+        now.set(key, replacement);
+        return new FadeOut(part, {...opts, remover: true});
+      }
       // A part the author put in that the target does not have may pass through: in, then out.
       if (passing.has(key)) passing.delete(key);
       else claim(key);
@@ -172,12 +210,18 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
         leave: self.leave(key, { runTime: leave }),
       };
     },
-    rest(opts = {}) {
-      const anims: Animation[] = [];
+    rest({text = 'whole', ...opts} = {}) {
+      const anims: (Animation | AnimationGroup)[] = [];
       for (const key of new Set([...now.keys(), ...want.keys()])) {
         if (done.has(key) && !left.has(key)) continue;
         if (left.has(key)) { if (want.has(key)) anims.push(self.enter(key, {}, opts)); continue; }
-        if (now.has(key) && want.has(key)) anims.push(self.morph(key, opts));
+        if (now.has(key) && want.has(key)) {
+          const a = from(key), b = to(key);
+          if (text === 'whole' && a instanceof Text && b instanceof Text && a.text !== b.text) {
+            const half = {...opts, runTime: (opts.runTime ?? 1) / 2};
+            anims.push(new Succession([self.leave(key, half), self.enter(key, {}, half)]));
+          } else anims.push(self.morph(key, opts));
+        }
         else if (want.has(key)) anims.push(self.enter(key, {}, opts));
         else anims.push(self.leave(key, opts));
       }

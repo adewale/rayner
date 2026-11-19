@@ -102,7 +102,7 @@ export default class Conversations extends Scene<World, Shown> {
       next,
       bound,
       views: [world],
-      runTime: ({ event }) => (event === 'direct' || event === 'close' ? 1.6 : 1.4),
+      runTime: ({event}) => event === 'joins' ? 2 : event === 'invite' ? 1.75 : 1.8,
       transition: {
         ask: spoken,
         you: spoken,

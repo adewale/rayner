@@ -20,6 +20,36 @@ import { whenReady, beginAnimation, interpolateAnimation, finishAnimation, match
 
 await loadFonts();
 
+test('transient machine results reach views and traces without multiplying durable states', async () => {
+  class Responses extends Scene<{on: boolean}, {guide: string; result?: {status: number}}> {
+    override state = {on: true};
+    override shown = {guide: 'keep'};
+    override async construct() {
+      const s = stage(this, {heading: false});
+      await this.step('responses');
+      const picture = view(this, (st, sh) => new Group(keyed(new Text(`${st.on ? 'On' : 'Off'}: ${sh.result?.status ?? 'Ready'}`, {fontSize: 0.6}), 'response')));
+      s.keep(picture);
+      const machine = new Machine(this, {
+        start: {on: true}, events: ['ok', 'denied', 'clear'] as const,
+        next: st => ({...st}), views: [picture], runTime: 0.2,
+        result: ({event}) => event === 'clear' ? undefined : {status: event === 'ok' ? 200 : 403},
+      });
+      await machine.replay(['ok', 'denied']);
+      assert.deepEqual(this.state, {on: true});
+      assert.deepEqual(this.shown, {guide: 'keep', result: {status: 403}});
+      assert.deepEqual(picture.texts, ['On: 403']);
+      assert.equal(machine.reachable().length, 1);
+      await machine.send('clear');
+      assert.deepEqual(this.shown, {guide: 'keep'});
+      assert.deepEqual(picture.texts, ['On: Ready']);
+    }
+  }
+  const scene = await new Responses(new NullSink()).run();
+  const explored = await exploreMachines(scene, Responses);
+  assert.equal(explored[0]!.states, 1);
+  assert.deepEqual(explored[0]!.problems, []);
+});
+
 type Lamp = { level: number };
 const LEVELS = ['off', 'dim', 'bright'] as const;
 const next = (s: Lamp, e: 'UP' | 'OFF'): Lamp => ({ level: e === 'OFF' ? 0 : Math.min(2, s.level + 1) });
@@ -240,7 +270,7 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
         if (!b) return;
         return b[0] >= -8 && b[2] <= 8 ? true : `the box spans ${b[0].toFixed(2)} to ${b[2].toFixed(2)}`;
       });
-      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], transition: { UP: (t) => transition(t, picture) } });
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], runTime: 1.1, transition: { UP: (t) => transition(t, picture) } });
       await this.step('press');
       await this.play(this.machine.replay(['UP', 'UP', 'OFF']));
     }
@@ -669,7 +699,7 @@ test('an authored transition lands a picture whose parts repeat a key by redrawi
       this.add(this.pair);
       const machine = new Machine<N, 'UP'>(this, {
         start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [this.pair], runTime: 0.2,
-        transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair)) },
+        transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair), {runTime: 0.2}) },
       });
       await this.step('up');
       await this.play(machine.replay(['UP', 'UP']));

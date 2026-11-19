@@ -152,6 +152,11 @@ and one whose picture did not change record none.
 
 ### A picture that did not change
 
+Use `view.sync({how:'fade'})` to exchange whole pictures without shrinking unmatched parts.
+The old picture fades out in the first half and the new one fades in in the second, retaining
+their geometry and each child's authored opacity. It needs no keys. `how:'morph'` is the usual
+matching sync; its keyed default replaces changed words whole.
+
 If the rebuilt, placed picture matches the current one, the sync sets up no
 transform. "Matches" means the same family shape and point counts, points within
 1e-5, equal styles and equal strings. Nothing moves, the current child stays, and

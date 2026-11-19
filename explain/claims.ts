@@ -3,7 +3,8 @@ import { normalise } from './script.ts';
 
 /** Optional evidence links and editorial lint over step titles, lines and captions.
  * Matching a phrase to a named test is not proof of truth or of what that test asserts.
- * Stage labels and the reader questions' answers need separate review. See docs/REFERENCE.md, meta.claims.
+ * Stage labels and reader questions are included when supplied by the command. This is editorial
+ * lint, not semantic proof. See docs/REFERENCE.md, meta.claims.
  */
 export interface Claim {
   /** A phrase of the sentence the claim backs, matched as a reader reads it (case and quotes ignored). */
@@ -19,6 +20,7 @@ export interface Claim {
 }
 export interface ClaimsMeta {
   claims?: unknown;
+  questions?: readonly {question: string; answer: string}[];
 }
 
 /** English scope words worth inspecting; this is not a complete claim detector. */
@@ -63,14 +65,18 @@ export interface ClaimsReport {
 }
 
 /** One scenario's claims report: its scope sentences, which declared claims back them, and its code names. */
-export function claimsReport(meta: ClaimsMeta | undefined, steps: readonly Step[]): ClaimsReport {
+export function claimsReport(meta: ClaimsMeta | undefined, steps: readonly Step[], drawings: readonly {step: string; text: string}[] = []): ClaimsReport {
   const claims = checkClaimsMeta(meta);
   const scope: ClaimsReport['scope'] = [],
     code = new Map<string, string>(),
     stated = new Set<string>();
-  for (const s of steps) {
+  const surfaces = steps.map(s => {
     const w = stepWords(s);
-    for (const text of [w.title, w.line, w.caption]) {
+    return {step: s.step, texts: [w.title, w.line, w.caption, ...drawings.filter(d => d.step === s.step).map(d => d.text)]};
+  });
+  for (const [i, q] of (meta?.questions ?? []).entries()) surfaces.push({step: `reader question ${i + 1}`, texts: [q.question, q.answer]});
+  for (const s of surfaces) {
+    for (const text of s.texts) {
       for (const sentence of sentences(text)) {
         const n = normalise(sentence);
         const matches = claims.filter((c) => n.includes(normalise(c.says)));

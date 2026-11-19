@@ -9,6 +9,7 @@ import { NullSink } from '../src/timeline.ts';
 import { toSvgString } from '../src/svg.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 
 /** A picture of keyed parts. */
 const picture = (...parts: [string, Mobject][]) => new Group(...parts.map(([key, m]) => keyed(m, key)));
@@ -60,6 +61,26 @@ test('a part brought in later is unseen until its turn, and can grow from a copy
   assert.equal(marks(done), marks(after()));
 });
 
+test('entry from a group with a different family preserves target keys without opaque cut-outs', async () => {
+  const source = new Group(keyed(new Rectangle({width: 1, height: 1}), 'source:body'), keyed(new Dot().shift([0.4,0]), 'source:dot')).shift([-3,0]);
+  const destination = new Group(keyed(new Circle({radius: 0.5}), 'arrived:body')).shift([3,0]);
+  const current = picture(['source', source]), target = picture(['source', source.copy()], ['arrived', destination]);
+  class Entry extends Scene {
+    override async construct() {
+      await this.step('entry'); this.add(current);
+      const c = choreograph(current, target), enter = c.enter('arrived', {from: 'source'});
+      const keys = current.family().flatMap(m => m.key === undefined ? [] : [m.key]);
+      assert.equal(new Set(keys).size, keys.length, 'temporary source copies have separate keys');
+      await this.play(new Succession([enter, c.rest()]));
+    }
+  }
+  const sink = new MotionSink();
+  await new Entry(sink).run();
+  assert.equal(marks(current), marks(target));
+  assert.ok(current.find('arrived:body'));
+  assert.deepEqual(analyzeMotion(sink).filter(f => f.kind === 'cut-out'), []);
+});
+
 test('a part may leave and enter again (replaced in place), but not be animated twice otherwise', () => {
   const same = () => picture(['a', new Circle({ radius: 0.5 })]);
   const c = choreograph(same(), same());
@@ -69,6 +90,24 @@ test('a part may leave and enter again (replaced in place), but not be animated 
   const d = choreograph(same(), same());
   d.morph('a');
   assert.throws(() => d.morph('a'), /already animated/);
+});
+
+test('replacement construction order does not change leave-then-enter playback', async () => {
+  const same = () => picture(['a', new Circle({radius: 0.5})]);
+  const target = same();
+  const landed = await play(same(), current => {
+    const c = choreograph(current, target);
+    const enter = c.enter('a');
+    const leave = c.leave('a');
+    return new Succession([leave, enter]);
+  });
+  assert.equal(marks(landed), marks(target));
+  await assert.rejects(play(same(), current => {
+    const c = choreograph(current, target);
+    const enter = c.enter('a');
+    const leave = c.leave('a');
+    return new Succession([enter, leave]);
+  }), /must play before/);
 });
 
 test('a passing part the target does not have comes in, moves and goes out, and the picture still lands', async () => {

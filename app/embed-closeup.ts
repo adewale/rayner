@@ -23,7 +23,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes, paints, paintsStroke, viewOf, dryRun, FRAME, STAGE_BOX, zoomOf } from '../src/internal.ts';
-import { labelOf, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading } from '../explain/internal.ts';
+import { labelOf, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading, liveSteps } from '../explain/internal.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 
@@ -50,8 +50,10 @@ export interface LayoutLabel {
 }
 /** What a step's resting picture holds, for framing it; boxes and sizes in the camera's view units. */
 export interface StepLayout {
+  /** A machine may move context between presses; retain the authored tour's camera coverage. */
+  dynamic?: true;
   /** Authored comparison, independent of incidental changed code or notes. */
-  opening?: { box: Box; labels: LayoutLabel[] };
+  opening?: { box: Box; labels: LayoutLabel[]; zoom?: number };
   /**
    * What changed or received fresh helper emphasis, in the camera's view units, as
    * separate parts in reading order (rows top to bottom, each left to right); empty
@@ -332,13 +334,18 @@ export function layoutSink(): { sink: LayoutSink; layouts: Map<string, StepLayou
       }
       const box = subjectLeaves.reduce<Box | null>((b, l) => union(b, l.box), null);
       const labels = labelsOf(scene);
-      const subjectLabels = labelsOf(scene, subjects);
+      // Labels may be siblings of their paper/box, rather than descendants of it.
+      const subjectBoxes = openingOf(scene).flatMap(m => m.box() ? [toView(m.box()!, view)] : []);
+      const subjectLabels = [...labelsOf(scene, subjects)];
+      for (const label of labels) if (subjectBoxes.some(b => b[0] <= label.box[0] && b[1] <= label.box[1] && b[2] >= label.box[2] && b[3] >= label.box[3]) &&
+          !subjectLabels.some(l => l.size === label.size && l.box.every((v, i) => v === label.box[i]))) subjectLabels.push(label);
       layouts.set(step.name, {
         // A fresh focus can name unchanged artwork. Keep its painted bounds
         // in the tour even when only a nearby label changed this step.
         ...partsOf([...changes, ...intent]),
         labels,
-        ...(box ? { opening: { box: toView(box, view), labels: subjectLabels } } : {}),
+        ...(liveSteps(scene).has(step.path) ? {dynamic:true as const} : {}),
+        ...(box ? { opening: { box: toView(box, view), labels: subjectLabels, ...(openingOf(scene).zoom === undefined ? {} : {zoom: openingOf(scene).zoom}) } } : {}),
         ...(stress.length ? { stress } : {}),
       });
       before = leaves;
@@ -447,6 +454,43 @@ export function stressStarts(layout: StepLayout): [number, number][] {
  * A narrow ReaderSink leaves the stage heading out, so the whole authored frame is
  * available to the picture; no close-up reserves space for the undrawn heading.
  */
+/** Nudge a crop into the gaps between labels while preserving its complete subjects. */
+function completeLabels(z: Zoom, layout: StepLayout, w: number, h: number, max: number, others: Box[]): Zoom {
+  const original = viewBox(z, w, h), {s, ox, oy} = stageScale(w, h);
+  const contains = (outer: Box, inner: Box) => outer[0] <= inner[0] + 1e-6 && outer[1] <= inner[1] + 1e-6 && outer[2] >= inner[2] - 1e-6 && outer[3] >= inner[3] - 1e-6;
+  const partial = (box: Box) => layout.labels.filter(l => overlaps(l.box, box, {touching: false}) && !contains(box, l.box)).length;
+  let count = partial(original);
+  if (!count) return z;
+  const anchors = [...layout.labels.map(l => l.box), ...(layout.opening ? [layout.opening.box] : [])].filter(b => contains(original, b));
+  const coversChanges = (views: Box[]) => layout.parts.every(part => {
+    const edges = [part[0], part[2], ...views.flatMap(v => [v[0],v[2]]).filter(x => x > part[0] && x < part[2])].sort((a,b) => a-b);
+    const xs = [...edges, ...edges.slice(1).map((x,i) => (x+edges[i]!) / 2)];
+    return xs.every(x => {
+      const intervals = views.filter(v => v[0] <= x + 1e-8 && v[2] >= x - 1e-8).map(v => [v[1],v[3]]).sort((a,b) => a[0]!-b[0]!);
+      let reached = part[1];
+      for (const [lo,hi] of intervals) {
+        if (lo! > reached + 1e-8) break;
+        reached = Math.max(reached,hi!);
+        if (reached >= part[3] - 1e-8) return true;
+      }
+      return false;
+    });
+  });
+  const width = original[2] - original[0], height = original[3] - original[1];
+  const near = (values: number[], current: number) => [...new Set(values)].sort((a,b) => Math.abs(a-current)-Math.abs(b-current)).slice(0,12);
+  const xs = near([original[0], ...layout.labels.flatMap(l => [l.box[0] - 0.04, l.box[2] + 0.04 - width])], original[0]);
+  const ys = near([original[1], ...layout.labels.flatMap(l => [l.box[1] - 0.04, l.box[3] + 0.04 - height])], original[1]);
+  let best = z;
+  for (const left of xs) for (const bottom of ys) {
+    const candidate = clampZoom({k:z.k, x:-z.k * (ox + (left-STAGE_BOX[0])*s), y:-z.k * (oy + (STAGE_BOX[3]-bottom-height)*s)},w,h,max);
+    const box = viewBox(candidate,w,h);
+    if (!anchors.every(a => contains(box,a))) continue;
+    const clipped = partial(box);
+    if (clipped < count && coversChanges([...others,box])) { best = candidate; count = clipped; if (!count) return best; }
+  }
+  return best;
+}
+
 export function closeUps(layout: StepLayout | undefined, w: number, h: number, max = ZOOM_MAX): Zoom[] {
   const whole = [clampZoom(IDENTITY, w, h, max)];
   if (!layout || (!layout.parts.length && !layout.opening) || !(w > 0) || !(h > 0) || w >= NARROW_PX) return whole;
@@ -454,10 +498,10 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   // Declared subjects can stay unchanged while another part of the picture changes.
   // Their smaller labels still determine whether the opening needs enlargement.
   const read = [...labelsToRead(layout), ...(layout.opening?.labels ?? [])];
-  if (!read.length) return whole;
+  if (!read.length && !layout.opening?.zoom) return whole;
   const { s, ox, oy } = stageScale(w, h);
   const smallest = Math.min(...read.map((l) => l.size));
-  const reading = Math.min(max, Math.max(1, READ_PX / (smallest * s)));
+  const reading = Math.min(max, Math.max(1, layout.opening?.zoom ?? 1, READ_PX / (smallest * s)));
   if (reading < 1 + 1e-9) return whole;
   const bounds = STAGE_BOX,
     painted = layout.painted ?? layout.parts,
@@ -534,8 +578,8 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   if (layout.opening) {
     const box = meet(pad(layout.opening.box, PAD), STAGE_BOX) ?? layout.opening.box,
       size = layout.opening.labels.length ? Math.min(...layout.opening.labels.map((l) => l.size)) : Infinity,
-      minimum = Math.max(1, READ_PX / (size * s)),
-      fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s));
+      fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s)),
+      minimum = Math.max(1, Math.min(layout.opening.zoom ?? 1, fit, max), READ_PX / (size * s));
     if (minimum <= Math.min(max, fit) + 1e-9) {
       const [cx, cy] = center(box),
         x = ox + (cx - STAGE_BOX[0]) * s,
@@ -551,7 +595,12 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   for (const z of [...opening, views[open]!.zoom, ...first, ...rest])
     if (!zooms.some((o) => Math.abs(o.k - z.k) < 1e-6 && Math.abs(o.x - z.x) < 1e-6 && Math.abs(o.y - z.y) < 1e-6))
       zooms.push(z);
-  return zooms;
+  const adjusted = [...zooms];
+  if (!layout.dynamic) for (let i = 0; i < adjusted.length; i++) adjusted[i] = completeLabels(adjusted[i]!, layout, w, h, max, adjusted.filter((_,j) => i !== j).map(z => viewBox(z,w,h)));
+  const complete: Zoom[] = [];
+  for (const zoom of adjusted)
+    if (!complete.some(z => Math.abs(z.k-zoom.k) < 1e-6 && Math.abs(z.x-zoom.x) < 1e-6 && Math.abs(z.y-zoom.y) < 1e-6)) complete.push(zoom);
+  return complete;
 }
 /**
  * A narrow stage's height over its width for a scenario whose steps have these layouts, on a

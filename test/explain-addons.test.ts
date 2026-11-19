@@ -47,7 +47,7 @@ test('a scene with no diagrams or lettering inits, checks, sees, describes, buil
       return r.stdout;
     };
     run('init', 'first');
-    const check = JSON.parse(run('check', 'first', '--out', join(folder, 'checks')));
+    const check = JSON.parse(run('check', 'first', '--json', '--out', join(folder, 'checks')));
     assert.equal(check.model.passed, check.model.tests, 'the starter model test passes');
     assert.ok(check.model.tests > 0);
     assert.equal(check.diagrams, 0);

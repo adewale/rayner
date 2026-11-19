@@ -507,6 +507,26 @@ test('a play\'s lagRatio has nothing to stagger in a tween, which draws one samp
   assert.deepEqual(await frames({ lagRatio: 1 }), plain);
 });
 
+test('fade-only sync preserves geometry and child opacity while replacing an unkeyed picture', () => {
+  const scene = new Scene<{ changed: boolean }>(new StringSink());
+  scene.state = { changed: false };
+  const v = view(scene, st => new Group(new Rectangle({width: st.changed ? 3 : 2, height: 1, opacity: 0.4})), {place: false});
+  scene.add(v);
+  const old = v.current, box = old.box();
+  scene.state.changed = true;
+  const sync = new ViewSync(v, {how: 'fade'});
+  beginAnimation(sync);
+  interpolateAnimation(sync, 0.25);
+  assert.deepEqual(old.box(), box, 'fading does not shrink the picture');
+  assert.equal(old.children[0]!.style.opacity, 0.4);
+  interpolateAnimation(sync, 0.5);
+  assert.ok(v.children.every(m => m.style.opacity === 0), 'the pictures do not overlap at the handoff');
+  finishAnimation(sync);
+  assert.equal(v.children.length, 1);
+  assert.equal(v.current.width(), 3);
+  assert.equal(v.current.children[0]!.style.opacity, 0.4);
+});
+
 test('a plain view sync replaces changed keyed words as whole words with staged fades', () => {
   const scene = new Scene<{ word: string }>(new StringSink());
   scene.state = { word: 'before' };

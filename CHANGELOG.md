@@ -6,6 +6,12 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Machine responses can live in `shown.result` outside durable state identity. Live links and Reset replay them, and check validates every accepted edge's response.
+- `s.opening` measures sibling labels inside its subjects and accepts a requested `zoom`. Raw iframes reapply their planned crop after resizing. Phone crops keep neighbouring words whole, and review rejects partial label ink while retaining required subject coverage.
+- `view.sync({how:'fade'})`, whole-word `c.rest()`, order-independent replacement construction and Group entry preserve picture families and keys. Overlong authored transitions report their declared and actual durations instead of squeezing their fades.
+- `rayner film` records every bounded live press, including refusals, as native stage filmstrips. Review adds two mid-play samples per step and phone contact sheets; `build --embed-sizes` writes measured iframe heights.
+- Check/review default to concise summaries with explicit `--json`. Drawn text and reader questions join claim lint; uncatalogued local explainers warn; contrasting paper-edge collisions, overlapping duplicate words and movement after five seconds gain checks. Source Sans 3 adds four registered sans cuts.
+
 - Phone live controls follow the picture navigation before the prose, keeping statechart event presses and their changed picture visible together. Resizing preserves event focus.
 - Prepared diagram sources survive `s.clear()`. The ext4 answer pie now selects its source from recorded model state, with checks across all nine settings combinations.
 - The host loader shares only its localized frame label with the player, reducing its minified output from about 16 KB to 3.3 KB under a 9 KB regression budget.

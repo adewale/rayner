@@ -261,8 +261,8 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   const main = back ? MAIN_BACK : MAIN_FULL;
   const ink = paused ? TONE.steel : TONE.ink;
   /** A seat's name and, under it, what sits there; above the seat for a seat on the table's far edge. */
-  const named = (key: string, at: Vec, name: string, kind: string, above: boolean, quiet = false) => {
-    const nameY = above ? at[1] + SEAT_R + 1.06 : at[1] - SEAT_R - 0.4, kindY = above ? at[1] + SEAT_R + 0.4 : at[1] - SEAT_R - 1.06;
+  const named = (key: string, at: Vec, name: string, kind: string, above: boolean, quiet = false, below = 0) => {
+    const nameY = above ? at[1] + SEAT_R + 1.06 : at[1] - SEAT_R - 0.4 - below, kindY = above ? at[1] + SEAT_R + 0.4 : at[1] - SEAT_R - 1.06 - below;
     parts.add(label(s, name, { at: [at[0], nameY], color: quiet ? TONE.soft : TONE.ink, bold: !quiet }), `${key}:name`);
     parts.add(label(s, kind, { at: [at[0], kindY], color: TONE.soft }), `${key}:kind`);
   };
@@ -308,9 +308,9 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(seat(seats.directCompany, 'taken'), 'seat:direct:co');
     parts.add(table(DIRECT), 'direct:table');
     parts.add(markOf(s, 'person', seats.you), 'you:mark');
-    named('you', seats.directYou, 'you', 'person', false);
+    named('you', seats.directYou, 'you', 'person', false, false, 0.25);
     parts.add(markOf(s, human ? 'person' : 'ai', seats.directCompany), human ? 'specialist:mark' : 'direct:agent:mark');
-    named('direct:co', seats.directCompany, human ? 'specialist' : 'Company Agent', human ? 'person' : 'AI', false);
+    named('direct:co', seats.directCompany, human ? 'specialist' : 'Company Agent', human ? 'person' : 'AI', false, false, 0.25);
     // Your agent, set back beside the table: it may watch, and it says nothing here.
     parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
     parts.add(markOf(s, 'ai', seats.agent, TONE.ink, 0.82), 'agent:mark');

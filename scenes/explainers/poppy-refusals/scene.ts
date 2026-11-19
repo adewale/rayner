@@ -108,7 +108,7 @@ export default class Refusals extends Scene<World, Shown> {
       },
       next,
       views: [world],
-      runTime: ({ event }) => (event === 'answer' ? 3.0 : 2.1),
+      runTime: ({ event }) => event === 'answer' ? 3.4 : 2.85,
       transition: {
         expire: request, 'read-only': request, delegation: request, end: request, 'old-copy': request, 'too-fast': request, mcp: request,
         answer,

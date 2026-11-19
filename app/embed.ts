@@ -628,6 +628,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     stop = Math.min(stop, tour.length - 1);
     // Whether any step of this case tours: then a single-view step keeps the row's place.
     scenarioTours = [...scenarioLayouts.values()].some((layout) => layout === shownLayout ? tour.length > 1 : closeUps(layout, w, h, zoom.max).length > 1);
+    // A raw iframe can start 150 px tall, then grow and lose its scrollbar. The opening must
+    // follow the new stage geometry, just as its tour does; manual pan/Whole picture opt out.
+    if (follow && tour[stop]) zoom.to(tour[stop]!, false);
   }
   // An authored opening can be the whole frame while its later detail stops
   // zoom in. Whole picture opts out of that tour; manually zooming out from a

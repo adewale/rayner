@@ -1,4 +1,5 @@
 import { chromeFor } from '../../app/embed-strings.ts';
+import { midplayFrames, reviewContactSheet } from './explain-film.ts';
 import { openReviewReader } from './review-reader.ts';
 import { readerShellProblems, cropTest } from './explain-reader-shell.ts';
 import type { ReaderShell } from './explain-reader-shell.ts';
@@ -520,6 +521,8 @@ export async function inspectStoryFrame(page: Page | Frame, frame: StoryFrame) {
     // Rotated/perspective clips need polygon geometry; do not credit their
     // bounding rectangles as proof. Allow one screen pixel at supported edges.
     const open = aligned && screen[2] > screen[0] && screen[3] > screen[1];
+    const visiblePoints = points(screen, svg.getScreenCTM()!.inverse());
+    const visibleViewport = [visiblePoints[0]!.x, visiblePoints[0]!.y, visiblePoints[1]!.x, visiblePoints[1]!.y] as [number, number, number, number];
     const viewportPoints = points(
       open ? [screen[0] - 1, screen[1] - 1, screen[2] + 1, screen[3] + 1] : [screen[0], screen[1], screen[0], screen[1]],
       svg.getScreenCTM()!.inverse(),
@@ -619,7 +622,8 @@ export async function inspectStoryFrame(page: Page | Frame, frame: StoryFrame) {
         })(),
       };
     });
-    return { viewport, ink, stage: rect(stage), viewBox: svg.getAttribute('viewBox') };
+    return { viewport, visibleViewport, ink, stage: rect(stage), viewBox: svg.getAttribute('viewBox'),
+      omittedLabels: [...new Set(painted.flatMap(e => e.hasAttribute('data-reader-clipped') ? [e.getAttribute('data-reader-clipped')!] : []))] };
   }, { expected: frame, slots, authorBox: userBox(frame.camera as Box), units: UNITS });
 }
 
@@ -680,7 +684,7 @@ export function verifyStoryTargets(
         const ink = v.ink.find((p) => p.index === index);
         return ink?.visible && (bounded || ink.complete);
       });
-      assert.ok(eligible.length, `${step}: ${target.name} has hidden or clipped ink`);
+      assert.ok(eligible.length, `${step} at ${width}px: ${target.name} has hidden or clipped ink; missing from ${target.opening ? 'the opening' : 'the close-up tour'}`);
       const ink = eligible[0]!.ink.find((p) => p.index === index)!;
       assert.ok(ink.box[2] > ink.box[0] && ink.box[3] > ink.box[1], `${step}: ${target.name} has empty ink`);
       const coverage = eligible.map((v) => {
@@ -937,6 +941,7 @@ export async function reviewStoryScenario(
   shell?: ReaderShell,
   framed = false,
 ) {
+  if (directory && !framed) await midplayFrames(scenario, directory);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   if (!initialized.has(page)) {
     await page.addInitScript((type) => {
@@ -1050,11 +1055,12 @@ export async function reviewStoryScenario(
       const partiallyVisibleLabels = views.flatMap((view, index) => {
         const labels = frame.labels.filter(label => {
           const ink = view.ink.filter(p => label.indices.includes(p.index));
-          return ink.some(p => p.visible && intersect(p.shown, view.viewport)) &&
+          return ink.some(p => p.visible && intersect(p.box, view.visibleViewport)) &&
             !ink.every(p => p.visible && p.complete && covered(p.box, [view.viewport]));
         }).map(label => label.text);
         return labels.length ? [{ view: index + 1, labels }] : [];
       });
+      assert.equal(partiallyVisibleLabels.length, 0, `${step.step} at ${viewport.width} px: a reader view cuts visible label ink; reflow the picture or frame complete parts: ${JSON.stringify(partiallyVisibleLabels)}`);
       let maximumTourOverlap = 0;
       for (const [i, a] of views.entries()) for (const b of views.slice(i + 1)) {
         const overlap = intersect(a.viewport, b.viewport);
@@ -1066,6 +1072,7 @@ export async function reviewStoryScenario(
         maximumTourOverlap,
         minimumLabelPxWholeStage: wholeLabelPixels.length ? Math.min(...wholeLabelPixels) : null,
         partiallyVisibleLabels,
+        omittedContextLabels: views.flatMap((view,index) => view.omittedLabels.length ? [{view:index+1,labels:view.omittedLabels}] : []),
         width: viewport.width,
         views: views.length,
         targets: [...verified],
@@ -1078,5 +1085,6 @@ export async function reviewStoryScenario(
     (framed ? [PHONE_VIEWPORT.width] : REVIEW_WIDTHS).flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
     'every traced step must be reviewed exactly once at each width',
   );
+  if (directory) await reviewContactSheet(directory);
   return results;
 }

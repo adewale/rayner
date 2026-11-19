@@ -198,3 +198,28 @@ An author-side review also measures the default scenario's initial framed height
 900 px and writes an `<page>.embed.json` file beside the retained HTML. With `review --out answer.html`,
 that file is `answer.embed.json`. The receipt records its path and measured sizes. These are initial
 heights for a raw iframe. The loader follows later size changes as the reader moves between steps.
+
+`rayner build scene.ts --out answer.html --embed-sizes` writes the same measured
+`answer.embed.json` directly from a build, using Chromium. Omit `--embed-sizes` for a Node-only
+build. Measurements describe the default scenario's first step with closed disclosures;
+choose enough height for later steps or use the loader when the parent has a usable origin.
+
+### Stage colours and page weight
+
+The chrome's `theme` does not recolour authored artwork. For one stage that reads with both
+chrome themes, choose an opaque stage palette with sufficient internal contrast, such as
+`stage(this,{style:'blueprint'})`, and draw text with `s.look.ink` on `s.look.paper`. Blueprint's
+ink and paper have over 7:1 contrast. Keep the ground opaque and check annotations, muted
+labels and accent colours too. Review the page with both `theme=light` and `theme=dark`.
+`meta.player.paper` optionally carries the palette into the chrome when contrast permits it.
+
+Portable pages carry their runtime and embedded faces. The Poppy pages reported in issue 101
+were 610–690 KB raw each; loading eight at once cost about 5.2 MB before compression. Actual
+sizes vary with scenes, captured diagrams and lettering. The receipt's `bytes`, `gzipBytes`
+and `lettering` report distinguish page weight from requested font subsets. `components` additionally records minified script, style, poster and embedded default-face bytes; the face bytes are already included in the script total. HTTP gzip or
+Brotli reduces transfer size but does not remove parsing and memory costs.
+
+Mount one chapter at a time on a series host. Dispose the previous loader mount before
+mounting the next, or use a lazy iframe below the fold. An iframe's own visibility does not
+unload its runtime. The host loader is separately budgeted below 9 KB; it does not carry the
+player or its faces.

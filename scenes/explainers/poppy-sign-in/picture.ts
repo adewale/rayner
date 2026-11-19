@@ -204,7 +204,7 @@ function box(at: Vec, ticked: boolean): Mobject {
 /** The display card the agent shows for Device Sign-In: the code, and the Company's name, its right edge at `at`; or a card someone else's, face down, centred at `at`. */
 function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
   const code = label(s, DEVICE.user_code, { mono: true, bold: true, align: 'start' }), name = label(s, 'Example Company', { align: 'start' });
-  const w = foreign ? 3.4 : Math.max(code.width(), name.width()) + 0.7, h = 1.3, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
+  const w = foreign ? 3.4 : Math.max(code.width(), name.width()) + 0.7, h = 1.5, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
   if (foreign)
     return new Group(
       new Rectangle({ width: w, height: h, fill: TONE.pewterDeep, stroke: TONE.pewter, strokeWidth: STROKE.fine, cornerRadius: RADIUS.ticket }).moveTo([x, y]),
@@ -239,7 +239,7 @@ function browser(s: Parts, st: Stage, host: string, rows: Rows) {
   const address = label(st, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2] });
   s.add(new Group(
     new Rectangle({ width: w, height: h, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel }).moveTo([cx, cy]),
-    new Rectangle({ width: address.width() + 0.44, height: 0.6, fill: TONE.raised, stroke: 'none', cornerRadius: 0.3 }).moveTo([cx, WIN.top - WIN.bar / 2]),
+    new Rectangle({ width: address.width() + 0.44, height: 0.74, fill: TONE.raised, stroke: 'none', cornerRadius: 0.3 }).moveTo([cx, WIN.top - WIN.bar / 2]),
   ), 'window:frame');
   s.add(address, 'window:host');
   const pageTop = WIN.top - WIN.bar - 0.08, pageBottom = WIN.bottom + 0.14, pageLeft = WIN.left + 0.14;
@@ -298,7 +298,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     let pw: Mobject | undefined;
     if (device) {
       handset(parts, s, rows);
-      parts.add(new Rectangle({ width: 1.7, height: 0.6, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PHONE.at[0], rows.field]), 'page:field');
+      parts.add(new Rectangle({ width: 1.7, height: 0.74, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PHONE.at[0], rows.field]), 'page:field');
       if (typed) pw = parts.add(new Group(...dots([PHONE.at[0] - 0.4, rows.field], TONE.ink)), 'page:password');
       for (const scope of ['orders:read', 'orders:write'] as const) {
         parts.add(box([SCREEN.left + 0.38, rows[scope]], !!w.sign.approved?.includes(scope)), `page:${scope}:box`);
@@ -307,7 +307,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     } else {
       browser(parts, s, 'auth.example.com', rows);
       parts.add(label(s, 'Example Company', { at: [PAGE_X, rows.title], bold: true, align: 'start' }), 'page:title');
-      parts.add(new Rectangle({ width: 3.9, height: 0.6, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PAGE_X + 1.95, rows.field]), 'page:field');
+      parts.add(new Rectangle({ width: 3.9, height: 0.74, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PAGE_X + 1.95, rows.field]), 'page:field');
       if (typed) pw = parts.add(new Group(...dots([PAGE_X + 0.3, rows.field], TONE.ink)), 'page:password');
       else parts.add(label(s, 'password', { at: [PAGE_X + 0.24, rows.field], color: TONE.soft, align: 'start' }), 'page:hint');
       for (const scope of ['orders:read', 'orders:write'] as const) {
@@ -382,7 +382,7 @@ function drawShortcut(s: Stage, parts: Parts): Group {
   addAll(parts, counter(s, { x: FACE, top: MARGIN.top, bottom: COUNTER_BOTTOM }));
   browser(parts, s, 'example.com', rows);
   parts.add(label(s, 'Sign in', { at: [PAGE_X, rows.title], bold: true, align: 'start' }), 'page:title');
-  parts.add(new Rectangle({ width: 3.9, height: 0.6, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PAGE_X + 1.95, rows.field]), 'page:field');
+  parts.add(new Rectangle({ width: 3.9, height: 0.74, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine, cornerRadius: 0.1 }).moveTo([PAGE_X + 1.95, rows.field]), 'page:field');
   parts.add(new Group(...dots([PAGE_X + 0.3, rows.field], TONE.ink)), 'page:password');
   parts.add(label(s, 'typed by your agent', { at: [PAGE_X, rows['orders:read']], color: TONE.soft, align: 'start' }), 'page:by');
   parts.add(label(s, 'The Company sees', { at: [RACK_X, rows.title], bold: true, align: 'start' }), 'sees:title');

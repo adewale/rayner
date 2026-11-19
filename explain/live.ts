@@ -183,6 +183,7 @@ export async function runLive(
     // From the machine's start: its views redrawn there, in place, as exploration draws a state.
     if (from === 'start' && log.length) {
       at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
+      if (machine.spec.result) delete at.shown.result;
       for (const view of machine.spec.views) view.rebuild();
     }
     for (const [i, event] of log.entries()) {

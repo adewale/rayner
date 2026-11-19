@@ -14,6 +14,14 @@ picture module that draws the state, a scene whose last step is live, and the re
 (`scenes/tutorial/door`). It passes `rayner check` and
 `rayner review` as written.
 
+The door is also a worked authored transition. Start with `model.ts`: `doorNext` returns the
+next durable state or a refusal. `picture.ts` draws that state with keys for the frame, panel,
+word and bolt. In `scene.ts`, the `close` transition obtains `t.choreograph(door)`, morphs
+`door:panel` for 0.3 seconds, then calls `c.rest({runTime:0.25})`. The new word appears after
+the panel closes. The other events use the default keyed sync. When replacing the starter,
+change the model and its independent test, draw its states, then author motion between those
+drawings. Run `rayner film` to inspect the journey and `rayner review` for the served page.
+
 ```ts
 import { Machine } from 'rayner/explain';
 
@@ -171,6 +179,37 @@ out yet or `d.morph` does: its turn comes mid-play, after `play()` has waited fo
 given, so the play waits again there, before its next frame, and the frames are those of an
 action that waited for nothing. What a transition makes is held to one writer per mobject against
 everything else the play drives as it begins.
+
+## Transient responses
+
+A response can be presentation without multiplying durable model states. Supply
+`result: ({event,before,after}) => ({status:200})` in the machine spec and read it in a view's
+second argument, `shown.result`. The callback runs for accepted events; return `undefined` to
+clear the previous response. It preserves other `shown` fields. Refused and beyond-story
+events leave the picture alone. A request answered with a 401 is an accepted transition that
+produces a response; a request that cannot be sent is a refusal.
+
+Keep the callback pure. For a typed scene, declare the presentation shape separately, for
+example `Scene<State,{result?:{status:number}}>` with `override shown = {}` typed as that shown
+shape. The durable `State` then needs no last-response field.
+
+The result is JSON data recorded in traces and replayed from live URLs. It is excluded from
+durable state identity and the exploration limit. `check` still draws and plays every accepted
+edge with its own result, even when several responses lead to the same durable state. Reset
+restores the authored picture. `liveStart:'start'` clears the last response when exploration
+starts from the model's beginning. An authored transition can also read `t.result`.
+
+## Timing and whole words
+
+An authored transition longer than its event's `runTime` is rejected with both durations and
+the event name. Increase the declared duration or shorten the motion. Caption-reading holds
+are separate. Keyed motion also rejects movement continuing beyond five seconds; a static
+caption hold does not count as movement.
+
+`c.rest({text:'whole'})`, the default, replaces a changed keyed `Text` in two halves without
+overlapping or morphing its glyphs. Use `text:'glyphs'` deliberately for glyph motion. Building
+an `enter` before a `leave` is allowed; play the leave first. `c.enter(key,{from})` can grow a
+Group from another part through a temporary proxy, preserving the target's family and keys.
 
 ## The default transition
 

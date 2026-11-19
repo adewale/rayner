@@ -143,6 +143,21 @@ test('only OFL and Apache-2.0 faces pass, at capture and in every build from a s
 
 const capture = process.env.EXPLAIN_LETTERING === '1';
 const fonts = process.env.RAYNER_LETTERING_FONTS ?? join(ROOT, 'out/lettering-fonts');
+test('Source Sans 3 captures all four real cuts and agrees with the source font shaper', {skip: !capture && 'set EXPLAIN_LETTERING=1 to capture the registered face'}, async () => {
+  const dir = await mkdtemp(join(folder, 'source-sans-'));
+  await writeFile(join(dir, 'scene.ts'), `import{Scene,Text}from'rayner';export default class Voice extends Scene{static meta={id:'voice',lettering:{faces:{sans:'source-sans-3'},styles:['bold','italic']}};async construct(){await this.step('voice');this.add(new Text('Distinct voice'),new Text('Distinct voice',{weight:'bold'}),new Text('Distinct voice',{italic:true}),new Text('Distinct voice',{weight:'bold',italic:true}));await this.wait(.1);}}`);
+  const project = await collectProject(dir, {captureLettering:true,write:false});
+  const snapshot = project.outlineLettering!;
+  for (const [cut, file] of [['', '400-normal'], ['bold', '700-normal'], ['italic', '400-italic'], ['bold-italic', '700-italic']]) {
+    const key = cut ? `sans/${cut}` : 'sans';
+    const actual = snapshot.runs[runKey(key, 'Distinct voice')]!.glyphs;
+    const expected = JSON.parse(execFileSync(process.env.RAYNER_LETTERING_PYTHON ?? 'python3', [join(ROOT,'test/lettering/oracle.py'), join(fonts,`fontsource-source-sans-3-5.3.0/package/files/source-sans-3-latin-${file}.woff2`), 'Distinct voice', '{}'], {encoding:'utf8'}));
+    assert.equal(actual.length, expected.length);
+    for (let i=0;i<actual.length;i++) for (const k of ['gid','cluster','x','dx','dy','ax'] as const)
+      assert.ok(Math.abs(actual[i]![k] - expected[i][k]) < 1e-12, `${cut} ${i}.${k}`);
+  }
+  assert.notDeepEqual(snapshot.runs[runKey('sans','Distinct voice')]!.glyphs.map(g=>g.path), snapshot.runs[runKey('sans/bold','Distinct voice')]!.glyphs.map(g=>g.path));
+});
 for (const [family, text, file, features] of [
   ['sans/bold', 'Bold', 'inter-ui-4.1.1/package/web/Inter-Bold.woff2', {}],
   ['sans/italic', 'Italic', 'inter-ui-4.1.1/package/web/Inter-Italic.woff2', {}],

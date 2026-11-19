@@ -14,7 +14,7 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Enclosing, Transform, knownTransform } from '../src/animation.ts';
+import { Animation as BaseAnimation, Enclosing, Transform, knownTransform } from '../src/animation.ts';
 import type { Animation } from '../src/animation.ts';
 import { linear } from '../src/rate.ts';
 import { Follow } from './state.ts';
@@ -41,6 +41,8 @@ export interface ViewOptions {
 
 /** How sync() runs: a play's options, and how it morphs. */
 export interface SyncOptions extends PlayOptions {
+  /** Replace the complete picture by fading out then in, without shrinking unmatched parts. */
+  how?: 'morph' | 'fade';
   /**
    * How the old picture's parts pair with the new one's, as a Transform's `match` pairs them
    * (see Match): by glyph, by shape, by position in the family, by the keys the picture's parts
@@ -207,6 +209,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   view: View<M, any, any>;
   match: Match;
   staged: boolean;
+  how: 'morph' | 'fade';
   /** @internal Set as it begins: the morph from the current picture to the built one, or null when nothing changed. */
   inner!: Animation | null;
   /** Set by begin(): the built, placed picture, swapped in at finish(). */
@@ -214,9 +217,10 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
   private fit!: ViewFit;
 
-  constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOptions = {}) {
+  constructor(v: View<M, any, any>, { match = 'key', staged = true, how = 'morph', ...opts }: SyncOptions = {}) {
     super(v, opts);
-    this.view = v; this.match = match; this.staged = staged;
+    if (how !== 'morph' && how !== 'fade') throw new RangeError("view.sync(): how must be 'morph' or 'fade'");
+    this.view = v; this.match = match; this.staged = staged; this.how = how;
   }
 
   protected override enclose(): Animation | null {
@@ -225,6 +229,10 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     this.fit = fit;
     this.inner = null; this.next = null;
     if (samePicture(old, next)) { v.commit(fit); return null; }
+    if (this.how === 'fade') {
+      this.next = next;
+      return this.inner = new PictureFade(v, old, next);
+    }
     const match = this.match;
     if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
@@ -258,6 +266,28 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   override evidence(): Evidence | null {
     const e = this.inner?.evidence() ?? null;
     return e && this.view.key !== undefined ? { ...e, view: this.view.key } : e;
+  }
+}
+
+/** Fade only the roots, preserving child dimming, geometry and the View's identity. */
+class PictureFade extends BaseAnimation {
+  private readonly opacity: [number, number];
+  private readonly view: View;
+  private readonly old: Mobject;
+  private readonly next: Mobject;
+  constructor(view: View, old: Mobject, next: Mobject) {
+    super(view, { rateFunc: linear });
+    this.view = view; this.old = old; this.next = next;
+    this.opacity = [old.style.opacity ?? 1, next.style.opacity ?? 1];
+  }
+  protected override doBegin(): void { this.next.setStyle({ opacity: 0 }, false); this.view.add(this.next); }
+  protected override doInterpolate(t: number): void {
+    this.old.setStyle({ opacity: this.opacity[0] * Math.max(0, 1 - 2 * t) }, false);
+    this.next.setStyle({ opacity: this.opacity[1] * Math.max(0, 2 * t - 1) }, false);
+  }
+  protected override doFinish(end = 1): void {
+    this.doInterpolate(end);
+    if (end !== 1) { this.view.remove(this.next); this.old.setStyle({ opacity: this.opacity[0] }, false); }
   }
 }
 
