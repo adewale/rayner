@@ -1,0 +1,5887 @@
+[
+  {
+    "step": 1,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 1 of 17\nThe coffee machine has one active state\nRead an arrow as: event → next state.\n\nA box names a state; an arrow names an event. START takes idle to grinding, GROUND takes grinding to brewing, POURED takes brewing to ready, and TAKE returns to idle. The outlined active box tells you where the machine is. Now add a power button.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 2,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 2 of 17\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\n\nThe four working states should all lead to off when POWER_OFF arrives. In a flat machine, an arrow belongs to its source state. Commit to a count before going on.\n\nYour prediction\n\n1 arrow\n4 arrows\n5 arrows\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "1 arrow",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "4 arrows",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "5 arrows",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 3,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 3 of 17\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\n\nFour arrows are needed. This hand copy accidentally omitted brewing’s arrow, so POWER_OFF leaves it brewing. That is a drawing error, not an appliance feature. How many power-off arrows could suffice if a box could contain the four working states?\n\nThe answer is “4 arrows”.\n\nYour prediction\n\n1 arrow\n4 arrows\n5 arrows\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "1 arrow",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "4 arrows",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "5 arrows",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 4,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 4 of 17\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\n\nOne arrow from on takes POWER_OFF for its contained states. Entering on starts at idle, at the start dot. A parent is itself a state containing states. A statechart is a state machine whose states can contain other states, active one at a time or several at once. The extra box removes three repeated arrows: six transitions instead of nine.\n\nThe answer is “1 arrow”.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 5,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "POWER_ON",
+        "label": "POWER_ON",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "START",
+        "label": "START",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "GROUND",
+        "label": "GROUND",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "POURED",
+        "label": "POURED",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "TAKE",
+        "label": "TAKE",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "POWER_OFF",
+        "label": "POWER_OFF",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Undo",
+        "label": null,
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Reset",
+        "label": "Reset: the step’s own picture",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 6,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 6 of 17\nA different problem: repeated combinations\nPlayback and volume each have two choices.\n\nA player can be paused or playing, and sound can be audible or muted. Here sound means audible. Flat, you need a box for each pair. PLAY and PAUSE must appear in both volume contexts; MUTE and UNMUTE must appear in both playback contexts. Four states already need eight transitions.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 7,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 7 of 17\nSplit independent choices into regions\nOne active state per region, at the same time.\n\nKeep playback and volume in separate regions. PLAY changes playback while volume stays put; MUTE changes volume while playback stays put. Four state boxes now need four transitions. Before the next step, add a third independent feature: subtitles hidden or shown. What does the flat player cost?\n\nWith subtitles, how many flat states and transitions?\n\n6 states / 6 transitions\n8 states / 12 transitions\n8 states / 24 transitions\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "6 states / 6 transitions",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "8 states / 12 transitions",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "8 states / 24 transitions",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 8,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 8 of 17\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\n\nThree independent binary features have 2 × 2 × 2 combinations: eight flat states. Each has three possible flips, making 24 directed transitions. Regions use three pairs of states and two transitions per pair: six states and six transitions. This is the second sign: independent words repeated in state names.\n\nWith subtitles, how many flat states and transitions? The answer is “8 states / 24 transitions”.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 9,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 9 of 17\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\n\nThe same events run through both representations. The guided run sends PLAY, MUTE, then PAUSE; both end paused and muted. Use the buttons to continue the comparison. A statechart can be flattened into an ordinary state machine by naming each active combination; it packages the rules more compactly.\n\nTry it yourself: carry on from this picture\n\nPLAY\nPAUSE\nMUTE\nUNMUTE\nUndo\nReset\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "PLAY",
+        "label": "PLAY",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "PAUSE",
+        "label": "PAUSE",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "MUTE",
+        "label": "MUTE",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "UNMUTE",
+        "label": "UNMUTE",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Undo",
+        "label": null,
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Reset",
+        "label": "Reset: the step’s own picture",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 10,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 10 of 17\nThe two ideas fit inside each other\nPut the player’s regions inside on.\n\nParents and regions compose. This player’s on state holds both playback and volume regions. POWER_OFF exits them together; POWER_ON starts them at paused and sound. Flat, the four pairs plus off need 13 transitions. The statechart has six state boxes and six transitions, including its shared power rule.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 11,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 11 of 17\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\n\nThe frother can be still or frothing during idle, grinding, brewing or ready. It cannot run while off. Place it before seeing the answer. Count the flat states too: pair the working states with the frother’s two states, then decide what to do with off.\n\nYour prediction\n\nInside brewing · 6 flat states\nBeside coffee inside on · 9 flat states\nOutside on · 10 flat states\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Inside brewing · 6 flat states",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Beside coffee inside on · 9 flat states",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Outside on · 10 flat states",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 12,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 12 of 17\nA second region inside on\nFour working states × two frother states, plus off.\n\nThe frother goes beside the coffee cycle, inside on. Either region can move while the other stays put. There are 4 × 2 + 1 = 9 flat states and 25 flat transitions. The statechart draws eight boxes, including on, and eight transitions. Its two start dots choose idle and still.\n\nThe answer is “Beside coffee inside on · 9 flat states”.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17: A second region inside on",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 13,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 13 of 17\nChange the condition: the frother gets its own power\nFROTH and STOP work while off too.\n\nReconsider the boundary. The frother no longer depends on the coffee machine being on. Where must its region go, and how many combinations does the flat machine need?\n\nYour prediction\n\nInside on · 9 states\nBeside the whole machine · 10 states\nInside off · 6 states\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17: A second region inside on",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17: Change the condition: the frother gets its own power",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Inside on · 9 states",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Beside the whole machine · 10 states",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Inside off · 6 states",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 14,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 14 of 17\nMove it beside the whole machine\nThe off state gains two frother combinations.\n\nThe top level now has two regions: the whole off-and-on coffee machine, and the frother. Each of the coffee machine’s five states pairs with still or frothing: 10 flat states. In particular, off · still and off · frothing are distinct. POWER_OFF would leave this independent frother running.\n\nThe answer is “Beside the whole machine · 10 states”.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17: A second region inside on",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17: Change the condition: the frother gets its own power",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17: Move it beside the whole machine",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 15,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 15 of 17\nChange it again: the frother uses brewing steam\nLeaving brewing stops the frother.\n\nThe frother now has choices during brewing, but not during idle, grinding, ready or off. Write the flat state names before continuing. Do those names still signal independent regions?\n\nYour prediction\n\n6 states · a parent inside brewing\n9 states · a region inside on\n10 states · a top-level region\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17: A second region inside on",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17: Change the condition: the frother gets its own power",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17: Move it beside the whole machine",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17: Change it again: the frother uses brewing steam",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "6 states · a parent inside brewing",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "9 states · a region inside on",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "10 states · a top-level region",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 16,
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 16 of 17\nTwo words do not always mean two regions\nAsk whether the choices are independent.\n\nThe six flat names are shown. The frother’s choice exists inside brewing, so the words are dependent. Make brewing a parent containing still and frothing: the first idea again. The statechart needs eight transitions, where the flat machine needs 13. Look for independent choices, rather than counting words alone.\n\nThe answer is “6 states · a parent inside brewing”.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Next",
+        "label": "Next step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17: A second region inside on",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17: Change the condition: the frother gets its own power",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17: Move it beside the whole machine",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17: Change it again: the frother uses brewing steam",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17: Two words do not always mean two regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  },
+  {
+    "step": 17,
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump",
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Previous step",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Start again",
+        "label": "Start again from step 1",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 1 of 17: The coffee machine has one active state",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 2 of 17: Give the power button one destination",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 3 of 17: Four copies leave room for one mistake",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 4 of 17: Put the shared rule on a parent",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 5 of 17: Try the parent’s power button",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 6 of 17: A different problem: repeated combinations",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 7 of 17: Split independent choices into regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 8 of 17: Flat combinations multiply; regions add",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 9 of 17: A statechart changes the drawing, not the behavior",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 10 of 17: The two ideas fit inside each other",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 11 of 17: Your turn: add the milk frother",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 12 of 17: A second region inside on",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 13 of 17: Change the condition: the frother gets its own power",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 14 of 17: Move it beside the whole machine",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 15 of 17: Change it again: the frother uses brewing steam",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 16 of 17: Two words do not always mean two regions",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Step 17 of 17: Use the two signs, then test the boundary",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "POWER_ON",
+        "label": "POWER_ON",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "START",
+        "label": "START",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "GROUND",
+        "label": "GROUND",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "POURED",
+        "label": "POURED",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "TAKE",
+        "label": "TAKE",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "POWER_OFF",
+        "label": "POWER_OFF",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "FROTH",
+        "label": "FROTH",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "STOP",
+        "label": "STOP",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Undo",
+        "label": null,
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Reset",
+        "label": "Reset: the step’s own picture",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Show the answer",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Show the answer",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Show the answer",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "What the picture shows",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom out",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Zoom in",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Whole picture",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Copy link",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": "Enlarge",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "All 17 steps",
+        "label": null
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "label": null,
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "Transcript",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "",
+        "label": null
+      }
+    ]
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "seed": 20261119,
+  "authors": {
+    "codex": {
+      "rayner": {
+        "html": "rayner/index.html",
+        "png": "rayner/contact.png",
+        "transcript": "rayner/transcript.json"
+      },
+      "plain": {
+        "html": "plain/index.html",
+        "png": "plain/out/contact.png",
+        "transcript": "plain/out/transcript.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+ "version":2,
+ "subjects":[
+  {"step":"coffee","targets":[{"text":"idle"},{"text":"START"},{"text":"grinding"}]},
+  {"step":"power","targets":[{"text":"off"},{"text":"POWER_OFF"},{"text":"brewing"}]},
+  {"step":"missed","targets":[{"text":"missing"},{"text":"stays brewing"}]},
+  {"step":"parent","targets":[{"key":"on:box","paint":"stroke"},{"key":"POWER_OFF","paint":"stroke"},{"text":"on"}]},
+  {"step":"brew-live","targets":[{"text":"brewing"},{"key":"POWER_OFF","paint":"stroke"}]},
+  {"step":"combinations","targets":[{"key":"grid:paused:sound:box","paint":"stroke"},{"key":"grid:playing:muted:box","paint":"stroke"}]},
+  {"step":"regions","targets":[{"text":"playback region"},{"text":"volume region"},{"text":"playing"},{"text":"muted"}]},
+  {"step":"third","targets":[{"text":"8 flat states · 24 transitions"},{"text":"6 regional states · 6 transitions"}]},
+  {"step":"same-behavior","targets":[{"text":"statechart"},{"text":"flat machine"},{"text":"Same active configuration"}]},
+  {"step":"compose","targets":[{"text":"on"},{"text":"playback region"},{"text":"volume region"}]},
+  {"step":"place-frother","targets":[{"text":"still"},{"text":"frothing"}]},
+  {"step":"frother","targets":[{"text":"grinding"},{"text":"frothing"},{"key":"on:box","paint":"stroke"}]},
+  {"step":"own-power","targets":[{"text":"FROTH and STOP also work while off."}]},
+  {"step":"own-answer","targets":[{"text":"Two top-level regions"},{"text":"5 × 2 = 10 flat states"}]},
+  {"step":"steam","targets":[{"text":"Are the two words still independent?"}]},
+  {"step":"steam-answer","targets":[{"text":"brewing · still"},{"text":"brewing · frothing"}]},
+  {"step":"try-frother","targets":[{"text":"grinding"},{"text":"frothing"},{"key":"POWER_OFF","paint":"stroke"}]}
+ ]
+}

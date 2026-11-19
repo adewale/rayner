@@ -1,0 +1,287 @@
+[
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 2,
+    "action": "keyboard-next",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 2 of 17\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\n\nThe four working states should all lead to off when POWER_OFF arrives. In a flat machine, an arrow belongs to its source state. Commit to a count before going on.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nYour prediction\n\n1 arrow\n4 arrows\n5 arrows\n\nChoose one before you go on, or go on without choosing.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nStep 3\nStep 4\nStep 5\nStep 6\nStep 7\nStep 8\nStep 9\nStep 10\nStep 11\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 5,
+    "action": "unhandled",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nno START transition from brewing\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\n\nSTART: no START transition from brewing\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nStep 6\nStep 7\nStep 8\nStep 9\nStep 10\nStep 11\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 5,
+    "action": "off",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nno POWER_OFF transition from off\nUndo\nReset\n\nPOWER_OFF. parent: parent. Active configuration: off.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nStep 6\nStep 7\nStep 8\nStep 9\nStep 10\nStep 11\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 5,
+    "action": "restart",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nno POWER_ON transition from idle\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\n\nPOWER_ON. parent: parent. Active configuration: idle.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nStep 6\nStep 7\nStep 8\nStep 9\nStep 10\nStep 11\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 5,
+    "action": "brewing",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nno GROUND transition from brewing\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\n\nGROUND. parent: parent. Active configuration: brewing.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nStep 6\nStep 7\nStep 8\nStep 9\nStep 10\nStep 11\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 9,
+    "action": "trace",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 9 of 17\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\n\nThe same events run through both representations. The guided run sends PLAY, MUTE, then PAUSE; both end paused and muted. Use the buttons to continue the comparison. A statechart can be flattened into an ordinary state machine by naming each active combination; it packages the rules more compactly.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPLAY\nPAUSE\nPAUSE has no transition from paused · muted\nMUTE\nUNMUTE\nUndo\nReset\n\nPAUSE. trace: player. Active configuration: paused · muted. Flat representation: paused · muted. Last event PAUSE.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nStep 10\nStep 11\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 11,
+    "action": "frother-wrong",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 11 of 17\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\n\nThe frother can be still or frothing during idle, grinding, brewing or ready. It cannot run while off. Place it before seeing the answer. Count the flat states too: pair the working states with the frother’s two states, then decide what to do with off.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nYour prediction\n\nInside brewing · 6 flat states\nBeside coffee inside on · 9 flat states\nOutside on · 10 flat states\n\nYou chose “Inside brewing · 6 flat states”. Next shows the answer.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 11,
+    "action": "frother-right",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 11 of 17\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\n\nThe frother can be still or frothing during idle, grinding, brewing or ready. It cannot run while off. Place it before seeing the answer. Count the flat states too: pair the working states with the frother’s two states, then decide what to do with off.\n\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nYour prediction\n\nInside brewing · 6 flat states\nBeside coffee inside on · 9 flat states\nOutside on · 10 flat states\n\nYou chose “Beside coffee inside on · 9 flat states”. Next shows the answer.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nStep 12\nStep 13\nStep 14\nStep 15\nStep 16\nStep 17"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 17,
+    "action": "off",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nno POWER_OFF transition from off\nFROTH\nSTOP\nUndo\nReset\n\nPOWER_OFF. final: frother. Active configuration: off.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nA second region inside on\nFour working states × two frother states, plus off.\nChange the condition: the frother gets its own power\nFROTH and STOP work while off too.\nMove it beside the whole machine\nThe off state gains two frother combinations.\nChange it again: the frother uses brewing steam\nLeaving brewing stops the frother.\nTwo words do not always mean two regions\nAsk whether the choices are independent.\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 17,
+    "action": "restart",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nno POWER_ON transition from idle · still\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nPOWER_ON. final: frother. Active configuration: idle · still.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nA second region inside on\nFour working states × two frother states, plus off.\nChange the condition: the frother gets its own power\nFROTH and STOP work while off too.\nMove it beside the whole machine\nThe off state gains two frother combinations.\nChange it again: the frother uses brewing steam\nLeaving brewing stops the frother.\nTwo words do not always mean two regions\nAsk whether the choices are independent.\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 17,
+    "action": "parallel",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nno START transition from grinding · frothing\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nSTART. final: frother. Active configuration: grinding · frothing.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nA second region inside on\nFour working states × two frother states, plus off.\nChange the condition: the frother gets its own power\nFROTH and STOP work while off too.\nMove it beside the whole machine\nThe off state gains two frother combinations.\nChange it again: the frother uses brewing steam\nLeaving brewing stops the frother.\nTwo words do not always mean two regions\nAsk whether the choices are independent.\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 17,
+    "action": "text-alternative",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nfinal: frother. Active configuration: grinding · frothing.\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nSTART. final: frother. Active configuration: grinding · frothing.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nA second region inside on\nFour working states × two frother states, plus off.\nChange the condition: the frother gets its own power\nFROTH and STOP work while off too.\nMove it beside the whole machine\nThe off state gains two frother combinations.\nChange it again: the frother uses brewing steam\nLeaving brewing stops the frother.\nTwo words do not always mean two regions\nAsk whether the choices are independent.\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?"
+  },
+  {
+    "v": "Y",
+    "width": 1280,
+    "step": 17,
+    "action": "answer",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nOutside on, beside the whole machine: since the frother works whether the machine is off or on, it becomes a region next to the off-and-on machine, and the statechart’s top level splits in two. Flat, every one of the machine’s 5 states pairs with still or frothing, off included: 10 states where the frother inside on needed 9.\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nfinal: frother. Active configuration: grinding · frothing.\nTranscript\nRayner\n← → to step · click a segment to jump\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nSTART. final: frother. Active configuration: grinding · frothing.\n\nSteps\nThe coffee machine has one active state\nRead an arrow as: event → next state.\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\nPut the shared rule on a parent\nInside on, the working states share POWER_OFF.\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\nA different problem: repeated combinations\nPlayback and volume each have two choices.\nSplit independent choices into regions\nOne active state per region, at the same time.\nFlat combinations multiply; regions add\nThe third feature doubles the flat states.\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\nThe two ideas fit inside each other\nPut the player’s regions inside on.\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\nA second region inside on\nFour working states × two frother states, plus off.\nChange the condition: the frother gets its own power\nFROTH and STOP work while off too.\nMove it beside the whole machine\nThe off state gains two frother combinations.\nChange it again: the frother uses brewing steam\nLeaving brewing stops the frother.\nTwo words do not always mean two regions\nAsk whether the choices are independent.\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "keyboard": "<button data-event=\"START\" data-kind=\"coffee\">START</button>"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 1,
+    "action": "keyboard-start",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n01 / 15 Start with the familiar\nOne state at a time.\n\nA coffee machine is a state machine: it is idle, grinding, brewing or ready. An event follows an arrow to the next state.\n\nTry START → GROUND → BREWED → TAKE. An event with no arrow does nothing.\n\nThe coffee machine\n4 boxes · 4 arrows\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\nA dot marks the start. An arrow says which event changes state.\nSTART\nGROUND\nBREWED\nTAKE\n↺ Reset\nActive: grinding · took START\n← Back\nNext →\nStep 1 of 15 · Start with the familiar"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 2,
+    "action": "wrong",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n02 / 15 01 / Repeated arrows\nNow add a power button.\n\nAdd off and POWER_ON. POWER_OFF should work from every one of the four working states.\n\nPredict the cost before seeing the drawing.\n\nHow many POWER_OFF arrows must a flat machine add?\n1 arrow\n4 arrows\n5 arrows\nTry another answer, or continue to see the explanation.\nFour possible starting places\nPrediction\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\nTHE REQUIREMENT\n\nFrom idle, grinding, brewing or ready, POWER_OFF must lead to off.\n\n← Back\nNext →\nStep 2 of 15 · 01 / Repeated arrows"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 2,
+    "action": "correct",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n02 / 15 01 / Repeated arrows\nNow add a power button.\n\nAdd off and POWER_ON. POWER_OFF should work from every one of the four working states.\n\nPredict the cost before seeing the drawing.\n\nHow many POWER_OFF arrows must a flat machine add?\n1 arrow\n4 arrows\n5 arrows\nYes. One from each working state.\nFour possible starting places\nPrediction\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\nTHE REQUIREMENT\n\nFrom idle, grinding, brewing or ready, POWER_OFF must lead to off.\n\n← Back\nNext →\nStep 2 of 15 · 01 / Repeated arrows"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 3,
+    "action": "missing-off",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n03 / 15 01 / Repeated arrows\nCopying is easy to get wrong.\n\nFour POWER_OFF arrows, plus one POWER_ON arrow: the complete flat machine needs 9 arrows. This hand copy has only 8. Brewing’s power-off arrow is missing.\n\nThis is a deliberately incomplete drawing, not real appliance behaviour. Reach brewing, then try POWER_OFF.\n\nThe coffee machine\n5 boxes · 8 of 9 arrows\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\noff\nPOWER_ON\nOFF\nOFF\nPOWER_OFF\nmissing POWER_OFF\nDashed orange = an omitted arrow in this hand copy.\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE\nPOWER_OFF\n↺ Reset\nActive: brewing · no transition for POWER_OFF\n← Back\nNext →\nStep 3 of 15 · 01 / Repeated arrows"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 4,
+    "action": "parent-flat",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n04 / 15 01 / A parent state\nGive the box the arrow.\n\nPut the four working states inside on. A POWER_OFF arrow from on applies to any active child. One arrow replaces four copies.\n\nA parent is active when its child is active. Events try the inner state first, then its parent. Here no child handles POWER_OFF.\n\nWhere should the shared POWER_OFF arrow start?\nAt the on parent\nAt the start dot\nOnly at idle\nChoose an answer; then continue.\nA parent takes the shared event\n6 boxes · 6 arrows\non · one child active\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\noff\nPOWER_ON\nPOWER_OFF\nThe outer on box is a state too. Its start dot enters idle.\nInspect the complete flat counterpart · 5 boxes / 9 arrows\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\noff\nPOWER_ON\nOFF\nOFF\nPOWER_OFF\nPOWER_OFF\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE\nPOWER_OFF\n↺ Reset\nActive: idle · took POWER_ON\n← Back\nNext →\nStep 4 of 15 · 01 / A parent state"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 6,
+    "action": "count",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n06 / 15 02 / Predict the cost\nAdd one more switch.\n\nImagine a third independent, two-state feature: captions on or off. Every existing pairing needs both versions.\n\nThe flat machine has 4 states and 8 arrows with two features. Count only feature-changing arrows here.\n\nWhat does a third binary feature cost the flat machine?\n6 states, 6 arrows\n8 states, 24 arrows\n8 states, 12 arrows\nYes. 2 × 2 × 2 = 8 states; 3 outgoing toggles each = 24 arrows.\nIndependent features multiply\nMake a prediction\nTwo features\n2²\n\n4 flat states\n\n2 × 4 = 8 arrows\n\nThree features\n2³\n\nHow many flat states?\n\n3 arrows leave each state.\n\nLOOK AT THE NAMES\n\nplaying · muted · captions on\nplaying · muted · captions off\n\n← Back\nNext →\nStep 6 of 15 · 02 / Predict the cost"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 8,
+    "action": "trace",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n08 / 15 03 / Same behaviour\nSend both drawings the same events.\n\nA statechart changes how we draw the machine, not what it can do. Flatten its active regions into pairs and you get an ordinary state machine.\n\nTry PLAY → MUTE → PAUSE → UNMUTE. Both drawings must always name the same configuration.\n\nOne event stream, two drawings\nSame behaviour\nFlat · 4 boxes / 8 arrows\nstopped\n· audible\nplaying\n· audible\nstopped\n· muted\nplaying\n· muted\nPLAY\nPAUSE\nPLAY\nPAUSE\nMUTE\nUNMUTE\nMUTE\nUNMUTE\nRegions · 4 boxes / 4 arrows\nPLAYBACK · ● → stopped\nVOLUME · ● → audible\nstopped\nplaying\naudible\nmuted\nPLAY\nPAUSE\nMUTE\nUNMUTE\nOne active state per region. Both regions are active at once.\nPLAY\nPAUSE\nMUTE\nUNMUTE\n↺ Reset\nFlat: stopped · audible\nStatechart: stopped · audible — match ✓\nPLAY\nMUTE\nPAUSE\nUNMUTE\nUNMUTE\n← Back\nNext →\nStep 8 of 15 · 03 / Same behaviour"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 10,
+    "action": "frother-wrong",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n10 / 15 04 / Your turn\nWhere does the frother go?\n\nAdd a milk frother that can be still or frothing whenever the coffee machine is on. Coffee and frothing can change independently.\n\nChoose before revealing the answer. Remember to count off in the flat machine.\n\nWhere does it belong, and how many flat states?\nBeside coffee, inside on · 9\nInside brewing · 6\nBeside the whole machine · 10\nTry another answer, or continue to see the explanation.\nPlace the new feature\nTransfer exercise\non · one child active\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\noff\nPOWER_ON\nPOWER_OFF\nNEW FEATURE\n\nstill ⇄ frothing\nFROTH / STOP · only while on\n\n← Back\nNext →\nStep 10 of 15 · 04 / Your turn"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 11,
+    "action": "parallel",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n11 / 15 04 / Reveal & try\nTwo regions, inside on.\n\nCoffee and the frother are separate regions within on. The flat machine pairs 4 coffee states with 2 frother states, plus off: 9 states.\n\nTry START, then FROTH. You can be grinding and frothing at once. Each event changes only its own region.\n\nCoffee + frother, inside on\n8 boxes · 8 arrows\noff\n\nPOWER_ON → on · POWER_OFF → off\n\nON · BOTH REGIONS ACTIVE\nCOFFEE\nidle\ngrinding\nbrewing\nready\n\n● → idle\nSTART → GROUND → BREWED → TAKE ↻\n\nFROTHER\nstill\nfrothing\n\n● → still\nFROTH → frothing\nSTOP → still\n\nFlat: 1 off + (4 coffee × 2 frother) = 9 states, 25 arrows.\nInspect the flat counterpart · 9 states / 25 arrows\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\n↺ Reset\nActive: grinding · frothing · took FROTH\n← Back\nNext →\nStep 11 of 15 · 04 / Reveal & try"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 11,
+    "action": "flat-table",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n11 / 15 04 / Reveal & try\nTwo regions, inside on.\n\nCoffee and the frother are separate regions within on. The flat machine pairs 4 coffee states with 2 frother states, plus off: 9 states.\n\nTry START, then FROTH. You can be grinding and frothing at once. Each event changes only its own region.\n\nCoffee + frother, inside on\n8 boxes · 8 arrows\noff\n\nPOWER_ON → on · POWER_OFF → off\n\nON · BOTH REGIONS ACTIVE\nCOFFEE\nidle\ngrinding\nbrewing\nready\n\n● → idle\nSTART → GROUND → BREWED → TAKE ↻\n\nFROTHER\nstill\nfrothing\n\n● → still\nFROTH → frothing\nSTOP → still\n\nFlat: 1 off + (4 coffee × 2 frother) = 9 states, 25 arrows.\nInspect the flat counterpart · 9 states / 25 arrows\noff\nidle · still\nidle · frothing\ngrinding · still\ngrinding · frothing\nbrewing · still\nbrewing · frothing\nready · still\nready · frothing\n\nEach row below lists the outgoing arrows for one flat state.\n\noff\nPOWER_ON → idle · still\n\nidle · still\nSTART → grinding · still\nPOWER_OFF → off\nFROTH → idle · frothing\n\nidle · frothing\nSTART → grinding · frothing\nPOWER_OFF → off\nSTOP → idle · still\n\ngrinding · still\nGROUND → brewing · still\nPOWER_OFF → off\nFROTH → grinding · frothing\n\ngrinding · frothing\nGROUND → brewing · frothing\nPOWER_OFF → off\nSTOP → grinding · still\n\nbrewing · still\nBREWED → ready · still\nPOWER_OFF → off\nFROTH → brewing · frothing\n\nbrewing · frothing\nBREWED → ready · frothing\nPOWER_OFF → off\nSTOP → brewing · still\n\nready · still\nTAKE → idle · still\nPOWER_OFF → off\nFROTH → ready · frothing\n\nready · frothing\nTAKE → idle · frothing\nPOWER_OFF → off\nSTOP → ready · still\n\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\n↺ Reset\nActive: grinding · frothing · took FROTH\n← Back\nNext →\nStep 11 of 15 · 04 / Reveal & try"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 12,
+    "action": "independent",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n12 / 15 05 / Change the boundary\nGive the frother its own power.\n\nNow FROTH and STOP work whether the coffee machine is on or off. Where does the region go? How many states does the flat machine need?\n\nPredict the new boundary and count.\nOutside on, beside the whole machine · 10\nInside on · 9\nInside brewing · 6\nCorrect. Off also pairs with still and frothing.\nCheck yourself · 1\nTry, then reveal\nCHANGED REQUIREMENT\n\nThe coffee machine is off.\nThe frother can still run.\n\nHide explanation\nBeside the whole coffee machine.\n\nThe top level now splits into two regions: the entire off-and-on coffee machine, and the frother. Every one of the coffee machine’s 5 states pairs with still or frothing.\n\n5 × 2 = 10 flat states, compared with 9 when the frother was inside on.\n\n← Back\nNext →\nStep 12 of 15 · 05 / Change the boundary"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 13,
+    "action": "steam",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n13 / 15 05 / Change the dependency\nWhat if it needs brewing steam?\n\nThe frother can be still or frothing only while brewing. Leaving brewing stops it. Write the flat state names before revealing the answer.\n\nAre coffee and frothing still independent regions?\nYes · keep the frother beside coffee\nNo · put its two states inside brewing\nYes: only brewing splits. This is a parent again.\nCheck yourself · 2\nTry, then reveal\nYour flat state names\nHide explanation\nSix states. A parent inside a parent.\n\noff; idle; grinding; brewing · still; brewing · frothing; ready.\n\nOnly brewing has two words. The choices are dependent, so the region sign does not apply. Put still and frothing inside brewing.\n\nStatechart: 8 transitions. Flat: 13 transitions.\n\n← Back\nNext →\nStep 13 of 15 · 05 / Change the dependency"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 14,
+    "action": "off",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n14 / 15 05 / Check the restart\nDoes the chart remember?\n\nBack to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nTry the power cycle, then follow each region’s start dot. There is no history state in this chart.\n\nPredict the state after powering on again.\ngrinding · frothing\nidle · frothing\nidle · still\nChoose an answer; then continue.\nCoffee + frother, inside on\n8 boxes · 8 arrows\noff\n\nPOWER_ON → on · POWER_OFF → off\n\nON · BOTH REGIONS ACTIVE\nCOFFEE\nidle\ngrinding\nbrewing\nready\n\n● → idle\nSTART → GROUND → BREWED → TAKE ↻\n\nFROTHER\nstill\nfrothing\n\n● → still\nFROTH → frothing\nSTOP → still\n\nFlat: 1 off + (4 coffee × 2 frother) = 9 states, 25 arrows.\nInspect the flat counterpart · 9 states / 25 arrows\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\n↺ Reset\nActive: off · took POWER_OFF\n← Back\nNext →\nStep 14 of 15 · 05 / Check the restart"
+  },
+  {
+    "v": "X",
+    "width": 390,
+    "step": 14,
+    "action": "restart",
+    "text": "S Working models\nA FIELD GUIDE TO STATECHARTS\n14 / 15 05 / Check the restart\nDoes the chart remember?\n\nBack to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nTry the power cycle, then follow each region’s start dot. There is no history state in this chart.\n\nPredict the state after powering on again.\ngrinding · frothing\nidle · frothing\nidle · still\nChoose an answer; then continue.\nCoffee + frother, inside on\n8 boxes · 8 arrows\noff\n\nPOWER_ON → on · POWER_OFF → off\n\nON · BOTH REGIONS ACTIVE\nCOFFEE\nidle\ngrinding\nbrewing\nready\n\n● → idle\nSTART → GROUND → BREWED → TAKE ↻\n\nFROTHER\nstill\nfrothing\n\n● → still\nFROTH → frothing\nSTOP → still\n\nFlat: 1 off + (4 coffee × 2 frother) = 9 states, 25 arrows.\nInspect the flat counterpart · 9 states / 25 arrows\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\n↺ Reset\nActive: idle · still · took POWER_ON\n← Back\nNext →\nStep 14 of 15 · 05 / Check the restart"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 2,
+    "action": "keyboard-next",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 2 of 17\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\n\nThe four working states should all lead to off when POWER_OFF arrives. In a flat machine, an arrow belongs to its source state. Commit to a count before going on.\n\nYour prediction\n\n1 arrow\n4 arrows\n5 arrows\n\nChoose one before you go on, or go on without choosing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 5,
+    "action": "unhandled",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nno START transition from brewing\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\n\nSTART: no START transition from brewing\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 5,
+    "action": "off",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nno POWER_OFF transition from off\nUndo\nReset\n\nPOWER_OFF. parent: parent. Active configuration: off.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 5,
+    "action": "restart",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nno POWER_ON transition from idle\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\n\nPOWER_ON. parent: parent. Active configuration: idle.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 5,
+    "action": "brewing",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 5 of 17\nTry the parent’s power button\nSend events below; try POWER_OFF while brewing.\n\nThe guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nno GROUND transition from brewing\nPOURED\nTAKE\nPOWER_OFF\nUndo\nReset\n\nGROUND. parent: parent. Active configuration: brewing.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 9,
+    "action": "trace",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 9 of 17\nA statechart changes the drawing, not the behavior\nSend one event to both representations.\n\nThe same events run through both representations. The guided run sends PLAY, MUTE, then PAUSE; both end paused and muted. Use the buttons to continue the comparison. A statechart can be flattened into an ordinary state machine by naming each active combination; it packages the rules more compactly.\n\nTry it yourself: carry on from this picture\n\nPLAY\nPAUSE\nPAUSE has no transition from paused · muted\nMUTE\nUNMUTE\nUndo\nReset\n\nPAUSE. trace: player. Active configuration: paused · muted. Flat representation: paused · muted. Last event PAUSE.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 11,
+    "action": "frother-wrong",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 11 of 17\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\n\nThe frother can be still or frothing during idle, grinding, brewing or ready. It cannot run while off. Place it before seeing the answer. Count the flat states too: pair the working states with the frother’s two states, then decide what to do with off.\n\nYour prediction\n\nInside brewing · 6 flat states\nBeside coffee inside on · 9 flat states\nOutside on · 10 flat states\n\nYou chose “Inside brewing · 6 flat states”. Next shows the answer.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 11,
+    "action": "frother-right",
+    "text": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 11 of 17\nYour turn: add the milk frother\nWhere does it belong, and how many flat states?\n\nThe frother can be still or frothing during idle, grinding, brewing or ready. It cannot run while off. Place it before seeing the answer. Count the flat states too: pair the working states with the frother’s two states, then decide what to do with off.\n\nYour prediction\n\nInside brewing · 6 flat states\nBeside coffee inside on · 9 flat states\nOutside on · 10 flat states\n\nYou chose “Beside coffee inside on · 9 flat states”. Next shows the answer.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 17,
+    "action": "off",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nno POWER_OFF transition from off\nFROTH\nSTOP\nUndo\nReset\n\nPOWER_OFF. final: frother. Active configuration: off.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 17,
+    "action": "restart",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nno POWER_ON transition from idle · still\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nPOWER_ON. final: frother. Active configuration: idle · still.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 17,
+    "action": "parallel",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nno START transition from grinding · frothing\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nSTART. final: frother. Active configuration: grinding · frothing.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 17,
+    "action": "text-alternative",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nSTART. final: frother. Active configuration: grinding · frothing.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nfinal: frother. Active configuration: grinding · frothing.\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "width": 390,
+    "step": 17,
+    "action": "answer",
+    "text": "What is a statechart, and why use one instead of a state machine?\nStart again\n\nStep 17 of 17\nUse the two signs, then test the boundary\nTry POWER_OFF, then POWER_ON. What returns?\n\nReturn to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules.\n\nTry it yourself: carry on from this picture\n\nPOWER_ON\nSTART\nGROUND\nPOURED\nTAKE\nPOWER_OFF\nFROTH\nSTOP\nUndo\nReset\n\nSTART. final: frother. Active configuration: grinding · frothing.\n\nCheck yourself\n\nAnswer each one before you open it.\n\nGive the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?\n\nShow the answer\n\nOutside on, beside the whole machine: since the frother works whether the machine is off or on, it becomes a region next to the off-and-on machine, and the statechart’s top level splits in two. Flat, every one of the machine’s 5 states pairs with still or frothing, off included: 10 states where the frother inside on needed 9.\n\nNow the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?\n\nShow the answer\n\nIn the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?\n\nShow the answer\nWhat the picture shows\nfinal: frother. Active configuration: grinding · frothing.\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  }
+]

@@ -1,0 +1,1660 @@
+{
+  "embedFile": "/workspace/rayner-bench-rayner/out/benchmark/review/scene.embed.json",
+  "embedSize": {
+    "schema": 1,
+    "aspect": "16/9",
+    "heights": {
+      "390": 1045,
+      "640": 1047,
+      "900": 1090
+    }
+  },
+  "version": 1,
+  "scene": "bench-statecharts-round3",
+  "sourceHash": "7d1d8cea3fc46a547d9d728537b7b01cbdca78f2c746637632ceba98f2068fb4",
+  "buildHash": "84fbae0a0a94780a11cc8542f90333b99816a8df6418965b8efb61f4cb9e0f0d",
+  "reviewCodeHash": "204f34063d40781a1efe83653c59e210292fe0de85ca653137f9bf97e49d552b",
+  "artifact": "/workspace/rayner-bench-rayner/out/benchmark/review/scene.html",
+  "artifactHash": "c85b2e0afd0b03eb672865c0ea3cd5c2dcfbfe73f79b964148959c9203dc530e",
+  "subjectsHash": "54902cfb628ba892e7e5cbc68f60a1892617eadc33e1b3489a2944fcd6ce1e24",
+  "scenarios": 1,
+  "stepWidths": 34,
+  "framedStepWidths": 17,
+  "framedLiveStateWidths": 16,
+  "liveStateWidths": 32,
+  "results": [
+    {
+      "settings": {},
+      "steps": [
+        {
+          "step": "coffee",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "idle",
+            "START",
+            "grinding"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "power",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "off",
+            "POWER_OFF",
+            "brewing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "missed",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "missing",
+            "stays brewing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "parent",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "on:box",
+            "POWER_OFF",
+            "on"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "brew-live",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "brewing",
+            "POWER_OFF"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "combinations",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "grid:paused:sound:box",
+            "grid:playing:muted:box"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "regions",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "playback region",
+            "volume region",
+            "playing",
+            "muted"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "third",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "8 flat states · 24 transitions",
+            "6 regional states · 6 transitions"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "same-behavior",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "statechart",
+            "flat machine",
+            "Same active configuration"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "compose",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "on",
+            "playback region",
+            "volume region"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "place-frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.530000190668293,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "still",
+            "frothing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "grinding",
+            "frothing",
+            "on:box"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "own-power",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 17.899999393774102,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "FROTH and STOP also work while off."
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "own-answer",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "Two top-level regions",
+            "5 × 2 = 10 flat states"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "steam",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 14.319999294573497,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "Are the two words still independent?"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "steam-answer",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "brewing · still",
+            "brewing · frothing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "try-frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 12.529997178293987,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "grinding",
+            "frothing",
+            "POWER_OFF"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "coffee",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "idle",
+            "START",
+            "grinding"
+          ]
+        },
+        {
+          "step": "power",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "off",
+            "POWER_OFF",
+            "brewing"
+          ]
+        },
+        {
+          "step": "missed",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "missing",
+            "stays brewing"
+          ]
+        },
+        {
+          "step": "parent",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "on:box",
+            "POWER_OFF",
+            "on"
+          ]
+        },
+        {
+          "step": "brew-live",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "brewing",
+            "POWER_OFF"
+          ]
+        },
+        {
+          "step": "combinations",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "grid:paused:sound:box",
+            "grid:playing:muted:box"
+          ]
+        },
+        {
+          "step": "regions",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "playback region",
+            "volume region",
+            "playing",
+            "muted"
+          ]
+        },
+        {
+          "step": "third",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "8 flat states · 24 transitions",
+            "6 regional states · 6 transitions"
+          ]
+        },
+        {
+          "step": "same-behavior",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "statechart",
+            "flat machine",
+            "Same active configuration"
+          ]
+        },
+        {
+          "step": "compose",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "on",
+            "playback region",
+            "volume region"
+          ]
+        },
+        {
+          "step": "place-frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.680000451638858,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "still",
+            "frothing"
+          ]
+        },
+        {
+          "step": "frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "grinding",
+            "frothing",
+            "on:box"
+          ]
+        },
+        {
+          "step": "own-power",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 42.39999856402357,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "FROTH and STOP also work while off."
+          ]
+        },
+        {
+          "step": "own-answer",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "Two top-level regions",
+            "5 × 2 = 10 flat states"
+          ]
+        },
+        {
+          "step": "steam",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 33.9199983290456,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "Are the two words still independent?"
+          ]
+        },
+        {
+          "step": "steam-answer",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "brewing · still",
+            "brewing · frothing"
+          ]
+        },
+        {
+          "step": "try-frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 29.6799933161824,
+          "partiallyVisibleLabels": [],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "grinding",
+            "frothing",
+            "POWER_OFF"
+          ]
+        }
+      ],
+      "live": [
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: coffee:ready:box",
+            "changed: ready"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872498765503622
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POWER_OFF"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: off:box",
+            "changed: off"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872497375304995
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED",
+            "TAKE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:idle:box",
+            "changed: idle",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872498765503622
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED",
+            "TAKE",
+            "START"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872498765503622
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: PLAY",
+            "changed: playing"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 17.899998122533074
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: UNMUTE",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 17.899998842659645
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY",
+            "UNMUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: UNMUTE",
+            "changed: playing",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 17.899998122533074
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE",
+            "PLAY"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: PLAY",
+            "changed: playing",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 17.899998122533074
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE",
+            "MUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: MUTE"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 17.90000034935784
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY",
+            "UNMUTE",
+            "MUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: MUTE",
+            "changed: playing"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 17.899998122533074
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872499396771376
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "POWER_OFF"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: off:box",
+            "changed: off",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872497375304995
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "STOP"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872498765503622
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "POURED"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:ready:box",
+            "changed: ready"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872499396771376
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "STOP"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872498765503622
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "POURED",
+            "STOP"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:ready:box",
+            "changed: ready",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724,
+          "changedLabelPx": 13.872498765503622
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: coffee:ready:box",
+            "changed: ready"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POWER_OFF"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: off:box",
+            "changed: off"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED",
+            "TAKE"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: coffee:idle:box",
+            "changed: idle",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED",
+            "TAKE",
+            "START"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: Event: PLAY",
+            "changed: playing"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: Event: UNMUTE",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY",
+            "UNMUTE"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: Event: UNMUTE",
+            "changed: playing",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE",
+            "PLAY"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: Event: PLAY",
+            "changed: playing",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE",
+            "MUTE"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: Event: MUTE"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY",
+            "UNMUTE",
+            "MUTE"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: Event: MUTE",
+            "changed: playing"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "POWER_OFF"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: off:box",
+            "changed: off",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "STOP"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "POURED"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:ready:box",
+            "changed: ready"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "STOP"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "POURED",
+            "STOP"
+          ],
+          "width": 1180,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:ready:box",
+            "changed: ready",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.799989911218724
+        }
+      ],
+      "framedSteps": [
+        {
+          "step": "coffee",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "idle",
+            "START",
+            "grinding"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "power",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "off",
+            "POWER_OFF",
+            "brewing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "missed",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "missing",
+            "stays brewing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "parent",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "on:box",
+            "POWER_OFF",
+            "on"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "brew-live",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "brewing",
+            "POWER_OFF"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "combinations",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "grid:paused:sound:box",
+            "grid:playing:muted:box"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "regions",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "playback region",
+            "volume region",
+            "playing",
+            "muted"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "third",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "8 flat states · 24 transitions",
+            "6 regional states · 6 transitions"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "same-behavior",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "statechart",
+            "flat machine",
+            "Same active configuration"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "compose",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "on",
+            "playback region",
+            "volume region"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "place-frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.580000206646082,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "still",
+            "frothing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "grinding",
+            "frothing",
+            "on:box"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "own-power",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 19.399999342973047,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "FROTH and STOP also work while off."
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "own-answer",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "Two top-level regions",
+            "5 × 2 = 10 flat states"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "steam",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 15.519999235459542,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "Are the two words still independent?"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "steam-answer",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "brewing · still",
+            "brewing · frothing"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        },
+        {
+          "step": "try-frother",
+          "maximumTourOverlap": 0,
+          "minimumLabelPxWholeStage": 13.579996941838173,
+          "partiallyVisibleLabels": [],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "grinding",
+            "frothing",
+            "POWER_OFF"
+          ],
+          "openingAt320": {
+            "reviewed": false,
+            "reason": "no-opening-subject"
+          }
+        }
+      ],
+      "framedLive": [
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: coffee:ready:box",
+            "changed: ready"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034998662054202
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POWER_OFF"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: off:box",
+            "changed: off"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034997155358484
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED",
+            "TAKE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:idle:box",
+            "changed: idle",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034998662054202
+        },
+        {
+          "step": "brew-live",
+          "sent": [
+            "POURED",
+            "TAKE",
+            "START"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 13,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034998662054202
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: PLAY",
+            "changed: playing"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 19.39999796520344
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: UNMUTE",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 19.399998745675813
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY",
+            "UNMUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: UNMUTE",
+            "changed: playing",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 19.39999796520344
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE",
+            "PLAY"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: PLAY",
+            "changed: playing",
+            "changed: sound"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 19.39999796520344
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "UNMUTE",
+            "MUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: MUTE"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 19.400000378633635
+        },
+        {
+          "step": "same-behavior",
+          "sent": [
+            "PLAY",
+            "UNMUTE",
+            "MUTE"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: Event: MUTE",
+            "changed: playing"
+          ],
+          "labels": 9,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 19.39999796520344
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034999346221488
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "POWER_OFF"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: off:box",
+            "changed: off",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034997155358484
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "STOP"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034998662054202
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "POURED"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:ready:box",
+            "changed: ready"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034999346221488
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "STOP"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:brewing:box",
+            "changed: brewing",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034998662054202
+        },
+        {
+          "step": "try-frother",
+          "sent": [
+            "GROUND",
+            "POURED",
+            "STOP"
+          ],
+          "width": 390,
+          "views": 1,
+          "targets": [
+            "changed: on:box",
+            "changed: coffee:grinding:box",
+            "changed: grinding",
+            "changed: coffee:ready:box",
+            "changed: ready",
+            "changed: frother:still:box",
+            "changed: still",
+            "changed: frother:frothing:box",
+            "changed: frothing"
+          ],
+          "labels": 16,
+          "minimumLabelPx1280": 44.79998991121872,
+          "changedLabelPx": 15.034998662054202
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [],
+  "runtimeConnections": [],
+  "browser": {
+    "name": "chromium",
+    "path": "/usr/bin/chromium",
+    "version": "156.0.8078.79",
+    "source": "CHROMIUM_EXECUTABLE_PATH"
+  }
+}
