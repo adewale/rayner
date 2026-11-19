@@ -207,3 +207,17 @@ test('framed review rejects paint hidden only inside the loader iframe', { skip:
     await browser.close(); server?.close(); await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('phone whole-picture measurements use the Whole picture control independently of the opening close-up', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for whole-picture measurements' }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-whole-label-'));
+  try {
+    const small = source.replace("new Text('Answer',{color:s.look.ink})", "new Text('Answer',{color:s.look.ink,fontSize:0.3})");
+    assert.notEqual(small, source);
+    await writeFile(join(directory, 'scene.ts'), small);
+    const result = await reviewScene(await collectProject(directory, { write: false }), join(directory, 'review'));
+    const phone = result.results.flatMap(c => [...c.steps.filter(s => s.width === 390), ...c.framedSteps]);
+    assert.equal(phone.length, 4);
+    assert.ok(phone.every(s => s.minimumLabelPxWholeStage !== null && s.minimumLabelPxWholeStage < 10), JSON.stringify(phone));
+    assert.ok(existsSync(join(directory, 'review', '0', 'one.390.whole.png')));
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

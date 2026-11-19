@@ -1,3 +1,4 @@
+import { chromeFor } from '../../app/embed-strings.ts';
 import { openReviewReader } from './review-reader.ts';
 import { readerShellProblems, cropTest } from './explain-reader-shell.ts';
 import type { ReaderShell } from './explain-reader-shell.ts';
@@ -1030,8 +1031,20 @@ export async function reviewStoryScenario(
         }
       const verified = verifyStoryTargets(frame, views, step.step, viewport.width);
       assert.ok(verified.size, `${step.step}: no story subject is painted in a reader view`);
+      let wholePicture = opening;
+      const wholeButton = reader.locator('button[aria-keyshortcuts="0"]');
+      if (viewport.width === PHONE_VIEWPORT.width && await wholeButton.isVisible()) {
+        await wholeButton.click();
+        await reader.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        wholePicture = await inspectStoryFrame(reader, measured);
+        if (directory) await reader.locator('.stage').screenshot({
+          path: join(directory, `${encodeURIComponent(step.step)}.${viewport.width}.whole.png`), animations: 'disabled',
+        });
+        await reader.getByRole('button', { name: chromeFor(scenario.Scene.meta?.lang).closeUp, exact: true }).click();
+        await reader.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      }
       const wholeLabelPixels = frame.labels.flatMap(label => {
-        const ink = opening.ink.filter(p => label.indices.includes(p.index) && p.visible && intersect(p.shown, opening.viewport));
+        const ink = wholePicture.ink.filter(p => label.indices.includes(p.index) && p.visible && intersect(p.shown, wholePicture.viewport));
         return ink.length ? [label.size * Math.min(...ink.map(p => p.scale))] : [];
       });
       const partiallyVisibleLabels = views.flatMap((view, index) => {
