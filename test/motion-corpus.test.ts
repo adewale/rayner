@@ -80,6 +80,12 @@ const SAMPLE = new Map([
   ['conversations-table-block-blinks', 'motion contract'],
   ['sign-in-password-hand-and-flight', 'motion contract'],
 ]);
+const selected = process.env.FULL ? CORPUS : CORPUS.filter(e => SAMPLE.has(e.id));
+let campaign: ReturnType<typeof runCorpus> | undefined;
+// FULL shares 59 unique variants and their frozen baselines across both assertion sets.
+const resultsOfCampaign = () => campaign ??= runCorpus(selected, {bases: !!process.env.FULL, jobs: 2,
+  progress: r => console.error(`[motion corpus] ${r.id}: ${r.error ? 'ERROR' : r.caught ? 'caught' : 'missed'} (${(r.ms / 1000).toFixed(1)}s)`),
+});
 
 test('the current poll mutation removes actual domain pixels and its fixed route preserves them', {
   skip: !process.env.FULL && 'set FULL=1: independently rasterizes the current domain victim and fixed route',
@@ -158,10 +164,11 @@ test('every corpus entry applies to the frozen Poppy scenes, and names its event
 test('a sample of the corpus: geometry, occlusion and authored context are caught', async () => {
   const entries = CORPUS.filter((e) => SAMPLE.has(e.id));
   assert.equal(entries.length, SAMPLE.size);
-  // The full run requires the frozen baselines to be free of findings, so no baseline is run here.
-  const { results } = await runCorpus(entries, { bases: false, jobs: 2 });
-  assert.equal(results.length, SAMPLE.size);
-  for (const r of results) {
+  // Standard mode runs only samples; FULL shares the baseline-subtracted campaign below.
+  const { results } = await resultsOfCampaign();
+  const sample = results.filter(r => SAMPLE.has(r.id));
+  assert.deepEqual(sample.map(r => r.id), entries.map(e => e.id));
+  for (const r of sample) {
     assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
     assert.ok(r.caught, `${r.id} is no longer caught`);
     const kind = SAMPLE.get(r.id)!;
@@ -175,7 +182,9 @@ test('a sample of the corpus: geometry, occlusion and authored context are caugh
 test('the whole corpus: each historical ID retains its diagnosis or its explicit current construction obligation', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it replays all 59 reconstructed mutations' }, async () => {
   // The catalog's gate keeps today's scenes clean, not the frozen copy: each frozen chapter's
   // baseline must itself replay every event without a finding, so no entry's catch is inherited.
-  const { results, baselines } = await runCorpus(CORPUS, { bases: true, jobs: 2 });
+  const { results, baselines } = await resultsOfCampaign();
+  assert.deepEqual(results.map(r => r.id), CORPUS.map(e => e.id), 'every unique variant ran once, in corpus order');
+  assert.equal(baselines.length, new Set(CORPUS.map(e => e.chapter)).size, 'every frozen chapter baseline ran');
   for (const b of baselines) {
     assert.equal(b.error, undefined, `${b.id}: ${b.error}`);
     assert.equal(b.status, 'complete', `${b.id} did not replay completely`);

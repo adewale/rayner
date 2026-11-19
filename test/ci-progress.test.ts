@@ -3,9 +3,24 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {mkdtemp, rm, writeFile} from 'node:fs/promises';
 import {writeFileSync} from 'node:fs';
-import {join, resolve} from 'node:path';
+import {join, relative, resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {commandProgress, progressArgs} from '../tools/repo/lib/ci-progress.ts';
+import fileProgress from '../tools/repo/lib/ci-file-reporter.ts';
+import type {TestEvent} from 'node:test/reporters';
+
+test('relative file events are normalized while nested and ordinary named tests are excluded', async () => {
+  const file = resolve('test/example.test.ts');
+  const events = [
+    {type: 'test:dequeue', data: {name: 'test/example.test.ts', file, nesting: 0}},
+    {type: 'test:complete', data: {name: 'test/example.test.ts', file, nesting: 0, details: {passed: true, duration_ms: 1234}}},
+    {type: 'test:complete', data: {name: file, file, nesting: 1, details: {passed: true, duration_ms: 10}}},
+    {type: 'test:complete', data: {name: 'an ordinary test', file, nesting: 0, details: {passed: true, duration_ms: 10}}},
+  ] as TestEvent[];
+  const output: string[] = [];
+  for await (const line of fileProgress((async function* () { yield* events; })())) output.push(line);
+  assert.deepEqual(output, ['[ci] file started: test/example.test.ts\n', '[ci] file passed: test/example.test.ts (1.23s)\n']);
+});
 
 test('a silent command gets a 30-second heartbeat; output resets its quiet time and finish cancels the clock', () => {
   let now = 0, cancelled = 0, tick = () => {};
@@ -55,7 +70,7 @@ test('cancelling the wrapper reaches a live child and preserves its failing shut
   assert.match(stderr, /finished .*exit 7/);
 });
 
-test('fast files report completion before an earlier blocked file, while spec results and nonzero exits are preserved', {timeout: 30_000}, async () => {
+for (const mode of ['absolute', 'relative', 'glob'] as const) test(`${mode} test paths report fast completion before an earlier blocked file and preserve failure`, {timeout: 30_000}, async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-ci-progress-'));
   const wrapper = resolve('tools/repo/ci-tests.ts'), release = join(folder, 'release');
   const slow = join(folder, 'a-slow.test.mjs'), fast = join(folder, 'b-fast.test.mjs');
@@ -63,7 +78,8 @@ test('fast files report completion before an earlier blocked file, while spec re
   try {
     await writeFile(slow, `import {test} from 'node:test'; import {existsSync} from 'node:fs'; test('slow result',async()=>{while(!existsSync(${JSON.stringify(release)}))await new Promise(r=>setTimeout(r,10));});`);
     await writeFile(fast, "import {test} from 'node:test'; test('fast result',()=>{});");
-    const child = spawn(process.execPath, [wrapper, '--test', '--test-concurrency=2', '--test-reporter=spec', slow, fast], {env});
+    const files = mode === 'absolute' ? [slow, fast] : mode === 'relative' ? [relative(process.cwd(), slow), relative(process.cwd(), fast)] : [relative(process.cwd(), join(folder, '*.test.mjs'))];
+    const child = spawn(process.execPath, [wrapper, '--test', '--test-concurrency=2', '--test-reporter=spec', ...files], {env});
     let stdout = '', stderr = '';
     child.stdout.on('data', chunk => { stdout += chunk; });
     child.stderr.on('data', chunk => {
@@ -77,10 +93,12 @@ test('fast files report completion before an earlier blocked file, while spec re
     assert.equal(status, 0, stdout + stderr);
     const fastAt = stderr.search(/\[ci\] file passed: .*fast\.test\.mjs/), slowAt = stderr.search(/\[ci\] file passed: .*slow\.test\.mjs/);
     assert.ok(fastAt >= 0 && slowAt > fastAt, stderr);
+    assert.equal((stderr.match(/\[ci\] file started:/g) ?? []).length, 2);
+    assert.equal((stderr.match(/\[ci\] file passed:/g) ?? []).length, 2);
     assert.ok(stdout.indexOf('✔ slow result') < stdout.indexOf('✔ fast result'), stdout);
     assert.match(stderr, /\[ci\] finished .*exit 0/);
     await writeFile(fast, "import {test} from 'node:test'; test('a broken assertion',()=>{throw new Error('deliberate defect')});");
-    const failed = spawn(process.execPath, [wrapper, '--test', fast], {env});
+    const failed = spawn(process.execPath, [wrapper, '--test', mode === 'absolute' ? fast : relative(process.cwd(), fast)], {env});
     let output = '';
     failed.stdout.on('data', chunk => { output += chunk; }); failed.stderr.on('data', chunk => { output += chunk; });
     assert.equal(await new Promise(done => failed.on('close', done)), 1);
