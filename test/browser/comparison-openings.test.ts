@@ -18,7 +18,7 @@ test('primary ring, block-width, route/trip and cache comparisons are readable t
   const server = await serve(directory, 0, 'index.html');
   const rows: string[] = [];
   try {
-    for (const [id, step, expectedScenarios] of [['ring-buffer', 'result', 2], ['periodic-groups', 'stack', 5], ['gtfs', 'day', 6], ['cache-policies', 'pattern', 2]] as const) {
+    for (const [id, step, expectedScenarios] of [['ring-buffer', 'result', 2], ['periodic-groups', 'stack', 5], ['gtfs', 'day', 6], ['cache-policies', 'try', 2]] as const) {
       const project = await collectProject(join(ROOT, 'scenes/explainers', id));
       assert.equal(project.scenarios.length, expectedScenarios);
       await buildExplainer(project, join(directory, `${id}.html`));

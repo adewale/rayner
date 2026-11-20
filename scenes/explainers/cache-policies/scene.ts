@@ -31,9 +31,16 @@ export default class CachePolicies extends Scene<Comparison, {}> {
     await send(keys.slice(0, 3));
     await this.step('evict', { title: 'D evicts opposite ends', line: `${answer}.`, caption: `${answerOf(this)}. After requesting D, LRU holds ${fourth.lru.order.join(' ')}, while MRU holds ${fourth.mru.order.join(' ')}. Each cache records D as newest. The difference is which earlier item survives for the next request.` });
     await send(keys.slice(3, 4));
-    await this.step('pattern', { title: pattern === 'loop' ? 'Repeating the loop favours MRU' : 'Reusing C and D favours LRU', line: pattern === 'loop' ? 'Eight requests: LRU 0 hits, MRU 3.' : 'Eight requests: LRU 4 hits, MRU 0.', caption: pattern === 'loop' ? 'Repeat A B C D. LRU always evicts the item needed next, so all eight requests miss. MRU hits on A, B and D: three hits. The request stream, capacity and hit rule are identical; only replacement differs.' : 'Now request C D C D. LRU keeps both recently used items and hits four times. MRU keeps replacing the item needed next and misses every repeat. The same pair of independent models produces the opposite winner when only the requests change.' });
+    const result = run(keys);
+    const explanation = pattern === 'loop'
+      ? 'On the second A B C D, LRU keeps evicting the item it needs next. MRU hits on A, B and D.'
+      : 'On C D C D, LRU keeps both items and hits four times. MRU evicts the one it needs next and misses each time.';
+    await this.step('try', {
+      title: pattern === 'loop' ? 'Repeating the loop favours MRU' : 'Reusing C and D favours LRU',
+      line: `Eight requests: LRU ${result.lru.hits} hits, MRU ${result.mru.hits}.`,
+      caption: `${explanation} Choose A, B, C or D for the ninth request, then choose two more. Use Undo or Reset to compare another sequence.`,
+    });
     await send(keys.slice(4));
-    await this.step('try', { title: 'Send the same next request to both', line: 'Choose the next three requests below.', caption: 'Both caches have received eight requests. Choose A, B, C or D for the ninth. Which cache scores a hit? Send two more and compare their orders and hit counts. Undo a request or Reset to try another continuation.' });
     const start = this.state;
     const machine = new Machine<Comparison, Key>(this, { start, events: ['A', 'B', 'C', 'D'], next: request, views: [left, right, stream], bound: st => st.history.length >= 11 ? 'This comparison stops after eleven requests; Undo or Reset to try another continuation' : undefined, runTime: 0.3 });
     machine.offer();

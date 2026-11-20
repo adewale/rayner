@@ -16,8 +16,15 @@ test('both scenarios execute all eight independently worked requests and show bo
     const observed = new Map<number, Comparison>(), rests: string[] = [];
     const expectedSteps: Record<string, Comparison> = {
       full: state(worked[pattern][2]!), evict: state(worked[pattern][3]!),
-      pattern: state(worked[pattern][7]!), try: state(worked[pattern][7]!),
+      try: state(worked[pattern][7]!),
     };
+    const live = scenario.trace.steps.find(s => s.step === 'try')!;
+    assert.deepEqual(live.before, expectedSteps.evict, 'the live step begins after the fourth request');
+    assert.deepEqual(live.after, expectedSteps.try, 'readers choose request nine');
+    assert.equal(live.meta.line, pattern === 'loop' ? 'Eight requests: LRU 0 hits, MRU 3.' : 'Eight requests: LRU 4 hits, MRU 0.');
+    const prediction = scenario.trace.steps.find(s => s.step === 'full')!.meta.predict!;
+    assert.equal(prediction.answer, 'LRU drops A; MRU drops C');
+    assert.ok(prediction.options.includes('LRU drops A; MRU drops C'));
     const sink: Sink = {
       async frame(scene) {
         const current = scene.state as unknown as Comparison, n = current.history.length;
@@ -29,12 +36,9 @@ test('both scenarios execute all eight independently worked requests and show bo
       },
     };
     await new scenario.Scene(sink).run();
-    assert.equal(observed.size, 8, `${pattern}: every request, including the four inside the pattern step`);
+    assert.equal(observed.size, 8, `${pattern}: every guided request, including the last four in the live step`);
     assert.deepEqual([...observed.values()], worked[pattern].map(state));
-    assert.deepEqual(rests, ['full', 'evict', 'pattern', 'try']);
-    const patternStep = scenario.trace.steps.find(s => s.step === 'pattern')!;
-    assert.deepEqual(patternStep.after, expectedSteps.pattern);
-    assert.equal(patternStep.meta.line, pattern === 'loop' ? 'Eight requests: LRU 0 hits, MRU 3.' : 'Eight requests: LRU 4 hits, MRU 0.');
+    assert.deepEqual(rests, ['full', 'evict', 'try']);
   }
 });
 

@@ -1,7 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    { "step": "pattern", "opening": true, "targets": [{ "key": "lru:counts" }, { "key": "mru:counts" }, { "key": "cache:requests" }] },
-    { "step": "try", "opening": true, "targets": [{ "key": "lru:counts" }, { "key": "mru:counts" }] }
+    { "step": "try", "opening": true, "targets": [{ "key": "lru:counts" }, { "key": "mru:counts" }, { "key": "cache:requests" }] }
   ]
 }
