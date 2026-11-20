@@ -24,7 +24,7 @@ import { StringSink, toSvgString } from '../src/svg.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
   assert.deepEqual(Object.keys(drawing).sort(), [
-    'MARGIN', 'PLATE_HEIGHT', 'RADIUS', 'SPACE', 'STROKE', 'TYPE', 'addAll', 'bars', 'beats', 'callout', 'card', 'code', 'connector', 'dimension', 'emphasised',
+    'MARGIN', 'PLATE_HEIGHT', 'RADIUS', 'SPACE', 'STROKE', 'TYPE', 'addAll', 'bars', 'beats', 'callout', 'card', 'code', 'connector', 'described', 'dimension', 'emphasised',
     'flight', 'flow', 'keyedParts', 'label', 'legend', 'pass', 'pin', 'plate', 'route', 'stat', 'table', 'tile', 'tones',
   ]);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;

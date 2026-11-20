@@ -65,9 +65,9 @@ export function assertSteps(trace: { readonly steps: readonly Pick<StepRecord<ob
 
 /**
  * Run the scene and fail unless, at the end of every step, the view `pick` finds shows what `draw`
- * (by default the view's own) makes of the state the trace records then (viewMismatch): the
- * picture tells the same story as the state. Steps before the view exists are skipped, and it
- * fails if the view never exists. Returns how many steps it checked.
+ * (by default the view's own) makes of its state input and the scene's authored shown fields.
+ * Steps before the view exists are skipped, and it fails if the view never exists. Returns
+ * how many steps it checked.
  */
 export async function assertViewFollowsState(
   Explainer: SceneClass,
@@ -77,8 +77,8 @@ export async function assertViewFollowsState(
   // Per step: null before the view exists, else viewMismatch's answer (null when they agree).
   const checks: ({ mismatch: string | null } | null)[] = [];
   const sink = new TraceSink({ atRest: (scene) => {
-    const v = pick(scene), end = sink.steps().at(-1)!;
-    checks.push(v ? { mismatch: viewMismatch(v, v[viewInput](end.after), { shown: end.shown ?? {}, draw: draw ?? v.draw }) } : null);
+    const v = pick(scene);
+    checks.push(v ? { mismatch: viewMismatch(v, v[viewInput](scene.state), { shown: scene.shown, draw: draw ?? v.draw }) } : null);
   } });
   await new Explainer(sink).run();
   let checked = 0;

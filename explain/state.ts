@@ -87,8 +87,8 @@ export interface FollowOptions extends AnimationOptions {
  * the picture at that value and writes it into the targets, so the drawings always
  * agree. Correct by construction: Follow writes nothing but its declared targets,
  * and only from the value, so a seek renders what a full run renders and play()'s
- * one-writer check covers everything it touches. No updater is registered. The value is exact at both ends; an easing that overshoots samples
- * outside them, as a Transform would. See docs/CHOREOGRAPHY.md.
+ * one-writer check covers everything it touches. Eased progress at or below 0 gives the start,
+ * and at or above 1 gives the end. See docs/CHOREOGRAPHY.md.
  */
 export class Follow extends Animation {
   readonly spec: FollowSpec;
@@ -120,7 +120,7 @@ export class Follow extends Animation {
     this.doInterpolate(0);
   }
 
-  /** The value at an eased alpha: exact at 0 and 1. */
+  /** The value at an eased alpha, clamped to the two endpoints. */
   valueAt(alpha: number): number {
     return alpha <= 0 ? this.start : alpha >= 1 ? this.spec.to : this.start + (this.spec.to - this.start) * alpha;
   }

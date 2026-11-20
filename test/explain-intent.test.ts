@@ -86,8 +86,86 @@ test('every adoption starts from the declared metadata: withIntent and loadProje
     assert.equal(second.Scene.meta?.id, 'lamp', 'the id loadProject gives it is given again');
     await rm(join(folder, 'script.md'));
     assert.equal((await loadProject(Dim, folder)).Scene.meta?.answer, undefined);
+    assert.equal(first.Scene.meta?.answer, 'the second press only dims it');
+    assert.equal(Object.hasOwn(Dim, 'meta'), false);
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('independent project loads retain their own script and inherited declarations when their bound scenes run again', async () => {
+  const { Scene } = await import('../src/index.ts');
+  const { answerOf, settingsOf } = await import('../explain/index.ts');
+  const { loadProject, traceScene, withIntent, withSettings } = await import('../explain/testing.ts');
+  class Base extends Scene<{ answer: string; selected: string }> {
+    static meta: { sources: string[]; title?: 'Original?' } = { sources: ['first source'] };
+    static subject = 'the lamp';
+    static settings = [{ id: 'mode', label: 'Mode', default: 'one', options: [
+      { value: 'one', label: 'One' }, { value: 'two', label: 'Two' },
+    ] }];
+    override state = { answer: '', selected: '' };
+    selection(): string { return settingsOf(this, Base).mode!; }
+    override async construct() {
+      await this.step('answer', { caption: answerOf(this) });
+      this.state = { answer: answerOf(this), selected: this.selection() };
+    }
+  }
+  class Template extends Base {}
+  const folders = await mkdtemp(join(tmpdir(), 'rayner-bound-project-'));
+  const alpha = join(folders, 'alpha'), beta = join(folders, 'beta');
+  const script = (name: string) => `# ${name}?\n\n- **Answer:** ${name} answers.\n- **Checked against:** ${name} examples.\n`;
+  try {
+    await Promise.all([mkdir(alpha), mkdir(beta)]);
+    await Promise.all([writeFile(join(alpha, 'script.md'), script('Alpha')), writeFile(join(beta, 'script.md'), script('Beta'))]);
+    const [a, b] = await Promise.all([loadProject(Template, alpha), loadProject(Template, beta)]);
+    assert.deepEqual(Base.meta, { sources: ['first source'] });
+    assert.equal(Object.hasOwn(Template, 'meta'), false);
+    assert.deepEqual([a.Scene.meta?.id, b.Scene.meta?.id], ['alpha', 'beta']);
+    const alphaTitle: NonNullable<typeof a.Scene.meta>['title'] = 'Alpha?';
+    assert.deepEqual([a.Scene.meta?.title, b.Scene.meta?.title], [alphaTitle, 'Beta?']);
+    assert.equal(a.Scene.subject, 'the lamp');
+    assert.equal(a.scenarios.length, 2);
+    const first = a.scenario(), second = b.scenario({ mode: 'two' });
+    const one = { answer: 'Alpha answers', selected: 'one' }, two = { answer: 'Beta answers', selected: 'two' };
+    assert.deepEqual(first.trace.steps[0]!.after, one);
+    assert.deepEqual(second.trace.steps[0]!.after, two);
+    const instance: Template = new first.Scene({ async frame() {} });
+    assert.equal(instance.selection(), 'one');
+    assert.ok(instance instanceof Template);
+    assert.ok(Object.isFrozen(a.Scene.meta));
+    assert.ok(Object.isFrozen(a.Scene.meta?.sources));
+    assert.ok(Object.isFrozen(a.Scene.settings?.[0]?.options[0]));
+    // Later edits to nested declarations, and an explicit adoption on the original base, stay with that definition.
+    Base.meta.sources[0] = 'updated source';
+    Base.settings[0]!.default = 'two';
+    Base.settings[0]!.options[0]!.label = 'First';
+    withIntent(Base, script('Original'));
+    assert.deepEqual(a.Scene.meta?.sources, ['first source']);
+    assert.equal(a.Scene.settings?.[0]?.options[0]?.label, 'One');
+    assert.deepEqual(a.scenario().values, { mode: 'one' });
+    assert.deepEqual((await traceScene(first.Scene)).steps[0]!.after, one);
+    assert.deepEqual((await traceScene(second.Scene)).steps[0]!.after, two);
+    const Direct = withSettings(Template, { mode: 'two' });
+    Base.settings[0]!.options.pop();
+    Base.settings[0]!.default = 'one';
+    assert.deepEqual(b.scenario({ mode: 'two' }).values, { mode: 'two' });
+    assert.deepEqual((await traceScene(second.Scene)).steps[0]!.after, two, 'the base witness keeps the declarations its scenario validated');
+    assert.throws(() => new Direct({ async frame() {} }).selection(), /"two" is not an option of the setting "mode"/);
+    // The passed class can inherit metadata previously adopted by withIntent. Its folder still supplies its own intent.
+    class DirectlyAdopted extends Template {}
+    withIntent(DirectlyAdopted, '# Lamp\n\nReader prose.');
+    const reloaded = await loadProject(DirectlyAdopted, alpha);
+    assert.deepEqual(reloaded.Scene.meta?.sources, ['updated source']);
+    assert.equal(reloaded.Scene.meta?.title, 'Alpha?');
+    assert.deepEqual(reloaded.scenario().values, { mode: 'one' });
+    assert.equal(Object.hasOwn(Template, 'meta'), false);
+    assert.equal(Base.meta.title, 'Original?');
+    class Incompatible extends Template {
+      static override settings = [{ id: 'mode', label: 'Mode', default: 'other', options: [{ value: 'other', label: 'Other' }] }];
+    }
+    await assert.rejects(loadProject(Incompatible, alpha), /"other" is not an option of the setting "mode"/);
+  } finally {
+    await rm(folders, { recursive: true, force: true });
   }
 });
 
@@ -99,7 +177,7 @@ test('a part declared in both places is refused under the script\'s path', async
     await mkdir(folder);
     await writeFile(join(folder, 'script.md'), SCRIPT);
     const twice = (where: string) => new RegExp(`^Error: ${where.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}: answer is declared in both script\\.md and the scene;`);
-    // The command and loadProject adopt a script by one function, adoptExplainer.
+    // The command and loadProject use the same script adoption.
     class Lamp extends Scene {
       static meta = { answer: 'twice' };
       override async construct() { await this.step('one', { caption: 'The lamp.' }); }
@@ -108,6 +186,15 @@ test('a part declared in both places is refused under the script\'s path', async
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('loadProject names an unknown metadata key and the scene file even when its value cannot be cloned', async () => {
+  const { Scene } = await import('../src/index.ts');
+  const { loadProject } = await import('../explain/testing.ts');
+  class Lamp extends Scene { static meta = { titel() {} }; }
+  await assert.rejects(loadProject(Lamp, 'lamp/scene.ts'), {
+    name: 'TypeError', message: /^loadProject\(\): lamp\/scene\.ts: static meta: "titel" is not a key/,
+  });
 });
 
 test('Hanoi\'s scene declares no title, answer or questions, and its page shows the script\'s', async () => {

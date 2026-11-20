@@ -82,6 +82,16 @@ export function setStepState(step: Step, state: JsonObject): void { stepStates.s
 /** @internal A staged step's local input, separate from Scene.state. */
 export function stepStateOf(step: Step): JsonObject | undefined { return stepStates.get(step); }
 
+type StepCheck = (step: Step | null) => void;
+const stepChecks = new WeakMap<Scene<any, any>, StepCheck[]>();
+
+/** @internal Validate before the first named step (null) and after each named step's listeners and hold. */
+export function addStepCheck(scene: Scene<any, any>, check: StepCheck): void {
+  const checks = stepChecks.get(scene);
+  if (checks) checks.push(check);
+  else stepChecks.set(scene, [check]);
+}
+
 /**
  * One fact recorded during a step (see Scene.record): what an animation did,
  * such as the hunks a TransformDiff animated. JSON, like the state.
@@ -648,6 +658,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       const given = typeof meta === 'function' ? meta(closed) : meta;
       // Frozen, deeply: what the trace records, and what the caption hold reads, cannot change after.
       const copy = deepFreeze(cloneJson(given, 'this.step()', 'its metadata')) as StepMeta;
+      if (!this.steps.length) stepChecks.get(this)?.forEach(check => check(null));
       this.#phase = 'beginning-step';
       const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta: copy, evidence: [] };
       this.steps.push(s);
@@ -689,6 +700,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
         await this.#frames(Math.ceil(left * this.fps - 1e-6));
       }
     }
+    // Listeners can make or play actions, including an action that installs the first check.
+    stepChecks.get(this)?.forEach(check => check(s));
     const ended: EndedStep = Object.assign(s, { t1: this.time, frame1: this.frameCount });
     // The sink hears the end with the step still current, the scene as its resting frame showed it.
     await this.#toSink(() => this.#sink.stepEnd?.(this, ended));

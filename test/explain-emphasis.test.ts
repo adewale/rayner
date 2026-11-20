@@ -4,12 +4,13 @@
 // descriptions of the shipped explainers are in explain-real.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
+import { Scene, Rectangle, Group, Text, DecimalNumber, FadeIn, keyed } from '../src/index.ts';
 import { NullSink, renderFrame } from '../src/timeline.ts';
 import { toSvgString } from '../src/svg.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
-import { stage } from '../explain/index.ts';
+import { stage, view } from '../explain/index.ts';
+import { described } from '../explain/drawing.ts';
 import { bindSnapshots } from '../explain/internal.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
@@ -431,6 +432,51 @@ test('a view of a card or code is described as that card or code, and a describe
   assert.deepEqual(both, [
     { what: 'Code, 1 line', marked: { focused: ['1: n = 7'] }, items: [] },
     { what: 'Words beside the code', items: [] },
+  ]);
+});
+
+test('described reads each copy and leaves an unrelated group’s describe method alone', async () => {
+  class LibraryGroup extends Group {
+    describe(): never { throw new Error('Called a method from a different protocol'); }
+  }
+  class Stations extends Scene {
+    override async construct() {
+      const s = stage(this);
+      const station = new Text('inlet');
+      assert.equal(described(station, (self) => ({ what: 'Station', parts: [{ name: self.text }] })), station);
+      const outlet = station.copy().setText('outlet');
+      await this.step('meters');
+      await s.enter(new Group(new Group(station, outlet), new LibraryGroup(new Text('Flow'))));
+    }
+  }
+  const { steps } = await traceScene(Stations);
+  assert.deepEqual((steps[0]!.shown!.picture as Picture).entries, [
+    { what: 'Station', items: ['inlet'] },
+    { what: 'Station', items: ['outlet'] },
+    { what: '1 label', items: ['Flow'] },
+  ]);
+});
+
+test('a described meter inside a view reports its fresh reading when the rounded digits stay the same', async () => {
+  class Meter extends Scene<{ temperature: number }> {
+    override async construct() {
+      const s = stage(this);
+      this.state = { temperature: 10.1 };
+      const meter = view(this, ({ temperature }) => {
+        const digits = keyed(new DecimalNumber(temperature), 'reading');
+        return new Group(described(digits, (self) => ({ what: 'Temperature', parts: [{ name: `${self.value} °C` }] })));
+      });
+      await this.step('first');
+      await s.enter(new Group(meter));
+      await this.step('warmer');
+      this.state.temperature = 10.4;
+      await meter.sync();
+    }
+  }
+  const { steps } = await traceScene(Meter);
+  assert.deepEqual(steps.map((st) => (st.shown!.picture as Picture).entries), [
+    [{ what: 'Temperature', items: ['10.1 °C'] }],
+    [{ what: 'Temperature', items: ['10.4 °C'] }],
   ]);
 });
 

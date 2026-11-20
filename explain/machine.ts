@@ -7,7 +7,7 @@
 import { Animation, AnimationGroup, MadeAtTurn, Succession } from '../src/animation.ts';
 import type { Match } from '../src/animation.ts';
 import { SetState, stateTarget } from './state.ts';
-import { canonicalJson } from '../src/json.ts';
+import { canonicalJson, cloneJson } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
@@ -20,6 +20,7 @@ import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
 import type { SceneState } from '../src/scene.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
+import { offerMachine } from './machine-offers.ts';
 
 export interface MachineSpec<S extends object, E extends string> {
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
@@ -161,6 +162,9 @@ export class Machine<S extends object, E extends string> {
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
 
+  /** Make this machine available to the reader at the current step. */
+  offer(): void { offerMachine(this.scene, this); }
+
   /**
    * @internal What the scene showed when this machine last played (`scene.shown`), or null before it played.
    * A machine never changes what is shown; a guided tour may change it between events. Exploration
@@ -239,7 +243,7 @@ export class Machine<S extends object, E extends string> {
 
   /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the views' finish. */
   private schedule(event: E, from: S): Succession {
-    const before = JSON.parse(JSON.stringify(from)) as S;
+    const before = cloneJson(from, 'machine.send()', 'from') as S;
     const o = this.outcome(before, event);
     if ('beyond' in o) throw new RangeError(`machine.send(): ${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
     if ('refused' in o) throw new RangeError(`machine.send(): ${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
@@ -285,7 +289,8 @@ export class Machine<S extends object, E extends string> {
    * transition. `rayner check` plays each one this way, in a play of the explored scene.
    */
   transitionPlay(event: E, before: S, after: S): ScheduledAnimation | null {
-    const authored = this.spec.transition?.[event];
+    const transitions = this.spec.transition;
+    const authored = transitions && Object.hasOwn(transitions, event) ? transitions[event] : undefined;
     if (!authored) return null;
     return new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), this.spec.views, this.runTimeOf(event, before, after));
   }
@@ -342,9 +347,7 @@ export class Machine<S extends object, E extends string> {
  * at every read, so neither the caller nor a reader can change what the machine explores.
  */
 function frozenSpec<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
-  // A state is JSON (a send sets it through the trace's JSON rules), and the bare runtime that
-  // replays a page has no structuredClone.
-  const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
+  const copy = (state: S): S => cloneJson(state, 'new Machine()', 'start') as S;
   const start = copy(spec.start);
   const kept = { match: { by: 'key', text: 'whole' } as Match, runTime: 0.6, ...spec, limit: spec.limit ?? 256 };
   return Object.freeze(Object.defineProperties(kept, {

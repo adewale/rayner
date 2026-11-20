@@ -30,7 +30,11 @@ export const worked: Record<'loop' | 'reuse', readonly Row[]> = {
     ['ABCDCDCD', ['DCB', 4, 4, null, true], ['DBA', 0, 8, 'C', false]],
   ],
 };
-// The guided ninth A is the reader's base, followed by the reader's B and C.
+// Two reader continuations from the eight guided requests: B, or A then B then C.
+export const ninthB: Record<'loop' | 'reuse', Row> = {
+  loop: ['ABCDABCDB', ['BDC', 1, 8, null, true], ['BCA', 3, 6, 'D', false]],
+  reuse: ['ABCDCDCDB', ['BDC', 5, 4, null, true], ['BDA', 1, 8, null, true]],
+};
 export const continued: Record<'loop' | 'reuse', readonly Row[]> = {
   loop: [
     ['ABCDABCDA', ['ADC', 0, 9, 'B', false], ['ADC', 4, 5, null, true]],

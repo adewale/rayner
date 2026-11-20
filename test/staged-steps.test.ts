@@ -65,7 +65,7 @@ test('deliberate defect: a draw that ignores its state and draws a captured cons
   const { problems, ignoring } = await run(() => [1, 2].map((n) => step(`s${n}`, n, (_, s) => words(s, n))));
   assert.deepEqual(ignoring, ['step "s1": a view', 'step "s2": a view']);
   assert.equal(problems.length, 2);
-  assert.match(problems[0]!, /^step "s1": a view: its draw ignores its state; its picture is the same drawn from \d+ different states/);
+  assert.match(problems[0]!, /^step "s1": a view: sampled alternative inputs produced the same picture \(\d+ model states\); state dependence is unproven/);
   // The same pictures drawn from the state pass.
   const fixed = await run(() => [1, 2].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
   assert.deepEqual({ problems: fixed.problems, ignoring: fixed.ignoring }, { problems: [], ignoring: [] });
@@ -152,4 +152,15 @@ test('a staged step’s prediction reaches its step’s metadata, where the play
   const predict = { options: ['1', '2'], answer: '2' };
   const { trace } = await run(() => [{ ...step('ask', 1, (st, s) => words(s, st.n)), predict }, step('answer', 2, (st, s) => words(s, st.n))]);
   assert.deepEqual(trace.steps.map((s) => s.meta.predict), [predict, undefined]);
+});
+
+
+test('threshold pictures need a valid contrasting example; equal probes do not prove constant drawing', async () => {
+  const draw = (st: { n: number }, s: Stage) => new Group(new Text(st.n >= 3 ? 'open' : 'waiting', { color: s.look.ink }));
+  const threshold = await run(() => [step('waiting', 0, draw)]);
+  assert.equal(threshold.problems.length, 1);
+  assert.match(threshold.problems[0]!, /state dependence is unproven/);
+  assert.ok(!threshold.problems[0]!.includes('ignores its state'));
+  const contrasted = await run(() => [step('open', 3, draw), step('waiting', 0, draw)]);
+  assert.deepEqual(contrasted.problems, []);
 });

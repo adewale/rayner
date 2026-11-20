@@ -62,19 +62,19 @@ test('the player cannot read a step\'s state except through its watched changes'
   assert.equal(step.before.x, 1);
 });
 
-test('the player watches local specimens across staged steps without shipping their unwatched data', () => {
+test('the player watches persistent model values across staged specimens without inventing removals', () => {
   const base = { t0: 0, frame0: 0, t1: 1, frame1: 30, meta: {}, before: { model: 7 }, after: { model: 7 } };
   const trace: Trace = { fps: 30, duration: 3, frames: 90, steps: [
-    { ...base, step: 'one', state: { count: 1, points: [[0, 0]] } },
+    { ...base, step: 'one', state: { model: 100, count: 1, points: [[0, 0]] } },
     { ...base, step: 'two', state: { count: 2, points: [[1, 1]] } },
     { ...base, step: 'model', after: { model: 8 } },
   ] };
   const watch = { count: 'Count', model: 'Model' }, player = playerTrace(trace, watch);
   assert.equal(player.steps.length, 3);
   assert.deepEqual(player.steps.map((s) => playerChanges(s, watch)), [
-    [{ label: 'Count', after: '1' }, { label: 'Model', before: '7' }],
-    [{ label: 'Count', before: '1', after: '2' }],
-    [{ label: 'Count', before: '2' }, { label: 'Model', after: '8' }],
+    [],
+    [],
+    [{ label: 'Model', before: '7', after: '8' }],
   ]);
   for (const step of player.steps) {
     assert.ok(!('state' in step));

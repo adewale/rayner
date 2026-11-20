@@ -12,6 +12,7 @@ import { stopAt } from '../src/scene.ts';
 import { canonicalJson } from '../src/json.ts';
 import { machinesOf } from './machine.ts';
 import type { Machine } from './machine.ts';
+import { offeredMachine } from './machine-offers.ts';
 
 type AnyMachine = Machine<object, string>;
 
@@ -22,6 +23,8 @@ type AnyMachine = Machine<object, string>;
 export interface LivePlace {
   index: number;
   identity: string;
+  /** True for an explicit offer, false for inferred controls. Omitted when checking a machine without reader controls. */
+  offered?: boolean;
 }
 /** A step where the reader can drive a machine: its place, and the machine. */
 export interface Live extends LivePlace {
@@ -29,16 +32,26 @@ export interface Live extends LivePlace {
 }
 
 /**
- * Where a scene's machines are live: each machine, with its place in `machinesOf(scene)`, by the
- * step it last played in (`lastPlayedIn`), which is the stage `rayner check` explores it on. A
- * machine that never played is live nowhere; when two machines last played in one step, the later
- * one made is live there.
+ * Each machine is live at the steps where the author offered it. Without offers, it is live at
+ * its last played step, with later-made machines winning an implicit tie. A step's offer takes
+ * precedence over any inferred controls there.
  */
 export function liveSteps(scene: Scene<object, object>): Map<string, Live> {
-  const live = new Map<string, Live>();
-  for (const [index, machine] of machinesOf(scene).entries())
-    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, identity: machine.identity, machine });
-  return live;
+  const implicit = new Map<string, Live>(), explicit = new Map<string, Live>();
+  const offers = scene.steps.map((step) => ({ path: step.path, owner: offeredMachine(step) }));
+  for (const [index, machine] of machinesOf(scene).entries()) {
+    const steps = offers.filter((o) => o.owner === machine);
+    const place = { index, identity: machine.identity, machine };
+    if (steps.length) for (const { path } of steps) explicit.set(path, { ...place, offered: true });
+    else if (machine.lastPlayedIn !== null) implicit.set(machine.lastPlayedIn, { ...place, offered: false });
+  }
+  return new Map([...implicit, ...explicit]);
+}
+
+/** Every stage that must be checked for a machine, including its original stage if its controls are shadowed. */
+export function machineSteps(machine: AnyMachine, controls: ReadonlyMap<string, Live>): (string | null)[] {
+  const steps = [...controls].filter(([, live]) => live.machine === machine).map(([step]) => step);
+  return steps.length ? steps : [machine.lastPlayedIn];
 }
 
 /**
@@ -50,6 +63,16 @@ export function liveMachine(scene: Scene<object, object>, step: string | null, p
   const machine = machinesOf(scene)[place.index];
   if (!machine || machine.identity !== place.identity)
     throw new Error(`runLive(): the run${step === null ? '' : ` to ${JSON.stringify(step)}`} made different machines; a scene must make the same machines on every run`);
+  if (place.offered !== undefined) {
+    const here = scene.steps.find((s) => s.path === step);
+    const owner = here && offeredMachine(here);
+    if (place.offered && owner !== machine)
+      throw new Error(`runLive(): the run did not offer the same machine at step ${JSON.stringify(step)}; offer the same controls on every run`);
+    // Another machine may play here and later move to a new step. The completed run chose the
+    // implicit winner. At this boundary it must have played here and no explicit offer may supersede it.
+    if (!place.offered && (!here || owner || machine.lastPlayedIn !== step))
+      throw new Error(`runLive(): step ${JSON.stringify(step)} no longer has the same inferred controls; keep the same machine active on every run`);
+  }
   return machine;
 }
 
@@ -177,7 +200,7 @@ export async function runLive(
   const scene = new Source(out) as Scene<any>;
   stopAt(scene, step, async (at, draw) => {
     const machine = liveMachine(at, step, place);
-    if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
+    if (!place.offered && machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
     const rest = JSON.parse(JSON.stringify(at.state)) as object;
     onRest?.(at);
     // From the machine's start: its views redrawn there, in place, as exploration draws a state.

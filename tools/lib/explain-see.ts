@@ -37,7 +37,8 @@ export function seeText(id: string, c: ScenarioDescription, step?: string): stri
     ...(c.invariants ? [`Invariants checked on every frame: ${c.invariants.join('; ')}`] : []),
     ...(c.machines ?? []).flatMap((x) => [
       `Machine events: ${x.events.join(', ')} (${x.states} states from start, ${x.complete ? 'complete' : 'sampled'})`,
-      ...(x.live ? [`Live at ${x.step}, from ${x.live.from}: ${x.live.states} states, ${x.live.complete ? 'complete' : 'sampled'}`] : []),
+      ...(x.offers ?? [x]).flatMap(({ step, live }) => live
+        ? [`Live at ${step}, from ${live.from}: ${live.states} states, ${live.complete ? 'complete' : 'sampled'}`] : []),
     ]),
     ...(c.predictionProblems ?? []).map((problem) => `Prediction problem: ${problem}`),
   ].join('\n');

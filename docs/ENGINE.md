@@ -49,7 +49,7 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | --- | --- | --- |
 | Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
 | Extras | `extras/`, the `rayner/extras` entry point | The engine's entry point, `src/index.ts`, alone, as an author's module would |
-| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `diagram-snapshot.ts`, `diagram-text.ts` (diagram snapshots: their types, keys, validation and findings, and a captured label's text); `settings.ts`, `page-query.ts`, `intent.ts`, `grounding.ts`, `mermaid.ts`, `audio.ts` | The extras (by their entry point) and the engine |
+| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `machine-offers.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `diagram-snapshot.ts`, `diagram-text.ts` (diagram snapshots: their types, keys, validation and findings, and a captured label's text); `settings.ts`, `page-query.ts`, `intent.ts`, `grounding.ts`, `mermaid.ts`, `audio.ts` | The extras (by their entry point) and the engine |
 | Diagrams and panels | `explain/diagrams.ts`, `explain/labels.ts`, `explain/panels.ts` | The core, the extras and the engine |
 | Drawing kit | `explain/drawing.ts` (`rayner/drawing`), `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core, the extras and the engine |
 | Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |
@@ -80,6 +80,7 @@ Where the code departs from the stack:
   | An animation that runs another inside it, made as it begins | `Enclosing` | a view's sync and tween, a choreographed entrance |
   | An animation run to its end at once, outside a play | `finishAtOnce` | a diagram's hidden parts |
   | The scene a state change belongs to | `playsOn` | a machine's state change |
+  | Validation before the first named step opens and after each named step's end listeners and caption hold | `addStepCheck` (`src/scene.ts`) | an action reports the step that left it unplayed |
   | A same-structure morph, a sketch's family rows | `knownTransform`, `families` | a view's index match, a sketch |
   | A run stopped as a step ends, which draws its picture to any sink | `stopAt` (`src/scene.ts`) | the run to a live step (`explain/live.ts`) |
   | What the scene draws last, or leaves out of a picture | `keepOnTop`, `setDrawn` | the stage's heading |

@@ -23,6 +23,7 @@ import type { Side } from './diagrams.ts';
 import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { physicalAt } from './layout-direction.ts';
+export { described } from './look.ts';
 export type { LegendItem } from './annotate.ts';
 export type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions, LineMark } from './panels.ts';
 

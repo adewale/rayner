@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Succession, linear, keyed, StringSink, renderFrame, toSvgString } from 'rayner';
-import { traceScene, TraceSink, sampleAnimation } from 'rayner/testing';
+import { traceScene, TraceSink, sampleAnimation, pictureWordsAt } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
-import { Diamond, StatusBadge } from '../recipes/extensions.ts';
+import ExtensionScene, { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';
 import { outputs, recipes } from '../recipes/render.ts';
 import { SampledOrbit, MorphedOrbit, invariantFailures } from '../recipes/invariants.ts';
@@ -42,6 +42,12 @@ test('custom geometry owns its copy and a copied composite exposes its own child
   assert.equal(badge.label.text, 'queued');
   assert.equal(clone.label.text, 'done');
   assert.equal(clone.shape.parent, clone);
+});
+
+test('the extensions recipe describes the row of status badges before and after a rename', async () => {
+  const trace = await traceScene(ExtensionScene);
+  assert.equal(pictureWordsAt(trace, 'badges').full, 'Status badge: queued. Status badge: running. Status badge: done.');
+  assert.equal(pictureWordsAt(trace, 'rename').full, 'Status badge: queued. Status badge: working. Status badge: done.');
 });
 
 test('one parameter keeps the point on the circle at intermediate values, preserves identity, and resamples without history', () => {

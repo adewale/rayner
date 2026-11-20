@@ -43,7 +43,7 @@ export interface ExplainerMeta {
   textContext?: 'explicit';
   player?: PlayerMeta;
   /**
-   * The state readers follow, from a `scene.state` key to its label in the scene's language (at most
+   * The model JSON readers follow, from a `scene.stateJson()` key to its label in the scene's language (at most
    * eight): each step shows what it changed of these, under its caption.
    */
   watch?: Readonly<Record<string, string>>;
@@ -134,6 +134,29 @@ export function checkExplainerMeta(meta: unknown): void {
 }
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
+type Declarations = Pick<ExplainerClass, 'settings'>;
+const projectDeclarations = new WeakMap<object, ReadonlyMap<object, Declarations>>();
+
+/** A subclass bound to settings or snapshots inherits its load's declarations. */
+function declarationsOfProject(Scene: object): ReadonlyMap<object, Declarations> | undefined {
+  for (let c: object | null = Scene; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    const captured = projectDeclarations.get(c);
+    if (captured) return captured;
+  }
+  return undefined;
+}
+
+/** Capture each base's setting IDs and options so a retained scenario can validate a typed read against its own load. */
+export function captureProjectSettings(Project: ExplainerClass, Source: ExplainerClass): void {
+  const prior = declarationsOfProject(Source);
+  const definition = { settings: Project.settings };
+  const captured = new Map<object, Declarations>([[Project, definition], [Source, definition]]);
+  for (let c: object | null = Object.getPrototypeOf(Source); c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    captured.set(c, prior?.get(c) ?? { settings: structuredClone((c as SettingsClass).settings) });
+  }
+  projectDeclarations.set(Project, captured);
+}
+
 const reserved = new Set<string>(Object.values(PAGE_QUERY));
 /** A page's query for a scenario's `values` at `step` (the scenario's first step without one), without the `?`. */
 export const stepQuery = (values: Readonly<Record<string, string>>, step?: string): string =>
@@ -188,6 +211,7 @@ export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values:
  * The scene's selected values. Pass its class to infer IDs and option values from literal
  * `static settings = [...] as const`; an instance's type alone does not carry its static members.
  * A base class selects only its own declared keys, using the derived scene's selected values.
+ * A project load validates that selection against the declarations it captured for the base.
  * Without the class, dynamically declared settings keep their string-record type.
  */
 export function settingsOf<const Declarations extends readonly Setting[]>(scene: Scene<any, any>, Source: SettingsClass & { settings: Declarations }): Settings<Declarations>;
@@ -198,13 +222,14 @@ export function settingsOf(scene: Scene<any, any>, Source?: SettingsClass): Sett
   // the definition whose type we return, so a narrowed type never conceals incompatible values.
   const selected = (values: Settings): Settings => {
     if (!Source) return values;
+    const definition = declarationsOfProject(scene.constructor)?.get(Source) ?? Source;
     const projection: Record<string, string> = Object.create(null);
-    for (const { id } of Source.settings ?? []) {
+    for (const { id } of definition.settings ?? []) {
       if (!Object.hasOwn(values, id))
         throw new TypeError('settingsOf(): the supplied class declares a setting this scene does not have');
       projection[id] = values[id]!;
     }
-    return resolveSettings(Source, projection);
+    return resolveSettings(definition, projection);
   };
   for (let c: object | null = scene.constructor; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
     const settings = bound.get(c);

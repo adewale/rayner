@@ -187,13 +187,22 @@ inputs without learning a JSON animation language.
 
 - `Diamond extends VMobject` builds one custom path with `setPolygon`.
 - `StatusBadge extends Group` combines that path and a text label. Getters find
-  the badge's own children, including after `copy()`.
+  the badge's own children, including after `copy()`. The constructor gives
+  each badge a description with `described` from `rayner/drawing`.
 - `statusRow(labels)` is an ordinary function arranging several badges, each keyed by its label so the scene finds one with `row.find(label)`.
 
 All of them work with `FadeIn`, `Transform`, `Group`, copying, layout and the SVG
 renderer without registering anything, because they are built from existing path
 primitives. The copy test moves the cloned path and changes the cloned label, then
 checks that the originals and parent references are unchanged.
+
+When the stage enters the row, the transcript names each badge and its current
+status. A component supplies these words wherever it is nested. Read mutable
+parts through the callback argument so a copy reports its own label.
+
+```ts
+described(this, (badge) => ({ what: 'Status badge', parts: [{ name: badge.label.text }] }));
+```
 
 Try a diamond containing another component, or the same badge in a chart and a
 protocol diagram. Reuse a component through its mobject interface rather than

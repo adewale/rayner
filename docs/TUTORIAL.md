@@ -165,6 +165,9 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
   } satisfies ExplainerMeta;
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }] as const;
 
+  override state: CardState = { Requests: '', 'Newest first': ['', ''], Evicted: ['none', 'none'], Hits: ['0', '0'] };
+  override shown: { lit: string | null } = { lit: null };
+
   override async construct() {
     const s = stage(this, { style: 'nord', headingSize: 0.54 });
     const next = settingsOf(this, LruMru).next;

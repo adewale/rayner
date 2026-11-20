@@ -49,13 +49,12 @@ A play with a sync in it therefore skips like any other during a seek, and reach
 the byte-identical frame a full run renders, mid-sync included
 (`test/view.test.ts`). A sync morphs between two endpoint pictures; it does not
 evaluate the model between them. For a value that should be sampled along the
-way, tween the state: `view.tween((t) => stateAt(t), opts)` sets the scene's state
-to `stateAt(t)` at every frame, `t` from 0 to 1 at the eased alpha, and writes the
-view's draw of it into the picture, so the picture is that draw at every frame and
-the play ends with the state at `stateAt(1)` ([following one
-number](CHOREOGRAPHY.md#following-one-number)). Like a sync, a tween takes the picture on screen
-when it begins, not when it is made, so in `new Succession([view.sync(), view.tween(f)])` it draws
-into the picture the sync swapped in.
+way, `view.tween(stateAt, opts)` sets the scene's model to `stateAt(t)` and draws
+it at each frame. The value of `t` is the eased progress clamped to [0, 1]. The
+last sample supplies the final model and picture. With `linear` the final state
+is `stateAt(1)`. With `thereAndBack` it is `stateAt(0)`. A tween takes the picture
+on screen when it begins, so in `new Succession([view.sync(), view.tween(f)])` it
+draws into the picture the sync swapped in. [Following one number](CHOREOGRAPHY.md#following-one-number)
 
 ## Changing what is shown
 
@@ -192,15 +191,18 @@ and one whose picture did not change record none.
 
 ### A picture that did not change
 
-If the rebuilt, placed picture matches the current one, the sync sets up no
-transform. "Matches" means the same family shape and point counts, points within
-1e-5, equal styles and equal strings. Nothing moves, the current child stays, and
-the sync **still takes its run time**, so step timing, frame numbers and
-`Succession` timings follow from the program alone rather than from whether the
-state happened to change. If you don't want the hold, don't play the sync.
+When the rebuilt, placed picture has the same family shape and point counts,
+points within 1e-5, equal styles and equal strings, the sync keeps the current
+child and skips the morph. At alpha 1 the child takes the new drawing's data,
+including keys, clips and descriptions. A rounded readout can keep the same
+visible digits while its description reports a new exact value.
+The sync **still takes its run time**, so step timing, frame numbers and
+`Succession` timings follow from the program. If you don't want the hold,
+don't play the sync.
 
-A rate function that does not end at 1 (`thereAndBack`, from `rayner/extras`) ends on the old
-picture, and the View does not swap; the fidelity check below reports that step.
+A sync whose rate function ends halfway leaves the current child halfway through
+the morph. With `thereAndBack` from `rayner/extras`, it returns to the starting
+picture. The View adopts the completed drawing when the eased progress ends at 1.
 
 ## Placement
 
@@ -229,13 +231,14 @@ is not on screen adds it abruptly.
 
 `specs/rayner.md` asks for a named pattern: "a scene's state at each step must
 equal the program's". `assertStepState` in `rayner/testing` checks the state side.
-A View adds the picture side, `assertViewFollowsState`, also in `rayner/testing`:
-**at the end of every step, the View shows what the traced state draws.**
+A View adds the picture side with `assertViewFollowsState`, also in `rayner/testing`.
+**At the end of every step, the View shows what its state input and the scene's
+authored shown fields draw.** Helpers can add evidence to the recorded trace with
+`addJson()`. The check redraws with the same inputs the View receives.
 
 ```ts
 import { assertViewFollowsState } from 'rayner/testing';
 
-// Runs the scene once. At each step's end it compares view.texts with draw(step.after, step.shown).
 await assertViewFollowsState(Ring, (scene) => (scene as Ring).readout);
 ```
 

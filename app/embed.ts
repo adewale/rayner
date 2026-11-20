@@ -1127,7 +1127,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     let found = at.bases.get(step.step);
     if (!found) {
       found = liveBase(at.Scene, step.step, place).then(
-        ({ machine, base }) => (base ? { step, live: { index: place.index, identity: place.identity, machine }, base } : null),
+        ({ machine, base }) => (base ? { step, live: { ...place, machine }, base } : null),
         (error: unknown) => {
           console.error(error);
           return null;

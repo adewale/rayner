@@ -150,6 +150,47 @@ test('an action made but never played fails its step, and the scene at its end',
   await new Played(new NullSink()).run();
 });
 
+test('an action left by an end listener fails its own step, including the last step', async () => {
+  for (const trackedAlready of [false, true]) for (const last of [true, false]) {
+    class Late extends Scene {
+      override async construct() {
+        const s = stage(this, { heading: false });
+        await this.step('one');
+        if (trackedAlready) await s.clear();
+        this.onStepEnd(() => { s.enter(new Circle()); });
+        if (!last) await this.step('two');
+      }
+    }
+    await assert.rejects(new Late(new NullSink()).run(), /^Error: s\.enter\(\): it was made in step "one" but never played/);
+  }
+});
+
+test('opening and closing listeners can plan and play actions in their named step', async () => {
+  const circle = new Circle();
+  class Listeners extends Scene {
+    override async construct() {
+      const s = stage(this, { heading: false });
+      let enter: ReturnType<typeof s.enter> | undefined;
+      this.onStep(() => { enter = s.enter(circle); });
+      await s.clear(); // Begin tracking before the first named step.
+      await this.step('one');
+      this.onStepEnd(async () => { await enter; });
+    }
+  }
+  const ran = await new Listeners(new NullSink()).run();
+  assert.ok(ran.mobjects.includes(circle));
+});
+
+test('an unplayed action made before the first named step fails as that step begins', async () => {
+  class Before extends Scene {
+    override async construct() {
+      stage(this, { heading: false }).enter(new Circle());
+      await this.step('one');
+    }
+  }
+  await assert.rejects(new Before(new NullSink()).run(), /^Error: s\.enter\(\): it was made before the first step but never played/);
+});
+
 test('an action’s errors surface when it plays, awaited or composed, not when it is called', async () => {
   const { scene, s } = setUp();
   const d = await s.show(spec, { build: 'frame' });

@@ -1,7 +1,7 @@
 import { Scene, keyed } from '../../../src/index.ts';
 import { Machine, answerOf, settingsOf, stage, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { initial, request, REQUESTS } from './model.ts';
+import { initial, request, run, REQUESTS } from './model.ts';
 import type { Comparison, Key } from './model.ts';
 import { drawCache, drawRequests } from './picture.ts';
 
@@ -13,6 +13,9 @@ export default class CachePolicies extends Scene<Comparison, {}> {
   override async construct() {
     const s = stage(this, { style: 'github-light', headingSize: 0.55 });
     const pattern = settingsOf(this, CachePolicies).pattern, keys = REQUESTS[pattern];
+    const fourth = run(keys.slice(0, 4));
+    const answer = fourth.lru.evicted === fourth.mru.evicted
+      ? `Both drop ${fourth.lru.evicted}` : `LRU drops ${fourth.lru.evicted}; MRU drops ${fourth.mru.evicted}`;
     const left = keyed(view(this, st => drawCache(s, 'lru', st.lru), { place: false }), 'cache:lru');
     const right = keyed(view(this, st => drawCache(s, 'mru', st.mru), { place: false }), 'cache:mru');
     const stream = keyed(view(this, st => drawRequests(s, st), { place: false }), 'cache:stream');
@@ -23,16 +26,16 @@ export default class CachePolicies extends Scene<Comparison, {}> {
         await this.play(left.sync({ runTime: 0.3, match }), right.sync({ runTime: 0.3, match }), stream.sync({ runTime: 0.3, match }));
       }
     };
-    await this.step('full', { title: 'Same requests, two independent caches', line: 'Each holds three items, newest first.', caption: 'A, B and C miss in both caches and fill their three slots. D will miss too, but the replacement policies will choose different victims. Both receive the same request; neither reads or changes the other cache.', predict: { options: ['LRU drops A; MRU drops C', 'Both drop A', 'Both drop C'], answer: 'LRU drops A; MRU drops C' } });
+    await this.step('full', { title: 'Same requests, two independent caches', line: 'Each holds three items, newest first.', caption: 'A, B and C miss in both caches and fill their three slots. D will miss too, but the replacement policies will choose different victims. Both receive the same request; neither reads or changes the other cache.', predict: { options: ['LRU drops A; MRU drops C', 'Both drop A', 'Both drop C'], answer } });
     await s.enter(left, right, stream, { describe: () => `LRU: ${this.state.lru.order.join(', ')}, ${this.state.lru.hits} hits. MRU: ${this.state.mru.order.join(', ')}, ${this.state.mru.hits} hits. Requests: ${this.state.history.join(', ')}.` });
     await send(keys.slice(0, 3));
-    await this.step('evict', { title: 'D evicts opposite ends', line: 'LRU drops A; MRU drops C.', caption: `${answerOf(this)}. After requesting D, LRU holds D C B, while MRU holds D B A. Each cache records D as newest. The difference is which earlier item survives for the next request.` });
+    await this.step('evict', { title: 'D evicts opposite ends', line: `${answer}.`, caption: `${answerOf(this)}. After requesting D, LRU holds ${fourth.lru.order.join(' ')}, while MRU holds ${fourth.mru.order.join(' ')}. Each cache records D as newest. The difference is which earlier item survives for the next request.` });
     await send(keys.slice(3, 4));
     await this.step('pattern', { title: pattern === 'loop' ? 'Repeating the loop favours MRU' : 'Reusing C and D favours LRU', line: pattern === 'loop' ? 'Eight requests: LRU 0 hits, MRU 3.' : 'Eight requests: LRU 4 hits, MRU 0.', caption: pattern === 'loop' ? 'Repeat A B C D. LRU always evicts the item needed next, so all eight requests miss. MRU hits on A, B and D: three hits. The request stream, capacity and hit rule are identical; only replacement differs.' : 'Now request C D C D. LRU keeps both recently used items and hits four times. MRU keeps replacing the item needed next and misses every repeat. The same pair of independent models produces the opposite winner when only the requests change.' });
     await send(keys.slice(4));
-    await this.step('try', { title: 'Send the same next request to both', line: 'A has just been sent. Choose the next two requests below.', caption: 'The guided comparison ended after eight requests. Here both caches receive A, and you can choose two more requests. Watch their independent recency orders and hit counts. Undo and Reset let you compare another continuation. The limit bounds this demonstration, rather than a real cache’s lifetime.' });
+    await this.step('try', { title: 'Send the same next request to both', line: 'Choose the next three requests below.', caption: 'Both caches have received eight requests. Choose A, B, C or D for the ninth. Which cache scores a hit? Send two more and compare their orders and hit counts. Undo a request or Reset to try another continuation.' });
     const start = this.state;
     const machine = new Machine<Comparison, Key>(this, { start, events: ['A', 'B', 'C', 'D'], next: request, views: [left, right, stream], bound: st => st.history.length >= 11 ? 'This comparison stops after eleven requests; Undo or Reset to try another continuation' : undefined, runTime: 0.3 });
-    await machine.send('A');
+    machine.offer();
   }
 }

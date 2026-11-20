@@ -7,7 +7,8 @@ import type { Stage, SyncOptions } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import { view, having, stage } from '../explain/index.ts';
 import type { View } from '../explain/index.ts';
-import { card } from '../explain/drawing.ts';
+import { card, described, emphasised } from '../explain/drawing.ts';
+import { emphasisOf, partsSeen } from '../explain/look.ts';
 import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession, keyed } from '../src/index.ts';
@@ -231,6 +232,27 @@ test('the fidelity helper: the picture at every step is what the traced state re
   assert.match(viewMismatch(v, { len: 4, head: 1 })!, /the view shows \["len 3  head 1"\]/);
 });
 
+test('assertViewFollowsState redraws from authored inputs when helpers record extra model evidence and a picture', async () => {
+  const showKeys = (model: SceneState, shown: SceneState) => new Text([model, shown].map(input => Object.keys(input).sort().join(', ')).join(' / '));
+  class Authored extends Scene {
+    override state = { value: 5 };
+    override shown = { mode: 'guided' };
+    readout = view(this, showKeys);
+    override async construct() {
+      stage(this, { heading: false });
+      this.addJson(() => ({ traceOnly: 99 }));
+      this.add(this.readout);
+      await this.step('one');
+      assert.ok(Object.hasOwn(this.shownJson(), 'picture'));
+      assert.ok(Object.hasOwn(this.stateJson(), 'traceOnly'));
+      assert.deepEqual(this.readout.texts, ['value / mode']);
+    }
+  }
+  const pick = (s: Scene) => (s as Authored).readout;
+  assert.equal(await assertViewFollowsState(Authored, pick), 1);
+  assert.equal(await assertViewFollowsState(Authored, pick, showKeys), 1);
+});
+
 test('match: index morphs by position (a DecimalNumber counts), shapes and keys pair parts', () => {
   const st = { n: 0 };
   const v = view(held(st), () => new DecimalNumber(st.n, { anchor: 'start' }), { place: 'left' });
@@ -284,6 +306,97 @@ test('sync() matches by key, staged, and refuses pictures that carry no keys', (
   const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]))));
   n = 3;
   assert.throws(() => beginAnimation(syncOf(plain)), /carry no keys below their roots/);
+});
+
+test('a sync adopts new addresses, clips and emphasis even when every point and glyph stays put', async () => {
+  const sink = new StringSink();
+  class Badges extends Scene {
+    override async construct() {
+      let name = 'old', clipped = false, mark: string | null = null;
+      const v = view(this, () => {
+        const badge = keyed(emphasised(new Rectangle({ fillOpacity: 1 }), mark), name);
+        if (clipped) badge.clipBox = [-1, -1, 0, 1];
+        return new Group(badge);
+      });
+      this.add(v);
+      await this.step('change');
+      const original = v.current;
+      await v.sync();
+      assert.equal(v.current, original, 'identical output retains its current child');
+      name = 'new';
+      await v.sync();
+      assert.equal(this.find('old'), undefined);
+      assert.equal(this.find('new'), v.current.children[0]);
+      clipped = true;
+      await v.sync();
+      assert.match(sink.frames.at(-1)!, /<clipPath\b/, 'the last emitted frame shows the adopted clip');
+      mark = 'ready';
+      await v.sync();
+      assert.equal(emphasisOf(this).get(this.find('new')!), 'ready');
+      mark = null;
+      await v.sync();
+      assert.equal(emphasisOf(this).size, 0);
+      clipped = false;
+      const first = sink.frames.length;
+      await v.sync({ rateFunc: t => 4 * t * (1 - t), runTime: 1 });
+      assert.doesNotMatch(sink.frames[first + 14]!, /<clipPath\b/, 'an easing curve can visit the new clip');
+      assert.match(sink.frames.at(-1)!, /<clipPath\b/, 'and restore the original clip before the final frame');
+    }
+  }
+  await new Badges(sink).run();
+});
+
+test('a no-motion sync can return a described card to its own built-in description', async () => {
+  const scene = new Scene(new StringSink()), s = stage(scene);
+  let custom = true;
+  const v = view(scene, () => {
+    const panel = card(s, [['status', 'ready']]);
+    return custom ? described(panel, () => ({ what: 'Server', parts: [] })) : panel;
+  });
+  scene.add(v);
+  assert.deepEqual(partsSeen(v).seen.map(d => d.what), ['Server']);
+  custom = false;
+  await scene.play(v.sync());
+  assert.deepEqual(partsSeen(v).seen, [v.current.describe()]);
+});
+
+test('a no-motion sync uses the meter’s copyData hook on its retained child, including on a return', async () => {
+  const readings = new WeakMap<Mobject, number>();
+  class Meter extends Rectangle {
+    constructor(reading: number) { super(); readings.set(this, reading); }
+    get reading(): number { return readings.get(this)!; }
+    protected override copyData(from: Mobject): void {
+      assert.ok(from instanceof Meter, 'copyData receives a meter');
+      super.copyData(from);
+      readings.set(this, from.reading);
+    }
+  }
+  const frames: number[] = [];
+  const scene = new Scene<{ reading: number }>({ async frame(s) { frames.push((s.find('meter') as Meter).reading); } }, { fps: 2 });
+  scene.state = { reading: 1 };
+  const v = view(scene, ({ reading }) => new Group(keyed(described(new Meter(reading),
+    m => ({ what: 'Meter', parts: [{ name: String(m.reading) }] })), 'meter')));
+  scene.add(v);
+  const retained = v.current.find('meter') as Meter;
+  assert.equal(retained.copy().reading, 1);
+  scene.state.reading = 2;
+  await scene.play(v.sync({ runTime: 1 }));
+  assert.equal(v.current.find('meter'), retained);
+  assert.deepEqual(frames.slice(-2), [1, 2]);
+  assert.deepEqual(partsSeen(v).seen, [{ what: 'Meter', parts: [{ name: '2' }] }]);
+  assert.equal(retained.copy().reading, 2);
+  scene.state.reading = 3;
+  await scene.play(v.sync({ rateFunc: t => 4 * t * (1 - t), runTime: 1 }));
+  assert.deepEqual(frames.slice(-2), [3, 2]);
+  assert.equal(v.current.find('meter'), retained);
+  assert.equal(retained.reading, 2);
+
+  // A same-class root can take a differently shaped family. A foreign root supplies
+  // its geometry without being passed to a hook that expects this class's data.
+  retained.become(new Meter(4).add(new Rectangle()));
+  assert.equal(retained.reading, 4);
+  retained.become(new Rectangle({ width: 3 }));
+  assert.equal(retained.width(), 3);
 });
 
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {

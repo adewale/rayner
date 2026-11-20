@@ -41,6 +41,10 @@
       }
     },
     "rayner/drawing": {
+      "described": {
+        "guide": "docs/EXTENDING.md#make-a-reusable-shape-and-composite",
+        "test": "test/explain-emphasis.test.ts"
+      },
       "MARGIN": {
         "guide": "docs/REFERENCE.md#drawing-kit",
         "test": "test/drawing.test.ts"

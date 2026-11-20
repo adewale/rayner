@@ -6,7 +6,7 @@ import { groundingLabel, groundingSentence } from './grounding.ts';
 import type { Grounding } from './grounding.ts';
 import { renderText } from '../src/ascii.ts';
 import { machinesOf } from './machine.ts';
-import { liveSteps, logStart } from './live.ts';
+import { liveSteps, logStart, machineSteps } from './live.ts';
 import type { LogStart } from './live.ts';
 import { predictionsOf, teachingIndices } from './script.ts';
 import type { Prediction, StepKind } from './script.ts';
@@ -66,10 +66,12 @@ export interface MachineDescription {
   states: number;
   complete: boolean;
   sampled?: true;
-  /** The step it last played in; absent when it never played. `live` is present only for the machine whose controls the player shows there. */
+  /** The step where the machine was offered or last played, when there is one such step. */
   step?: string;
   /** The actual reader origin at step end (or the reset start), absent when this machine has no live controls. Counts may overlap start's. */
   live?: { from: LogStart; state: SceneState; states: number; complete: boolean; sampled?: true };
+  /** All offered steps when a machine is available at several, each with its own reader origin. */
+  offers?: { step: string; live?: MachineDescription['live'] }[];
 }
 /** One scenario: a combination of setting values, as a reader picks it under the title. */
 export interface ScenarioDescription {
@@ -181,7 +183,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       state: after,
       ...(Object.keys(shown).length ? { shown } : {}),
       changed,
-      ...(Scene.meta?.watch ? { watched: watchedChanges({ before, after }, Scene.meta.watch, Scene.meta.lang) } : {}),
+      ...(Scene.meta?.watch ? { watched: watchedChanges(s, Scene.meta.watch, Scene.meta.lang) } : {}),
       picture: pictureSummary(s.shown),
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
@@ -201,18 +203,21 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
   const lives = liveSteps(scene);
   const machines: MachineDescription[] = machinesOf(scene).map((machine) => {
     const walked = machine.explore(), states = walked.states.length;
-    const step = machine.lastPlayedIn;
-    const rest = step === null ? undefined : modelAtRest.get(step);
-    const base = rest && lives.get(step!)?.machine === machine ? logStart(machine, rest) : null;
-    const live = base === null ? undefined : canonicalJson(base.state) === canonicalJson(machine.spec.start) ? walked : machine.explore(base.state);
+    const sites = machineSteps(machine, lives).flatMap((step) => {
+      if (step === null) return [];
+      const rest = modelAtRest.get(step);
+      const base = rest && lives.get(step)?.machine === machine ? logStart(machine, rest) : null;
+      if (!base) return [{ step }];
+      const reached = canonicalJson(base.state) === canonicalJson(machine.spec.start) ? walked : machine.explore(base.state);
+      return [{ step, live: { from: base.from, state: base.state as SceneState, states: reached.states.length, complete: reached.complete, ...(!reached.complete ? { sampled: true as const } : {}) } }];
+    });
     return {
       events: [...machine.spec.events],
       start: JSON.parse(JSON.stringify(machine.spec.start)) as SceneState,
       states,
       complete: walked.complete,
       ...(!walked.complete ? { sampled: true as const } : {}),
-      ...(machine.lastPlayedIn === null ? {} : { step: machine.lastPlayedIn }),
-      ...(base && live ? { live: { from: base.from, state: base.state as SceneState, states: live.states.length, complete: live.complete, ...(!live.complete ? { sampled: true as const } : {}) } } : {}),
+      ...(sites.length > 1 ? { offers: sites } : sites[0]),
     };
   });
   return {

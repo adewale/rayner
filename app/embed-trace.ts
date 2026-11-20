@@ -5,7 +5,7 @@
 // a key the page might not carry.
 import type { StepRecord, Trace } from '../explain/testing.ts';
 import type { SceneState } from '../src/index.ts';
-import { stepStates, watchedChanges, type WatchedChange } from '../explain/internal.ts';
+import { watchedChanges, type WatchedChange } from '../explain/internal.ts';
 
 declare const watchedOnly: unique symbol;
 /**
@@ -39,9 +39,9 @@ export function playerTrace(trace: Trace, watch: Readonly<Record<string, string>
   const { fps, duration, frames } = trace;
   return {
     fps, duration, frames,
-    steps: trace.steps.map((record, i, steps) => {
+    steps: trace.steps.map((record) => {
       const { step, t0, frame0, t1, frame1, hold, holdFrame, meta, shown } = record;
-      const { before, after } = stepStates(record, steps[i - 1]);
+      const { before, after } = record;
       return {
         step, t0, frame0, t1, frame1,
         ...(hold !== undefined ? { hold } : {}),

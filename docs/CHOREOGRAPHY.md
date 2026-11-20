@@ -96,9 +96,9 @@ dot evaluated from its angle stays on its circle where a morph between its ends 
 cut through the centre. There are two forms, one for a view and one for parts of an
 authored transition.
 
-A view tweens the state. `view.tween(stateAt, opts)` sets the scene's state to
-`stateAt(t)` at every frame, `t` running from 0 to 1 at the eased alpha, and writes the
-view's draw of that state into its picture:
+A view tweens the state. At every frame, `view.tween(stateAt, opts)` clamps the
+eased progress to the interval from 0 to 1, sets the scene's state to `stateAt(t)`
+at that progress, and draws the state into the view.
 
 ```ts
 import { linear } from 'rayner';
@@ -107,9 +107,10 @@ const orbit = view(this, (st) => drawOrbit(st.angle as number), { place: false }
 await this.play(orbit.tween((t) => ({ angle: Math.PI * t }), { runTime: 1, rateFunc: linear }));
 ```
 
-The picture is the view's draw of the state at every frame, so `rayner check` holds it
-to its draw as it holds any view, and the play ends with the state at `stateAt(1)`,
-with nothing after it. `stateAt` must be a function of `t` alone and return JSON.
+The play finishes on its last eased sample. With `linear` or `smooth` the model
+and picture end at `stateAt(1)`. With `thereAndBack` they return to `stateAt(0)`.
+`stateAt` must be a function of `t` alone and return JSON. `rayner check` holds the
+picture to its draw as it holds any view.
 The great-circle explainer turns its globe this way, and the henge explainer runs its
 year and lowers its camera.
 
@@ -143,9 +144,8 @@ A target named by key is owned, as `c.own(key)`; a mobject target is one the aut
 already holds, such as an inserted part. One number, sampled between `from` and `to`
 at the eased alpha, decides every target, so a bucket's level and the chart's climb
 agree at every frame. `from` is a number or a function read when the play begins, so a
-member of a `Succession` starts where the one before left the value. The value is
-exact at alpha 0 and 1; an easing that overshoots samples past the ends, as a
-`Transform` would.
+member of a `Succession` starts where the one before left the value. Eased progress
+at or below 0 gives exactly `from`. Progress at or above 1 gives exactly `to`.
 
 `draw` returns the picture at the value, one fresh mobject per target, and each is
 written into its target with `become`. A follow therefore writes nothing but its

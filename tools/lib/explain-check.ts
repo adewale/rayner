@@ -5,7 +5,7 @@ import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/internal.ts';
 import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
-import { liveSteps, logStart, stepStates } from '../../explain/internal.ts';
+import { liveSteps, logStart, machineSteps } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
@@ -305,10 +305,10 @@ export class ViewSink implements Sink {
       else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others });
     }
   }
-  /** After the run: the views whose draw never depended on their state, at any step that showed them. */
+  /** After the run: views for which the sampled inputs have not demonstrated a different picture. */
   get ignoring(): string[] { return [...this.unproven.values()].map((u) => u.name); }
   ignoringProblems(): string[] {
-    return [...this.unproven.values()].map((u) => `${u.name}: its draw ignores its state; its picture is the same drawn from ${u.others} different states, so it can disagree with the state the step records`);
+    return [...this.unproven.values()].map((u) => `${u.name}: sampled alternative inputs produced the same picture (${u.others} model states); state dependence is unproven. Show a valid contrasting state in the scene and check the intended observation in its fidelity tests`);
   }
 }
 
@@ -585,24 +585,26 @@ export async function exploreMachines(
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
   only?: { events?: readonly string[] },
-): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
-  const explored = [];
+): Promise<{ step?: string; events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
+  const explored: Awaited<ReturnType<typeof exploreMachines>> = [];
   const controls = liveSteps(scene);
   if (!layouts && controls.size) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
-    const step = made.lastPlayedIn, place = { index, identity: made.identity };
-    let found: Awaited<ReturnType<typeof exploreMachines>>[number] | undefined;
-    const active = step !== null && controls.get(step)?.machine === made;
-    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events); };
-    // The stage the reader saw the machine on, rather than the stage the run ends with, which may
-    // have cleared its views away.
-    if (step !== null) await runLive(Source, step, place, [], { explore });
-    else {
-      const out = new LiveSink();
-      const host = await new Source(out).run();
-      await explore(host, liveMachine(host, null, place), (to) => out.draw(to));
+    for (const step of machineSteps(made, controls)) {
+      const live = step === null ? undefined : controls.get(step);
+      const active = live?.machine === made;
+      const place = active ? live : { index, identity: made.identity };
+      const explore: LiveExplore = async (host, machine, draw) => {
+        const checked = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events);
+        explored.push(step !== null && live?.offered && active ? { ...checked, step } : checked);
+      };
+      if (step !== null) await runLive(Source, step, place, [], { explore });
+      else {
+        const out = new LiveSink();
+        const host = await new Source(out).run();
+        await explore(host, liveMachine(host, null, place), (to) => out.draw(to));
+      }
     }
-    explored.push(found!);
   }
   return explored;
 }
@@ -627,8 +629,8 @@ async function exploreMachine(host: Scene<object, object>, machine: ReturnType<t
     .map((r) => ({ ...r, origin: `from the state at "${step}", ` }));
   const reached = [...fromStart, ...fromStep];
   const shownThen = host.shown;
-  // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
-  host.shown = machine.playedUnder ?? shownThen;
+  // runLive already chose the shown state for this historical step. A play outside any step has its own shown state.
+  if (step === null) host.shown = machine.playedUnder ?? shownThen;
   const said = new Map<string, string>();
   for (const { state, path, origin } of reached) {
     const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
@@ -701,19 +703,11 @@ function perturbed(value: unknown): unknown {
 }
 
 /**
- * A view, drawn from states that differ from the one it shows: its state with every value changed,
- * the empty state, the states of the steps so far, and what is shown with every value changed (ViewSink asks at
- * each step's end that shows the view, until one finds that it depends). A view whose picture is the same for all of them, and whose draw
- * throws for none, does not read its state, so it can disagree with the state its steps record:
- * this returns how many states drew that same picture, and ViewSink names the view in `ignoring`
- * and in `problems`. A draw that throws on a different state has read it, so a throw counts as
- * depending on it; otherwise this returns null.
- *
- * The rule: a view first seen with an empty state is exempt (there is nothing to read, and nothing
- * for the picture to disagree with); any other view's picture must depend on the state. A state
- * that changes nothing in a picture is a value the reader is told about but never shown, so it
- * either reaches the picture or leaves the state. (The redraw itself, that a view shows what its
- * draw makes of each step's state, is ViewSink's.)
+ * Probe a view with changed values, an empty model, earlier step models and changed shown input.
+ * Return the number of alternative model inputs when none changes the picture; otherwise null.
+ * This is a bounded diagnostic, not proof that a draw ignores every possible state. A threshold
+ * may need a valid contrasting authored step; a failed draw only proves it inspected its input,
+ * not that the input was represented faithfully. ViewSink separately checks fresh redraws.
  */
 export function viewIgnoresState(view: View, state: Record<string, unknown>, shown: Record<string, unknown>, states: readonly Record<string, unknown>[]): number | null {
   if (!Object.keys(state).length) return null;
@@ -928,7 +922,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `Keys ${where}: at the end of a step, a key names one mobject on the stage, so find, transforms and the close-up mean one part (the first five)`,
     );
     assert.deepEqual(
-      machines.flatMap((s) => s.problems).slice(0, 5),
+      machines.flatMap((s) => s.problems.map((p) => s.step ? `at offered step "${s.step}": ${p}` : p)).slice(0, 5),
       [],
       `Machines ${where}: a state the events reach fails (each named by its shortest events; the first five)`,
     );
@@ -1007,7 +1001,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
-      ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
+      ...(machines.length ? { machines: machines.map(({ step, events, states, sampled }) => ({ ...(step ? { step } : {}), events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
@@ -1030,7 +1024,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         ? {
             watch: v.trace.steps.map((s, index) => {
               const unformatted: string[] = [];
-              const changes = watchedChanges(stepStates(s, v.trace.steps[index - 1]), project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
+              const changes = watchedChanges(s, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
               return { step: s.step, changes, unformatted };
             }),
           }

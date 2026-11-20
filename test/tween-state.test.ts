@@ -197,6 +197,18 @@ test('shared sampling preserves there-and-back endpoints and permits sequential 
   assert.deepEqual(s.state, { x: 2, y: 2 });
 });
 
+test('a state tween clamps eased samples to the interval and finishes on its last eased sample', async () => {
+  const seen: number[] = [];
+  const s = new Scene<Pair>({ async frame(scene) { seen.push(scene.state.x as number); } });
+  s.state = { x: 0, y: 0 };
+  const views = pictures(s);
+  s.add(...views);
+  await tweenState(s, t => ({ x: t, y: t * 2 }), { views, runTime: 0.1, rateFunc: t => t < 0.5 ? -0.2 : t < 1 ? 1.2 : 0.25 });
+  assert.deepEqual(seen, [0, 1, 0.25]);
+  assert.deepEqual(s.state, { x: 0.25, y: 0.5 });
+  close(views[0].current.width(), 1.25); close(views[1].current.height(), 1.5);
+});
+
 test('default placement keeps intrinsic height and width changes at their model dimensions on every frame', async () => {
   let checked = 0;
   class DefaultPlaced extends Scene<{ n: number }> {

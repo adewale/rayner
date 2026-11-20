@@ -11,6 +11,7 @@ import { checkWatch, watchedChanges, watchedValue } from '../explain/trace.ts';
 import { writeNumber } from '../explain/words.ts';
 import { chromeFor, changeText } from '../app/embed-strings.ts';
 import { describeExplainer } from '../explain/testing.ts';
+import { playerChanges, playerTrace } from '../app/embed-trace.ts';
 import type { ExplainerClass } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
@@ -149,10 +150,8 @@ test('a change reads "Label: before → after", "Label: after" or "Label: remove
 test('checkWatch refuses a watch that cannot work and names the problem', () => {
   const scenarios = [[{ before: {}, after: { tokens: 5 } }, { before: { tokens: 5 }, after: { tokens: 0, gone: 1 } }]];
   checkWatch(undefined, scenarios);
-  checkWatch({ specimen: 'Specimen', initial: 'Initial' }, [
-    [{ before: {}, after: {}, state: { specimen: 1 } }],
-    [{ before: { initial: 1 }, after: {}, state: {} }],
-  ]);
+  checkWatch({ initial: 'Initial' }, [[{ before: { initial: 1 }, after: {}, state: {} }]]);
+  assert.throws(() => checkWatch({ specimen: 'Specimen' }, [[{ before: {}, after: {}, state: { specimen: 1 } }]]), /never in the scene's state/);
   checkWatch({ tokens: 'Tokens', gone: 'Gone' }, scenarios);
   assert.throws(() => checkWatch({ nope: 'Nope' }, scenarios), /meta\.watch: it names "nope", which is never in the scene's state/);
   assert.throws(() => checkWatch({ tokens: '   ' }, scenarios), /meta\.watch: it gives "tokens" an empty label/);
@@ -182,7 +181,7 @@ test('collection refuses an unknown watched key, naming it, and accepts a key pr
   assert.deepEqual(p.Scene.meta?.watch, { count: 'Count', only: 'Only' });
 });
 
-test('collection refuses a watched model key hidden by consecutive staged specimens', async () => {
+test('collection accepts a watched model key beside consecutive staged specimens', async () => {
   const file = join(folder, 'hidden.ts');
   await writeFile(file, `import { Scene, Text } from 'rayner';
 import { stage } from 'rayner/explain';
@@ -196,7 +195,8 @@ export default class Hidden extends Scene {
     })));
   }
 }`);
-  await assert.rejects(collectProject(file, { write: false }), /meta\.watch: it names "completed", which is never in the scene's state/);
+  const project = await collectProject(file, { write: false });
+  assert.equal(project.scenarios[0]!.trace.steps[0]!.after.completed, true);
 });
 
 test('the transcript says what each step changed after its caption, and check reports changes and unformatted keys', async () => {
@@ -246,4 +246,47 @@ test('token-bucket\'s burst step: Tokens left 5 → 0, Accepted 0 → 5 and Reje
   // Four steps of each of the three scenarios change something watched; the comparison does not.
   assert.equal(said.length, 12);
   assert.equal(said.filter((s) => s === 'What changed: Tokens left: 5 → 0; Accepted: 0 → 5; Rejected: R6').length, 3);
+});
+
+
+test('model watches agree in describe, player, transcript and check beside a conflicting local specimen', async () => {
+  const file = join(folder, 'mixed.ts');
+  await writeFile(file, `import { Scene, Text } from 'rayner';
+import { stage } from 'rayner/explain';
+export default class Mixed extends Scene {
+  static meta = { watch: { count: 'Requests accepted' } };
+  state = { count: 7 };
+  async construct() {
+    const s = stage(this);
+    await s.steps([{ id: 'example', title: 'An example', line: 'Local count.', caption: 'A local specimen.',
+      state: { count: 100 }, draw: st => new Text(String(st.count)) }]);
+    await this.step('model', { title: 'The model changes', caption: 'One more request is accepted.' });
+    this.state.count++;
+    await s.enter(new Text('Accepted ' + this.state.count).moveTo([0, -1]));
+  }
+}`);
+  const project = await collectProject(file, { write: false });
+  const trace = project.scenarios[0]!.trace;
+  const expected = [[], [{ label: 'Requests accepted', before: '7', after: '8' }]];
+  const description = (await describeExplainer(project.Scene)).scenarios[0]!;
+  assert.deepEqual(description.steps.map(s => s.watched), expected);
+  assert.deepEqual(trace.steps.map(s => [s.before.count, s.after.count]), [[7, 7], [7, 8]]);
+  assert.deepEqual(description.steps.map(s => s.state.count), [100, 8], 'describe keeps its explicit specimen projection');
+  const player = playerTrace(trace, project.Scene.meta?.watch);
+  assert.deepEqual(player.steps.map(s => playerChanges(s, project.Scene.meta?.watch)), expected);
+  const { html } = await buildExplainer(project, join(folder, 'mixed.html'));
+  assert.ok(html.includes('<p>What changed: Requests accepted: 7 → 8</p>'));
+  assert.ok(!html.includes('<p>What changed: Requests accepted: removed</p>'));
+  const report = await checkProject(project, join(folder, 'mixed-check')) as { scenarios: { watch: { changes: unknown }[] }[] };
+  assert.deepEqual(report.scenarios[0]!.watch.map(s => s.changes), expected);
+});
+
+
+test('watched JSON names never read inherited object members on appearance or removal', () => {
+  for (const key of ['constructor', 'toString', 'valueOf', '__proto__']) {
+    const value = Object.fromEntries([[key, 'ready']]);
+    const watch = Object.fromEntries([[key, 'Value']]);
+    assert.deepEqual(watchedChanges({ before: {}, after: value }, watch), [{ label: 'Value', after: 'ready' }]);
+    assert.deepEqual(watchedChanges({ before: value, after: {} }, watch), [{ label: 'Value', before: 'ready' }]);
+  }
 });

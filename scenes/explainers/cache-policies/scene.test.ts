@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { Sink } from '../../../src/index.ts';
 import { loadFonts, loadProject } from '../../../explain/testing.ts';
 import type { Comparison } from './model.ts';
-import { worked, continued, state, namedViews, assertPictures, assertCurrent } from './fixtures/comparisons.test.ts';
+import { worked, state, namedViews, assertPictures, assertCurrent } from './fixtures/comparisons.test.ts';
 import CachePolicies from './scene.ts';
 
 await loadFonts();
@@ -16,7 +16,7 @@ test('both scenarios execute all eight independently worked requests and show bo
     const observed = new Map<number, Comparison>(), rests: string[] = [];
     const expectedSteps: Record<string, Comparison> = {
       full: state(worked[pattern][2]!), evict: state(worked[pattern][3]!),
-      pattern: state(worked[pattern][7]!), try: state(continued[pattern][0]!),
+      pattern: state(worked[pattern][7]!), try: state(worked[pattern][7]!),
     };
     const sink: Sink = {
       async frame(scene) {

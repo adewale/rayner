@@ -136,8 +136,8 @@ export function watchedChanges(
 ): WatchedChange[] {
   const changes: WatchedChange[] = [];
   for (const [key, label] of Object.entries(watch ?? {})) {
-    const was = step.before[key],
-      is = step.after[key];
+    const was = Object.hasOwn(step.before, key) ? step.before[key] : undefined,
+      is = Object.hasOwn(step.after, key) ? step.after[key] : undefined;
     if (canonicalJson(was) === canonicalJson(is)) continue;
     const before = watchedValue(was, lang),
       after = watchedValue(is, lang);
@@ -157,7 +157,8 @@ export function checkWatch(watch: unknown, scenarios: readonly (readonly StateRe
     throw new TypeError('meta.watch: it must be a record from a state key to the label readers see');
   const entries = Object.entries(watch);
   if (entries.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${entries.length} keys; name at most ${WATCH_MAX}, so a step's changes stay readable`);
-  const states = scenarios.flatMap(steps => steps.map((step, i) => stepStates(step, steps[i - 1])));
+  // Watches name persistent scene.state fields; local staged specimens have a separate owner.
+  const states = scenarios.flat();
   for (const [key, label] of entries) {
     if (!key) throw new TypeError('meta.watch: it has an empty key');
     if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${JSON.stringify(key)} an empty label`);

@@ -11,7 +11,7 @@
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
 
-import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
+import { Mobject, Group, adoptState, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
 import { Enclosing, Transform, knownTransform } from '../src/animation.ts';
@@ -135,12 +135,10 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   }
 
   /**
-   * The state moving through time, and the picture with it: at each frame the scene's state is
-   * `stateAt(t)`, t running from 0 to 1 at the eased alpha, and the view draws it. So the picture is
-   * the view's draw of the state at every frame, a seek renders what a full play renders, and the
-   * play ends with the state at `stateAt(1)`. `stateAt` must be a function of t alone, return JSON,
-   * and keep the family shape the view's draw gives (as a Follow's draw does). An action, as
-   * sync() is.
+   * An action that sets the scene's state to `stateAt(t)` at each frame and redraws the view.
+   * The eased progress t is clamped to [0, 1], and the play keeps its last sample
+   * (`stateAt(0)` with thereAndBack). For a seek to draw the same frame as a full play,
+   * `stateAt` must depend only on t, return JSON, and preserve the family shape the view draws.
    */
   tween(stateAt: (t: number) => S, opts: TweenOptions = {}): Action {
     return sampledState<S, Sh>(this.host, stateAt, { ...opts, views: [this] }, 'view.tween()');
@@ -225,10 +223,13 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   view: View<M, any, any>;
   match: Match;
   staged: boolean;
-  /** @internal Set as it begins: the morph from the current picture to the built one, or null when nothing changed. */
+  /** @internal Set as it begins: the morph from the current picture to the built one, or null when points and paint agree. */
   inner!: Animation | null;
-  /** Set by begin(): the built, placed picture, swapped in at finish(). */
-  private next!: M | null;
+  /** The new picture, including data a morph cannot interpolate. */
+  private next!: M;
+  /** The unmoving picture's original data, retained if an easing curve leaves the endpoint again. */
+  private beforeStill: M | null = null;
+  private stillAtEnd = false;
   /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
   private fit!: ViewPlacement;
 
@@ -241,8 +242,8 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     const v = this.view, old = v.current;
     const { picture: next, fit } = v.measure(fresh(v.build(), old));
     this.fit = fit;
-    this.inner = null; this.next = null;
-    if (samePicture(old, next)) { v.commit(fit); return null; }
+    this.inner = null; this.next = next; this.beforeStill = null; this.stillAtEnd = false;
+    if (samePicture(old, next)) return null;
     const match = this.match;
     if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
@@ -251,19 +252,36 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     const inner = match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
       : new Transform(old, next, { match, replace: false, staged, rateFunc });
     inner.lagRatio = this.lagRatio;
-    this.inner = inner; this.next = next;
+    this.inner = inner;
     return inner;
+  }
+
+  // Equal points and paint need no morph. The new draw can still carry a different
+  // key, clip or meaning. Retain the child and adopt the whole picture at the endpoint.
+  private sampleStill(alpha: number): void {
+    const atEnd = alpha === 1;
+    if (this.inner || this.stillAtEnd === atEnd) return;
+    const current = this.view.current;
+    this.beforeStill ??= current.copy();
+    adoptState(current, atEnd ? this.next : this.beforeStill);
+    this.stillAtEnd = atEnd;
+  }
+
+  protected override doInterpolate(alpha: number): void {
+    super.doInterpolate(alpha);
+    this.sampleStill(alpha);
   }
 
   protected override doFinish(end: number = this.rateFunc(1)): void {
     // The morph ends where this sync's last frame drew it, and ends finished, as one the scene began would.
     super.doFinish(end);
-    if (!this.inner) return;
+    this.sampleStill(end);
+    this.beforeStill = null;
     // Finished on the new picture: hand over to it (a matching transform leaves faded
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
     if (end === 1) {
-      this.view.swap(this.next!);
+      if (this.inner) this.view.swap(this.next);
       this.view.commit(this.fit);
     }
   }
@@ -399,9 +417,8 @@ export function pictureText(m: Mobject): string[] {
 }
 
 /**
- * The fidelity check for the picture side: null when the View shows what its
- * draw() makes of `state` (a trace step's `after`) and `shown` (its `shown`),
- * else what differs. Compares the text the pictures show, not their geometry.
+ * Compare the View's text with what draw() produces from its state input and
+ * the authored shown fields. Returns null on a match or describes the difference.
  */
 export function viewMismatch<Sh extends object = SceneState>(
   v: View, state: SceneState, { shown = {}, draw = v.draw }: { shown?: Sh | SceneState; draw?: (state: SceneState, shown: Sh | SceneState) => Mobject } = {},

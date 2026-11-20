@@ -66,7 +66,7 @@ export function shippedScenario(project: Project, scenario: Project['scenarios']
     trace: playerTrace(trace, project.Scene.meta?.watch),
     ...(palette ? { palette } : {}),
     ...(paper ? { paper } : {}),
-    live: [...(live ?? [])].map(([step, { index, identity }]) => [step, { index, identity }]),
+    live: [...(live ?? [])].map(([step, { machine, ...place }]) => [step, place]),
   };
 }
 

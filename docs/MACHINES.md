@@ -1,8 +1,8 @@
 # Machines: a model driven by events
 
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
-schedule, `rayner check` draws and checks states up to the machine's exploration limit (256 per origin by default), and at the step
-where the machine last played the player gives the reader a button per event
+schedule, `rayner check` draws and checks states up to the machine's exploration limit (256 per origin by default), and the
+player gives the reader a button per event at each step where the author offers the machine. The default is its last played step
 ([the player](#the-player)). Nineteen explainers use machines, including the eight chapters
 of the Poppy series. [Explainers with machines](#explainers-with-machines)
 
@@ -74,9 +74,8 @@ step that ends with one never played fails, as it does for a stage verb.
 next state, a refusal with the reason `next` gave, or the story's bound. Exploration visits every
 state reachable from `start`, breadth first, each by the shortest events that reach it, and plays
 every transition from every state it visits, with each view's target placed where it will finish
-([below](#refused-events-bounds-and-authored-transitions)). It draws every state under what the scene
-showed (`scene.shown`) when the machine last played: what is shown may change between events (a
-guided tour moving a code panel's focus).
+([below](#refused-events-bounds-and-authored-transitions)). At an explicit offer it draws under
+`scene.shown` as that step ends. At an inferred live step it uses what the machine last played under.
 
 Each event records `{ kind: 'event', event }` as it begins, followed by its views' match
 evidence, so a fidelity test can check the events a step replayed and the state it ended in
@@ -88,9 +87,8 @@ checks the events and each final configuration against the XState fixture.
 the run, so a picture that also read a variable outside the state would be drawn wrongly. Every
 `View` is made from `(scene, draw)`, and a draw may read `scene.shown` as well: which picture a
 chapter shows belongs there, not in the model. A machine never changes `shown`, but what is shown
-may change between its events (a guided tour moving a code panel's lit line). It records what was
-shown each time it plays, and exploration and the live player draw every state under what was
-shown when it last played.
+may change between its events (a guided tour moving a code panel's lit line). The checker
+and the player both use the presentation belonging to the live step.
 
 ## Refused events, bounds and authored transitions
 
@@ -202,10 +200,9 @@ throughout. Every part, keyed or not, takes part. A machine that wants other mot
 
 ## What check does with a machine
 
-After each scenario runs, `rayner check` runs the scene again to the end of the step each machine
-last played in, the stage the reader saw it on, by the player's own run (`runLive`), and explores
-there, while that run can still play. A machine that never played is explored on a fresh run of
-the scene as it ends. A machine whose
+After each scenario runs, `rayner check` runs the scene again to the end of every step where a
+machine was offered. A machine without offers is checked at its last played step, or at the end
+of the scene if it never played. Each live step uses the player's own run (`runLive`). A machine whose
 views are not on that stage is reported, since its states could not be checked. Exploration
 visits states breadth first from `start` and from the reader's origin at the live step. The latter
 is the step's resting state when some event moves it, otherwise the machine's start, as in the
@@ -272,19 +269,29 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 
 ## The player
 
-At the step where a machine last played, the reader can drive it: one button per event under the
+At a live step the reader can drive the machine using one button per event under the
 step's caption, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
 gives the reader-facing contract: what the buttons say, how a refused event explains itself, what
 Undo, Reset and the keyboard do, and what a screen reader hears. Each of these explainers offers
 live controls in the scenarios that play its machines (oauth-pkce without the attacker plays none).
 This section says how it works and why.
 
-**Which step is live: the step the machine last played in.** There is no declaration. The step a
-machine last played in is the stage `rayner check` explores it on, so a reader
-never drives a machine on a stage the check did not see. A separately declared step could name one
-exploration never checked, or one whose stage does not hold the machine's views (token-bucket's
-last step clears them). When two machines last play in one step, the one made later is live there.
-`describeExplainer` reports the step as each machine's `step`.
+**Offering controls.** Call `machine.offer()` inside a step to let readers choose the next event.
+The offer leaves the model, picture and event history as they are. The cache comparison offers
+both caches at eight requests, so the reader chooses the ninth request.
+
+```ts
+await this.step('try', { caption: 'Which request will hit?' });
+machine.offer();
+```
+
+Offer the same `Machine` in several steps to let a reader branch from each step's own model,
+presentation and stage. Each step accepts one machine. Calling the same machine's `offer()`
+again in that step keeps the same controls. An explicit offer takes priority over another
+machine's guided sends there. A machine with no offers keeps its last played step by default.
+When two such machines end at the same step, the later one made supplies its controls.
+`describeExplainer` reports a single location as `step` and multiple offers in `offers`,
+with the reader's origin and exploration counts at each.
 
 **Where the reader starts.** Where the step leaves the machine: its state as the step ends, which the trace records as the step's `after`.
 Three explainers' live steps leave their machine finished: token-bucket's client has sent all ten
@@ -309,9 +316,9 @@ its guarantee: a frame is a function of time and of the log. The run stops as th
 (the scene module's `stopAt`): after its end listeners, its caption hold and any code the scene runs after the
 step's last play, and before the next step begins. So the reader starts from the state the trace
 records as the step's `after`, on the step's resting picture, the one a link shows (check fails a
-picture that changes during the hold or after the step's last frame). The machine plays under what the scene showed when it last played, as exploration
-draws it. The run's machine is found by its place among the scene's machines and must be the same
-machine, its events in order, its start and its views' keys, or the run is refused. `rayner check`
+picture that changes during the hold or after the step's last frame). An offered machine keeps
+the presentation at that step's end. The run checks its place among the scene's machines, its
+events in order, its start, its views' keys and the explicit offer at that same step. `rayner check`
 explores a machine at its live step on the same run (`runLive` with no events), so it starts from
 the state the reader starts from and is held to the same rule: neither drives another machine that
 happens to sit at the same place.
@@ -410,7 +417,7 @@ Eleven explainers outside the Poppy series use machines.
 | --- | --- | --- | --- | --- | --- |
 | `statecharts` | `parent`, `frother` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send` (`drivenNext`); an event the configuration does not handle is refused, as SCXML discards it, naming the boxes without its arrow | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
 | `ring-buffer` | `result`, `implementation-result` | `RingState` holds the slots, markers, last operation and next value | `push` and `pop`. An empty ring refuses a pop, a full one reports Full on a push, and the story stops pushing after 9 | Fixed slots, markers and queue order on the reading path. Details adds the code, pointer motion and operation readouts | Each machine samples 256 states from an empty ring and reaches all 98 states from its live result in either scenario |
-| `cache-policies` | `try` | Two independent three-slot caches and their shared request history | Each of A, B, C and D goes to both caches. The reader chooses the tenth and eleventh requests | Both newest-first orders, hit and miss counts, last results, evictions and request history | All 85 states from eight requests and all 21 from the nine-request live origin in each scenario |
+| `cache-policies` | `try` | Two independent three-slot caches and their shared request history | Each of A, B, C and D goes to both caches. The reader chooses requests nine through eleven | Both newest-first orders, hit and miss counts, last results, evictions and request history | All 85 states reachable from the eight guided requests in each scenario |
 | `state-machine` | `send`, `closed` | `SocketState`: a WebSocket's readyState, the last event and what it did, the branch of `send()` it ran, the messages the server got, the links travelled | `send()`, `close()`, `server accepts`, `server answers close()`; the server's two answers are refused outside CONNECTING and CLOSING, `close()` before open and a third message are past the story's bound, and a `send()` that throws or sends nothing is an answer the picture shows | The diagram with its trail (`Diagram.picture`), the ring, `send()`'s branch boxed in Node's own code; the card | 23 states from a new socket, 14 from an open one; every transition played |
 | `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `g.follow`, then a token leaves for its box or a 429 ring appears |
 | `monty-hall` | `choice` | `Round`: what the reader knows (the pick, the door opened and what it showed, stay or switch, where the car was shown) | `pick X`, `open X: goat` or `car`, `stay`, `switch`, `car behind X`; the rules refuse a second pick, the host opening your door or opening twice, the informed host opening the car, and a decision after the car is shown | The three doors | 46 rounds with the informed host, 52 with the random one; every round is a cell of the strip, with its winner |
@@ -469,9 +476,6 @@ the stage and keeps the stage describing it.
   machine is sampled breadth first up to `limit`; random sequences remain an option there.
 - **Running the model in the player as a separate runtime.** It would give up seeking and
   traces for the reader's own actions, which is what makes them checkable.
-- **Declaring the live step** (`step(name, { live: machine })`, or `machine.live()`). The step a
-  machine last played in already says it, and it is the stage exploration checked; a second
-  declaration could name a stage that was never checked.
 - **Starting the reader's events at the step's state, always.** Three explainers' live steps
   leave their machine finished, so every button would be disabled there.
 - **A token-bucket of free requests plus a refill tick.** It would contradict the caption (the

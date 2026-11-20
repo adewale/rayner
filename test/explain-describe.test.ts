@@ -10,6 +10,7 @@ import { PALETTES } from '../explain/palettes.ts';
 import { idsOf, stepIdsOf } from './lib/steps.ts';
 import { RestingSink } from '../tools/lib/explain-check.ts';
 import { Scene, Rectangle } from '../src/index.ts';
+import type { SceneState } from '../src/index.ts';
 import { Machine, view } from '../explain/index.ts';
 import { liveBase, liveSteps } from '../explain/live.ts';
 import { describeScenario } from '../explain/describe.ts';
@@ -17,17 +18,18 @@ import { seeText } from '../tools/lib/explain-see.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
   // As the tools describe it: collected, so its id is its folder's name.
-  const d = await describeExplainer((await loadProject(RingBuffer, 'scenes/explainers/ring-buffer')).Scene);
+  const { Scene: Bound } = await loadProject(RingBuffer, 'scenes/explainers/ring-buffer');
+  const d = await describeExplainer(Bound);
   assert.equal(d.schema, 1);
   assert.equal(d.id, 'ring-buffer');
-  assert.deepEqual(d.scenarios.map((c) => c.values), scenariosOf(RingBuffer as ExplainerClass));
+  assert.deepEqual(d.scenarios.map((c) => c.values), scenariosOf(Bound));
   for (const c of d.scenarios) {
     // The scenario's paper, as the stage drew it: ring-buffer draws on dusk (an added field; schema stays 1).
     assert.equal(c.paper, PALETTES.dusk!.paper, `${JSON.stringify(c.values)}: paper`);
-    const trace = await traceScene(withSettings(RingBuffer as ExplainerClass, c.values));
+    const trace = await traceScene(withSettings(Bound, c.values));
     assert.equal(c.duration, trace.duration);
     // The steps a description lists are the steps the scene runs, as a test reads them (test/lib/steps.ts).
-    assert.deepEqual(c.steps.map((s) => s.step), await stepIdsOf(withSettings(RingBuffer as ExplainerClass, c.values)));
+    assert.deepEqual(c.steps.map((s) => s.step), await stepIdsOf(withSettings(Bound, c.values)));
     assert.deepEqual(c.steps.map((s) => s.step), idsOf(trace));
     c.steps.forEach((s, i) => {
       const t = trace.steps[i]!;
@@ -35,10 +37,11 @@ test('describeExplainer gives every scenario and step: the words, the state the 
       assert.equal(s.line, t.meta.line ?? '', `${s.step}: the line under the title`);
       assert.equal(s.caption, t.meta.caption);
       assert.equal(s.kind, t.meta.kind ?? 'main');
-      const state = t.state ?? t.after, picture = t.shown?.picture;
+      const state: SceneState = t.state ?? t.after;
+      const picture = t.shown?.picture;
       assert.deepEqual(s.state, state, `${s.step}: state is the trace's local specimen or model; the picture is traced as shown`);
       assert.ok(picture === undefined || s.picture.length > 0, `${s.step}: the picture in words`);
-      const before = trace.steps[i - 1]?.state ?? t.before;
+      const before: SceneState = trace.steps[i - 1]?.state ?? t.before;
       const changedKeys = [...new Set([...Object.keys(before), ...Object.keys(state)])]
         .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(state[key]));
       assert.deepEqual(Object.keys(s.changed).sort(), changedKeys.sort(), `${s.step}: complete changed-key set`);
@@ -163,8 +166,9 @@ test('a scene with diagrams describes from its pinned snapshots, scenario by sce
 });
 
 test("drawings: a step's name draws that step only, as drawing every step draws it", async () => {
-  const all = await describeExplainer(RingBuffer as ExplainerClass);
-  const one = await describeExplainer(RingBuffer as ExplainerClass, { drawings: 'next' });
+  const { Scene: Bound } = await loadProject(RingBuffer, 'scenes/explainers/ring-buffer');
+  const all = await describeExplainer(Bound);
+  const one = await describeExplainer(Bound, { drawings: 'next' });
   assert.ok(all.scenarios.length > 1);
   for (const [i, c] of one.scenarios.entries()) {
     const full = all.scenarios[i]!;

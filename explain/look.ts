@@ -59,6 +59,10 @@ export function selfDescribed<T extends Mobject>(m: T, seen: () => Description, 
   Object.assign(m, { [seenSource]: seen, ...(emphasis ? { [emphasisSource]: emphasis } : {}) });
   return m;
 }
+/** Give a component its own words on stage. Read its current parts from `self`, including on a copy. */
+export function described<T extends Mobject>(m: T, describe: (self: T) => Description): T {
+  return selfDescribed(m, function (this: T) { return describe(this); });
+}
 /**
  * What `m` shows in words: each part that describes itself, as it describes itself, and the text
  * of every other `Text`, in family order. A self-describing part's own text is not repeated.

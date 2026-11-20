@@ -249,10 +249,10 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   const a = new Follow({ from: 0.1, to: 0.7, draw }, { targets: [dot, bar], rateFunc: linear });
   assert.deepEqual(a.targets(), [dot, bar]);
   beginAnimation(a);
-  for (const alpha of [0, 0.5, 1, 0.25, 1, 0]) {
+  for (const [alpha, expected] of [[0, 0.1], [-0.2, 0.1], [0.5, 0.4], [1.2, 0.7], [1, 0.7], [0.25, 0.25], [0, 0.1]] as const) {
     interpolateAnimation(a, alpha);
-    const v = a.valueAt(alpha);
-    close(dot.center()[0], v); close(bar.center()[1], v / 2);
+    close(seen.at(-1)!, expected);
+    close(dot.center()[0], expected); close(bar.center()[1], expected / 2);
   }
   // Each drawing is written into its target, which keeps its identity and key
   assert.deepEqual([mobjectId(dot), mobjectId(bar)], ids);

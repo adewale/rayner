@@ -2,32 +2,39 @@
 // App/internal imports belong here; the explainer's own scene tests use the public author API.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NullSink } from '../src/timeline.ts';
-import { loadFonts, loadProject } from '../explain/testing.ts';
-import { liveSteps, runLive } from '../explain/live.ts';
+import { collectProject } from '../tools/lib/explain-project.ts';
+import { shippedScenario } from '../tools/lib/scene-entry.ts';
+import { runLive } from '../explain/live.ts';
 import { explore, outcomes } from '../app/embed-live.ts';
 import type { Exploration } from '../app/embed-live.ts';
-import { continued, state, assertCurrent } from '../scenes/explainers/cache-policies/fixtures/comparisons.test.ts';
+import { worked, continued, ninthB, state, assertCurrent } from '../scenes/explainers/cache-policies/fixtures/comparisons.test.ts';
 import type { Row } from '../scenes/explainers/cache-policies/fixtures/comparisons.test.ts';
-import CachePolicies from '../scenes/explainers/cache-policies/scene.ts';
-
-await loadFonts();
-const project = await loadProject(CachePolicies, 'scenes/explainers/cache-policies');
+const project = await collectProject('scenes/explainers/cache-policies', { write: false });
 
 test('live sends update both policies; the player\'s Undo and Reset restore both pictures and the shared request history', async () => {
   for (const pattern of ['loop', 'reuse'] as const) {
-    const Source = project.scenario({ pattern }).Scene;
-    const live = liveSteps(await new Source(new NullSink()).run()).get('try')!;
+    const scenario = project.scenarios.find((s) => s.values.pattern === pattern)!;
+    const Source = scenario.Scene, live = scenario.live!.get('try')!;
+    const shipped = shippedScenario(project, scenario).live;
+    assert.deepEqual(shipped, [['try', { index: live.index, identity: live.identity, offered: true }]]);
+    const place = shipped[0]![1];
     assert.deepEqual(live.machine.spec.views.map(v => v.key), ['cache:lru', 'cache:mru', 'cache:stream']);
     assert.deepEqual(live.machine.spec.events, ['A', 'B', 'C', 'D']);
     let exploration: Exploration<{ step: string }> = explore({ kind: 'none' }, { kind: 'link', now: { step: 'try' }, log: [] });
     const render = async (row: Row) => {
       assert.equal(exploration.kind, 'live');
       if (exploration.kind !== 'live') throw new Error('expected the live comparison');
-      const shown = await runLive(Source, 'try', live, exploration.log);
+      const shown = await runLive(Source, 'try', place, exploration.log);
       assertCurrent(shown.scene, state(row));
       return shown;
     };
+    const base = worked[pattern][7]!;
+    await render(base);
+    exploration = explore(exploration, { kind: 'send', event: 'B' });
+    await render(ninthB[pattern]);
+    exploration = explore(exploration, { kind: 'undo' });
+    await render(base);
+    exploration = explore(exploration, { kind: 'send', event: 'A' });
     await render(continued[pattern][0]!);
     exploration = explore(exploration, { kind: 'send', event: 'B' });
     await render(continued[pattern][1]!);
@@ -39,7 +46,7 @@ test('live sends update both policies; the player\'s Undo and Reset restore both
     exploration = explore(exploration, { kind: 'undo' });
     await render(continued[pattern][1]!);
     exploration = explore(exploration, { kind: 'reset' });
-    await render(continued[pattern][0]!);
-    await assert.rejects(runLive(Source, 'try', live, ['B', 'C', 'A']), /beyond the story/);
+    await render(base);
+    await assert.rejects(runLive(Source, 'try', place, ['A', 'B', 'C', 'D']), /beyond the story/);
   }
 });

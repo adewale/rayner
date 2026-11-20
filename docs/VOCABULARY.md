@@ -97,7 +97,7 @@ Each name's promise is checkable:
 
 - Staged steps are views of state. `s.steps` draws each step's picture as a view of its
   state, and `rayner check` holds it to its draw as it holds every view: it fails one whose
-  picture differs from a fresh draw at its step's end, or is the same whatever state it is drawn from. Constants computed once
+  picture differs from a fresh draw at its step's end, or whose sampled alternative inputs never demonstrate a different picture. The latter is a bounded diagnostic, not proof about all possible states; a threshold picture needs a valid contrasting example. Constants computed once
   per scenario, such as henge's model, pass: they are the same in both runs.
 - Refusal lives in `next`. There is no separate `allows`, since two functions could disagree about
   which events a state accepts.
@@ -114,6 +114,36 @@ Each name's promise is checkable:
   outside (the dome) and from its centre (the street, gnomonic), turns the year with a view's
   tween over the orbital longitude, and puts its places on a globe with the street carried on as
   a great circle.
+
+## API audit decisions
+
+The API audit keeps the existing engine and explanation vocabulary. It adds capabilities where
+an author could not preserve or check the result reliably with ordinary TypeScript:
+
+- A loaded project binds a private subclass. Metadata, settings and scripts belong to that load;
+  importing one scene definition into two projects must not change the first project's meaning.
+  A public definition or project-builder hierarchy would add another authoring language without
+  improving this guarantee.
+- A staged step's local specimen and the persistent model are different facts. `meta.watch`
+  always names the persistent model’s traced JSON fields; `describe` can still select a specimen to explain the local picture.
+  Merging these records would silently discard a legitimate value when both use the same key.
+  An additional watch-selector language needs an actual mixed-source reader use before it is added.
+- `machine.offer()` declares where readers may send events, without making an event happen.
+  The same reducer still decides what an event means; prediction, scenario settings and model
+  events keep their distinct roles. Existing scenes retain inferred controls until they opt in.
+- A custom component opts into descriptions explicitly with `described`. The callback reads the
+  component passed to it, including on copies. Calling any method coincidentally named `describe`
+  would let unrelated third-party methods change the transcript.
+- `tweenState` makes whole-model sampling explicit for several views. `view.tween` remains a useful
+  single-view convenience, `view.sync` morphs endpoints and a transition's `follow` draws temporary
+  motion. They have different jobs; replacing them with one animation language obscures ownership.
+
+The audit does not rename Manim's vocabulary, replace direct awaits with a scheduler, add a global
+view registry, or remove the drawing kit's palette helpers solely to reduce the name count. Nor
+does it change the serialized meanings of trace fields piecemeal: moving helper picture and walk
+records into separate channels needs a versioned trace design and migration of its consumers.
+A narrower drawing context also needs real palette, shaping and direction support before a type
+can promise it; a type-only restriction would leave verification dependent on a hidden Stage.
 
 ## Names deliberately kept
 

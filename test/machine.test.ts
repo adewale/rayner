@@ -15,7 +15,7 @@ import { stage, having, Machine, refuse, isRefusal, view } from '../explain/inde
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
-import { liveBase, logStart, runLive } from '../explain/live.ts';
+import { liveBase, liveSteps, logStart, runLive } from '../explain/live.ts';
 import { whenReady, beginAnimation, interpolateAnimation, finishAnimation, matchRows } from '../src/animation.ts';
 import { describeScenario } from '../explain/describe.ts';
 
@@ -24,6 +24,40 @@ await loadFonts();
 type Lamp = { level: number };
 const LEVELS = ['off', 'dim', 'bright'] as const;
 const next = (s: Lamp, e: 'UP' | 'OFF'): Lamp => ({ level: e === 'OFF' ? 0 : Math.min(2, s.level + 1) });
+
+test('a machine refuses invalid JSON in start at construction, with its field path', () => {
+  const scene = new Scene(new NullSink());
+  const machine = (value: unknown) => new Machine(scene, { start: { value }, events: ['tick'], next: () => ({}), views: [] });
+  for (const value of [NaN, Infinity, new Date(0), () => 1]) {
+    assert.throws(() => machine(value), /^TypeError: new Machine\(\): start\.value must /);
+  }
+  assert.throws(() => machine(Array(1)), /^TypeError: new Machine\(\): start\.value\[0\] must not be an array hole/);
+  assert.deepEqual(machinesOf(scene), [], 'an invalid model never registers');
+  const value = { optional: undefined, payload: [1] };
+  const valid = machine(value);
+  value.payload[0] = 9;
+  assert.deepEqual(valid.spec.start, { value: { payload: [1] } });
+  assert.throws(() => valid.send('tick', { value: NaN }), /^TypeError: machine\.send\(\): from\.value must /);
+});
+
+test('a machine plays prototype-named events through their own transition or the default', async () => {
+  const names = ['constructor', 'valueOf', '__proto__'];
+  const authored: string[] = [];
+  const scene = await new (class extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      await this.step('press');
+      const machine = new Machine<Lamp, string>(this, {
+        start: this.state, events: names, views: [], next: s => ({ level: s.level + 1 }),
+        transition: { ['__proto__']: t => { authored.push(t.event); return new Animation(new Group()); } },
+      });
+      await machine.replay(names);
+    }
+  })(new NullSink()).run();
+  assert.deepEqual(authored, ['__proto__']);
+  assert.equal(scene.state.level, names.length);
+  assert.deepEqual(scene.steps[0]!.evidence!.filter(e => e.kind === 'event').map(e => e.event), names);
+});
 
 /** A lamp of three levels as a machine; `blind` draws the same picture whatever the level. */
 function lampScene(blind = false, size = 0.5) {
@@ -648,6 +682,7 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
 
 test('check and describe explore a shared step\'s resting state only with the machine that owns its controls', async () => {
   type Chapter = { level: number } | { count: number };
+  let offerLast = false;
   class SharedStep extends Scene<Chapter, {}> {
     override state: Chapter = { level: 0 };
     override async construct() {
@@ -667,6 +702,7 @@ test('check and describe explore a shared step\'s resting state only with the ma
       await first.send('UP');
       this.state = { count: 0 };
       await last.send('COUNT');
+      if (offerLast) last.offer();
     }
   }
   const { machines } = await describeScenario(SharedStep, {}, { drawings: false });
@@ -679,6 +715,63 @@ test('check and describe explore a shared step\'s resting state only with the ma
     { states: 2, sampled: false, problems: [] },
     { states: 3, sampled: false, problems: [] },
   ]);
+  offerLast = true;
+  const offered = await exploreMachines(await new SharedStep(new NullSink()).run(), SharedStep);
+  assert.deepEqual(offered.map(({ step, states, problems }) => [step, states, problems]), [
+    [undefined, 2, []], ['press', 3, []],
+  ]);
+});
+
+test('one machine offered twice reopens and checks each historical model and shown state, including its first unsent step', async () => {
+  class Chapters extends Scene<Lamp, { chapter: string }> {
+    override state = { level: 10 };
+    override shown = { chapter: 'early' };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st, sh) => new Text(`${sh.chapter} ${st.level}`, {
+        fontSize: sh.chapter === 'late' && st.level === 21 ? 0.08 : 0.6,
+      }));
+      this.add(picture);
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      const machine = new Machine<Lamp, 'UP'>(this, {
+        start: { level: 0 }, events: ['UP'], views: [picture], match: 'index', runTime: 0.1,
+        next: st => st.level % 10 === 0 ? { level: st.level + 1 } : undefined,
+      });
+      await this.step('first');
+      machine.offer();
+      machine.offer();
+      await this.step('guided');
+      this.shown = { chapter: 'guided' };
+      await machine.send('UP');
+      await this.step('second');
+      this.state = { level: 20 };
+      this.shown = { chapter: 'late' };
+      await picture.sync({ match: 'index' });
+      machine.offer();
+      await this.step('last');
+      this.shown = { chapter: 'last' };
+      await machine.send('UP');
+    }
+  }
+  const ran = await new Chapters(new NullSink()).run(), places = liveSteps(ran);
+  assert.deepEqual([...places.keys()], ['first', 'second']);
+  assert.equal(places.get('first')!.machine, places.get('second')!.machine);
+  for (const [step, level, chapter] of [['first', 10, 'early'], ['second', 20, 'late']] as const) {
+    const result = await runLive(Chapters, step, places.get(step)!, ['UP']);
+    assert.deepEqual(result.rest, { level });
+    assert.deepEqual(result.scene.state, { level: level + 1 });
+    assert.equal(result.shown.chapter, chapter);
+    assert.deepEqual(result.machine.spec.views[0]!.texts, [`${chapter} ${level + 1}`]);
+  }
+  const { machines } = await describeScenario(Chapters, {}, { drawings: false });
+  assert.equal(machines!.length, 1);
+  assert.deepEqual(machines![0]!.offers, [10, 20].map((level, i) => ({
+    step: i === 0 ? 'first' : 'second', live: { from: 'rest', state: { level }, states: 2, complete: true },
+  })));
+  const checked = await exploreMachines(ran, Chapters);
+  assert.deepEqual(checked.map(({ step, states }) => [step, states]), [['first', 4], ['second', 4]]);
+  assert.deepEqual(checked[0]!.problems, []);
+  assert.ok(checked[1]!.problems.some((p) => /from the state at "second", after UP: “late 21” reads|from the state at "second", after UP: “late 21” is/.test(p)), JSON.stringify(checked[1]!.problems));
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {

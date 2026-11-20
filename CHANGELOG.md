@@ -6,9 +6,15 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Loaded projects bind isolated metadata, settings and scripts without mutating the imported scene definition; retained scenarios keep their concrete scene type and can be rerun after another load.
+- `machine.offer()` makes controls explicit at a step without a forced event, including at several historical steps. Existing scenes keep inferred controls. The cache comparison lets readers choose all three continuation requests.
+- Custom components opt into nested, copy-aware descriptions with `described(mobject, self => description)` from `rayner/drawing`.
+- View syncs retain key, clip and description changes even when geometry stays the same. Machine event and label maps use own keys, and machine starts reject non-JSON values rather than silently converting them.
+- Fidelity helpers redraw with authored presentation inputs, and final step callbacks cannot leave an action unplayed. Sampled state-dependence diagnostics state the evidence's limits. Sampling guides describe clamped easing and returning endpoints accurately.
+
 - Machine exploration reports actual graph closure for each origin before deduplicating states, including a live origin already present in a capped start traversal. Only the machine whose controls the player shows is explored from the live origin. Limits must be finite positive integers. A machine refuses a view bound to another scene.
 - State sampling reserves the scene's model write before an action plays, without adding its reservation to the drawing order. Simultaneous writers reject early; `tweenState(scene, stateAt, { views })` samples once and redraws several independent views together. The shared-orbit recipe verifies frame and seek agreement. Sampled views retain placement and scale through empty or nearly flat geometry, later samples, syncs and seeks.
-- Staged steps keep their locally typed input in `StepRecord.state`; they no longer replace the scene's persistent model. Trace `before` and `after` retain that model, while descriptions, fidelity helpers and watched reader changes select the local specimen when present.
+- Staged steps keep their locally typed input in `StepRecord.state`; they no longer replace the scene's persistent model. Trace `before` and `after` retain that model, while descriptions and fidelity helpers select the local specimen when present. Reader watches consistently track persistent model fields, including alongside staged specimens.
 - Descriptions expose step kinds, teaching order, resolved predictions and their reveal steps, and completeness from the actual live origin. `see` retains these distinctions.
 
 - View fidelity also compares rendered SVG paint, path data, draw fraction, paint order and effective clips against a placed redraw. Regression controls cover the previously accepted defects and legitimate state-dependent paths/clips; the seasons latitude emphasis is now derived from state.

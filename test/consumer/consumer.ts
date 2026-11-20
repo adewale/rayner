@@ -195,11 +195,12 @@ export function drawingKit(scene: Scene) {
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Diagram } from 'rayner/explain';
 import type { Look } from 'rayner/explain';
-import { emphasised, card, code } from 'rayner/drawing';
+import { described, emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
   const s = stage(scene);
-  s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
+  const slot: Text = described(new Text('full'), (self) => ({ what: 'Slot', parts: [{ name: self.text }] }));
+  s.keep(slot, emphasised(new SurroundingRectangle(slot), 'outlined: the full slot'));
   const panel = new Rectangle({ fill: s.look.raised, stroke: s.look.rule }).setFill(lerpColor(s.look.paper, s.look.emphasis, 0.36));
   view(scene, (state) => card(s, [['State', String(state.status ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
   const lit: CodeBlockOptions['lit'] = { lines: [0, 1], as: 'run' };
@@ -305,6 +306,7 @@ export class Collection extends Scene<CollectionModel> {
       transition: { close: (t: Transition<CollectionModel, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
     });
     await s.enter(door);
+    machine.offer();
     await this.play(machine.send('close'));
     await this.play(machine.replay(['open', 'close']));
     const refused = doorNext({ door: 'closed' }, 'close');
