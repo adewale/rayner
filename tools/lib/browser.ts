@@ -1,5 +1,5 @@
 // Chromium for diagram capture and browser review, via the included playwright-core dependency.
-// Nothing else loads this module: check, build, describe, see, shots and init run without a browser.
+// Nothing else loads this module: check, build, describe, see, contact-sheet and init run without a browser.
 //
 // playwright-core looks only for the one Chromium revision it pins (browsers.json), so a machine
 // holding any other build fails until the author downloads the pinned one. launch() looks wider,

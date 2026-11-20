@@ -120,7 +120,7 @@ export default class PythonDict extends Scene<DictState, {}> {
       s.keep(pictures, { describe: () => words(pictures.current) });
       s.opening(pictures);
       await this.play(new FadeIn(pictures, { runTime: 0.24 }));
-      await this.play(machine.replay(events));
+      await this.play(machine.sendSequence(events));
       return machine;
     };
 
@@ -150,7 +150,7 @@ export default class PythonDict extends Scene<DictState, {}> {
           : `Slot ${offRoute} has never been used either, but the arrow from slot ${m.missing.slots[overHop - 1]} to slot ${m.missing.slots[overHop]} flies over it, so the search skips it. `
       }A deleted marker keeps the route open; a never-used slot on the route is the evidence that the key is absent.`,
     });
-    await this.play(cpython.replay(['d[24]']));
+    await this.play(cpython.sendSequence(['d[24]']));
 
     await staged([
       {

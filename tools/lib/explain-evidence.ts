@@ -89,7 +89,7 @@ export async function runModelTest(sceneFile: string): Promise<ModelTestReport |
 }
 
 /** A step as the trace records it: its name, its words and what it shows. */
-type TracedStep = { step: string; meta: Record<string, unknown>; shown?: unknown };
+type TracedStep = { step: string; meta: Record<string, unknown>; derived?: unknown };
 /** `a, b and c`. */
 const listed = (items: readonly string[]) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0] ?? '');
 
@@ -106,7 +106,7 @@ export function placeholderTodo(script: string | null, model: ModelTestReport | 
   for (const s of steps) {
     const words = stepWords(s);
     const parts: string[] = (['title', 'line', 'caption'] as const).filter((k) => isPlaceholder(words[k]));
-    if (isPlaceholder(JSON.stringify(s.shown ?? null))) parts.push('picture');
+    if (isPlaceholder(JSON.stringify(s.derived ?? null))) parts.push('picture');
     if (parts.length && !pictures.has(s.step)) pictures.set(s.step, parts);
   }
   if (!header.length && !evidence.length && !pictures.size) return [];

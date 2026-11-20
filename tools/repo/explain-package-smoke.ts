@@ -14,6 +14,7 @@ import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf, listTree, relativePosix } from '../lib/hash.ts';
 import { options as authoredOptions, typeCheckAuthored } from './lib/authored-types.ts';
+import { assertCommandHelp, assertPinnedCommandInputs } from '../../test/lib/cli-contract.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
 async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
@@ -75,6 +76,17 @@ try {
   // The command works straight after the install, from npm's bin link.
   assert.ok((await run(bin, ['--help'], { cwd: folder })).stdout.startsWith(`Rayner ${version} (Node 24+)`));
   assert.equal((await run(bin, ['--version'], { cwd: folder })).stdout.trim(), version);
+  const installedCommand = async (args: string[]) => {
+    try {
+      const result = await run(bin, args, { cwd: folder });
+      return { status: 0, stdout: result.stdout, stderr: result.stderr };
+    } catch (error) {
+      const result = error as { code: number; stdout: string; stderr: string };
+      return { status: result.code, stdout: result.stdout, stderr: result.stderr };
+    }
+  };
+  await assertCommandHelp(installedCommand);
+  await assertPinnedCommandInputs(installedCommand, join(folder, 'cli-contract'));
   for (const entry of entryPoints(ROOT).keys())
     await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: folder });
   // Nothing else: the compiled modules behind the entry points, and the command, are not importable.
@@ -139,12 +151,12 @@ try {
     }
     return target;
   };
-  // The diagram add-on, from the installed command. Without it, a diagram that scene.snapshots/ lacks
-  // is refused with the line that installs it, and pinned natural diagrams (font-metrics) replay.
+  // Preparation names the missing diagram add-on; consuming a missing pin asks for preparation.
+  // Pinned natural diagrams (font-metrics) replay without capture dependencies.
   await mkdir(join(folder, 'drawn'));
   await writeFile(join(folder, 'drawn/scene.ts'), `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Drawn extends Scene{static meta={id:'drawn',title:'One diagram'};async construct(){const s=stage(this);await this.step('one',{caption:'A diagram from Mermaid source.'});await s.show({source:'graph LR\\nA --> B'});}}`);
   const addOn = Object.entries(installedManifest.peerDependencies as Record<string, string>).map(([name, range]) => `${name}@${range}`);
-  const refused = await run(process.execPath, [cli, 'check', 'drawn'], { cwd: folder }).then(() => undefined, (error: { stderr: string }) => error);
+  const refused = await run(process.execPath, [cli, 'snapshots', 'drawn'], { cwd: folder }).then(() => undefined, (error: { stderr: string }) => error);
   assert.ok(refused, 'a diagram to capture without the diagram add-on is refused');
   assert.match(refused.stderr, /capturing the diagram "graph LR", which scene\.snapshots\/ does not hold, needs the diagram add-on/);
   assert.ok(refused.stderr.includes(`Install it with: npm install --save-dev ${addOn.join(' ')}.`), refused.stderr);

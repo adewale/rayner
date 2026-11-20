@@ -38,7 +38,7 @@ test('describeExplainer gives every scenario and step: the words, the state the 
       assert.equal(s.caption, t.meta.caption);
       assert.equal(s.kind, t.meta.kind ?? 'main');
       const state: SceneState = t.state ?? t.after;
-      const picture = t.shown?.picture;
+      const picture = t.derived?.picture;
       assert.deepEqual(s.state, state, `${s.step}: state is the trace's local specimen or model; the picture is traced as shown`);
       assert.ok(picture === undefined || s.picture.length > 0, `${s.step}: the picture in words`);
       const before: SceneState = trace.steps[i - 1]?.state ?? t.before;
@@ -129,7 +129,8 @@ test('machine descriptions use the player\'s raw model origin while step descrip
   const actual = await liveBase(WithEvidence, 'live', liveSteps(ran).get('live')!);
   assert.deepEqual(actual.base, { from: 'rest', state: { n: 1 } });
   const described = await describeScenario(WithEvidence, {}, { drawings: false });
-  assert.deepEqual(described.steps[0]!.state, { n: 1, aux: 'trace only' });
+  assert.deepEqual(described.steps[0]!.state, { n: 1 });
+  assert.deepEqual(described.steps[0]!.derived, { aux: 'trace only' });
   assert.equal(described.machines!.length, 1);
   assert.deepEqual(described.machines![0]!.live, { ...actual.base, states: 3, complete: true });
 });

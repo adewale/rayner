@@ -155,14 +155,14 @@ export default class Coverage extends Scene<World, {}> {
         'You ask your agent to close your account at example.com. It tries the API, the website and the shop’s own agent, finds no way, and gives up. The shop sees only a visitor who left. Poppy tells an agent to read the shop’s task list before it starts; this one skipped it. What would the list have said?',
     });
     await s.enter(world, { describe: () => sayWorld(this.state) });
-    await this.play(machine.replay(STORY.slice(0, 1)));
+    await this.play(machine.sendSequence(STORY.slice(0, 1)));
 
     await this.step('board', {
       title: 'The shop posts what it won’t do',
       line: 'One list would have saved the search.',
       caption: `The agent fetches the list with its seal and no key, since it describes the shop, not your account. “Close an account” was on it all along. A limit set by your account is not listed; that comes back as an error. So what can a Company tell your agent? ${answerOf(this)}.`,
     });
-    await this.play(machine.replay(STORY.slice(1, 2)));
+    await this.play(machine.sendSequence(STORY.slice(1, 2)));
 
     await this.step('stuck', {
       title: 'Not on the list, and no way found',
@@ -170,14 +170,14 @@ export default class Coverage extends Scene<World, {}> {
       caption:
         'Next you ask to pay for the medium with a gift card. The list does not mention gift cards, so the agent looks on each lane and finds no field for one. This time the shop has not said it won’t do it, and it may not know it can’t. Should the agent tell it, and what should it say?',
     });
-    await this.play(machine.replay(STORY.slice(2, 3)));
+    await this.play(machine.sendSequence(STORY.slice(2, 3)));
 
     await this.step('report', {
       title: 'One report, naming nobody',
       line: hostile ? 'The reply holds a way, and more.' : 'The reply holds a way to pay.',
       caption: `The agent sends one report to the shop’s feedback box: the task, “Pay with a gift card”, and what it tried, with no order number, no name and no ID. One report per task, not one per try. The shop reads a report as data, and answers with a note: apply the gift card through the payment API.${hostile ? ' Read the rest of the note before your agent does.' : ''}`,
     });
-    await this.play(machine.replay(STORY.slice(3, 4)));
+    await this.play(machine.sendSequence(STORY.slice(3, 4)));
 
     await this.step('sort', {
       title: hostile ? 'Advice in, orders left at the counter' : 'Advice in, used as advice',
@@ -186,7 +186,7 @@ export default class Coverage extends Scene<World, {}> {
         ? 'Your agent’s model reads the note as data. applyGiftCard is in the shop’s own poppy.json, so the agent uses it under its own seal and key. The rest stays at the counter: your task does not need your address book, a shop saying you agreed is never your consent, and the agent acts at shop.example only when your task needs it. Switch the Company to honest: the same way is followed.'
         : 'Your agent’s model reads the note as data, and both lines serve the task you gave it. applyGiftCard is in the shop’s own poppy.json, so the agent calls it under its own seal and key; the checkout page may be opened, and nothing secret goes with it. Switch the Company to hostile to see what else a note can ask for.',
     });
-    await this.play(machine.replay(STORY.slice(4, 5)));
+    await this.play(machine.sendSequence(STORY.slice(4, 5)));
 
     await this.step('skill', {
       title: 'A recipe, not a key',
@@ -195,6 +195,6 @@ export default class Coverage extends Scene<World, {}> {
         ? `The shop’s skill card says how to exchange: find the order, then post the exchange. Its digest ${skill.verified ? 'matches' : 'fails'}, which proves the bytes, not their intent. The agent follows both steps on the API and gets ${skill.answer.status}. It runs no script, takes no scope from a card, and the token stays in the station, out of the model’s reach. Press “Close my account”: now the list answers at once.`
         : `The shop’s skill card says how to exchange: find the order, then post the exchange. Its digest ${skill.verified ? 'matches' : 'fails'}, so these are the bytes the shop published. The agent follows both steps on the API under its own seal and key, and gets ${skill.answer.status}. A skill says how; it grants no scope and approves nothing for you. Press “Close my account”: now the list answers at once.`,
     });
-    await this.play(machine.replay(STORY.slice(5, 6)));
+    await this.play(machine.sendSequence(STORY.slice(5, 6)));
   }
 }

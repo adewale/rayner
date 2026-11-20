@@ -56,7 +56,7 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
-    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is an option of rayner init alone/);
+    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is not an option of rayner check; use it with rayner init/);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -110,9 +110,9 @@ test('`rayner init --blank` writes an explainer to write: an unfilled intent hea
       assert.match(run.stderr, message);
     };
     refused(['init', '--blank', '--machine', join(folder, 'both')], /takes --blank or --machine, not both/);
-    refused(['init', '--question', 'Why?', join(folder, 'tutorial')], /--question is an option of rayner init --blank alone/);
+    refused(['init', '--question', 'Why?', join(folder, 'tutorial')], /--question needs rayner init --blank/);
     refused(['init', '--blank', '--question', ' ', join(folder, 'empty')], /--question takes the reader's question as one line of text/);
-    refused(['check', join(dir, 'scene.ts'), '--blank'], /--blank is an option of rayner init alone/);
+    refused(['check', join(dir, 'scene.ts'), '--blank'], /--blank is not an option of rayner check; use it with rayner init/);
     assert.deepEqual((await readdir(folder)).sort(), ['asked', 'mine']);
   } finally {
     await rm(folder, { recursive: true, force: true });
@@ -215,7 +215,7 @@ test('each scenario shows the counts, evictions and cache contents the model giv
       };
       assertStepState(trace, step, expected);
       // Read the card's own description, independently of the scene's copied model state.
-      const picture = trace.steps.find((s) => s.step === step)!.shown?.picture as Picture | undefined;
+      const picture = trace.steps.find((s) => s.step === step)!.derived?.picture as Picture | undefined;
       assert.ok(picture, `${values.next}.${step} has a resting picture`);
       assert.equal(picture.entries.length, 1, 'one comparison card');
       const entry = picture.entries[0]!;

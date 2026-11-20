@@ -109,7 +109,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
               ? 'Push 6 finds all five slots occupied. The queue still holds 1, 2, 3, 4, 5, and head and tail stay at slot 0.'
               : 'Push 7 also finds the buffer full. The ring still holds 1 through 5, and the refused values are 6 and 7. Use the pop button to make room, then try push. Open Details to inspect the code.',
       });
-      await overviewMachine.replay(overviewReplays[i]!);
+      await overviewMachine.sendSequence(overviewReplays[i]!);
     }
     const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
     await this.step('implementation-slots', {
@@ -354,7 +354,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
         ...(predictions[g] ? { predict: predictions[g] } : {}),
       });
       // The code's lit lines and the card's lit Result row are drawn from the state each event leaves.
-      await this.play(machine.replay(replays[g]!));
+      await this.play(machine.sendSequence(replays[g]!));
       // The live step: a phone shows the whole picture after each press, so its close-ups take in every
       // view the reader drives, not only what the step changed, and each label reads 12 px in one of them.
       if (g === replays.length - 1) s.opening(ring, readout, results, resultCard, codePanel);

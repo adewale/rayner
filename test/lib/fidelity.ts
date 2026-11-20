@@ -7,7 +7,7 @@ import type { Project } from '../../tools/lib/explain-project.ts';
 
 /** A link the trace says a token walked, from a captured diagram. */
 export interface Walk {
-  step: string;
+  step?: string;
   from: string;
   to: string;
   edge: string;

@@ -330,7 +330,7 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
     s.keep(main, describe);
     await this.play(new FadeIn(main, { runTime: 0.6 }));
     // The round is played: you pick, and the host opens a door.
-    await this.play(machine.replay([`pick ${X}`, `open ${B}: goat`] as RoundEvent[]));
+    await this.play(machine.sendSequence([`pick ${X}`, `open ${B}: goat`] as RoundEvent[]));
 
     await this.step('predict', {
       title: `Stay with ${X}, or switch to ${C}?`,

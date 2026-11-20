@@ -9,24 +9,9 @@ interface WalkRecord {
   to: string;
   edge: string;
 }
-const logs = new WeakMap<Scene, WalkRecord[]>();
-/**
- * Keep helper evidence even when an author replaces the program-state object. The state's `walks`
- * key is reserved for it: a scene's own `walks` is refused rather than replaced.
- */
+/** Record a diagram traversal as evidence; it never reserves a domain-state key. */
 export function recordWalk(scene: Scene, walk: WalkRecord): void {
-  let log = logs.get(scene);
-  const own = (scene.state as Record<string, unknown>).walks;
-  if (own !== undefined && (!log || canonicalJson(own) !== canonicalJson(log)))
-    throw new Error('this.state: its own walks key would be replaced by the walks a diagram records there; rename the scene\'s key');
-  if (!log) {
-    log = [];
-    logs.set(scene, log);
-    const entries = log;
-    scene.addJson(() => ({ walks: entries.map((entry) => ({ ...entry })) }));
-  }
-  log.push(walk);
-  scene.state.walks = log.map((entry) => ({ ...entry }));
+  scene.record('diagram-walk', { ...walk });
 }
 
 
@@ -266,7 +251,7 @@ const markedParts = (e: Pick<PictureEntry, 'marked'>) =>
 /** What an entry shows, its emphasis and its parts, in any order: equal when the thing looks as it did. */
 const entryKey = (e: Pick<PictureEntry, 'marked'> & { items?: readonly string[] }) => [...markedParts(e), ...(e.items ?? [])].sort().join('\n');
 /**
- * What changed of the picture since `previous` (a step's or event's shown state), in words:
+ * What changed of the picture since `previous` (a step's or event's derived observations), in words:
  * each described thing that was not there, or whose emphasis or parts differ from the thing
  * of the same name before, named with its emphasised parts, in the picture's language. A thing
  * that only moved in the list is not a change. Empty when nothing changed: what a screen reader
@@ -322,16 +307,16 @@ export interface PictureWords {
  * The picture in words at the end of the step named `step`, from a trace (`traceScene`, or a
  * scenario of `loadProject`): what a reader who cannot see the stage is told about it.
  */
-export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'shown'>[] }, step: string): PictureWords {
+export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'derived'>[] }, step: string): PictureWords {
   const i = trace.steps.findIndex((s) => s.step === step);
   if (i < 0) throw new RangeError(`pictureWordsAt(): the trace has no step ${JSON.stringify(step)}; its steps are ${trace.steps.map((s) => s.step).join(', ')}`);
-  const { shown } = trace.steps[i]!,
-    previous = trace.steps[i - 1]?.shown;
+  const { derived } = trace.steps[i]!,
+    previous = trace.steps[i - 1]?.derived;
   const text = (html: string) =>
     html
       .replace(/<li>/g, ' ')
       .replace(/<\/?(?:ul|li)>/g, '')
       .replace(/&(?:amp|lt|gt|quot|#39);/g, (e) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[e]!)
       .trim();
-  return { summary: pictureSummary(shown), full: text(pictureHtml(shown)), transcript: text(pictureHtml(shown, previous)) };
+  return { summary: pictureSummary(derived), full: text(pictureHtml(derived)), transcript: text(pictureHtml(derived, previous)) };
 }

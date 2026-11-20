@@ -183,7 +183,7 @@ test('descriptions read chart values as written, name marks by their word, and r
     }
   }
   const steps = (await traceScene(bindSnapshots(Described, { [diagramKey(chartSpec)]: chart }))).steps;
-  const [first, drawn, faint, described] = steps.map((s) => s.shown);
+  const [first, drawn, faint, described] = steps.map((s) => s.derived);
   assert.equal(
     pictureSummary(first),
     'XY chart: Tokens from 0 to 5, 2 categories from R1 to R2. Note: “full” beside R1: 4; rejected: R2: 0.5.',
@@ -427,7 +427,7 @@ test('a view of a card or code is described as that card or code, and a describe
       await s.enter(pair, { describe: 'Words beside the code' });
     }
   }
-  const [card, both] = (await traceScene(Described)).steps.map((st) => (st.shown!.picture as Picture).entries);
+  const [card, both] = (await traceScene(Described)).steps.map((st) => (st.derived!.picture as Picture).entries);
   assert.deepEqual(card, [{ what: '1 labelled value', marked: { now: ['n: 7'] }, items: [] }]);
   assert.deepEqual(both, [
     { what: 'Code, 1 line', marked: { focused: ['1: n = 7'] }, items: [] },
@@ -450,7 +450,7 @@ test('described reads each copy and leaves an unrelated group’s describe metho
     }
   }
   const { steps } = await traceScene(Stations);
-  assert.deepEqual((steps[0]!.shown!.picture as Picture).entries, [
+  assert.deepEqual((steps[0]!.derived!.picture as Picture).entries, [
     { what: 'Station', items: ['inlet'] },
     { what: 'Station', items: ['outlet'] },
     { what: '1 label', items: ['Flow'] },
@@ -474,7 +474,7 @@ test('a described meter inside a view reports its fresh reading when the rounded
     }
   }
   const { steps } = await traceScene(Meter);
-  assert.deepEqual(steps.map((st) => (st.shown!.picture as Picture).entries), [
+  assert.deepEqual(steps.map((st) => (st.derived!.picture as Picture).entries), [
     [{ what: 'Temperature', items: ['10.1 °C'] }],
     [{ what: 'Temperature', items: ['10.4 °C'] }],
   ]);
@@ -501,7 +501,7 @@ test('a staged step says what its picture shows with describe, and its own card 
       ]);
     }
   }
-  const [geometry, words] = (await traceScene(Staged)).steps.map((st) => (st.shown!.picture as Picture).entries);
+  const [geometry, words] = (await traceScene(Staged)).steps.map((st) => (st.derived!.picture as Picture).entries);
   assert.deepEqual(geometry, [{ what: 'A circle of radius 2', items: [] }]);
   // The card is described by itself, and its words are not said again with the picture's other text.
   assert.deepEqual(words, [{ what: '1 labelled value', items: ['k: v'] }, { what: 'under it', items: [] }]);
@@ -549,7 +549,7 @@ test('a diagram picture carries notes beside their parts, dimming that keeps 3:1
   }
   // Described as the live diagram is: the note and the worded mark among its parts, dimmed parts said so;
   // the picture and its note add no entry of their own.
-  const [one] = (await traceScene(bindSnapshots(Pictured, store))).steps.map((st) => (st.shown!.picture as Picture).entries);
+  const [one] = (await traceScene(bindSnapshots(Pictured, store))).steps.map((st) => (st.derived!.picture as Picture).entries);
   assert.equal(one!.length, 1);
   assert.deepEqual(one![0]!.marked, { note: ['“here” beside node C'], chosen: ['node B'] });
   assert.ok(one![0]!.items.some((i) => /dimmed/.test(i)));

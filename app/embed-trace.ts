@@ -15,10 +15,17 @@ declare const watchedOnly: unique symbol;
 export type WatchedState = { readonly [watchedOnly]: true };
 
 /** One step of a `PlayerTrace`: its name, timing, words and what it showed, and its watched state before and after. */
-export type PlayerStep = Pick<StepRecord, 'step' | 't0' | 'frame0' | 't1' | 'frame1' | 'hold' | 'holdFrame' | 'meta' | 'shown'> & {
+export type PlayerStep = Pick<StepRecord, 'step' | 't0' | 'frame0' | 't1' | 'frame1' | 'hold' | 'holdFrame' | 'meta'> & {
+  derived?: PlayerDerived;
   before: WatchedState;
   after: WatchedState;
 };
+
+/** The reader needs the structured picture, not arbitrary computed diagnostics. */
+export type PlayerDerived = Readonly<{ picture: unknown }>;
+export function playerDerived(derived: SceneState | undefined): PlayerDerived | undefined {
+  return derived && Object.hasOwn(derived, 'picture') ? { picture: derived.picture } : undefined;
+}
 
 /** A trace as the player reads it (`playerTrace`): a `Trace` whose steps keep only their watched state and no evidence. */
 export interface PlayerTrace {
@@ -40,14 +47,15 @@ export function playerTrace(trace: Trace, watch: Readonly<Record<string, string>
   return {
     fps, duration, frames,
     steps: trace.steps.map((record) => {
-      const { step, t0, frame0, t1, frame1, hold, holdFrame, meta, shown } = record;
+      const { step, t0, frame0, t1, frame1, hold, holdFrame, meta, derived } = record;
       const { before, after } = record;
+      const observed = playerDerived(derived);
       return {
         step, t0, frame0, t1, frame1,
         ...(hold !== undefined ? { hold } : {}),
         ...(holdFrame !== undefined ? { holdFrame } : {}),
         meta,
-        ...(shown !== undefined ? { shown } : {}),
+        ...(observed ? { derived: observed } : {}),
         before: keep(before),
         after: keep(after),
       };

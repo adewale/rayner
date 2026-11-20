@@ -234,6 +234,6 @@ export default class BloomFilter extends Scene<Row, {}> {
     s.keep(row, { describe: () => row.current.family().filter((t): t is Text => t instanceof Text).map((t) => t.text).filter(Boolean).join('. ') });
     s.opening(row);
     await this.play(new FadeIn(row, { runTime: 0.24 }));
-    await this.play(machine.replay(['take eel']));
+    await this.play(machine.sendSequence(['take eel']));
   }
 }

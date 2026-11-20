@@ -121,7 +121,7 @@ export default class LatestSearchExplainer extends Scene<LatestSearchState, {}> 
       timeline.rebuild();
       s.opening(timeline);
       await s.enter(timeline, { runTime: 0.24, describe: () => raceWords(raceOf(this.state)) });
-      await this.play(machine.replay(events));
+      await this.play(machine.sendSequence(events));
     };
 
     await s.steps([race], { kind: 'short' });

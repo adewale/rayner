@@ -204,7 +204,7 @@ export default class SignIn extends Scene<World, Shown> {
       runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.4 : 1.8) : event === 'ask' ? 2.6 : 1.6),
       transition,
     });
-    const replay = (from: number, to: number) => machine.replay(story.slice(from, to));
+    const replay = (from: number, to: number) => machine.sendSequence(story.slice(from, to));
     const idx = (event: SignInEvent, from = 0) => story.indexOf(event, from);
 
     await this.step('password', {

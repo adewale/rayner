@@ -44,26 +44,29 @@ test('Jsonified maps a JSON-safe type to itself, and what the JSON copy refuses 
 });
 
 test('traceScene types every state from the scene class, and an untyped scene gives a plain Trace', async () => {
-  same<TraceOf<typeof Typed>, Trace<Jsonified<Model> & { walks?: unknown }, Jsonified<{ lit?: string }> & Record<string, unknown>>>(true);
+  same<TraceOf<typeof Typed>, Trace<Jsonified<Model>, Jsonified<{ lit?: string }>>>(true);
   same<TraceOf<typeof Untyped>, Trace>(true);
   same<TraceOf<any>, Trace>(true);
   same<TraceOf<SceneClass>, Trace>(true);
   class Empty extends Scene<{}, {}> {}
-  same<keyof TraceOf<typeof Empty>['steps'][number]['after'], 'walks'>(true);
+  same<keyof TraceOf<typeof Empty>['steps'][number]['after'], never>(true);
   const trace = await traceScene(Typed);
   const after = trace.steps[0]!.after;
   const count: number = after.count;
-  // recordWalk writes `walks` into the state: a test reads it without a cast, as unknown.
+  // Framework evidence is not a model field.
+  // @ts-expect-error the model declares no walks field
   const walks: unknown = after.walks;
   void walks;
   assert.equal(count, 2);
   assert.equal(trace.steps[0]!.before.count, 1);
   // @ts-expect-error a key the model does not name
   void after.cuont;
-  // What is shown is typed, and what helpers add to it (the stage's picture) reads as unknown.
+  // Authored presentation is exact; derived observations have a separate channel.
   const lit: string | undefined = trace.steps[0]!.shown?.lit;
   assert.equal(lit, 'a');
-  const extra: unknown = trace.steps[0]!.shown?.picture;
+  // @ts-expect-error derived fields never appear in authored presentation
+  void trace.steps[0]!.shown?.picture;
+  const extra: unknown = trace.steps[0]!.derived?.picture;
   void extra;
   // A typed trace goes wherever a plain one does.
   const plain: Trace = trace;

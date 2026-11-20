@@ -1,15 +1,17 @@
-// Trace: the scene as a list of step boundaries with structured state.
-// This is the agent-facing form: no geometry, just what each step is called,
-// when it happens, what the author attached to it (meta) and what the scene
-// says its state is (stateJson()). Stable across float-formatting churn, so it
-// is also what golden tests hash. A step that recorded evidence (Scene.record)
-// carries it too; steps that recorded none have no `evidence` key, so their
-// traces hash as they did before the channel existed.
+// A run as timed step boundaries: authored model and presentation, optional local
+// specimens, computed observations, and evidence about what played.
 
 import type { EndedStep, Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
 import { stepStateOf } from './scene.ts';
 import { cloneJson } from './json.ts';
 import type { Jsonified } from './json.ts';
+
+const evidenceCopy = (records: readonly Evidence[]): Evidence[] => records.map(record => {
+  const copy = cloneJson(record, 'traceScene()', 'evidence');
+  if (typeof copy.kind !== 'string' || !copy.kind.trim()) throw new TypeError('traceScene(): evidence.kind must be a nonempty string');
+  const { kind, ...data } = copy;
+  return { kind, ...data };
+});
 
 /**
  * One step of a trace: what traceScene() returns per step. `S` and `Sh` are the types of the model
@@ -34,6 +36,8 @@ export interface StepRecord<S extends object = SceneState, Sh extends object = S
   state?: SceneState;
   /** What was shown when the step ended, apart from the model (Scene.shownJson); absent when nothing was. */
   shown?: Sh;
+  /** Computed observations, such as the stage picture description, separate from model inputs. */
+  derived?: SceneState;
   /** What the step recorded with Scene.record(), when it recorded anything. */
   evidence?: Evidence[];
 }
@@ -44,24 +48,14 @@ export interface Trace<S extends object = SceneState, Sh extends object = SceneS
   duration: number;
   frames: number;
   steps: StepRecord<S, Sh>[];
+  /** Facts recorded before the first named step; step evidence is kept on that step only. */
+  evidence?: Evidence[];
 }
 
-/**
- * The trace of a scene class (or of a scene), typed from the `Scene<S, Sh>` it extends: what
- * traceScene() returns for it, and what a test handed such a trace declares,
- * `trace: TraceOf<typeof Explainer>`. Its states are `Jsonified<S>`; what is shown is
- * `Jsonified<Sh>` with whatever helpers add to it (the stage's `picture`), so a key `Sh` does not
- * name reads as `unknown` (a shown type that is already a JSON record is taken as it is). The state
- * keeps the one key a helper writes there, `walks` (recordWalk), as `unknown`. An untyped scene, or
- * `any`, gives a plain Trace.
- */
+/** The trace of a constructor or scene, with exactly its JSON model and presentation shapes. */
 export type TraceOf<C> = 0 extends 1 & C ? Trace
   : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ?
-    // An erased constructor names no fields. A concrete scene can explicitly declare an empty model.
-    [SceneClass, keyof S | keyof Sh] extends [C, never] ? Trace : Trace<
-    unknown extends S ? SceneState : string extends keyof S ? Jsonified<S> : Jsonified<S> & { walks?: unknown },
-    unknown extends Sh ? SceneState : string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState
-  >
+    [SceneClass, keyof S | keyof Sh] extends [C, never] ? Trace : Trace<Jsonified<S>, Jsonified<Sh>>
   : Trace;
 
 /**
@@ -89,17 +83,20 @@ export class TraceSink implements Sink {
   /** What each step begun and not yet ended recorded as it began, by the scene's own Step. */
   readonly #begun = new Map<Step, Pick<StepRecord, 'step' | 't0' | 'frame0' | 'meta' | 'before'>>();
   readonly #atRest: AtRest | undefined;
+  #prelude: Evidence[] = [];
+  #started = false;
   constructor(options: TraceSinkOptions = {}) { this.skipUntil = options.skipUntil ?? Infinity; this.#atRest = options.atRest; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {
+    if (!this.#started) { this.#prelude = evidenceCopy(scene.evidence); this.#started = true; }
     this.#begun.set(s, { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() });
   }
   async stepEnd(scene: Scene, s: EndedStep): Promise<void> {
     const begun = this.#begun.get(s);
     if (!begun) return;
     this.#begun.delete(s);
-    // The keys in the order a trace has always written them: what began, then how it ended.
-    const after = scene.stateJson(), shown = scene.shownJson(), state = stepStateOf(s);
+    // Record what began, then the independently owned channels at its end.
+    const after = scene.stateJson(), shown = scene.shownJson(), derived = scene.derivedJson(), state = stepStateOf(s);
     const record: StepRecord = {
       ...begun,
       t1: round(scene.time), frame1: scene.frameCount,
@@ -107,13 +104,16 @@ export class TraceSink implements Sink {
       after,
       ...(state ? { state: cloneJson(state, 'traceScene()', 'step.state') } : {}),
       ...(Object.keys(shown).length ? { shown } : {}),
-      ...(s.evidence?.length ? { evidence: s.evidence.slice() } : {}),
+      ...(Object.keys(derived).length ? { derived } : {}),
+      ...(s.evidence?.length ? { evidence: evidenceCopy(s.evidence) } : {}),
     };
     this.#records.push(record);
     await this.#atRest?.(scene, s);
   }
   /** One entry per step that ended, with its begin and end state. */
   steps(): StepRecord[] { return this.#records; }
+  /** @internal Facts preceding all named steps (or all facts of a run without named steps). */
+  prelude(scene: Scene<object, object>): Evidence[] { return this.#started ? this.#prelude : evidenceCopy(scene.evidence); }
 }
 
 const round = (x: number): number => Math.round(x * 1000) / 1000;
@@ -135,5 +135,6 @@ export async function traceRun<S extends Scene<object, object>>(SceneClass: Scen
   const sink = new TraceSink({ skipUntil, atRest });
   const scene = new SceneClass(sink, opts);
   await scene.run();
-  return { trace: { fps: scene.fps, duration: round(scene.time), frames: scene.frameCount, steps: sink.steps() }, scene };
+  const evidence = sink.prelude(scene);
+  return { trace: { fps: scene.fps, duration: round(scene.time), frames: scene.frameCount, steps: sink.steps(), ...(evidence.length ? { evidence } : {}) }, scene };
 }

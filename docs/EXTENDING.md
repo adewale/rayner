@@ -254,7 +254,7 @@ distribution and adding another dependent readout. Keep these constraints:
    model's domain check.
 5. Finish in `doFinish()` where the last frame drew. `rayner check` compares each step's
    picture as it ends, after its last play has finished, with its resting frame,
-   since `rayner describe` and the shots draw the step as it ends.
+   since `rayner describe` and the contact sheet draw the step as it ends.
 
 The recipe fixes drawing coordinates at construction, so shifting, scaling or
 rotating the dependent group does not survive the next sample; a camera move is

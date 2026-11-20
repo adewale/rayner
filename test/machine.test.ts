@@ -51,7 +51,7 @@ test('a machine plays prototype-named events through their own transition or the
         start: this.state, events: names, views: [], next: s => ({ level: s.level + 1 }),
         transition: { ['__proto__']: t => { authored.push(t.event); return new Animation(new Group()); } },
       });
-      await machine.replay(names);
+      await machine.sendSequence(names);
     }
   })(new NullSink()).run();
   assert.deepEqual(authored, ['__proto__']);
@@ -77,7 +77,7 @@ function lampScene(blind = false, size = 0.5) {
       this.add(picture);
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
       await this.step('press');
-      await this.play(this.machine.replay(['UP', 'UP', 'UP', 'OFF', 'UP']));
+      await this.play(this.machine.sendSequence(['UP', 'UP', 'UP', 'OFF', 'UP']));
       await this.wait(0.2);
     }
   };
@@ -308,7 +308,7 @@ function notedLamp({ note, word, play = true }: { note: number; word: number; pl
       this.add(picture, caption);
       await this.wait(0.2);
       await this.step('press');
-      if (play) await this.play(this.machine.replay(['UP', 'UP']));
+      if (play) await this.play(this.machine.sendSequence(['UP', 'UP']));
       else await this.play(picture.sync({ runTime: 0.2 }));
     }
   };
@@ -356,7 +356,7 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
       });
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], transition: { UP: (t) => transition(t, picture) } });
       await this.step('press');
-      await this.play(this.machine.replay(['UP', 'UP', 'OFF']));
+      await this.play(this.machine.sendSequence(['UP', 'UP', 'OFF']));
     }
   };
 }
@@ -569,7 +569,7 @@ test('exploration checks a machine on the stage where it last played, not the st
       this.add(picture);
       const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
       await this.step('press', { caption: 'Press the switch.' });
-      await this.play(machine.replay(['UP', 'UP']));
+      await this.play(machine.sendSequence(['UP', 'UP']));
       // A later step clears the lamp away and shows something else.
       if (!within) await this.step('later', { caption: 'Something else.' });
       await s.clear();
@@ -629,7 +629,7 @@ test('a bound stops the story where the model would go on; check fails a bound t
       this.add(picture);
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound });
       await this.step('press');
-      await this.play(this.machine.replay(['UP']));
+      await this.play(this.machine.sendSequence(['UP']));
     }
   };
   // This story never turns the lamp past dim, though the lamp could go brighter.
@@ -665,7 +665,7 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture],
         end: (st) => (st.level === 2 ? 'the lamp is bright' : undefined) });
       await this.step('press');
-      await this.play(this.machine.replay(['UP', 'UP']));
+      await this.play(this.machine.sendSequence(['UP', 'UP']));
     }
   }
   const ends = await new Ends(new NullSink()).run();
@@ -789,7 +789,7 @@ test('exploration also walks the states a reader reaches from the live step, not
         next: (st) => (st.level === 2 ? undefined : { level: st.level + 1 }),
       });
       await this.step('press', { caption: 'Press it.' });
-      await this.play(machine.replay(['UP'], { level: 0 }));
+      await this.play(machine.sendSequence(['UP'], { level: 0 }));
     }
   }
   const ran = await new FromStep(new NullSink()).run();
@@ -817,7 +817,7 @@ function restingLamp(rest: 'code' | 'listener', caption?: string) {
       });
       if (rest === 'listener') this.onStepEnd(async (st) => { if (st.name === 'press') await this.play(machine.send('OFF')); });
       await this.step('press', caption ? { caption } : {});
-      await this.play(machine.replay(['UP'], { level: 0 }));
+      await this.play(machine.sendSequence(['UP'], { level: 0 }));
       if (rest === 'code') this.state = { level: 0 };
     }
   };
@@ -882,7 +882,7 @@ test('an authored transition lands a picture whose parts repeat a key by redrawi
         transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair)) },
       });
       await this.step('up');
-      await this.play(machine.replay(['UP', 'UP']));
+      await this.play(machine.sendSequence(['UP', 'UP']));
     }
   }
   const ran = await new Repeated(new NullSink()).run() as Repeated;

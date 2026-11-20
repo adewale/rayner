@@ -126,7 +126,7 @@ export async function buildExplainer(
         predictions = predictionsOf(trace.steps).predictions;
       const steps = trace.steps.map((s, i) => {
         const href = `?${stepQuery(values, s.step)}`,
-          shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
+          shows = pictureHtml(s.derived, trace.steps[i - 1]?.derived),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
         const entry = `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;

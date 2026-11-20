@@ -182,7 +182,7 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
       ),
     });
 
-    await this.play(machine.replay(which === 'connecting' ? ['send()'] : ['close()', 'send()']));
+    await this.play(machine.sendSequence(which === 'connecting' ? ['send()'] : ['close()', 'send()']));
     // A phone opens on the check send() failed and the line it ran, which is the answer.
     const ran = which === 'connecting' ? [2, 3, ...BRANCH_LINES.throw] : [8, 9, 10, 11, ...BRANCH_LINES.return];
     s.opening(...ran.map((i) => codeLines()[i]!), branch.current.find(`send:box:${this.state.branch}`)!);
@@ -193,20 +193,20 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
         line: 'The open event fires, and send() can work from here.',
         caption: 'When the server accepts the handshake, the ring walks to OPEN and the open event fires. The open event is the moment readyState becomes OPEN, so it is the first moment send() can send.',
       });
-      await this.play(machine.replay(['server accepts']));
+      await this.play(machine.sendSequence(['server accepts']));
       await this.step('send', {
         title: 'The same send(), now sent',
         line: 'Press close(), then send(): what happens now?',
         caption: 'In OPEN the same send() passes both checks and queues the message, and the server gets it. So send from the open handler, or check ws.readyState === WebSocket.OPEN first. Press close(), then send(), and see the other half of the answer.',
       });
-      await this.play(machine.replay(['send()']));
+      await this.play(machine.sendSequence(['send()']));
     } else {
       await this.step('closed', {
         title: 'The server answers: CLOSED',
         line: 'Press send() or close(): neither changes anything now.',
         caption: 'The server answers the close frame, the ring walks to CLOSED and the close event fires. send() returns quietly here too, so code that must not lose a message checks ws.readyState === WebSocket.OPEN before it sends.',
       });
-      await this.play(machine.replay(['server answers close()']));
+      await this.play(machine.sendSequence(['server answers close()']));
     }
     at = this.state;
     s.opening(...codeLines(), diagram.current.find('diagram')!, ring.current.find(`socket:ring:${at.ready}`)!, readout.current);

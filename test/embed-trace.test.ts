@@ -28,7 +28,7 @@ await this.step('two',{caption:'Another.'});this.state.count=size==='large'?3:2;
   return collectProject(dir, { write: false });
 }
 
-const PLAYER_KEYS = new Set(['step', 't0', 'frame0', 't1', 'frame1', 'hold', 'holdFrame', 'meta', 'shown', 'before', 'after']);
+const PLAYER_KEYS = new Set(['step', 't0', 'frame0', 't1', 'frame1', 'hold', 'holdFrame', 'meta', 'derived', 'before', 'after']);
 
 test('the shipped scenario and a scenario the page runs give the player one trace shape: watched state only, no evidence', async () => {
   const project = await watchingProject();

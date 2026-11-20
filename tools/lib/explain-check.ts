@@ -236,7 +236,7 @@ function legibilityReport(records: LabelSizes[]) {
 // InvariantSink and MotionSink are handed it. Each reads the scene and keeps what its check
 // needs; a scene's `mobjects` changed to read a frame are put back before the next sink runs.
 // A sink that reads a step's resting picture reads it in `stepEnd`, as each step ends, the way
-// describe and the shots read it (AtRest in src/trace.ts); LastFrameSink holds that picture to the
+// describe and the contact sheet read it (AtRest in src/trace.ts); LastFrameSink holds that picture to the
 // step's last played frame, which the frame-numbered sinks (HoldSink, FrameCaptureSink) read.
 
 /** Hands each frame, and each step's beginning and end, to every sink in turn. */
@@ -403,7 +403,7 @@ export class HoldSink implements Sink {
 /**
  * An animation's doFinish() ends where the last frame drew: as each step ends, after its last play has finished
  * and left the stage, the picture must be its resting frame's, which a link shows and the checks
- * judge, and which describe and the shots draw as the step ends. A step that differs is listed
+ * judge, and which describe and the contact sheet draw as the step ends. A step that differs is listed
  * in `differing`. Reads the played frames FrameCaptureSink kept, so it comes after it.
  */
 export class LastFrameSink implements Sink {
@@ -650,7 +650,7 @@ async function exploreMachine(host: Scene<object, object>, machine: ReturnType<t
     for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
       if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
     if (step !== null) problems.push(...livePhoneProblems(sizes, step).map((p) => `${at}: ${p}`));
-    const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+    const picture = host.derivedJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
     const words = JSON.stringify(picture?.entries ?? []);
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
     else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
@@ -940,7 +940,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       lastFrame.differing.slice(0, 5),
       [],
-      `These steps end on a different picture from their last frame ${where}: an animation's doFinish() must end where its last frame drew, since a link, describe and the shots show the step as it ends (the first five)`,
+      `These steps end on a different picture from their last frame ${where}: an animation's doFinish() must end where its last frame drew, since a link, describe and the contact sheet show the step as it ends (the first five)`,
     );
     for (const [frame, svg] of frames) {
       const sink = new SnapshotSink();
@@ -975,7 +975,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     const small = [...labels.values()].filter((label) => label.px < MIN_PX).map(({ text, px }) => ({ text, px }));
     assert.deepEqual(small, [], `Labels never reach ${MIN_PX}px at 1280px stage ${where}: ${JSON.stringify(small)}`);
-    const blank = v.trace.steps.flatMap((s) => undescribed(s.shown).map((m) => `${s.step}: ${m}`));
+    const blank = v.trace.steps.flatMap((s) => undescribed(s.derived).map((m) => `${s.step}: ${m}`));
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
     // The bare runtime runs what the page ships (its lettering, faces and snapshots, through the page's
     // font path and diagram code) in a context of its own, and must reproduce the Node trace: every

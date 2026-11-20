@@ -60,7 +60,7 @@ function fixture(): DiagramSnapshot {
 
 // ---- explain/stage.ts ------------------------------------------------------------
 
-test('a stage with no style takes its first diagram’s paper; hidden parts stay off stage; walks outlive a replaced state', async () => {
+test('diagram traversal evidence survives model replacement without reserving domain keys; hidden parts stay off stage', async () => {
   class Demo extends Scene {
     override async construct() {
       const s = stage(this);
@@ -77,9 +77,10 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
     }
   }
   const trace = await traceScene(bindSnapshots(Demo, { [diagramKey(spec)]: fixture() }));
-  assert.deepEqual(trace.steps[0]!.after.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.deepEqual(trace.steps[0]!.evidence!.filter(e => e.kind === 'diagram-walk'), [{ kind: 'diagram-walk', step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.ok(!Object.hasOwn(trace.steps[0]!.after, 'walks'));
   assert.equal(trace.steps[0]!.after.answer, 42);
-  // A scene's own walks key is refused, at the walk or when a later state brings one, not replaced.
+  // A domain walks field remains authored data, before or after a traversal.
   class Own extends Scene {
     override state = { walks: 'mine' };
     override async construct() {
@@ -90,7 +91,9 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       await d.walk([['A', 'B']]);
     }
   }
-  await assert.rejects(traceScene(bindSnapshots(Own, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: its own walks key would be replaced/);
+  const ownTrace = await traceScene(bindSnapshots(Own, { [diagramKey(spec)]: fixture() }));
+  assert.equal(ownTrace.steps[0]!.after.walks, 'mine');
+  assert.equal(ownTrace.steps[0]!.evidence!.filter(e => e.kind === 'diagram-walk').length, 1);
   class Later extends Scene {
     override async construct() {
       const s = stage(this);
@@ -102,7 +105,9 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       await this.step('after');
     }
   }
-  await assert.rejects(traceScene(bindSnapshots(Later, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: the key "walks" is also written by a helper/);
+  const laterTrace = await traceScene(bindSnapshots(Later, { [diagramKey(spec)]: fixture() }));
+  assert.equal(laterTrace.steps[1]!.after.walks, 'mine');
+  assert.equal(laterTrace.steps[0]!.evidence!.filter(e => e.kind === 'diagram-walk').length, 1);
 });
 
 test('a stage with no style adopts only its first diagram’s palette: a second diagram in another style recolours nothing', async () => {

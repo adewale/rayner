@@ -131,8 +131,6 @@ export interface SceneOptions {
 /** The author's mutable state; stateJson() validates and copies its JSON representation. */
 export type SceneState = Record<string, unknown>;
 
-/** Where an addJson part goes: into stateJson(), the model's JSON, or into shownJson(), what is shown. */
-export type JsonInto = 'state' | 'shown';
 
 /**
  * What a scene is doing (`Scene.phase`): `idle` between calls, `playing` in play(), `waiting` in
@@ -453,7 +451,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   // One entry per registration, so each remover removes exactly its own.
   #stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   #stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
-  #jsonParts: Array<{ part: () => SceneState; into: JsonInto }>;
+  #jsonParts: Array<{ part: () => object }>;
   /** Named invariants of the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
   readonly invariants: Map<string, Invariant>;
   /**
@@ -588,14 +586,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /**
-   * Merge `part()`'s JSON into every stateJson() (`into: 'state'`, the default), so helper
-   * evidence such as recorded walks survives an author replacing `this.state`; or into every
-   * shownJson() (`'shown'`), for what a helper says the stage shows. Returns a remover. A part's
-   * key may repeat one the state (or another part) has only with the same value: a collision
-   * throws when the JSON is read, so an author's key is never silently replaced.
+   * Register computed JSON observations, separate from the authored model and presentation.
+   * derivedJson() validates and combines each provider's current result. Returns a remover.
+   * Two providers may repeat a key only with the same value.
    */
-  addJson(part: () => SceneState, into: JsonInto = 'state'): () => void {
-    const entry = { part, into };
+  addJson(part: () => object): () => void {
+    const entry = { part };
     this.#jsonParts.push(entry);
     return () => { this.#jsonParts = this.#jsonParts.filter((e) => e !== entry); };
   }
@@ -722,39 +718,28 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   get currentStep(): Step | null { return this.#current; }
 
   /**
-   * What the explanation is about, for traces: a copy of `this.state` as JSON, with the parts
-   * helpers add (addJson). Scenes keep their explicit state there (head, tail, tokens...) and
+   * What the explanation is about, for traces: a validated copy of `this.state` as JSON.
+   * Scenes keep their explicit state there (head, tail, tokens...) and
    * mutate it as the animation makes the same change on screen.
    * State is JSON: that is what traces serve and tests hash.
    */
-  stateJson(): JsonObject { return this.#json(this.state, 'state'); }
+  stateJson(): JsonObject { return cloneJson(this.state, 'this.state', 'this.state'); }
 
-  /** What is shown, for traces: a copy of `this.shown` as JSON, with what helpers say the stage shows. */
-  shownJson(): JsonObject { return this.#json(this.shown, 'shown'); }
+  /** The author's presentation choices, validated and copied without computed observations. */
+  shownJson(): JsonObject { return cloneJson(this.shown, 'this.shown', 'this.shown'); }
 
-  #json(base: object, into: JsonInto): JsonObject {
-    const state = cloneJson(base, `this.${into}`, `this.${into}`);
-    const fromParts = new Set<string>();
-    for (const { part, into: where } of this.#jsonParts) {
-      if (where !== into) continue;
-      const extra: unknown = part();
-      if (!extra || typeof extra !== 'object' || Array.isArray(extra))
-        throw new TypeError('this.addJson(): a part must return a JSON object');
-      for (const [k, value] of Object.entries(cloneJson(extra, 'this.addJson()', 'the part'))) {
-        // A part may restate a key with the value already there (a helper that also keeps its
-        // key in the state), never replace one: the author's key would vanish from every trace.
-        if (Object.hasOwn(state, k) && canonicalJson(state[k]) !== canonicalJson(value))
-          throw new Error(fromParts.has(k)
-            ? `this.addJson(): two parts write the key ${JSON.stringify(k)} into this.${into} with different values; give each part its own keys`
-            : into === 'state'
-              ? `this.state: the key ${JSON.stringify(k)} is also written by a helper, with another value; rename the scene's key, as a helper's keys (walks in the state, picture in what is shown) are reserved`
-              : `this.shown: the key ${JSON.stringify(k)} is also written by a helper, with another value; rename the scene's key, as a helper's keys (walks in the state, picture in what is shown) are reserved`);
-        fromParts.add(k);
-        // Define own keys, so a key such as "__proto__" is copied, not used as a prototype.
-        Object.defineProperty(state, k, { value, enumerable: true, writable: true, configurable: true });
+  /** Current computed observations; neither this.state nor this.shown receives these fields. */
+  derivedJson(): JsonObject {
+    const derived: JsonObject = {};
+    for (const { part } of this.#jsonParts) {
+      const extra = cloneJson(part(), 'this.addJson()', 'the part');
+      for (const [key, value] of Object.entries(extra)) {
+        if (Object.hasOwn(derived, key) && canonicalJson(derived[key]) !== canonicalJson(value))
+          throw new Error(`this.addJson(): two parts write the key "${key}" with different values; give each part its own keys`);
+        Object.defineProperty(derived, key, { value, enumerable: true, writable: true, configurable: true });
       }
     }
-    return state;
+    return derived;
   }
 
   /**

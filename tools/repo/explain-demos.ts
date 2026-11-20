@@ -92,7 +92,7 @@ for (const item of items) {
       step: s.step,
       title: stepWords(s).title,
       caption: stepWords(s).caption,
-      picture: pictureSummary(s.shown),
+      picture: pictureSummary(s.derived),
     });
   }
   await writeFile(join(directory, item.id, 'steps.json'), JSON.stringify(share, null, 2) + '\n');

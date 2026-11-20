@@ -47,7 +47,7 @@ export default class Lamp extends Scene{
     await this.step('intro',{caption:'A lamp, off.'});
     await this.wait(0.2);
     await this.step('press',{caption:'Press the switch: the lamp is dim.'});
-    await this.play(machine.replay(['UP']));
+    await this.play(machine.sendSequence(['UP']));
   }
 }`;
 

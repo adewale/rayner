@@ -296,14 +296,14 @@ export class Machine<S extends object, E extends string> {
   }
 
   /** Events in turn, each from where the last left the state (default start: the scene's state now), as one action. */
-  replay(events: readonly E[], from: S = this.scene.state): Action {
+  sendSequence(events: readonly E[], from: S = this.scene.state): Action {
     let at = from;
     const schedule = new Succession(events.map((e) => {
       const step = this.schedule(e, at);
       at = this.after(at, e)!;
       return step;
     }));
-    return turnAction(this.scene, 'machine.replay()', schedule.runTime, () => schedule, events.length ? [stateTarget(this.scene)] : []);
+    return turnAction(this.scene, 'machine.sendSequence()', schedule.runTime, () => schedule, events.length ? [stateTarget(this.scene)] : []);
   }
 
   /**

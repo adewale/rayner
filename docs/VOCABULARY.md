@@ -4,7 +4,7 @@ Each idea in Rayner has one name, and each name means one thing. The names are c
 the five invariants in [the engine map](ENGINE.md#correctness-by-construction) are easy to say,
 and that page also defines the three records, trace, evidence and receipt. This page lists the
 names, the words not to use for each idea, the decisions behind them, and the names considered
-and turned down.
+and turned down. [The domain model](DOMAIN-MODEL.md) introduces the relationships with examples.
 
 A word used for two ideas is the collision this page prevents. Turning state into a picture is
 `draw`, never `render` (the output pipeline) or `build`. "Claim" is a sentence backed by a test,
@@ -18,14 +18,15 @@ One row per idea.
 | --- | --- | --- | --- |
 | Model | (plain functions) | Pure, tested functions in `model.ts`; `next(state, event)` for a machine | |
 | Model state | `scene.state` | JSON only; the domain (a bucket's tokens, a statechart's configuration) and nothing about how it is shown; a step records it as `before` and `after` | |
-| What is shown | `scene.shown` | JSON; which picture a chapter of the story shows (`shown.chapter`), and the stage's description of its picture; a view's draw may read it, a machine never changes it; the trace records it as `shown` | `phase` and `reader` inside `scene.state`; `shown.phase` |
+| What is shown | `scene.shown` | Authored presentation as JSON: which chapter is visible (`shown.chapter`) or which row is emphasised; a view's draw may read it, a machine never changes it; the trace records it as `shown` | `phase` and `reader` inside `scene.state`; `shown.phase`; helper descriptions mixed into presentation |
+| Derived data | `addJson(part)`, `derivedJson()`, a trace step's `derived` | Computed observations separate from authored state and presentation; the stage registers its picture description as `derived.picture` | Helpers adding fields to `stateJson()` or `shownJson()` |
 | Step | `scene.step(id, meta)` | A stop with a title, line and caption | |
 | Reader questions | `meta.questions`, the script's `## Check yourself` list | The questions the player asks after the last step, each answer behind a disclosure; "check" is kept for verification | `meta.checks` |
 | Step kind | `kind: 'short' \| 'main' \| 'detail'` | Which path a step is on: the reader's short path, the story, or a detail players skip | `reader: true`, `detail: true` |
 | Scenario | `scenario`, `scenariosOf`, `scenarios` | One value for every setting | `variant`, `variantsOf`, `variants`, and `case`, `casesOf`, `cases` (`case` is reserved in JavaScript) |
 | Picture | a `Mobject` tree | What a frame shows | |
 | State to picture | `draw` | The name for a pure function that makes a picture from what it is given, which the checks call again. Four take different arguments: a view's `draw(state, shown)`; `s.diagramView`'s `draw(state, shown)`, which returns what the diagram's picture marks, a `DiagramPicture`, rather than a mobject; a staged step's `draw(state, stage)`, which takes the stage for its colours and kit, since a step list is often written in a picture module apart from the scene, and reads nothing shown; and a follow's `draw(value)` (`FollowSpec`), the picture at one value of the number it follows | `render` (views), the parameterless `draw(stage)` (steps), `build` |
-| View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. `view(scene, draw)` is the one way to make one, and `View` is its type | `View.render`, `view(build)`, `stateView` |
+| View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state, scene.shown)`; sync morphs it there. `view(scene, draw)` is the one way to make one, and `View` is its type | `View.render`, `view(build)`, `stateView` |
 | Staged steps | `s.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each picture is drawn from its own local `StepRecord.state`, leaving `scene.state` and its typed `before`/`after` intact | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
 | Emphasis a scene draws itself | `emphasised(mobject, as)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)`; `s.emphasise(now)`, a callback read from state beside the draw |
@@ -43,10 +44,10 @@ One row per idea.
 | A legend's layout | `stack: 'column' \| 'row'` | Entries stacked or side by side | `direction`, which means left-to-right or right-to-left on the stage and a card |
 | Matching by key | `match: 'key'`, `{ by: 'key', ... }` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
 | Enlarging diagram artwork | `d.enlarge(ids \| 'all')` | The diagram's parts scaled up inside its own box; the camera does not move (`s.focus` moves it) | `d.focus` |
-| Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay` | `Session`, `sessionsOf`; a describe field `sessions` |
+| Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send(event)` for one event and `sendSequence(events)` for an ordered list, freshly authored or recorded | `Session`, `sessionsOf`; a describe field `sessions`; animation verbs for model events |
 | Refused event | `next` returns `refuse(reason)`, the reason in the reader's words (`undefined` refuses with none) | Which buttons a reader cannot press in a state, and why; one function, so the buttons, their reasons and the model cannot disagree | A refused event returning the same state; `why(state, event)`, a reason in a function of its own |
 | Where the story stops | `bound(state, event)` | An event the model would take but the explainer's story does not reach; the player says so instead of calling it refused | |
-| Live step | the step a machine last played in | Where the player gives the reader a button per event, and where `rayner check` explores the machine | |
+| Live step | a step where a machine is offered; by default, the step it last played in | Where the player gives the reader a button per event, and where `rayner check` explores the machine | |
 | A step's moments | the **still frame** (`holdFrame ?? frame1`), the **hold** (`hold`, `holdFrame`), **rest** (the step's end: `t1`, `frame1`, the trace's `after`) | The still frame is where a step's picture stops changing: where its caption hold begins, else its last frame; the player, playing one step, stops there, while a continuous render plays on through the hold to `t1`. The hold is the caption's reading time, from `holdFrame` to `frame1`, which repeats the still frame's picture. Rest is the step as it ends, after its end listeners, its hold and any code after its last play: its **resting picture** is the one a link shows (`frame1`), the trace records its state as `after`, and a live step's reader starts from it (`LiveRun.rest`, `LogStart`'s `'rest'`), as `rayner check` explores from it. The still frame and rest show one picture, since check fails a picture that changes during the hold or after the last frame; only rest names a state, which code after the last play can still change | `restFrame`; "timed playback"; "a live Step" for a step still running (a **running** `Step`, whose `frame1` is null; an `EndedStep` has one) |
 | What the scene is doing | `scene.phase` (`ScenePhase`) | `idle`, `playing`, `waiting`, `ending-step`, `beginning-step` or `stopped`: the engine's lifecycle; "phase" names only the engine's lifecycles, this and an animation's `phase` | `scene.stopped` |
 | Where an animation is | `animation.phase` (`AnimationPhase`) | `idle`, `begun` (until it and every member have finished; a `Succession` whose play has finished it while a member waits is still begun) or `finished` | `landing`, as a fourth phase beside `begun` |
@@ -67,6 +68,7 @@ One row per idea.
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |
 | Records | trace, evidence, receipt | What each step showed, what an animation decided, what a build produced ([defined in the engine map](ENGINE.md#correctness-by-construction)) | |
+| Diagram traversal | `diagram-walk` evidence | What `d.walk` traversed: `from`, `to`, `edge` and optional `step`; recorded where it played | Helper-generated `state.walks` |
 | Words for a picture | `describe` | The same word on the stage (`describe` on `s.keep` and `s.enter`), on a card, code panel and `Diagram` (`describe()` returns a `Description`), on a staged step (`describe(state)`), in `describeExplainer` and `rayner describe` | `Scene.describe()` for the state's JSON: it is `stateJson()` |
 | Tables | `table(s, headers, rows, { key })`, rows `{ key, cells }` | The drawing kit's `table()`, with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused. Adopted by python-dict (entries keyed `e0`, `e1`, ...) and bloom-filter (lookups keyed by name, sample rows by row length) | A second table primitive |
 | Graphs | `Diagram` | Captured from Mermaid; `walk`, `morph` and `picture` (its marks, notes and dimming, drawn from state) | A separate `Graph` type |
@@ -84,8 +86,14 @@ pictures, which is why it has one name everywhere. These decisions keep them apa
 - One word for a combination of settings, `scenario`, in code, reports and docs. Not `case`,
   which is reserved in JavaScript, so a single one could not be named `case` in code.
 - The model apart from what is shown. `scene.state` holds only the model, and `scene.shown` holds
-  which picture a chapter shows and the stage's description of its picture. A machine plays under
-  one `shown`, and exploration draws its states under it.
+  authored presentation. The stage's picture description is derived data, and a diagram's walk
+  is evidence. A machine's events change the model; each live offer is explored under that step's
+  presentation.
+- `send` and `sendSequence` name the same event operation at two scopes. The sequence is checked
+  before it plays, starting from the current state unless `from` says otherwise; neither call
+  resets the model. `play` remains the scene's animation operation. Calling the sequence
+  `playSequence` would hide that its inputs are model events, while `replay` would suggest they
+  must have happened before.
 - A step kind, `kind: 'short' | 'main' | 'detail'`, instead of the flags `reader: true` and `detail: true`.
 - Subjects, not claims, in review. `scene.review.json` declares `subjects`, the CLI flag is
   `--subjects`, and "claim" means only `meta.claims`.
@@ -117,8 +125,8 @@ Each name's promise is checkable:
 
 ## API audit decisions
 
-The API audit keeps the existing engine and explanation vocabulary. It adds capabilities where
-an author could not preserve or check the result reliably with ordinary TypeScript:
+The API audit keeps the engine and explanation layers distinct. It adds capabilities where an
+author could not preserve or check the result reliably with ordinary TypeScript:
 
 - A loaded project binds a private subclass. Metadata, settings and scripts belong to that load;
   importing one scene definition into two projects must not change the first project's meaning.
@@ -127,23 +135,47 @@ an author could not preserve or check the result reliably with ordinary TypeScri
 - A staged step's local specimen and the persistent model are different facts. `meta.watch`
   always names the persistent model’s traced JSON fields; `describe` can still select a specimen to explain the local picture.
   Merging these records would silently discard a legitimate value when both use the same key.
-  An additional watch-selector language needs an actual mixed-source reader use before it is added.
+- Serialization preserves those boundaries. `before` and `after` contain exactly the authored
+  model's JSON shape, and `shown` contains exactly authored presentation. Helpers register
+  derived data with `addJson(part)`, read through `derivedJson()` and traced as `derived`.
+  `diagram.walk` records `diagram-walk` evidence; it never reserves a model key named `walks`.
+  Evidence before the first step is recorded at trace level; each step holds only its own.
 - `machine.offer()` declares where readers may send events, without making an event happen.
   The same reducer still decides what an event means; prediction, scenario settings and model
-  events keep their distinct roles. Existing scenes retain inferred controls until they opt in.
+  events keep their distinct roles. Without an explicit offer, controls default to the last
+  step where the machine played.
 - A custom component opts into descriptions explicitly with `described`. The callback reads the
   component passed to it, including on copies. Calling any method coincidentally named `describe`
   would let unrelated third-party methods change the transcript.
 - `tweenState` makes whole-model sampling explicit for several views. `view.tween` remains a useful
   single-view convenience, `view.sync` morphs endpoints and a transition's `follow` draws temporary
   motion. They have different jobs; replacing them with one animation language obscures ownership.
+- The CLI distinguishes preparation, checks, building and browser review. `snapshots` and
+  `preview` can prepare pinned assets; other scene commands consume them. `contact-sheet` names
+  the image sheet it creates. Help names each command's inputs, outputs and applicable options.
+  [The workflow](DOMAIN-MODEL.md#the-cli-workflow-and-its-evidence) describes successful results
+  for current inputs, rather than persistent "checked" or "reviewed" scene states.
 
-The audit does not rename Manim's vocabulary, replace direct awaits with a scheduler, add a global
-view registry, or remove the drawing kit's palette helpers solely to reduce the name count. Nor
-does it change the serialized meanings of trace fields piecemeal: moving helper picture and walk
-records into separate channels needs a versioned trace design and migration of its consumers.
-A narrower drawing context also needs real palette, shaping and direction support before a type
-can promise it; a type-only restriction would leave verification dependent on a hidden Stage.
+The following need a concrete adopter and a design before implementation:
+
+- **A narrower draw context.** A read-only drawing input must actually provide palette, shaping
+  and direction support. A type-only facade would leave verification dependent on a hidden Stage.
+- **Qualified watches.** Selecting fields across model, local specimen, presentation and derived
+  data needs a reader use that cannot be expressed by the current model-only `meta.watch` map.
+- **Observation selectors.** Distinct hidden states may legitimately share a visible picture.
+  A selector must say which observation is checked while preserving exploration of full model
+  states; it cannot collapse those states merely because their pictures match.
+- **Stronger initial-state contracts.** Authors initialize the model in ordinary TypeScript,
+  commonly with an `override state` field. Requiring initialization through types or runtime
+  validation needs a coherent contract; there is no new initialization language.
+
+The lightweight export prototype (audit item 14) and human study (item 16) remain outside this
+implementation. Automated checks do not substitute for evidence about authoring or learning.
+
+A scheduler replacing direct awaits, a global view registry, a public project-builder hierarchy
+and a universal choice abstraction are not a promised backlog. Ordinary TypeScript and the
+existing model, settings and prediction concepts keep those responsibilities explicit. Manim's
+animation vocabulary, `view.tween` and the kit's palette helpers stay for their distinct jobs.
 
 ## Names deliberately kept
 
@@ -152,7 +184,7 @@ can promise it; a type-only restriction would leave verification dependent on a 
   convention.
 - `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
 - `note` for a few words of secondary text, on the stage (`s.note`) and beside a diagram's part (`d.notePicture`, a picture's `notes`): in both a note comments on the picture rather than labelling it, and its owner says where it stands.
-- `describe`: words for what is shown, on the stage, on a part and in `rayner describe`. What a scene returns as JSON for its trace is named for what it is: `stateJson()` and `shownJson()`.
+- `describe`: words for what is shown, on the stage, on a part and in `rayner describe`. What a scene returns as JSON for its trace is named for what it is: `stateJson()`, `shownJson()` and `derivedJson()`.
 - trace, evidence and receipt: three different records, each answering a different question.
 - Updaters (`addUpdater`). No explainer registers one, but the Lantern explainer teaches them as
   its counterexample, with claims backed by tests that use them. Under the fixed clock a scene

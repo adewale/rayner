@@ -45,7 +45,7 @@ test('a sampled model and a machine event or replay declare their shared write b
     const machine = new Machine(s, { start: { x: 0, y: 0 }, events: ['NEXT'], next: (st) => ({ x: st.x + 1, y: st.y }), views: [views[0]] });
     let samples = 0;
     const action = tweenState(s, (t) => { samples++; return { x: 0, y: t }; }, { views: [views[1]] });
-    await assert.rejects(s.play(action, replay ? machine.replay(['NEXT']) : machine.send('NEXT')), /both animate .*Scene\.state/);
+    await assert.rejects(s.play(action, replay ? machine.sendSequence(['NEXT']) : machine.send('NEXT')), /both animate .*Scene\.state/);
     assert.equal(samples, 0);
     assert.deepEqual(s.state, { x: 0, y: 0 });
   }

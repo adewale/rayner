@@ -377,7 +377,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   scene.onStep(() => {
     before = shownNames(look());
   });
-  scene.addJson(() => ({ picture: picture(look(), before, langOf(scene)) }), 'shown');
+  scene.addJson(() => ({ picture: picture(look(), before, langOf(scene)) }));
   const keepAll = (mobs: Mobject[], { describe }: Describe) => {
     const say = typeof describe === 'string' ? () => describe : describe;
     for (const m of mobs) overlays.set(m, say);

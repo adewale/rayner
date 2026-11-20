@@ -206,7 +206,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 
 /**
  * An action of one beat, `runTime` long, whose animation `make` makes when the beat's turn comes:
- * what view.sync(), view.tween(), tweenState(), machine.send() and machine.replay() return.
+ * what view.sync(), view.tween(), tweenState(), machine.send() and machine.sendSequence() return.
  */
 export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation, targets?: readonly Mobject[]): Action {
   return action(scene, name, () => ({ value: undefined, beats: [{ runTime, targets, play: () => [make()] }] }));

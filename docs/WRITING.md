@@ -462,7 +462,7 @@ export default class SortAsText extends Scene<State, {}> {
         ? 'Add 100 to the end of the array and sort() puts it after 10 and before 9: as text, "100" begins with "10". Press add 2 or add 25, predict where it lands, then watch.'
         : 'Add 100 to the end of the array and sort() puts it last, the largest number. Press add 2 or add 25, predict where it lands, then watch.',
     });
-    await this.play(machine.replay(['add 100']));
+    await this.play(machine.sendSequence(['add 100']));
   }
 }
 ```
@@ -479,7 +479,7 @@ Read it from the top.
 
 - **`ask`** brings the picture in with `s.enter(picture)`. Its `predict` gives the reader the three buttons. The `answer` is computed from the model, `PLACES[sorted(...).indexOf(10)]`, and never typed, so it changes with the setting: "Between 1 and 9" with no compare function, "Last" with `a - b`. The next step reveals it. `check` fails a prediction whose answer is not one of its options, or that no later step reveals.
 - **`answer`** sets `sorted: true` in the state and calls `picture.sync()`, and the sorted row appears. Its caption takes the script's Answer through `answerOf(this)`, so the sentence is written in one place. Both scenarios' captions say it, which is what `check` looks for.
-- **`add`** plays `machine.replay(['add 100'])`: the scene presses the first button itself, so the reader sees one number land before they try. A machine is live at the step where it last plays, so this is the step where the page shows a button for each event. `check` explores every state those buttons can reach, 16 here, and draws and tests each one.
+- **`add`** plays `machine.sendSequence(['add 100'])`: the scene presses the first button itself, so the reader sees one number land before they try. A machine is live at the step where it last plays, so this is the step where the page shows a button for each event. `check` explores every state those buttons can reach, 16 here, and draws and tests each one.
 
 Save the file. To watch the page while you work on it, run `npx rayner preview sort-as-text/scene.ts --watch` in a second terminal and open http://127.0.0.1:5174/. It rebuilds when you save.
 

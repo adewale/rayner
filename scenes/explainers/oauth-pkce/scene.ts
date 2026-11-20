@@ -334,7 +334,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
         ]),
       ),
     });
-    await this.play(machine.replay(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'REDIRECT', 'CLIENT_REDEEMS']));
+    await this.play(machine.sendSequence(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'REDIRECT', 'CLIENT_REDEEMS']));
     // A phone opens on the malicious app's request and the server's refusal.
     s.opening(...['app-request', 'app-answer'].map((id) => sheet.current.find(`sign-in:label:${id}`)!));
   }

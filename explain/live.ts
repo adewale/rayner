@@ -113,8 +113,10 @@ export interface LiveRun {
   machine: AnyMachine;
   /** The scene's state as the live step ends, before any event (JSON): where the reader's log starts from. */
   rest: object;
-  /** What the scene shows after the log (`shownJson()`), for the stage's description. */
+  /** Authored presentation choices after the log. */
   shown: SceneState;
+  /** Computed observations after the log, including the stage picture description. */
+  derived: SceneState;
   /** With `keep`, the run held at this picture, to play the reader's next event from it. */
   session?: LiveSession;
 }
@@ -218,7 +220,7 @@ export async function runLive(
     }
     const drawn = animate ?? sink;
     if (drawn) await draw(drawn);
-    result = { scene: at, machine, rest, shown: at.shownJson() };
+    result = { scene: at, machine, rest, shown: at.shownJson(), derived: at.derivedJson() };
     if (explore) {
       try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
     }
@@ -242,7 +244,7 @@ export async function runLive(
         await at.play(machine.send(event));
         const last = how.animate ?? how.sink;
         if (last) await draw(last);
-        command.done({ scene: at, machine, rest, shown: at.shownJson() });
+        command.done({ scene: at, machine, rest, shown: at.shownJson(), derived: at.derivedJson() });
       } catch (error) {
         command.failed(error);
         break;

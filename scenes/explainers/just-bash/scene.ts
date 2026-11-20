@@ -383,7 +383,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     // The lesson's three calls, in order: the write on s0, whose returned shell is kept, then cat on each shell.
     for (const [line, event] of [[0, 'RUN_PIPELINE'], [2, 'CAT_NEWEST'], [3, 'CAT_S0']] as const) {
       await focus(story, 'story', line);
-      await this.play(machine.replay([event]));
+      await this.play(machine.sendSequence([event]));
     }
     await focus(story, 'story', 2);
   }

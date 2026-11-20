@@ -243,8 +243,9 @@ test('assertViewFollowsState redraws from authored inputs when helpers record ex
       this.addJson(() => ({ traceOnly: 99 }));
       this.add(this.readout);
       await this.step('one');
-      assert.ok(Object.hasOwn(this.shownJson(), 'picture'));
-      assert.ok(Object.hasOwn(this.stateJson(), 'traceOnly'));
+      assert.ok(Object.hasOwn(this.derivedJson(), 'picture'));
+      assert.ok(!Object.hasOwn(this.stateJson(), 'traceOnly'));
+      assert.equal(this.derivedJson().traceOnly, 99);
       assert.deepEqual(this.readout.texts, ['value / mode']);
     }
   }

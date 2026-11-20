@@ -179,15 +179,15 @@ export default class Hanoi extends Scene<Tower, {}> {
 
     await this.step('clear', { title: `Disk ${n} needs the others out of the way`, line: 'So the smaller tower moves twice and the largest disk once.',
       caption: `Disk ${n} cannot move while a disk sits on it, and it needs C empty to land there, because it is the largest disk. So ${smaller} first stack on B, the spare peg: the same puzzle one size smaller, solved in ${few} moves. They will have to come back on top afterwards.` });
-    await this.play(machine.replay(moves.slice(0, few)));
+    await this.play(machine.sendSequence(moves.slice(0, few)));
 
     await this.step('largest', { title: `Disk ${n} moves once`, line: `${few + 1} moves so far. Disk 1 went first to ${first}.`,
       caption: `Disk ${n} goes straight to the empty C, and will not need to move again. Look back at the first move: disk 1 went to ${first}. Each smaller tower inside the plan heads for the other peg from the tower around it, so with three disks disk 1 starts toward C, and with four toward B.` });
-    await this.play(machine.replay([moves[few]!]));
+    await this.play(machine.sendSequence([moves[few]!]));
 
     await this.step('solved', { title: `Answer: ${moves.length} moves`, line: `${few} + 1 + ${few}: the smaller tower twice, the largest disk once.`,
       caption: `The smaller tower climbs back onto disk ${n}: ${few} more moves, ${moves.length} in all, and no route is shorter. Three disks take 7 moves and four take 15. Now carry it yourself: your moves start from the full tower on A, and a move the rules forbid is refused, with the reason.` });
-    await this.play(machine.replay(moves.slice(few + 1)));
+    await this.play(machine.sendSequence(moves.slice(few + 1)));
   }
 }
 ```
@@ -246,7 +246,7 @@ The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](h
 
 A scene that draws no Mermaid diagram and asks for no lettering needs nothing but Node to `init`, `check`, `see`, `describe` and `build`. Two kinds of picture need more, and only for the scenes that draw them ([add-ons](docs/REFERENCE.md#add-ons)):
 
-- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`; capture uses the same Chromium as `review`, so `npx playwright-core install chromium` is needed only if none is found. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
+- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0` and prepare captures with `rayner snapshots scene.ts`; `preview` also prepares them. Capture uses the same Chromium as `review`, so `npx playwright-core install chromium` is needed only if none is found. Other commands consume the pinned snapshots and ask for preparation when needed. Committed snapshots replay without Chromium.
 - **Lettering.** Text is drawn with the embedded Inter and JetBrains Mono. Letters outside them, other scripts, replacement faces, real bold and italic, and typeset maths need a [lettering request](docs/LETTERING.md) (`meta.lettering`); capturing one needs Python and the source fonts, and a committed `scene.lettering.json` replays without them. Every command fails on text the embedded fonts cannot draw unless the scene asks for it.
 
 ## How Rayner compares
@@ -262,6 +262,7 @@ Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes)
 
 ## Guides
 
+- **Understanding the pieces:** [the domain model](docs/DOMAIN-MODEL.md) introduces model state, presentation, local step inputs, pictures and evidence, with examples and the CLI workflow; [the vocabulary](docs/VOCABULARY.md) fixes one name per idea.
 - **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [writing your own explainer](docs/WRITING.md) from a blank start, [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). To answer “how do I write that?”, [the feature index](docs/FEATURE-TOUR.md) gives each authoring feature, the code an author writes for it and an explainer whose source uses it, and the setup some features need.
 - **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of, and builds tables, bars, callouts, dimension lines, pins and legends from state. [Extending Rayner](docs/EXTENDING.md) walks through writing an animation, shape or easing of your own on the public API, after `rayner/extras`, whose animations, shape and easings are built that way.
 - **Agents:** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.

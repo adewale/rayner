@@ -154,7 +154,7 @@ export default class Statecharts extends Scene<Model, Shown> {
       show(chapter);
       this.state = machine.spec.start;
       await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
-      await this.play(machine.replay(events));
+      await this.play(machine.sendSequence(events));
     };
 
     // 1. A concrete machine, and the change that will hurt it.

@@ -67,6 +67,6 @@ export default class SortAsText extends Scene<State, {}> {
         ? 'Add 100 to the end of the array and sort() puts it after 10 and before 9: as text, "100" begins with "10". Press add 2 or add 25, predict where it lands, then watch.'
         : 'Add 100 to the end of the array and sort() puts it last, the largest number. Press add 2 or add 25, predict where it lands, then watch.',
     });
-    await this.play(machine.replay(['add 100']));
+    await this.play(machine.sendSequence(['add 100']));
   }
 }

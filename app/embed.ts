@@ -9,7 +9,7 @@ import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
 import { StopScene } from '../src/internal.ts';
 import { resolveSettings } from '../explain/internal.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
-import { playerChanges, playerTrace } from './embed-trace.ts';
+import { playerChanges, playerTrace, playerDerived } from './embed-trace.ts';
 import type { PlayerStep, PlayerTrace } from './embed-trace.ts';
 import { playerProperties } from './embed-style.ts';
 import { STEP_TYPE, connectHost, reportHeight } from './embed-protocol.ts';
@@ -142,7 +142,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     cache.set(key, { key, Scene: withSettings(Bound, values), trace: shipped.trace, palette: shipped.palette, paper: shipped.paper, live: new Map(shipped.live), bases: new Map() });
   }
   /** Resting pictures, by scenario, step and the reader's events there: the SVG and what the scene then shows. */
-  const pictures = new Lru<string, { nodes: Node[]; shown?: SceneStateLike }>(KEPT_PICTURES);
+  const pictures = new Lru<string, { nodes: Node[]; derived?: SceneStateLike }>(KEPT_PICTURES);
   // As JSON, so no step name or event can make two keys one.
   const pictureKey = (at: Entry, step: PlayerStep, log: readonly string[]) => JSON.stringify([at.key, step.step, log]);
   // The reader's exploration of the step on show: the events sent there (the log the URL's `sent`
@@ -864,9 +864,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     say(predictSaid, chosen === undefined ? t.predictHint : t.predictChosen(asks.options[chosen]!, asks.revealAt === adjacentStep(trace.steps, asks.at, 1)));
   }
   /** The resting picture in words: the step's, or what the scene shows after the reader's events (`shown`). */
-  let describedShown: unknown;
-  function describePicture(step: PlayerStep, shown?: SceneStateLike) {
-    const said = describedShown = shown ?? step.shown;
+  let describedDerived: unknown;
+  function describePicture(step: PlayerStep, derived?: SceneStateLike) {
+    const said = describedDerived = derived ?? step.derived;
     summary.textContent = pictureSummary(said);
     picture.innerHTML = pictureHtml(said);
     described.hidden = !picture.innerHTML;
@@ -1098,7 +1098,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         if (problem) notice.textContent = [notice.textContent, problem].filter(Boolean).join(' ');
         if (kept.length !== log.length) link(false);
       }
-      const [shown, target, found] = yield* wait(Promise.all([
+      const [derived, target, found] = yield* wait(Promise.all([
         restingPicture(at, step, now, kept, container, scope),
         framing(step, scope, at),
         log.length ? Promise.resolve(now) : liveAt(at, step),
@@ -1106,7 +1106,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (found && !log.length) explored({ kind: 'link', now: found, log: [] });
       drawLive();
       if (found) liveRow.dataset.drawn = encodeLog(kept);
-      if (shown) describePicture(step, shown);
+      if (derived) describePicture(step, derived);
       // Reduced motion: no animation, but the old picture fades out over the new one, so the change is still seen.
       const old = reduced() ? stage.querySelector('svg') : null;
       old?.classList.add('leaving');
@@ -1148,15 +1148,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       kept = pictures.get(key);
     if (kept) {
       container.append(...clones(kept.nodes));
-      return Promise.resolve(kept.shown);
+      return Promise.resolve(kept.derived);
     }
     const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
     const drawn: Promise<SceneStateLike | undefined> = log.length && now
-      ? liveRun(at, now, log, { sink }, scope).then((run) => run.shown as SceneStateLike)
+      ? liveRun(at, now, log, { sink }, scope).then((run) => playerDerived(run.derived))
       : renderFrame(at.Scene, step.frame1, sink).then(() => undefined);
-    return drawn.then((shown) => {
-      pictures.set(key, { nodes: clones(container.childNodes), ...(shown ? { shown } : {}) });
-      return shown;
+    return drawn.then((derived) => {
+      pictures.set(key, { nodes: clones(container.childNodes), ...(derived ? { derived } : {}) });
+      return derived;
     });
   }
   /**
@@ -1282,7 +1282,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (narrow() && zoom.k > 1) zoom.reset();
     return scope.run(function* () {
       const container = el('div');
-      let shown: SceneStateLike | undefined;
+      let derived: SceneStateLike | undefined;
       if (animated && log.length) {
         const sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
         const run = yield* wait(liveRun(at, now, log, {
@@ -1294,10 +1294,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
             zoom.apply();
           },
         }, scope));
-        shown = run.shown as SceneStateLike;
-        pictures.set(pictureKey(at, step, log), { nodes: clones(stage.querySelectorAll(':scope>svg')), shown });
+        derived = playerDerived(run.derived);
+        pictures.set(pictureKey(at, step, log), { nodes: clones(stage.querySelectorAll(':scope>svg')), derived });
       } else {
-        shown = yield* wait(restingPicture(at, step, now, log, container, scope));
+        derived = yield* wait(restingPicture(at, step, now, log, container, scope));
         const old = reduced() ? stage.querySelector('svg') : null;
         old?.classList.add('leaving');
         old?.addEventListener('animationend', () => old.remove());
@@ -1305,10 +1305,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         zoom.apply();
       }
       stage.removeAttribute('aria-busy');
-      const before = describedShown;
-      describePicture(step, shown);
+      const before = describedDerived;
+      describePicture(step, derived);
       // What the event changed of the picture, or the whole picture when no description changed.
-      const change = pictureChange(describedShown, before);
+      const change = pictureChange(describedDerived, before);
       liveSaid.textContent = what === undefined ? t.resetSaid : t.sentSaid(what, change ? `${change}.` : summary.textContent ?? '');
       liveRow.dataset.drawn = encodeLog(log);
       document.dispatchEvent(new CustomEvent('rayner:sent', { detail: { step: step.step, sent: log, settings: values } }));

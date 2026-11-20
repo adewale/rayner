@@ -139,14 +139,14 @@ export default class Poppy extends Scene<World, {}> {
       caption:
         'The agent fetches example.com/.well-known/poppy.json. The file lists the ways in: the shop’s APIs, its website, its own agent to chat with, and the page where sign-in happens. The agent checks that the file speaks for the domain that served it, so a copy on another site cannot send it elsewhere. Four lanes now run between the agent and the Company, as Poppy calls the shop.',
     });
-    await this.play(machine.replay(STORY.slice(0, 1)));
+    await this.play(machine.sendSequence(STORY.slice(0, 1)));
 
     await this.step('seal', {
       title: 'The agent seals what it sends',
       line: 'The seal says which agent is asking, and for which User.',
       caption: `The agent adds a medium to the cart. The request carries a Session header, drawn as the wax seal, signed with the agent’s published keys. The Company now knows the agent, a User ID and a Session for the cart. The User ID is a pseudonym made for this Company, so the shop still does not know you. ${answerOf(this)}.`,
     });
-    await this.play(machine.replay(STORY.slice(1, 2)));
+    await this.play(machine.sendSequence(STORY.slice(1, 2)));
 
     await this.step('lanes', {
       title: 'One Session, three lanes',
@@ -154,21 +154,21 @@ export default class Poppy extends Scene<World, {}> {
       caption:
         'The same seal works on each lane. The agent’s browser joins the Session with a one-time code, so the website sees the same visitor and the same cart. In the chat, the Company’s own agent answers a question about sizes, and each message says whether a person or an AI wrote it. Look at what the Company knows: the Session has not changed.',
     });
-    await this.play(machine.replay(STORY.slice(2, 4)));
+    await this.play(machine.sendSequence(STORY.slice(2, 4)));
 
     await this.step('challenge', {
       title: 'A seal is not a key',
       line: `Exchange refused: ${challenge.status}, it needs ${challenge.needs}.`,
       caption: `Now the errand itself. The exchange would change order 1042, so the request stops short of the Company: ${challenge.status}, naming the permission it needs, ${challenge.needs}. A Session header never grants account access, whatever it says. That takes a second proof, and the agent cannot make that one for itself.`,
     });
-    await this.play(machine.replay(STORY.slice(4, 5)));
+    await this.play(machine.sendSequence(STORY.slice(4, 5)));
 
     await this.step('approve', {
       title: 'You hand over a key, not your password',
       line: 'Standard OAuth, on the Company’s own page.',
       caption: `The agent sends you to the Company’s sign-in page. You sign in there and approve ${scopes}. The Company gives the agent an access token, drawn as a key with one tooth for each scope you approved. Your password stays with you, and the Company can take this one key back without locking you out. Sign-in does not mention the Session: what the Company knows has not changed.`,
     });
-    await this.play(machine.replay(STORY.slice(5, 6)));
+    await this.play(machine.sendSequence(STORY.slice(5, 6)));
 
     const made = both.status === 200;
     await this.step('both', {
@@ -180,14 +180,14 @@ export default class Poppy extends Scene<World, {}> {
           : `That does not cover an exchange, so the answer is ${both.status}, naming ${both.needs}. The Company grants no scope beyond what you approved, so the agent has to ask you again. Switch “You approve” to see the exchange go through.`
       }`,
     });
-    await this.play(machine.replay(STORY.slice(6, 7)));
+    await this.play(machine.sendSequence(STORY.slice(6, 7)));
 
     await this.step('thief', {
       title: 'A stolen key will not turn',
       line: `${thief.status} ${thief.error}: the key belongs to another seal.`,
       caption: `Suppose a thief copies the key. It has to send it under a seal of its own, and the Company sees a key issued to agent.example arriving under another agent’s seal: ${thief.status} ${thief.error}. What the Company knows does not change. A whole request copied in transit could be replayed to the same address for a short time, which is why the agent signs a fresh seal for each request.`,
     });
-    await this.play(machine.replay(STORY.slice(7, 8)));
+    await this.play(machine.sendSequence(STORY.slice(7, 8)));
 
     await this.step('sign-out', {
       title: 'Take the key back, keep the Session',
@@ -195,6 +195,6 @@ export default class Poppy extends Scene<World, {}> {
       caption:
         'The agent gives up its token, and account access ends. The Session carries on, with the same User ID and the same cart. Press the events to drive the protocol yourself, and read why a refused press is refused. One limit: Poppy binds agents that choose to follow it. An agent that types your password into the website looks like you, and the Company cannot tell.',
     });
-    await this.play(machine.replay(STORY.slice(8, 9)));
+    await this.play(machine.sendSequence(STORY.slice(8, 9)));
   }
 }

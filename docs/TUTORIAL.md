@@ -331,7 +331,7 @@ Changed: nothing in scene.state
 
 The marked row says LRU hit four times and MRU never did, so in this scenario the caption is false: it was written from the loop scenario alone. Undo the change: the scene's own ending takes its title and counts from each scenario's outcome.
 
-Read every step of every scenario this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner shots lru-mru/scene.ts --scenario next=reuse` makes a contact sheet of one scenario. At each step, ask:
+Read every step of every scenario this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner contact-sheet lru-mru/scene.ts --scenario next=reuse` makes a contact sheet of one scenario. At each step, ask:
 
 - Does the caption name a value, item or comparison that the picture does not show?
 - Could a reader work out the cause from the resting pictures alone, without watching the motion?

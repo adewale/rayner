@@ -27,6 +27,6 @@ export default class DoorMachine extends Scene<DoorState, {}> {
       line: 'Press the events: a refused one says why.',
       caption: 'Close the door, then lock it. A locked door must unlock before it opens: open is refused now, and the model says why. Press the events to drive the door yourself.',
     });
-    await this.play(machine.replay(['close', 'lock']));
+    await this.play(machine.sendSequence(['close', 'lock']));
   }
 }

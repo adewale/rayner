@@ -3,108 +3,28 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { realpathSync, existsSync, watch } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
 import { collectProject, defaultScenario, sceneSlug } from './lib/explain-project.ts';
-import { manifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { BLANK_FILES, MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, blankStarter, packageImports } from './lib/explain-init.ts';
 import { DIAGRAM_PACKAGES, installCommand, missingPackage } from './lib/addons.ts';
+import { invocation } from './lib/explain-cli.ts';
 
 // Authoring packages, grouped for installation error messages: the diagram add-on's optional peers,
 // then the browser and PNG dependencies the package installs itself.
 const GROUPS: readonly (readonly string[])[] = [DIAGRAM_PACKAGES, ['playwright-core'], ['@resvg/resvg-js']];
-const pkg = manifest;
-const HELP = `Rayner ${pkg.version} (Node 24+)
-
-Usage: rayner <command> <scene.ts | directory> [options]
-
-Commands:
-  init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test;
-                      with --machine, a machine explainer: a model that refuses
-                      events with reasons, its test, a live step, review subjects;
-                      with --blank (and --question "…"), your own explainer to
-                      write: check lists each part still marked TODO:, in order
-  preview <scene>     Build and serve on localhost
-  snapshots <scene>   Run every scenario, capture/verify diagrams and replay morph edits
-  check <scene>       Every scenario: seek, motion, skipped trace, bare runtime, step
-                      change, still after the caption hold, text collision,
-                      legibility, words for every drawing, catch lint
-  review <scene>      Check every scenario, then review its served reader at phone
-                      and desktop widths; retain reviewed HTML with --out page.html
-  build <scene>       HTML, receipt, header recipe, loader.js
-  shots <scene>       Step contact sheet as SVG and PNG
-  describe <scene>    Every scenario and step as JSON for agents: words, state, what
-                      changed, the picture in words and drawn as text
-  see <scene> [step]  One step's resting picture as text, with its caption, its
-                      picture in words and what it changed in scene.state
-                      (the last step by default; --out file.svg also writes it)
-  version             Print the version (also --version)
-
-Every command fails on text the embedded fonts cannot draw, unless the scene
-asks for that script with meta.lettering.
-
-Options:
-  --out <path>        Artifact destination
-  --refresh           Re-render snapshots instead of using the pinned cache
-  --scenario id=value Show (shots, see) one scenario; repeat for multiple settings
-  --port <integer>    Preview server port (default 5174)
-  --watch             Preview: rebuild the page on save
-  --subjects <path>   Review: use this JSON file instead of <scene>.review.json
-  --machine           Init: write the machine starter instead of the tutorial's
-  --blank             Init: write a blank explainer instead of the tutorial's
-  --question <text>   Init --blank: the reader's question, the script's # heading
-  --version           Print the version
-
-init, check, build, describe, see, snapshots, preview and shots need Node alone
-for a scene that draws no Mermaid diagram and asks for no lettering. review
-opens the page in Chromium: Playwright's own build, another Playwright build,
-or an installed Chrome or Chromium, whichever launches first (it prints which).
-Only if none is found: npx playwright-core install chromium
-  or set CHROMIUM_EXECUTABLE_PATH
-PNG output (shots) is included.
-
-Add-ons, for scenes that ask for them:
-  Diagrams   Mermaid diagrams, captured into scene.snapshots/:
-             ${installCommand(DIAGRAM_PACKAGES)}
-             Capturing a new diagram needs Chromium too; pinned snapshots
-             replay without it.
-  Lettering  meta.lettering: capturing needs Python and the source fonts
-             (docs/LETTERING.md); committed snapshots replay without them.
-`;
 export async function main(args = process.argv.slice(2)): Promise<void> {
-  if (!args.length || args.includes('--help') || args[0] === 'help') {
-    console.log(HELP);
+  const request = invocation(args);
+  if (request.command === 'help') {
+    console.log(request.text);
     return;
   }
-  if (args[0] === '--version' || args[0] === 'version') {
-    console.log(pkg.version);
+  if (request.command === 'version') {
+    const { manifest } = await import('./lib/roots.ts');
+    console.log(manifest.version);
     return;
   }
-  const { values: flags, positionals } = parseArgs({
-    args,
-    allowPositionals: true,
-    options: {
-      out: { type: 'string' },
-      scenario: { type: 'string', multiple: true },
-      port: { type: 'string', default: '5174' },
-      refresh: { type: 'boolean' },
-      watch: { type: 'boolean' },
-      subjects: { type: 'string' },
-      machine: { type: 'boolean' },
-      blank: { type: 'boolean' },
-      question: { type: 'string' },
-    },
-  });
-  const [command, input, ...extra] = positionals;
-  if (!input) throw new TypeError('supply a scene file or directory; rayner --help lists the commands');
-  // `see` takes the step to show as a second argument.
-  const step = command === 'see' ? extra.shift() : undefined;
-  if (extra.length) throw new TypeError(`${JSON.stringify(extra[0])} is one argument too many; rayner --help lists what each command takes`);
-  if (flags.machine && command !== 'init') throw new TypeError('--machine is an option of rayner init alone');
-  if (flags.blank && command !== 'init') throw new TypeError('--blank is an option of rayner init alone');
-  if (flags.question !== undefined && !flags.blank) throw new TypeError('--question is an option of rayner init --blank alone');
-  if (flags.blank && flags.machine) throw new TypeError('rayner init takes --blank or --machine, not both');
+  const { command, input, step, flags } = request;
   if (command === 'init') {
     const dir = resolve(input);
     const blank = flags.blank ? blankStarter(flags.question) : undefined;
@@ -123,9 +43,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       : `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
-  if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))
-    throw new RangeError(`${JSON.stringify(command)} is not a command; rayner --help lists the commands`);
-  const collection = { refresh: flags.refresh, captureLettering: command === 'snapshots' || command === 'preview' };
+  const preparing = command === 'snapshots' || command === 'preview';
+  const collection = { refresh: flags.refresh, write: preparing, capture: preparing, captureLettering: preparing };
   const project = await collectProject(input, collection);
   const slug = sceneSlug(project);
   if (command === 'review') {
@@ -166,10 +85,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   }
   /** The scenario every --scenario id=value chooses, other settings at their defaults. */
   function selectedScenario() {
-    const values: Record<string, string> = {};
+    const values: Record<string, string> = Object.create(null);
     for (const assignment of flags.scenario ?? []) {
       const at = assignment.indexOf('=');
-      if (at < 1) throw new TypeError('--scenario takes id=value, such as --scenario request=miss');
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
     return defaultScenario(project, values);
@@ -179,10 +97,10 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     console.log(await see(project, selectedScenario(), step, flags.out));
     return;
   }
-  if (command === 'shots') {
+  if (command === 'contact-sheet') {
     const { contactSheet } = await import('./lib/explain-shots.ts');
     console.log(
-      await contactSheet(project, flags.out ?? resolve('out/shots', slug + '.png'), selectedScenario()),
+      await contactSheet(project, flags.out ?? resolve('out/contact-sheets', slug + '.png'), selectedScenario()),
     );
     return;
   }
@@ -194,7 +112,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   );
   if (command === 'preview') {
     // The page is served from disk with its header recipe, so a rebuild shows on reload.
-    const { url } = await serve(dirname(out), Number(flags.port), basename(out));
+    const { url } = await serve(dirname(out), Number(flags.port ?? '5174'), basename(out));
     console.log(
       `Preview ${url}/ (Ctrl-C to stop; ${flags.watch ? 'rebuilds on save' : 'rerun after edits, or pass --watch'})`,
     );

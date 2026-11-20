@@ -12,6 +12,7 @@ import { seeStep, seeText } from '../tools/lib/explain-see.ts';
 import { describeExplainer } from '../explain/testing.ts';
 import { describeScenario } from '../explain/describe.ts';
 import type { ScenarioDescription } from '../explain/testing.ts';
+import { assertCommandHelp, assertPinnedCommandInputs } from './lib/cli-contract.ts';
 
 /** The error a child process failed with, or undefined when it succeeded. */
 const failure = (run: () => unknown) => {
@@ -21,6 +22,19 @@ const failure = (run: () => unknown) => {
     return error as { status: number; stderr: Buffer };
   }
 };
+
+const sourceCommand = async (args: string[]) => {
+  const result = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), ...args], { encoding: 'utf8' });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+};
+test('source CLI gives command help and actionable usage errors before loading a scene', async () => {
+  await assertCommandHelp(sourceCommand);
+});
+test('source CLI consumes pinned assets without capture, rewrites or pruning', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-pinned-inputs-'));
+  try { await assertPinnedCommandInputs(sourceCommand, folder); }
+  finally { await rm(folder, { recursive: true, force: true }); }
+});
 
 // The gates `rayner check` runs, each with a seeded defect, are in explain-gates.test.ts.
 test('external source and compiled ESM scenes share the CLI engine; source hashes ignore checkout paths', async () => {
@@ -75,7 +89,7 @@ test('`rayner --version` and `rayner version` print the version; the word as an 
   for (const args of [['--version'], ['version']])
     assert.equal(execFileSync(process.execPath, [cli, ...args], { encoding: 'utf8' }).trim(), version, args.join(' '));
   const scene = join(ROOT, 'scenes/explainers/fork/scene.ts');
-  for (const args of [['shots', scene, '--scenario', 'x=--version'], ['shots', scene, '--out', '--version']]) {
+  for (const args of [['contact-sheet', scene, '--scenario', 'x=--version'], ['contact-sheet', scene, '--out', '--version']]) {
     const r = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
     assert.notEqual(r.stdout.trim(), version, args.join(' '));
     assert.equal(r.status, 1, args.join(' '));

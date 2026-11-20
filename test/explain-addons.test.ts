@@ -31,7 +31,7 @@ export default class Drawn extends Scene {
 }
 `;
 
-test('a scene with no diagrams or lettering inits, checks, sees, describes, builds and shoots with no browser, no Python and no add-on loaded', async () => {
+test('a scene with no diagrams or lettering inits, checks, sees, describes, builds and makes a contact sheet with no browser, no Python and no add-on loaded', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-addons-'));
   try {
     // PATH holds node and nothing else, so no python3 or pyftsubset; Playwright looks for its browsers
@@ -56,7 +56,7 @@ test('a scene with no diagrams or lettering inits, checks, sees, describes, buil
     assert.match(run('build', 'first', '--out', join(folder, 'public/first.html')), /^Built /);
     assert.match(await readFile(join(folder, 'public/first.html'), 'utf8'), /<html/);
     // A contact sheet is drawn by resvg, not by a browser.
-    run('shots', 'first', '--out', join(folder, 'first.png'));
+    run('contact-sheet', 'first', '--out', join(folder, 'first.png'));
     assert.ok(existsSync(join(folder, 'first.png')));
     assert.equal(existsSync(join(folder, 'first/scene.snapshots')), false, 'a scene with no diagrams keeps no snapshots');
     // Nothing of either add-on, or of the browser, was loaded by any of those commands.
@@ -74,8 +74,8 @@ test('a diagram the snapshots lack, without the diagram add-on, fails naming the
   const folder = await mkdtemp(join(tmpdir(), 'rayner-addons-'));
   try {
     await writeFile(join(folder, 'scene.ts'), DIAGRAM_SCENE);
-    for (const command of ['check', 'build']) {
-      const r = rayner([command, folder, '--out', join(folder, command === 'build' ? 'page.html' : 'checks')], { PATH: process.env.PATH ?? '', RAYNER_TEST_ABSENT: DIAGRAM_ADDON.join(',') });
+    for (const command of ['snapshots', 'preview']) {
+      const r = rayner([command, folder], { PATH: process.env.PATH ?? '', RAYNER_TEST_ABSENT: DIAGRAM_ADDON.join(',') });
       assert.equal(r.status, 1, command);
       const line = errorLine(r.stderr);
       assert.ok(line.startsWith(`rayner: ${join(folder, 'scene.ts')}: capturing the diagram "graph LR", which scene.snapshots/ does not hold, needs the diagram add-on, and agentic-mermaid is not installed.`), line);
@@ -93,10 +93,10 @@ test('capturing a diagram with no Chromium to be found says how to install it', 
   const folder = await mkdtemp(join(tmpdir(), 'rayner-addons-'));
   try {
     await writeFile(join(folder, 'scene.ts'), DIAGRAM_SCENE);
-    const r = rayner(['check', folder, '--out', join(folder, 'checks')], { PATH: process.env.PATH ?? '', PLAYWRIGHT_BROWSERS_PATH: join(folder, 'no-browsers'), RAYNER_SYSTEM_CHROMIUM: '0' });
+    const r = rayner(['snapshots', folder], { PATH: process.env.PATH ?? '', PLAYWRIGHT_BROWSERS_PATH: join(folder, 'no-browsers'), RAYNER_SYSTEM_CHROMIUM: '0' });
     assert.equal(r.status, 1);
     assert.equal(errorLine(r.stderr), 'rayner: Capturing a Mermaid diagram needs Chromium, and none was found. Install it once with npx playwright-core install chromium, or set CHROMIUM_EXECUTABLE_PATH to a Chromium or Chrome executable. Writing, checking and building a scene without new diagrams needs no browser.');
-    const named = rayner(['check', folder, '--out', join(folder, 'checks')], { PATH: process.env.PATH ?? '', CHROMIUM_EXECUTABLE_PATH: join(folder, 'no-chromium') });
+    const named = rayner(['snapshots', folder], { PATH: process.env.PATH ?? '', CHROMIUM_EXECUTABLE_PATH: join(folder, 'no-chromium') });
     assert.equal(named.status, 1);
     assert.match(errorLine(named.stderr), new RegExp(`needs Chromium, and none was found at CHROMIUM_EXECUTABLE_PATH \\(${join(folder, 'no-chromium').replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}\\)`));
   } finally {

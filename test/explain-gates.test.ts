@@ -299,7 +299,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     // The authored run never draws the diagram (the box grows to 2 wide); a reader's second press does,
     // so the page, built without diagram code since no scenario made a diagram, could not draw it.
     gate: "a diagram only a reader's event draws",
-    source: `import{Scene,Rectangle,keyed}from'rayner';import{stage,Machine,view,Diagram}from'rayner/explain';const snap=${JSON.stringify(smallLabel())};export default class Reader extends Scene{async construct(){const s=stage(this);this.state={n:0};const v=view(this,(st)=>st.n>1?new Diagram(this,snap.spec,snap).root:keyed(new Rectangle({width:1+st.n,height:1}), 'box'));const m=new Machine(this,{start:{n:0},events:['UP'],next:(st)=>({n:Math.min(2,st.n+1)}),views:[v]});await this.step('one',{caption:'Press up.'});await s.enter(v,{describe:'box'});await this.play(m.replay(['UP']));}}`,
+    source: `import{Scene,Rectangle,keyed}from'rayner';import{stage,Machine,view,Diagram}from'rayner/explain';const snap=${JSON.stringify(smallLabel())};export default class Reader extends Scene{async construct(){const s=stage(this);this.state={n:0};const v=view(this,(st)=>st.n>1?new Diagram(this,snap.spec,snap).root:keyed(new Rectangle({width:1+st.n,height:1}), 'box'));const m=new Machine(this,{start:{n:0},events:['UP'],next:(st)=>({n:Math.min(2,st.n+1)}),views:[v]});await this.step('one',{caption:'Press up.'});await s.enter(v,{describe:'box'});await this.play(m.sendSequence(['UP']));}}`,
     message: /Diagrams .*: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too/,
   },
   {

@@ -190,14 +190,14 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         'Your agent fetches the size guide on example.com with its own HTTP client. The request carries its seal and never its key, so it is signed out even when the agent is signed in. A browser sends cookies, not the agent’s headers, so it needs its own way into the Session, and it must be one the agent controls, not yours. A shop can ask agents not to browse at all (web.disabled), but cannot enforce it.',
     });
     await s.enter(world, { describe: () => sayWorld(this.state, this.shown) });
-    await this.play(machine.replay(story.slice(0, 1)));
+    await this.play(machine.sendSequence(story.slice(0, 1)));
 
     await this.step('load', {
       title: 'The Company tears a ticket in two',
       line: 'One half to read, one half to keep.',
       caption: `The browser opens example.com’s join page. The page shows a one-time code, and the same answer leaves a cookie on the browser’s shelf that ties the code to this browser, like one ticket torn in two: the code to read, the cookie to keep. No page can read the cookie. ${answerOf(this)}.`,
     });
-    await this.play(machine.replay(story.slice(1, 2)));
+    await this.play(machine.sendSequence(story.slice(1, 2)));
 
     const lacking = signIn === 'signed in without the browser scope';
     await this.step('authorize', {
@@ -209,7 +209,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           ? 'The agent reads the code from its own browser and sends it on its own road, with its seal and its key. The Company checks the seal, finds the key’s tooth for poppy:browser-sign-in, and stamps its stub of the code: this Session, your account, these scopes. 204. The key never touches the browser’s road.'
           : 'The agent reads the code from its own browser and sends it on its own road, with its seal. It holds no key, so the Company stamps its stub of the code for this Session with no account, and the browser will join signed out. 204. A key, once the agent has one, never touches the browser’s road.',
     });
-    await this.play(machine.replay(story.slice(2, lacking ? 4 : 3)));
+    await this.play(machine.sendSequence(story.slice(2, lacking ? 4 : 3)));
     const k = lacking ? 4 : 3;
 
     await this.step('submit', {
@@ -218,7 +218,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       caption:
         'Now the browser submits the form. The code goes back with the cookie half from its shelf, and the Company checks that the half fits this stub, that the stub is stamped, and that it was not used before; a code works once, whatever the answer. It fits, so the Company sets the Session’s own cookie on the shelf. Only this browser held that half, and only the agent could stamp the stub.',
     });
-    await this.play(machine.replay(story.slice(k, k + 1)));
+    await this.play(machine.sendSequence(story.slice(k, k + 1)));
 
     await this.step('browse', {
       title: 'The browser browses as the Session',
@@ -227,7 +227,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         ? 'The browser opens your orders, and its cookie makes the request the Session’s: signed in to account A, within the key’s scopes, whatever cookies it had before. Where a website cannot apply scopes, poppy:browser-sign-in means everything your account can do there; the Company must say so when you approve it, and set web.unscoped in poppy.json. The key itself stayed with the agent.'
         : 'The browser opens your orders as the Session, signed out: the shop sees the same visitor as the agent’s other requests, and no account. Signing the browser in takes a key with poppy:browser-sign-in. Where a website cannot apply scopes, that scope means everything your account can do there; the Company must say so, and set web.unscoped in poppy.json.',
     });
-    await this.play(machine.replay(story.slice(k + 1, k + 2)));
+    await this.play(machine.sendSequence(story.slice(k + 1, k + 2)));
 
     await this.step('logins', {
       title: 'A join and the login the browser had',
@@ -250,7 +250,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
     this.shown = { attacker: true };
     world.rebuild();
     await this.play(s.enter(world, { describe: () => sayWorld(this.state, this.shown), runTime: 0.7 }));
-    await this.play(machine.replay(story.slice(k + 2, k + 3)));
+    await this.play(machine.sendSequence(story.slice(k + 2, k + 3)));
 
     await this.step('phish', {
       title: 'A cookie without a stamp',
@@ -258,6 +258,6 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       caption:
         'The attacker’s browser holds the cookie for a code, so it sends your agent that code in a message, hoping for a stamp. No check at example.com would stop it; only your agent’s own rule does: it stamps a code only from its own browser’s page. So it declines, and the stub arrives with its half but no stamp. Press the buttons to play agent and attacker yourself, in any order.',
     });
-    await this.play(machine.replay(story.slice(k + 3, k + 4)));
+    await this.play(machine.sendSequence(story.slice(k + 3, k + 4)));
   }
 }

@@ -1807,8 +1807,8 @@ function stepsOf(p: Project, values: Settings): StepSpec[] {
     caption: stepWords(s).caption,
     title: stepWords(s).title,
     line: stepWords(s).line,
-    summary: pictureSummary(s.shown),
-    picture: pictureHtml(s.shown),
+    summary: pictureSummary(s.derived),
+    picture: pictureHtml(s.derived),
   }));
 }
 const current = (m: PlayerModel) => m.entries[m.index]!;

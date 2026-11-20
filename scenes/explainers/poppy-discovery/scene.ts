@@ -122,7 +122,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
     }, [start()]);
     const verdictAt = (i: number) => progress(after[i]!).verdict!;
     let played = 0;
-    const play = async (n: number) => { await this.play(machine.replay(STORY.slice(played, played + n))); played += n; };
+    const play = async (n: number) => { await this.play(machine.sendSequence(STORY.slice(played, played + n))); played += n; };
 
     await this.step('stranger', {
       title: 'Anyone can write a poppy.json',

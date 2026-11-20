@@ -116,7 +116,11 @@ export class Tour extends Scene {
     code.saveState();
     await this.play(new Succession([new Transform(code, new Code(['n = 2;']).shift([0, -1]), { fromCopy: true }), new Transform(code, 'saved')]));
     this.onStep((s: Step) => s.name);
-    this.addJson(() => ({ frame: frame.width() }));
+    interface FrameObservation { frame: number }
+    const measured: FrameObservation = { frame: frame.width() };
+    this.addJson(() => measured);
+    const observed: unknown = this.derivedJson().frame;
+    void observed;
   }
 }
 
@@ -308,7 +312,9 @@ export class Collection extends Scene<CollectionModel> {
     await s.enter(door);
     machine.offer();
     await this.play(machine.send('close'));
-    await this.play(machine.replay(['open', 'close']));
+    await this.play(machine.sendSequence(['open', 'close']));
+    // @ts-expect-error only the canonical sequence method is public
+    void machine.replay;
     const refused = doorNext({ door: 'closed' }, 'close');
     this.state.status = isRefusal(refused) ? refused.reason : 'moved';
 

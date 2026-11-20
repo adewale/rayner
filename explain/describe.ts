@@ -37,6 +37,8 @@ export interface StepDescription {
   state: SceneState;
   /** What was shown apart from the model (`scene.shown`), when anything was; the picture is described in `picture`. */
   shown?: SceneState;
+  /** Computed observations at rest; never fed back into the view draw. */
+  derived?: SceneState;
   /** Each state value the step changed, before and after; a side is left out when the value was not set. */
   changed: Record<string, { before?: unknown; after?: unknown }>;
   /**
@@ -122,9 +124,6 @@ export interface DescribeOptions {
   drawings?: boolean | string;
 }
 
-const PICTURE = 'picture';
-const withoutPicture = (state: SceneState = {}): SceneState =>
-  Object.fromEntries(Object.entries(state).filter(([k]) => k !== PICTURE));
 const same = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
 /** What `Scene` explains, every scenario and step, in one JSON-safe object. */
@@ -154,7 +153,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     draw = options.drawings ?? true,
     // Each step's picture as text, drawn as the step ends: every one from the run that traces it.
     drawings = new Map<string, string>(),
-    // A trace can add evidence through addJson(); the live model receives only scene.state.
+    // Live exploration starts from the authored model at each resting boundary.
     modelAtRest = new Map<string, SceneState>(),
     { trace, scene } = await traceRun(Bound, {}, (ran, step) => {
       modelAtRest.set(step.path, cloneJson(ran.state, 'describeExplainer()', 'scene.state') as SceneState);
@@ -165,7 +164,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     { predictions, problems: predictionProblems } = predictionsOf(trace.steps);
   for (const [index, s] of trace.steps.entries()) {
     const { before, after } = stepStates(s, trace.steps[index - 1]),
-      shown = withoutPicture(s.shown),
+      shown = s.shown ?? {},
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))
       if (!same(before[k], after[k]))
@@ -182,9 +181,10 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       ...(s.hold == null ? {} : { hold: s.hold }),
       state: after,
       ...(Object.keys(shown).length ? { shown } : {}),
+      ...(s.derived ? { derived: s.derived } : {}),
       changed,
       ...(Scene.meta?.watch ? { watched: watchedChanges(s, Scene.meta.watch, Scene.meta.lang) } : {}),
-      picture: pictureSummary(s.shown),
+      picture: pictureSummary(s.derived),
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
     if (events.length) d.events = events;

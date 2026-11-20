@@ -121,28 +121,28 @@ export default class Refusals extends Scene<World, Shown> {
       caption: `Your agent sends the jacket exchange from chapter 1, with its seal and its key. This morning the Company turns the ticket back with a slip: ${expired.refused.status} ${expired.refused.error}, about the key. The key expired overnight. The agent could send it again, start a new Session, or ask you to sign in. Which would you do? The slip already says.`,
     });
     await s.enter(world, { describe: () => sayWorld(this.state, this.shown) });
-    await this.play(machine.replay(STORY.slice(0, 1)));
+    await this.play(machine.sendSequence(STORY.slice(0, 1)));
 
     await this.step('slip', {
       title: 'The slip says what to bring',
       line: 'invalid_token: refresh the key, send it again.',
       caption: `The agent trades its refresh token for a new access token, without asking you, and sends the same request: ${expired.answered.last!.again!.status}, the exchange is made. ${answerOf(this)}. Had you disconnected the agent from your account, the refresh would fail, and the agent would carry on signed out.`,
     });
-    await this.play(machine.replay(STORY.slice(1, 2)));
+    await this.play(machine.sendSequence(STORY.slice(1, 2)));
 
     await this.step('scope', {
       title: 'A key cut for reading',
       line: `${scope.refused.status} names the scope; you approve it again.`,
       caption: `Suppose you had approved only orders:read. The slip says ${scope.refused.status} ${scope.refused.error}, naming ${scope.refused.needs}. A refresh gives no more than you approved, so the agent asks you to sign in again, for orders:read and orders:write together. A 401 with no code, sent with no key at all, is handled the same way, unless you signed out: then the agent waits for you to ask.`,
     });
-    await this.play(machine.replay(STORY.slice(2, 4)));
+    await this.play(machine.sendSequence(STORY.slice(2, 4)));
 
     await this.step('seal', {
       title: 'When the seal itself is wrong',
       line: `${seal_.refused.status} ${seal_.refused.error}: fix the cause. A new Session won’t.`,
       caption: `Now the number changes. The delegation that vouches for the agent’s signing key has expired, and the slip says ${seal_.refused.status} ${seal_.refused.error}, about the seal. A new Session would carry the same broken seal and be refused the same way. So the agent stops, gets a new delegation, signs again in the same Session, and sends. The cart is still there.`,
     });
-    await this.play(machine.replay(STORY.slice(4, 6)));
+    await this.play(machine.sendSequence(STORY.slice(4, 6)));
 
     await this.step('why-400', {
       title: 'Why a seal’s error is not a 401',
@@ -158,27 +158,27 @@ export default class Refusals extends Scene<World, Shown> {
       caption: `The Company has ended the Session the cart was in. The slip says ${ended.refused.status} ${ended.refused.error}, so the agent starts a new Session and sends the exchange again, once. The cart stays behind with the old Session. Had the new Session been refused the same way, the agent would have stopped there: without that rule, agent and Company could pass the request back and forth for ever.`,
     });
     this.shown = {};
-    await this.play(machine.replay(STORY.slice(6, 8)));
+    await this.play(machine.sendSequence(STORY.slice(6, 8)));
 
     await this.step('version', {
       title: 'Same 400, a different move',
       line: `${version.refused.error}: read poppy.json again, then choose.`,
       caption: `Third 400, third remedy. The agent used an old copy of poppy.json and sent version 0.4, which the Company no longer serves. It fetches poppy.json again, uncached, chooses 1.0, and, since a Session keeps one version, starts a new Session and sends once more. The extensions a request declares work the same way: a 403 extension_required names the one missing. Read the code, not just the number.`,
     });
-    await this.play(machine.replay(STORY.slice(8, 10)));
+    await this.play(machine.sendSequence(STORY.slice(8, 10)));
 
     await this.step('one-door', {
       title: 'A key cut for one door',
       line: 'The MCP server takes only keys issued for it.',
       caption: `A Company can list two kinds of API: an OpenAPI service and an MCP server. Both take the seal and the key. This MCP server accepts only tokens issued for it, so the everyday key comes back ${door.refused.status} ${door.refused.error}, with a link to the server’s metadata. The agent refreshes for a token whose resource is the server’s URL, and uses that token there and nowhere else.`,
     });
-    await this.play(machine.replay(STORY.slice(10, 12)));
+    await this.play(machine.sendSequence(STORY.slice(10, 12)));
 
     await this.step('pace', {
       title: 'Slow down, then break it yourself',
       line: 'Break the errand, then predict how the agent answers.',
       caption: `Send too fast and the Company answers ${pace.refused.status} with Retry-After: ${pace.refused.retryAfter}. The key and the seal are fine, so the agent waits at least ${pace.refused.retryAfter} seconds and sends the same request. Now it is yours. Break the errand one of seven ways, say which remedy you expect, then press Agent answers. The rail shows the remedy, and why the tempting one, ${FIX_NAME[pace.tempting.fix]} here, would fail.`,
     });
-    await this.play(machine.replay(STORY.slice(12, 14)));
+    await this.play(machine.sendSequence(STORY.slice(12, 14)));
   }
 }

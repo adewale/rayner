@@ -28,7 +28,7 @@ const machine = new Machine(this, {
   match: { by: 'key', text: 'whole' },    // keyed parts keep their identity (the default)
 });
 this.state = machine.spec.start;
-await machine.replay(['POWER_ON', 'START', 'FROTH']);
+await machine.sendSequence(['POWER_ON', 'START', 'FROTH']);
 ```
 
 `machine.spec` is the spec with its defaults filled in, frozen: the machine keeps its own copies
@@ -66,7 +66,7 @@ one chapter of a state that changes shape ([typed state](REFERENCE.md#typed-stat
 
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
-`replay(events, from?)` chains them. Those two are what a scene calls, and each returns an
+`sendSequence(events, from?)` chains them. Those two are what a scene calls, and each returns an
 [action](REFERENCE.md#actions): await it, or hand it to `play()`, a `Succession` or a group, and a
 step that ends with one never played fails, as it does for a stage verb.
 

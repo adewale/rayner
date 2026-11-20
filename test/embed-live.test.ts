@@ -48,7 +48,7 @@ function lampScene({ after = (_scene: Scene<Lamp>) => {} } = {}) {
       await this.step('intro', { caption: 'A lamp.' });
       await this.wait(0.2);
       await this.step('press', { caption: 'Press the switch.' });
-      await this.play(this.machine.replay(['UP']));
+      await this.play(this.machine.sendSequence(['UP']));
       after(this);
       await this.step('later', { caption: 'The end.' });
       await s.clear();
@@ -207,7 +207,7 @@ test('a live run stops as the step ends, plays the log there, and is a function 
   await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { sink: b });
   assert.deepEqual(one.scene.state, { level: 2 });
   assert.equal(svgOf(a), svgOf(b), 'the same log draws the same picture');
-  assert.match(JSON.stringify(one.shown), /lamp bright/);
+  assert.match(JSON.stringify(one.derived), /lamp bright/);
   // Animated, the last event plays frame by frame from the picture before it, and lands on the same picture.
   const frames: string[] = [];
   let started = 0;
@@ -256,7 +256,7 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   assert.equal(started, 1);
   assert.equal(animated.frames[0], svgOf(a), 'the animation starts from the picture the session held');
   assert.deepEqual(animated.frames, freshAnimated.frames, 'every frame is the fresh run’s');
-  assert.match(JSON.stringify(up.shown), /lamp bright/);
+  assert.match(JSON.stringify(up.derived), /lamp bright/);
   assert.equal(up.scene.currentStep?.name, 'press', 'a kept run stays in the step');
   // A refused event fails the send and closes the session; so does close().
   await assert.rejects(session.send('UP'), /refused/);
@@ -409,7 +409,7 @@ test('a live run drives the same machine it was given: same events in the same o
       const events: Press[] = runs++ % 2 ? ['DOWN', 'UP'] : ['UP', 'DOWN'];
       const machine = new Machine<Lamp, Press>(this, { start: { level: 0 }, events, views: [picture], runTime: 0.2, next: (st, e) => ({ level: e === 'UP' ? Math.min(2, st.level + 1) : Math.max(0, st.level - 1) }) });
       await this.step('press', { caption: 'Press.' });
-      await this.play(machine.replay(['UP']));
+      await this.play(machine.sendSequence(['UP']));
     }
   }
   const press = 'press';
