@@ -6,8 +6,8 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
-- Machine exploration reports actual graph closure for each origin before deduplicating states, including a live origin already present in a capped start traversal. Limits must be finite positive integers. A machine refuses a view bound to another scene.
-- State sampling reserves the scene's model write before an action plays. Simultaneous writers reject early; `tweenState(scene, stateAt, { views })` samples once and redraws several independent views together. The shared-orbit recipe verifies frame and seek agreement. Sampled views retain intrinsic size changes and externally applied scale through later samples, syncs and seeks.
+- Machine exploration reports actual graph closure for each origin before deduplicating states, including a live origin already present in a capped start traversal. Only the machine whose controls the player shows is explored from the live origin. Limits must be finite positive integers. A machine refuses a view bound to another scene.
+- State sampling reserves the scene's model write before an action plays, without adding its reservation to the drawing order. Simultaneous writers reject early; `tweenState(scene, stateAt, { views })` samples once and redraws several independent views together. The shared-orbit recipe verifies frame and seek agreement. Sampled views retain placement and scale through empty or nearly flat geometry, later samples, syncs and seeks.
 - Staged steps keep their locally typed input in `StepRecord.state`; they no longer replace the scene's persistent model. Trace `before` and `after` retain that model, while descriptions, fidelity helpers and watched reader changes select the local specimen when present.
 - Descriptions expose step kinds, teaching order, resolved predictions and their reveal steps, and completeness from the actual live origin. `see` retains these distinctions.
 
@@ -20,8 +20,8 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Authoring explainers
 
-- `settingsOf(this, MyScene)` infers literal setting identifiers and option unions from `static settings = [...] as const`. The dynamic one-argument form remains available. The catalog and tutorial examples use the typed form.
-- `Transform` mode overloads refuse incompatible saved-state and copy options at compile time as well as at JavaScript admission. `TransformOptions` is a union; custom option types extend it with an intersection.
+- `settingsOf(this, MyScene)` infers literal setting identifiers and option unions from `static settings = [...] as const`, including through an abstract base class. The dynamic one-argument form remains available. The catalog and tutorial examples use the typed form. A class erased to `SceneClass` keeps safe model and shown types; `stateJson()` and `shownJson()` provide dynamic JSON access.
+- `Transform` mode overloads refuse incompatible saved-state and copy options at compile time as well as at JavaScript admission; an option whose value is `undefined` is treated as omitted. `TransformOptions` is a union; custom option types extend it with an intersection.
 - Ring buffer's reading path keeps fixed slots, head/tail markers and queue order together, with implementation code in Details. Periodic groups opens its stack step on an unlabelled block-width schematic; GTFS compares defined routes with dated active trips before the optional timetable.
 - The cache-policies explainer drives independent LRU and MRU models with the same request stream, displays their views together and lets readers choose a bounded continuation. It uses one explicit product-state transition without a model registry or implicit partial-state merging.
 

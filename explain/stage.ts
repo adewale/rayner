@@ -68,7 +68,7 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
   title: string;
   line: string;
   caption: string;
-  /** The step's model (JSON): it becomes the scene's state, and the trace records it. */
+  /** The step's local input (JSON), drawn here and recorded in StepRecord.state. */
   state: S;
   /** The step's picture, from its state alone; the stage gives its palette and helpers. */
   draw: (state: S, stage: StageApi) => Mobject;
@@ -136,17 +136,17 @@ export function isFurniture(m: Mobject, { frame = false }: { frame?: boolean } =
   return isHeading(m);
 }
 /** The stage's backdrop (role `'backdrop'`), or undefined for a scene drawn without a stage. */
-export const backdropOf = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'backdrop');
+export const backdropOf = (scene: Pick<Scene, 'mobjects'>): Mobject | undefined => scene.mobjects.find((m) => m.role === 'backdrop');
 /**
  * The colour of the stage's paper (its look's `paper`, the backdrop's fill) as `scene` has it, or
  * undefined for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => backdropOf(scene)?.style.fill;
-const stagePalettes = new WeakMap<Scene, () => Palette>();
+export const paperOf = (scene: Pick<Scene, 'mobjects'>): string | undefined => backdropOf(scene)?.style.fill;
+const stagePalettes = new WeakMap<Scene<object, object>, () => Palette>();
 /** The scenes that have a stage: stage() runs once per scene. */
 const staged = new WeakSet<Scene<any, any>>();
 /** The stage's final palette, including a palette adopted from a diagram. */
-export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
+export const paletteOf = (scene: Scene<object, object>): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
 /** The colours engine defaults take on a stage with this palette: its look's paper, ink, soft, emphasis and bad. */
 export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), emphasis: emphasis(p), bad: bad(p) });

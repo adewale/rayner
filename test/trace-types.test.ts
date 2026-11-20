@@ -48,6 +48,8 @@ test('traceScene types every state from the scene class, and an untyped scene gi
   same<TraceOf<typeof Untyped>, Trace>(true);
   same<TraceOf<any>, Trace>(true);
   same<TraceOf<SceneClass>, Trace>(true);
+  class Empty extends Scene<{}, {}> {}
+  same<keyof TraceOf<typeof Empty>['steps'][number]['after'], 'walks'>(true);
   const trace = await traceScene(Typed);
   const after = trace.steps[0]!.after;
   const count: number = after.count;

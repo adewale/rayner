@@ -75,8 +75,8 @@ test('reader descriptions match the run fills and complete block fills in every 
         assert.equal(Boolean(scene.state.blocks), blocks, label);
         const colours = step.name === 'column' ? { '#f7f2e8': 118 } : step.name === 'family' ? expected.family
           : step.name === 'blocks' ? trailColours(expected.trail) : allBlocks;
-        const cells = (scene as PeriodicGroupsExplainer).table!.current.family()
-          .filter((m): m is Rectangle => m instanceof Rectangle && m.style.fill !== 'none');
+        const table = (scene as PeriodicGroupsExplainer).table!.current.family();
+        const cells = table.filter((m): m is Rectangle => m instanceof Rectangle && m.style.fill !== 'none');
         assert.equal(cells.length, Object.values(colours).reduce((sum, n) => sum + n, 0), `${label}: complete cell inventory`);
         const fills: Record<string, number> = {};
         for (const cell of cells) {
@@ -87,8 +87,7 @@ test('reader descriptions match the run fills and complete block fills in every 
         assert.deepEqual(fills, colours, `${label}: actual table fill counts`);
         // The strip under the table gives the run widths unnamed in stack, and names them from blocks on.
         // The fill step has no table yet, so no strip: its rows end in their lengths instead.
-        const words = (scene as PeriodicGroupsExplainer).table!.current.family()
-          .filter((m): m is Text => m instanceof Text).map((t) => t.text);
+        const words = table.filter((m): m is Text => m instanceof Text).map((t) => t.text);
         if (step.name === 'fill') {
           assert.ok(!words.some((w) => /columns/.test(w)), `${label}: no column strip before the table exists`);
           const said = (scene as PeriodicGroupsExplainer).notes!.current.family()
@@ -99,12 +98,17 @@ test('reader descriptions match the run fills and complete block fills in every 
         if (step.name === 'stack') {
           for (const w of ['2', '10', '6', '14', 'Columns in each run']) assert.ok(words.includes(w), `${label}: ${w}`);
           assert.ok(!words.some((w) => /^[spdf]: /.test(w)), `${label}: no block named before the blocks step`);
+          assert.equal(table.filter(m => m instanceof Rectangle && m.style.dashArray).length, 0, `${label}: no dashed row guides in the schematic`);
         }
         if (step.name === 'names' || step.name === 'blocks')
           for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
         const pictured = pictureWordsAt(trace, step.name);
         for (const description of [pictured.summary, pictured.full]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
+          if (step.name === 'stack') {
+            assert.match(description, /unlabelled 118-cell block schematic/i, label);
+            assert.doesNotMatch(description, /dashed outline/i, label);
+          }
           if (step.name === 'stack' || step.name === 'names') {
             assert.ok(description.includes('All 118 element cells are filled in by block colour.'), label);
             assert.ok(!description.includes('Cells 1 to'), `${label}: no partial-fill claim`);

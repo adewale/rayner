@@ -28,6 +28,10 @@ test('primary ring, block-width, route/trip and cache comparisons are readable t
         const frame = (await storyFrames(scenario.Scene, applicable)).get(step)!;
         const targets = frame.targets.filter(target => target.opening);
         assert.ok(targets.length >= 2, `${id}: independent comparison subjects are declared`);
+        if (id === 'gtfs') {
+          for (const name of ['gtfs-summary:routes', 'gtfs-summary:trips', 'A route row promises no dated departure'])
+            assert.ok(targets.some(target => target.name === name), `the day opening must include ${name}`);
+        }
         const indices = new Set(targets.flatMap(target => target.indices));
         const labels = frame.labels.filter(label => label.indices.some(index => indices.has(index)));
         assert.ok(labels.length >= 2, `${id}: the subjects contain actual words`);

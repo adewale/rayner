@@ -254,7 +254,7 @@ export async function collectProject(
   const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
   // Every scene this collection runs: its page needs diagram code when one of them made a diagram.
-  const ran: Scene[] = [];
+  const ran: Scene<object, object>[] = [];
   let edits = 0;
   const warned = new Set<string>();
   const inspect = (snapshot: SnapshotStore[string]) => {
@@ -362,7 +362,7 @@ export async function collectProject(
     if (undrawable.length)
       throw new Error(`new Text(): the embedded fonts cannot draw these characters; ask for their script in meta.lettering, or write others:\n${[...new Set(undrawable)].join('\n')}`);
     // The state readers follow must be state the scene keeps, in some step of some scenario.
-    checkWatch(Source.meta?.watch, scenarios.flatMap((v) => v.trace.steps));
+    checkWatch(Source.meta?.watch, scenarios.map((v) => v.trace.steps));
     // The script's answer and reader questions must be usable before any scenario is checked against them.
     checkScriptMeta(Source.meta);
     checkClaimsMeta(Source.meta);

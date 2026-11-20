@@ -1,5 +1,5 @@
-// The live machine in the served player (docs/MACHINES.md, "The player"): on each of the ten
-// explainers with a machine, the reader's buttons say what `outcome` says from every state the test
+// The live machine in the served player (docs/MACHINES.md, "The player"): for every default
+// step in the inventory below, the reader's buttons say what `outcome` says from every state the test
 // reaches by pressing them, the URL carries the events sent, and the picture the presses land on is
 // the picture a fresh load of that URL draws. A button that disagrees with `outcome` fails.
 import { test, before, after } from 'node:test';
@@ -20,7 +20,19 @@ import { chromeFor } from '../../app/embed-strings.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
 const options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for served live machine checks' };
-const EXPLAINERS = ['ring-buffer', 'state-machine', 'statecharts', 'token-bucket', 'monty-hall', 'latest-search', 'oauth-pkce', 'just-bash', 'python-dict', 'bloom-filter'];
+const LIVE_STEPS = {
+  'ring-buffer': ['result', 'implementation-result'],
+  'cache-policies': ['try'],
+  'state-machine': ['send'],
+  statecharts: ['parent', 'frother'],
+  'token-bucket': ['later'],
+  'monty-hall': ['choice'],
+  'latest-search': ['overwrite', 'reader-guard'],
+  'oauth-pkce': ['any-order'],
+  'just-bash': ['lesson'],
+  'python-dict': ['broken', 'missing'],
+  'bloom-filter': ['try'],
+} as const;
 /** How far the walk goes from each live step's start: events deep, and states in all. */
 const DEPTH = 2, STATES = 6;
 const t = chromeFor('en');
@@ -39,14 +51,15 @@ const subjects: Subject[] = [];
 before(async () => {
   if (!enabled) return;
   folder = await mkdtemp(join(tmpdir(), 'rayner-live-'));
-  for (const id of EXPLAINERS) {
+  for (const [id, expectedSteps] of Object.entries(LIVE_STEPS)) {
     const project: Project = await collectProject(`scenes/explainers/${id}`, { write: false });
     const file = `${id}.html`;
     await buildExplainer(project, join(folder, file));
     // The default scenario's live steps (oauth-pkce's default replays the theft, which has its machine).
     const scenario = project.scenarios[0]!;
-    assert.ok(scenario.live?.size, `${id}: its default scenario has a live step`);
-    for (const [step, live] of scenario.live!) {
+    assert.ok(scenario.live);
+    assert.deepEqual([...scenario.live.keys()].sort(), [...expectedSteps].sort(), `${id}: default live steps`);
+    for (const [step, live] of scenario.live) {
       const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
       assert.ok(base, `${id} ${step}: some event goes somewhere`);
       subjects.push({ id, file, values: scenario.values, step, live, base });
@@ -149,7 +162,7 @@ test('every live step: buttons agree with outcome, the URL holds the events, and
     await pressing.close();
     await fresh.close();
   }
-  assert.equal(subjects.length, 13, 'ten explainers; statecharts, latest-search and python-dict have two live steps each');
+  assert.equal(subjects.length, 15, 'fifteen default live steps in eleven explainers');
   assert.ok(states >= 40 && presses >= 30, `${states} states, ${presses} presses`);
 });
 
@@ -175,7 +188,7 @@ test('a button that disagrees with outcome fails the check (a deliberate defect)
 });
 
 test('Undo, Reset or another press during an animated landing lands where a fresh load of the URL does', options, async () => {
-  const s = subjects.find((x) => x.id === 'ring-buffer')!;
+  const s = subjects.find((x) => x.id === 'ring-buffer' && x.step === 'implementation-result')!;
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } }),
     fresh = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   /** An event the machine takes after `log`. */

@@ -46,7 +46,7 @@ export const continued: Record<'loop' | 'reuse', readonly Row[]> = {
 const cache = ([order, hits, misses, evicted, hit]: CacheVector): Cache => ({ order: [...order] as Key[], hits, misses, evicted, hit });
 export const state = ([history, lru, mru]: Row): Comparison => ({ history: [...history] as Key[], lru: cache(lru), mru: cache(mru) });
 
-export function namedViews(scene: Scene): Record<'lru' | 'mru' | 'stream', View> {
+export function namedViews(scene: Pick<Scene, 'familyMembers'>): Record<'lru' | 'mru' | 'stream', View> {
   const find = (name: string) => {
     const found = scene.familyMembers().filter(m => m.key === `cache:${name}`);
     assert.equal(found.length, 1, `one named ${name} view`);
@@ -73,7 +73,7 @@ export function assertPictures(pictures: Record<'lru' | 'mru' | 'stream', Mobjec
   }
   assert.equal(wordsAt(pictures.stream, 'cache:requests'), `Requests: ${expected.history.join(' ')}`);
 }
-export function assertCurrent(scene: Scene, expected: Comparison): void {
+export function assertCurrent(scene: Pick<Scene<object, object>, 'state' | 'familyMembers'>, expected: Comparison): void {
   assert.deepEqual(scene.state, expected);
   const views = namedViews(scene);
   assertPictures({ lru: views.lru.current, mru: views.mru.current, stream: views.stream.current }, expected);

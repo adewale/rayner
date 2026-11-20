@@ -6,7 +6,7 @@ import { withoutHeading, describeScenario } from '../../explain/internal.ts';
 import type { ScenarioDescription } from '../../explain/testing.ts';
 import { writeFile } from 'node:fs/promises';
 import { renderFrame, toSvgString } from '../../src/index.ts';
-import type { Scene, Sink } from '../../src/index.ts';
+import type { Sink } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
 
 type Scenario = Project['scenarios'][number];
@@ -57,7 +57,7 @@ export async function seeStep(project: Project, v: Scenario, step?: string): Pro
 export async function stepSvg(v: Scenario, step?: string): Promise<string> {
   const s = step == null ? v.trace.steps.at(-1)! : v.trace.steps.find((x) => x.step === step)!;
   const sink: Sink = { async frame() {} };
-  const scene: Scene = await renderFrame(v.Scene, s.frame1, sink);
+  const scene = await renderFrame(v.Scene, s.frame1, sink);
   return withoutHeading(scene, () => toSvgString(scene));
 }
 

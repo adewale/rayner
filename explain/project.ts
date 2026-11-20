@@ -113,8 +113,8 @@ export function adoptExplainer(Scene: ExplainerClass, file: string, script: stri
  * run left, which the command reads its colours and live steps from. loadProject and the rayner
  * command both collect a project's scenarios by it.
  */
-export async function traceScenarios(Explainer: ExplainerClass, snapshots: SnapshotStore, api: string): Promise<(LoadedScenario & { scene: Scene })[]> {
-  const out: (LoadedScenario & { scene: Scene })[] = [];
+export async function traceScenarios(Explainer: ExplainerClass, snapshots: SnapshotStore, api: string): Promise<(LoadedScenario & { scene: Scene<object, object> })[]> {
+  const out: (LoadedScenario & { scene: Scene<object, object> })[] = [];
   for (const values of scenariosOf(Explainer)) {
     const Bound = withSettings(bindSnapshots(Explainer, snapshots), values);
     const { trace, scene } = await traceRun(Bound);

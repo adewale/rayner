@@ -517,7 +517,7 @@ export function sayPeriodic(st: PeriodicState, { z, group, name, Name, members, 
   if (note === 'stack') said.push(`Note: ${Name}, column ${st.landed}. Rows 2–3 have no run of 10.`);
   if (note === 'names') said.push('The run widths are named s, p, d and f, and helium has moved above neon because its first shell is full.');
   if (note === 'blocks') said.push(`Note: ${(st.landing ?? []).join(' ')}`);
-  if (st.slid)
+  if (st.slid && note !== 'stack')
     said.push('Dashed outlines in rows 2 and 3, columns 3 to 8, mark where their runs of 6 sat before sliding 10 columns right.');
   if (st.ghost) said.push('A dashed cell marked He? sits over beryllium, where helium’s run alone would put it.');
   if (st.strip === 'runs' && note !== 'family')

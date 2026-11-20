@@ -85,7 +85,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       title: 'Keep the slots still; move head and tail',
       line: 'H is the next slot to read; T is the next slot to write.',
       caption: `${answerOf(this)}. Push writes at tail; pop reads at head. Queue order starts at head, so a value can stay in its slot while its place in the queue changes. The diagram keeps the slots, markers and queue order together; Details shows the implementation.`,
-      predict: { options: ['Both at slot 0', 'Head at slot 0, tail at slot 4'], answer: 'Both at slot 0' },
+      predict: { prompt: 'After five pushes, where will head and tail point?', options: ['Both at slot 0', 'Head at slot 0, tail at slot 4'], answer: 'Both at slot 0' },
     });
     await s.clear();
     const overview = view(this, st => drawOverview(st, s), { place: false });
@@ -99,7 +99,15 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       await this.step(['fill', 'next', 'result'][i]!, {
         title: i === 0 ? 'Both markers return to 0; length says full' : which === 'wrap' ? i === 1 ? 'Pop 1 and 2; the other values stay put' : 'Answer: reuse slots 0 and 1, with no stored value moved' : i === 1 ? 'Push 6 is refused: every slot is occupied' : 'Push 7 is refused too; the queue is unchanged',
         line: i === 2 ? `Queue order: ${queueOrder(overviewStory.at(-1)!.result).join(', ')}.` : i === 0 ? 'Length distinguishes a full ring from an empty one.' : 'The slot numbers stay fixed.',
-        caption: i === 0 ? 'Five pushes fill slots 0 to 4. Tail wraps to 0, where head already points, but length is now 5. The same marker positions can mean empty or full: the count tells them apart.' : which === 'wrap' ? i === 1 ? 'Pop reads 1 at head, then 2, and advances head to slot 2. Values 3, 4 and 5 stay in their original slots. Tail still points at slot 0, the first place a push can reuse.' : 'Push 6 writes slot 0 and push 7 writes slot 1. No stored value moves. Head and tail meet at slot 2, and reading from head gives 3, 4, 5, 6, 7. The markers decide queue order, not the slot numbers. Try push or pop below, or open Details to inspect the code.' : 'A full buffer refuses a push before changing its slots or markers. This ring keeps its existing values rather than overwriting the oldest. Pop below to make room, then push again; Details shows the implementation.',
+        caption: i === 0
+          ? 'Five pushes fill slots 0 to 4. Tail wraps to 0, where head already points, but length is now 5. The same marker positions can mean empty or full: the count tells them apart.'
+          : which === 'wrap'
+            ? i === 1
+              ? 'Pop reads 1 at head, then 2, and advances head to slot 2. Values 3, 4 and 5 stay in their original slots. Tail still points at slot 0, the first place a push can reuse.'
+              : 'Push 6 writes slot 0 and push 7 writes slot 1. Head and tail meet at slot 2, and reading from head gives 3, 4, 5, 6, 7. Each stored value stays in its slot. Use the push or pop button to try another operation, or open Details to inspect the code.'
+            : i === 1
+              ? 'Push 6 finds all five slots occupied. The queue still holds 1, 2, 3, 4, 5, and head and tail stay at slot 0.'
+              : 'Push 7 also finds the buffer full. The ring still holds 1 through 5, and the refused values are 6 and 7. Use the pop button to make room, then try push. Open Details to inspect the code.',
       });
       await overviewMachine.replay(overviewReplays[i]!);
     }

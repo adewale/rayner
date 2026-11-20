@@ -11,7 +11,7 @@ import { StringSink } from '../src/svg.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import { machinesOf } from '../explain/internal.ts';
-import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
+import { stage, having, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
@@ -646,24 +646,39 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
     { from: 'start', state: { level: 0 }, states: 3, complete: true });
 });
 
-test('describe exposes live-origin coverage only for the machine that owns the step\'s controls', async () => {
-  class SharedStep extends Scene<Lamp> {
-    override state = { level: 0 };
+test('check and describe explore a shared step\'s resting state only with the machine that owns its controls', async () => {
+  type Chapter = { level: number } | { count: number };
+  class SharedStep extends Scene<Chapter, {}> {
+    override state: Chapter = { level: 0 };
     override async construct() {
-      const picture = view(this, (st) => new Rectangle({ width: 1 + st.level, height: 1 }));
+      const s = stage(this);
+      const picture = view(this, st => new Text('level' in st ? `level ${st.level}` : `count ${st.count}`, { fontSize: 0.6 }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
-      const spec = { start: { level: 0 }, events: ['UP'], views: [picture], next: (st: Lamp) => ({ level: (st.level + 1) % 3 }), runTime: 0.05 };
-      const first = new Machine(this, spec), last = new Machine(this, spec);
+      const first = new Machine<Chapter, 'UP'>(this, {
+        start: { level: 0 }, events: ['UP'], views: [picture], match: 'index', runTime: 0.05,
+        next: st => ({ level: 1 - having(st, 'level').level }),
+      });
+      const last = new Machine<Chapter, 'COUNT'>(this, {
+        start: { count: 0 }, events: ['COUNT'], views: [picture], match: 'index', runTime: 0.05,
+        next: st => ({ count: (having(st, 'count').count + 1) % 3 }),
+      });
       await this.step('press');
-      await this.play(first.send('UP'));
-      await this.play(last.send('UP'));
+      await first.send('UP');
+      this.state = { count: 0 };
+      await last.send('COUNT');
     }
   }
   const { machines } = await describeScenario(SharedStep, {}, { drawings: false });
   assert.equal(machines!.length, 2);
   assert.deepEqual(machines!.map((m) => m.step), ['press', 'press']);
   assert.equal(machines![0]!.live, undefined, 'the first machine is not the one whose buttons the player shows');
-  assert.deepEqual(machines![1]!.live, { from: 'rest', state: { level: 2 }, states: 3, complete: true });
+  assert.deepEqual(machines![1]!.live, { from: 'rest', state: { count: 1 }, states: 3, complete: true });
+  const checked = await exploreMachines(await new SharedStep(new NullSink()).run(), SharedStep);
+  assert.deepEqual(checked.map(({states, sampled, problems}) => ({states, sampled, problems})), [
+    { states: 2, sampled: false, problems: [] },
+    { states: 3, sampled: false, problems: [] },
+  ]);
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {

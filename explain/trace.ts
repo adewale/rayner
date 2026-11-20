@@ -88,6 +88,11 @@ export function wordsHtml(words: { line: string; caption: string }, dir: (text: 
 /** The most entries `meta.watch` may name, and the most changes one step shows. */
 export const WATCH_MAX = 8,
   CHANGES_MAX = 4;
+type StateRecord = Pick<StepRecord, 'before' | 'after' | 'state'>;
+/** The state a reader sees on either side of this step, including staged specimens. */
+export function stepStates(step: StateRecord, previous?: StateRecord): Pick<StateRecord, 'before' | 'after'> {
+  return { before: previous?.state ?? step.before, after: step.state ?? step.after };
+}
 /** One watched value a step changed, as a reader reads it; a side is absent when it had no value. */
 export interface WatchedChange {
   label: string;
@@ -144,18 +149,19 @@ export function watchedChanges(
 }
 /**
  * Refuse a `meta.watch` that cannot work: not a record, more than eight entries, an empty key or
- * label, or a key that is never in the state of any step of any scenario (`steps`, all scenarios' steps).
+ * label, or a key absent from all the states that readers can see in the scenarios.
  */
-export function checkWatch(watch: unknown, steps: readonly { before: SceneState; after: SceneState; state?: SceneState }[]): void {
+export function checkWatch(watch: unknown, scenarios: readonly (readonly StateRecord[])[]): void {
   if (watch === undefined) return;
   if (!watch || typeof watch !== 'object' || Array.isArray(watch))
     throw new TypeError('meta.watch: it must be a record from a state key to the label readers see');
   const entries = Object.entries(watch);
   if (entries.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${entries.length} keys; name at most ${WATCH_MAX}, so a step's changes stay readable`);
+  const states = scenarios.flatMap(steps => steps.map((step, i) => stepStates(step, steps[i - 1])));
   for (const [key, label] of entries) {
     if (!key) throw new TypeError('meta.watch: it has an empty key');
     if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${JSON.stringify(key)} an empty label`);
-    if (!steps.some((s) => Object.hasOwn(s.before, key) || Object.hasOwn(s.state ?? s.after, key)))
+    if (!states.some(s => Object.hasOwn(s.before, key) || Object.hasOwn(s.after, key)))
       throw new RangeError(`meta.watch: it names ${JSON.stringify(key)}, which is never in the scene's state at any step of any scenario`);
   }
 }

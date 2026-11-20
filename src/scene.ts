@@ -5,7 +5,7 @@
 // (which resolves immediately). The loop itself uses a fixed dt, so output is
 // deterministic regardless of sink.
 
-import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
+import { prepareAnimation, AnimationGroup, animationName, NonvisualTarget } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation, whenReady, settle, cleanUp, paintTargets } from './animation.ts';
 import { membersOf, runningOf, runTimeOf, rateFuncOf, playOptions, refuseBegun } from './animation.ts';
@@ -169,8 +169,8 @@ function captionWords(caption: string): number {
   return words;
 }
 
-/** A scene class, as traceScene(), renderFrame() and the registries take it. */
-export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene<any, any>;
+/** A scene constructor. By default its model and shown keys are unknown. Read their JSON with stateJson() and shownJson(). */
+export type SceneClass<S extends Scene<object, object> = Scene<object, object>> = new (sink: Sink, opts?: SceneOptions) => S;
 
 /**
  * Two animations in one play() must not drive the same mobject (or one
@@ -1023,8 +1023,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     /** It joins the stage: each mobject it writes is added, unless it is on stage already. */
     const join = (a: ScheduledAnimation): void => {
       for (const m of a.targets()) {
-        // Camera: animated like any mobject, but never added to the drawn list
-        if (!m || m === this.frame || present.has(m)) continue;
+        // The camera and nonvisual writes participate in ownership checks without joining the drawing.
+        if (!m || m === this.frame || m instanceof NonvisualTarget || present.has(m)) continue;
         // A new wrapper around things already on screen (a Transform of new Group(a, b)) must not
         // draw them a second time on top: add it only if some drawable member is new.
         const drawn = m.family().filter((f) => f.boundingPointArrays().some((a) => a.length > 0));

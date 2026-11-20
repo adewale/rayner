@@ -85,7 +85,7 @@ export interface DiagramResolver {
   diagram(spec: DiagramSpec): Promise<DiagramSnapshot>;
   morph?(before: DiagramSpec, after: DiagramSpec, ops: readonly MutationOp[]): Promise<void>;
 }
-const resolvers = new WeakMap<Scene, DiagramResolver>();
+const resolvers = new WeakMap<Scene<object, object>, DiagramResolver>();
 export function diagramKey(spec: DiagramSpec): string {
   if (spec.lettering !== undefined && spec.lettering !== 'natural')
     throw new RangeError("s.show(): a diagram's lettering must be 'natural' when given");
@@ -96,14 +96,14 @@ export function diagramKey(spec: DiagramSpec): string {
     ...(spec.lettering ? [spec.lettering] : []),
   ]);
 }
-export function useDiagrams(scene: Scene, resolver: DiagramResolver): void {
+export function useDiagrams(scene: Scene<object, object>, resolver: DiagramResolver): void {
   resolvers.set(scene, resolver);
 }
 /**
  * The scene's diagram resolver, for the library's own callers (`s.show`, `Diagram.measure`): an error
  * names `api`, the call the author made.
  */
-export function resolverOf(scene: Scene, api: string): DiagramResolver {
+export function resolverOf(scene: Scene<object, object>, api: string): DiagramResolver {
   const resolver = resolvers.get(scene);
   if (!resolver)
     throw new Error(`${api}: no diagram snapshots are bound to this scene; run it through the rayner command, or bind them with bindSnapshots()`);

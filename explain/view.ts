@@ -14,7 +14,7 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Enclosing, Transform, knownTransform, cleanUp } from '../src/animation.ts';
+import { Enclosing, Transform, knownTransform } from '../src/animation.ts';
 import type { Animation } from '../src/animation.ts';
 import { linear } from '../src/rate.ts';
 import { Follow, stateTarget } from './state.ts';
@@ -68,8 +68,8 @@ export interface TweenStateOptions<S extends object = any, Sh extends object = a
   views: readonly View<Mobject, S, Sh>[];
 }
 
-/** What fitting a freshly built picture gives (see View.measure): its unplaced size, and the scale it was given. */
-interface ViewFit { size: [number, number]; scale: number }
+/** The anchor and uniform scale at which a View takes a freshly drawn picture. */
+interface ViewPlacement { at: Vec | null; scale: number }
 
 /** @internal A view's input binding; a symbol keeps it out of animation-builder method inference. */
 export const viewInput = Symbol('viewInput');
@@ -91,10 +91,10 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   private readonly localState: S | undefined;
   /** The point a rebuilt picture keeps (see ViewOptions.place). */
   private readonly place: ViewPlace | false;
-  /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
-  builtSize: [number, number];
-  /** @internal The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
-  scaleK: number;
+  /** The last adopted placement, including the anchor when a picture has temporarily lost all its points. */
+  private adopted: ViewPlacement = { at: null, scale: 1 };
+  /** Actual placed bounds when the picture was adopted, so only a later external change counts as scaling. */
+  private placedBox: Box | null;
 
   /**
    * @internal `view(scene, draw)` makes a View. Every View is a picture of a scene's state with a
@@ -106,9 +106,9 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
     this.host = scene;
     this.localState = localState;
     // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
-    this.build = () => paintedFor(scene, draw(this[viewInput](scene.state), scene.shown)); this.draw = draw; this.place = place; this.scaleK = 1;
+    this.build = () => paintedFor(scene, draw(this[viewInput](scene.state), scene.shown)); this.draw = draw; this.place = place;
     const first = fresh(this.build(), null);
-    this.builtSize = layoutSize(first);
+    this.placedBox = place ? layoutBox(first) : null;
     this.add(first);
   }
 
@@ -158,8 +158,8 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /** Rebuild now, without animating: for a View not on screen yet (on screen it would jump). */
   rebuild(): this {
     const { picture, fit } = this.measure(fresh(this.build(), this.current));
-    this.commit(fit);
     this.swap(picture);
+    this.commit(fit);
     return this;
   }
 
@@ -169,29 +169,32 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * since the last build; uniform scale only, a rotation is not carried), and the fit the View
    * records once it takes the picture (see commit).
    */
-  measure(next: M): { picture: M; fit: ViewFit } {
-    const size = layoutSize(next);
-    let scale = this.scaleK;
-    if (this.place !== false) {
-      const old = this.current, cur = layoutSize(old), was = this.builtSize;
-      // Height decides (text keeps its height as it grows); width for a flat picture
-      const measured = was[1] > 1e-9 && cur[1] > 1e-9 ? cur[1] / was[1] : was[0] > 1e-9 && cur[0] > 1e-9 ? cur[0] / was[0] : scale;
-      // A shift moves Float32 points by an ulp: only a real change of scale counts
-      if (Math.abs(measured - scale) > 1e-6 * scale) scale = measured;
-      const at = anchorOf(old, this.place);
-      if (at) {
-        if (scale !== 1) next.scale(scale, { aboutPoint: anchorOf(next, this.place) ?? [0, 0] });
-        const now = anchorOf(next, this.place);
-        if (now) next.shift([at[0] - now[0], at[1] - now[1]]);
+  measure(next: M, fit = this.placement()): { picture: M; fit: ViewPlacement } {
+    if (this.place && fit.at) {
+      let now = anchorOf(layoutBox(next), this.place);
+      if (now && fit.scale !== 1) {
+        next.scale(fit.scale, { aboutPoint: now });
+        now = anchorOf(layoutBox(next), this.place);
       }
+      if (now) next.shift([fit.at[0] - now[0], fit.at[1] - now[1]]);
     }
-    return { picture: next, fit: { size, scale } };
+    return { picture: next, fit };
   }
 
-  /** @internal Record the fit of a measured picture the View takes: its built size, and the scale it was given. */
-  commit(fit: ViewFit): void {
-    this.builtSize = fit.size;
-    this.scaleK = fit.scale;
+  /** @internal Capture at a sync or tween's turn, before its first draw changes the picture. */
+  placement(): ViewPlacement {
+    if (!this.place) return this.adopted;
+    const box = layoutBox(this.current);
+    if (!box) return this.adopted;
+    const change = this.placedBox ? scaleBetween(this.placedBox, box) : 1;
+    const scale = this.adopted.scale;
+    return { at: anchorOf(box, this.place), scale: Math.abs(change - 1) > 1e-6 ? scale * change : scale };
+  }
+
+  /** @internal Record the placement and the actual dimensions of the picture just adopted. */
+  commit(fit: ViewPlacement): void {
+    this.adopted = fit;
+    if (this.place) this.placedBox = layoutBox(this.current);
   }
 
   /** @internal Make `next` the picture, in the old one's place among the children. */
@@ -227,7 +230,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   /** Set by begin(): the built, placed picture, swapped in at finish(). */
   private next!: M | null;
   /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
-  private fit!: ViewFit;
+  private fit!: ViewPlacement;
 
   constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOptions = {}) {
     super(v, opts);
@@ -260,8 +263,8 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
     if (end === 1) {
-      this.view.commit(this.fit);
       this.view.swap(this.next!);
+      this.view.commit(this.fit);
     }
   }
 
@@ -284,8 +287,8 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   private readonly views: readonly View<Mobject, S, Sh>[];
   private readonly host: Scene<S, Sh>;
   private readonly draw: (t: number) => readonly Mobject[];
-  /** The intrinsic sizes and external scales of the last pictures prepared for adoption. */
-  private fits: ViewFit[] = [];
+  /** Fixed before the first sample, so a frame never derives its placement from a preceding frame. */
+  private placements!: ViewPlacement[];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
 
@@ -295,15 +298,12 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
     this.views = views;
     this.draw = (t) => {
       host.state = cloneJson(stateAt(t), call, 'stateAt(t)') as Scene<S, Sh>['state'];
-      const frames = views.map((v) => v.measure(fresh(paintedFor(host, v.draw(host.state, host.shown)), v.current)));
-      this.fits = frames.map((frame) => frame.fit);
-      return frames.map((frame) => frame.picture);
+      return views.map((v, i) => v.measure(fresh(paintedFor(host, v.draw(host.state, host.shown)), v.current), this.placements[i]!).picture);
     };
   }
 
-  // Follow adopts all prepared pictures before their fits are recorded. A sampled intrinsic
-  // height change must not look like an author-applied scale at the next sample or sync.
-  private commitFits(): void { this.fits.forEach((fit, i) => this.views[i]!.commit(fit)); }
+  // Record what Follow actually adopted so a later sync or tween can see an external change of scale.
+  private commitFits(): void { this.placements.forEach((fit, i) => this.views[i]!.commit(fit)); }
   protected override doBegin(): void { super.doBegin(); this.commitFits(); }
   protected override doInterpolate(alpha: number): void { super.doInterpolate(alpha); this.commitFits(); }
   protected override doFinish(alpha: number = this.rateFunc(1)): void { super.doFinish(alpha); this.commitFits(); }
@@ -315,12 +315,10 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   protected override enclose(): Follow {
     const targets = this.views.map((v) => v.current), members = targets.flatMap((m) => m.family());
     if (new Set(members).size !== members.length) throw new Error('tweenState(): views overlap; list independent views, not a view and one inside it');
+    this.placements = this.views.map(v => v.placement());
     this.mobject = targets[0]!;
     return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets, rateFunc: linear }));
   }
-
-  /** @internal The model write target is bookkeeping, never a resting picture. */
-  override [cleanUp](scene: Scene): void { super[cleanUp](scene); scene.remove(stateTarget(this.host)); }
 
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
 }
@@ -405,8 +403,8 @@ export function pictureText(m: Mobject): string[] {
  * draw() makes of `state` (a trace step's `after`) and `shown` (its `shown`),
  * else what differs. Compares the text the pictures show, not their geometry.
  */
-export function viewMismatch(
-  v: View, state: SceneState, { shown = {}, draw = v.draw }: { shown?: SceneState; draw?: (state: SceneState, shown: SceneState) => Mobject } = {},
+export function viewMismatch<Sh extends object = SceneState>(
+  v: View, state: SceneState, { shown = {}, draw = v.draw }: { shown?: Sh | SceneState; draw?: (state: SceneState, shown: Sh | SceneState) => Mobject } = {},
 ): string | null {
   const texts = v.texts, want = pictureText(draw(state, shown));
   return JSON.stringify(texts) === JSON.stringify(want) ? null : `the view shows ${JSON.stringify(texts)}, the state ${JSON.stringify(state)} draws ${JSON.stringify(want)}`;
@@ -438,13 +436,24 @@ function layoutBox(m: Mobject): Box | null {
   return pointsBox(arrays);
 }
 
-function layoutSize(m: Mobject): [number, number] {
-  const b = layoutBox(m);
-  return b ? [b[2] - b[0], b[3] - b[1]] : [0, 0];
+/** Uniform scale since adoption. Height decides when text grows wider; a flat path uses its width. */
+function scaleBetween(before: Box, after: Box): number {
+  const w = before[2] - before[0], h = before[3] - before[1];
+  const width = after[2] - after[0], height = after[3] - after[1];
+  const byWidth = w && width ? width / w : null;
+  const byHeight = h && height ? height / h : null;
+  if (byWidth === null) return byHeight ?? 1;
+  if (byHeight === null) return byWidth;
+
+  // Translated Float32 coordinates can leave a thin bar only a few ulps tall. If both dimensions
+  // agree to their rounding precision, use the better-resolved measurement of the uniform scale.
+  const x = Math.max(Math.abs(after[0]), Math.abs(after[2])) + byWidth * Math.max(Math.abs(before[0]), Math.abs(before[2]));
+  const y = Math.max(Math.abs(after[1]), Math.abs(after[3])) + byWidth * Math.max(Math.abs(before[1]), Math.abs(before[3]));
+  if (x / w < y / h && Math.abs(height - byWidth * h) <= 2 ** -22 * y) return byWidth;
+  return byHeight;
 }
 
-function anchorOf(m: Mobject, place: ViewPlace): Vec | null {
-  const b = layoutBox(m);
+function anchorOf(b: Box | null, place: ViewPlace): Vec | null {
   if (!b) return null;
   const [cx, cy] = center(b);
   return [place === 'left' ? b[0] : place === 'right' ? b[2] : cx, cy];

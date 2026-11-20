@@ -105,6 +105,18 @@ test('a base-class settings accessor projects its keys and retains a derived sce
   assert.deepEqual({ ...settingsOf(chosen) }, { mode: 'two', extra: 'three' });
   assert.deepEqual(settingsOf(chosen, Derived), settingsOf(chosen));
 });
+
+test('an abstract settings base reads defaults and bound values through its concrete subclass', () => {
+  abstract class Base extends Scene {
+    static settings = [{ id: 'mode', label: 'Mode', default: 'one', options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] }] as const;
+    mode(): 'one' | 'two' { return settingsOf(this, Base).mode; }
+  }
+  class Concrete extends Base {}
+  assert.equal(new Concrete(new NullSink()).mode(), 'one');
+  const Bound = withSettings(Concrete, { mode: 'two' });
+  assert.equal(new Bound(new NullSink()).mode(), 'two');
+  assert.throws(() => settingsOf(new Example(new NullSink()), Base), /supplied class/);
+});
 // ---- properties ------------------------------------------------------------------
 const RESERVED = ['step', 'sent', 'parentOrigin', 'theme'];
 /** Ids from the documented pattern, including every inherited Object.prototype name that matches it. */

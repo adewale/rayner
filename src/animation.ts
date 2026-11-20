@@ -28,6 +28,9 @@ export interface AnimationOptions {
 /** What play() accepts besides animations: a trailing options object. */
 export type PlayOptions = Pick<AnimationOptions, 'runTime' | 'rateFunc' | 'lagRatio'>;
 
+/** @internal A write that participates in play's ownership checks without joining the stage. */
+export class NonvisualTarget extends Group {}
+
 /**
  * One family member and its counterparts, zipped by index: [mobject's, starting
  * copy's] for most animations, plus the target's for a Transform.
@@ -511,12 +514,12 @@ export type TransformOptions = AnimationOptions & {
 
 /** A saved-state transform changes the original by index, with no matching or handover options. */
 type SavedTransformOptions = AnimationOptions & {
-  match?: never;
-  fromCopy?: never;
-  replace?: never;
-  ordered?: never;
-  staged?: never;
-  fadeMismatches?: never;
+  match?: undefined;
+  fromCopy?: undefined;
+  replace?: undefined;
+  ordered?: undefined;
+  staged?: undefined;
+  fadeMismatches?: undefined;
 };
 
 /**
@@ -599,12 +602,16 @@ export class Transform extends Animation {
   constructor(mobject: Mobject, target: 'saved', options?: SavedTransformOptions);
   constructor(mobject: Mobject, target: Mobject | 'saved', options?: SavedTransformOptions);
   constructor(mobject: Mobject, target: Mobject | 'saved', options: TransformOptions | SavedTransformOptions = {}) {
+    if (target === 'saved') {
+      const { match, fromCopy, replace, ordered, staged, fadeMismatches, ...timing } = options;
+      for (const [name, value] of Object.entries({ match, fromCopy, replace, ordered, staged, fadeMismatches }))
+        if (value !== undefined) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop \`${name}\``);
+      options = timing;
+    }
     const { replace, match = 'index', ordered, staged = false, fadeMismatches = true, fromCopy = false, ...opts } = options;
     super(fromCopy ? new Group() : mobject, opts);
     const key = keyOfMatch(match);
     this.#toSaved = target === 'saved';
-    const savedOption = this.#toSaved && ['match', 'fromCopy', 'replace', 'ordered', 'staged', 'fadeMismatches'].find((name) => name in options);
-    if (savedOption) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop \`${savedOption}\``);
     if (fromCopy && replace === false) throw new Error('new Transform(): with fromCopy the copy hands over to the target, so the scene holds the target; drop `replace: false`');
     this.target = target === 'saved' ? mobject : target;
     this.replace = replace ?? (key !== null || fromCopy);

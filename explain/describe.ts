@@ -15,7 +15,7 @@ import { canonicalJson, cloneJson } from '../src/json.ts';
 import type { Scene, SceneState } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
-import { pictureSummary, stepWords, watchedChanges } from './trace.ts';
+import { pictureSummary, stepStates, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
 import { paperOf, withoutHeading } from './stage.ts';
 import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
@@ -162,8 +162,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     steps: StepDescription[] = [],
     { predictions, problems: predictionProblems } = predictionsOf(trace.steps);
   for (const [index, s] of trace.steps.entries()) {
-    const before = trace.steps[index - 1]?.state ?? s.before,
-      after = s.state ?? s.after,
+    const { before, after } = stepStates(s, trace.steps[index - 1]),
       shown = withoutPicture(s.shown),
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))

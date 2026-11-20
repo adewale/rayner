@@ -64,7 +64,7 @@ Every way to change the picture changes the state and lets the views draw it. Th
 | I want to… | Use | Because |
 | --- | --- | --- |
 | Change the model for a step and show the change | Assign `this.state` (or one field), then `await v.sync()` | A sync draws the state as it is when it begins, so a change made before the play is the one it shows. This is the common case: about 250 assignments to the state and 80 syncs in the collection. Several model steps in a row are a loop of assignments and plays (periodic-groups' fill step, the choreography recipe) |
-| Let the reader drive the model with events, and check explored states within a declared limit | A [`Machine`](MACHINES.md): `machine.replay(events)` in the scene, `machine.send(event)` for one | Each event adopts the state the tested `next` computes at its turn in the schedule, then the views' sync or the event's transition play: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Eighteen explainers](MACHINES.md) and three tutorial scenes |
+| Let the reader drive the model with events, and check explored states within a declared limit | A [`Machine`](MACHINES.md): `machine.replay(events)` in the scene, `machine.send(event)` for one | Each event adopts the state the tested `next` computes at its turn in the schedule, then the views' sync or the event's transition play: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Nineteen explainers](MACHINES.md) and three tutorial scenes |
 | Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, binds its local input without changing `scene.state`, clears the stage and fades in its `draw` as a view of that input, so `rayner check` redraws every step from its state. 38 lists in 26 explainers |
 | Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))`, or `tweenState(scene, stateAt, { views })` for several views | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
 | Author an event's motion part by part | The transition's `t.choreograph(v)`, and `c.follow` for parts that follow one number | It names the keyed parts of the view's picture now and of its picture of the next state, animates them in your order, and `rest()` moves the parts no call named to their places, so the transition still ends on the state's picture ([authored transitions](MACHINES.md#refused-events-bounds-and-authored-transitions)) |
@@ -214,8 +214,10 @@ not drift. This is `Text.setText`'s anchor rule applied to any picture:
   not depend on which letters the text holds.
 - Moving the View (`view.moveTo(...)`, `toEdge`, a Transform) moves the picture,
   and the next build is placed there too.
-- Scaling the View carries over: the View compares the current picture's layout
-  height with what `draw` last returned and scales the next build by the ratio.
+- Scaling the View carries over. It measures external scaling against the last
+  picture it adopted, using the width when a line is flat or its height is too
+  small to measure accurately. A tween takes its scale and anchor when it begins
+  and uses them at every sample, including after a temporarily empty path reappears.
   Only uniform scale carries; a rotation does not.
 - `place: false` turns this off: `draw` decides where the picture goes, and moving
   the View lasts only until the next sync.

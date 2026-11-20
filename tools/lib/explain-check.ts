@@ -5,7 +5,7 @@ import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/internal.ts';
 import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
-import { logStart } from '../../explain/internal.ts';
+import { liveSteps, logStart, stepStates } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
@@ -184,7 +184,7 @@ export const PHONE_WHOLE_MIN_SIZE = READ_PX / PHONE_UNIT;
  * The keyed motion sink `rayner check` runs (src/keyed-motion.ts), able to judge words by size:
  * a label's reading size, and the size that reads on a phone showing the whole picture.
  */
-export const keyedMotionSink = (segmentOf?: (scene: Scene) => string | null) =>
+export const keyedMotionSink = (segmentOf?: (scene: Scene<object, object>) => string | null) =>
   new KeyedMotionSink(segmentOf, { labelSize: readingLabelSize, legible: PHONE_WHOLE_MIN_SIZE });
 /** A step's close-ups on the phone, as the player works them out: the opening's zoom, and each view's zoom and box in view units. */
 type PhoneCloseUps = { k: number; views: { k: number; box: Box }[] };
@@ -523,9 +523,9 @@ export class LegibilitySink implements Sink {
    * A resting picture that belongs to no step (a state a machine reaches): measured in full, and on
    * the phone in the close-ups of `step` when given (the live step the state is shown at).
    */
-  resting(scene: Scene, step?: string): void { this.measure(scene, true, step); }
+  resting(scene: Scene<object, object>, step?: string): void { this.measure(scene, true, step); }
 
-  private measure(scene: Scene, completed: boolean, step?: string): void {
+  private measure(scene: Scene<object, object>, completed: boolean, step?: string): void {
     // Sizes on screen: world size times the camera's zoom, inside the camera's view
     // cut by every clip; boxes for the phone's close-ups in the view's own units.
     const view = viewOf(scene);
@@ -581,17 +581,19 @@ export class LegibilitySink implements Sink {
  * `rayner check` plays every event's.
  */
 export async function exploreMachines(
-  scene: Scene,
+  scene: Scene<object, object>,
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
   only?: { events?: readonly string[] },
 ): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
   const explored = [];
-  if (!layouts && machinesOf(scene).some((m) => m.lastPlayedIn !== null)) layouts = await stepLayouts(Source);
+  const controls = liveSteps(scene);
+  if (!layouts && controls.size) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
     const step = made.lastPlayedIn, place = { index, identity: made.identity };
     let found: Awaited<ReturnType<typeof exploreMachines>>[number] | undefined;
-    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events); };
+    const active = step !== null && controls.get(step)?.machine === made;
+    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events); };
     // The stage the reader saw the machine on, rather than the stage the run ends with, which may
     // have cleared its views away.
     if (step !== null) await runLive(Source, step, place, [], { explore });
@@ -606,7 +608,7 @@ export async function exploreMachines(
 }
 
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
-async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
+async function exploreMachine(host: Scene<object, object>, machine: ReturnType<typeof machinesOf>[number], step: string | null, active: boolean, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
   const diagramsBefore = diagramsOn(host);
   const problems: string[] = [], motion: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
@@ -616,8 +618,7 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   const startWalk = machine.explore();
   const fromStart = startWalk.states.map((r) => ({ ...r, origin: '' }));
   const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
-  const stepState = jsonObject(host.state, 'machine state') as object;
-  const live = step === null ? null : logStart(machine, stepState);
+  const live = active ? logStart(machine, jsonObject(host.state, 'machine state')) : null;
   // Each distinct origin gets its own budget, even if the live origin is in the start's capped
   // prefix. Retain completeness before removing states already checked from the other origin.
   const liveWalk = live === null || canonicalJson(live.state) === canonicalJson(machine.spec.start)
@@ -631,10 +632,11 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   const said = new Map<string, string>();
   for (const { state, path, origin } of reached) {
     const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
-    host.state = jsonObject(state, 'machine state');
+    const model = jsonObject(state, 'machine state');
+    host.state = model;
     for (const view of machine.spec.views) {
       view.rebuild();
-      const mismatch = viewMismatch(view, host.state, { shown: host.shown });
+      const mismatch = viewMismatch(view, model, { shown: host.shown });
       if (mismatch) problems.push(`${at}: ${mismatch}`);
     }
     problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
@@ -746,7 +748,7 @@ const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
  * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
  * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
  */
-async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[]): Promise<{ problems: string[]; motion: string[] }> {
+async function transitionProblems(scene: Scene<object, object>, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[]): Promise<{ problems: string[]; motion: string[] }> {
   const problems: string[] = [], motionProblems: string[] = [];
   const { views, events } = machine.spec;
   for (const event of events) {
@@ -1028,7 +1030,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         ? {
             watch: v.trace.steps.map((s, index) => {
               const unformatted: string[] = [];
-              const changes = watchedChanges({ before: v.trace.steps[index - 1]?.state ?? s.before, after: s.state ?? s.after }, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
+              const changes = watchedChanges(stepStates(s, v.trace.steps[index - 1]), project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
               return { step: s.step, changes, unformatted };
             }),
           }

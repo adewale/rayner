@@ -147,20 +147,23 @@ test('a change reads "Label: before → after", "Label: after" or "Label: remove
 });
 
 test('checkWatch refuses a watch that cannot work and names the problem', () => {
-  const steps = [{ before: {}, after: { tokens: 5 } }, { before: { tokens: 5 }, after: { tokens: 0, gone: 1 } }];
-  checkWatch(undefined, steps);
-  checkWatch({ specimen: 'Specimen' }, [{ before: {}, after: {}, state: { specimen: 1 } }]);
-  checkWatch({ tokens: 'Tokens', gone: 'Gone' }, steps);
-  assert.throws(() => checkWatch({ nope: 'Nope' }, steps), /meta\.watch: it names "nope", which is never in the scene's state/);
-  assert.throws(() => checkWatch({ tokens: '   ' }, steps), /meta\.watch: it gives "tokens" an empty label/);
-  assert.throws(() => checkWatch({ tokens: 5 }, steps), /an empty label/);
-  assert.throws(() => checkWatch({ '': 'Empty' }, steps), /meta\.watch: it has an empty key/);
-  assert.throws(() => checkWatch(['tokens'], steps), /must be a record/);
-  assert.throws(() => checkWatch('tokens', steps), /must be a record/);
+  const scenarios = [[{ before: {}, after: { tokens: 5 } }, { before: { tokens: 5 }, after: { tokens: 0, gone: 1 } }]];
+  checkWatch(undefined, scenarios);
+  checkWatch({ specimen: 'Specimen', initial: 'Initial' }, [
+    [{ before: {}, after: {}, state: { specimen: 1 } }],
+    [{ before: { initial: 1 }, after: {}, state: {} }],
+  ]);
+  checkWatch({ tokens: 'Tokens', gone: 'Gone' }, scenarios);
+  assert.throws(() => checkWatch({ nope: 'Nope' }, scenarios), /meta\.watch: it names "nope", which is never in the scene's state/);
+  assert.throws(() => checkWatch({ tokens: '   ' }, scenarios), /meta\.watch: it gives "tokens" an empty label/);
+  assert.throws(() => checkWatch({ tokens: 5 }, scenarios), /an empty label/);
+  assert.throws(() => checkWatch({ '': 'Empty' }, scenarios), /meta\.watch: it has an empty key/);
+  assert.throws(() => checkWatch(['tokens'], scenarios), /must be a record/);
+  assert.throws(() => checkWatch('tokens', scenarios), /must be a record/);
   const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`k${i}`, `K${i}`]));
-  assert.throws(() => checkWatch(nine, [{ before: {}, after: nine }]), /it names 9 keys; name at most 8/);
+  assert.throws(() => checkWatch(nine, [[{ before: {}, after: nine }]]), /it names 9 keys; name at most 8/);
   const eight = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`k${i}`, `K${i}`]));
-  checkWatch(eight, [{ before: {}, after: eight }]);
+  checkWatch(eight, [[{ before: {}, after: eight }]]);
 });
 
 // A two-scenario scene whose state differs by scenario: `only` exists only in the "b" scenario.
@@ -177,6 +180,23 @@ test('collection refuses an unknown watched key, naming it, and accepts a key pr
   await assert.rejects(collect('blank', `{count:' '}`), /meta\.watch: it gives "count" an empty label/);
   const p = await collect('ok', `{count:'Count',only:'Only'}`);
   assert.deepEqual(p.Scene.meta?.watch, { count: 'Count', only: 'Only' });
+});
+
+test('collection refuses a watched model key hidden by consecutive staged specimens', async () => {
+  const file = join(folder, 'hidden.ts');
+  await writeFile(file, `import { Scene, Text } from 'rayner';
+import { stage } from 'rayner/explain';
+export default class Hidden extends Scene {
+  static meta = { watch: { completed: 'Completed' } };
+  async construct() {
+    this.onStepEnd(() => { this.state.completed = true; });
+    await stage(this).steps(['one', 'two'].map((id, count) => ({
+      id, title: id, line: 'A count.', caption: 'A local count.',
+      state: { count }, draw: st => new Text(String(st.count)),
+    })));
+  }
+}`);
+  await assert.rejects(collectProject(file, { write: false }), /meta\.watch: it names "completed", which is never in the scene's state/);
 });
 
 test('the transcript says what each step changed after its caption, and check reports changes and unformatted keys', async () => {

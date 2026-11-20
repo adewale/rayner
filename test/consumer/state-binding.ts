@@ -1,4 +1,4 @@
-import { Scene, Rectangle } from 'rayner';
+import { Scene, Rectangle, renderFrame } from 'rayner';
 import { stage, tweenState, view } from 'rayner/explain';
 import { traceScene, loadProject } from 'rayner/testing';
 import type { TraceOf } from 'rayner/testing';
@@ -44,9 +44,25 @@ const unsound: string = trace.steps[0]!.state?.label;
 void [persistent, specimen, unsound];
 
 interface Counter { count: number }
+interface Labels { label: string }
 const initial = (): Counter => ({ count: 7 });
-class InterfaceState extends Scene<Counter, {}> { override state = initial(); }
+class InterfaceState extends Scene<Counter, Labels> {
+  override state = initial();
+  override shown: Labels = { label: 'seven' };
+}
 const accepted: SceneClass = InterfaceState;
+const instance = new accepted({ async frame() {} });
+// @ts-expect-error an erased model's keys must be narrowed before use
+instance.state.missing.toUpperCase();
+// @ts-expect-error what an erased scene shows has no known keys either
+instance.shown.missing.toFixed();
+// @ts-expect-error a scene model is an object
+instance.state = 7;
+// @ts-expect-error what a scene shows is an object
+instance.shown = 'seven';
+const json = instance.stateJson().count;
+if (typeof json === 'number') json.toFixed();
 const counted: Promise<number> = traceScene(InterfaceState).then((t) => t.steps[0]!.after.count);
+const framed: Promise<number> = renderFrame(InterfaceState, 0).then((scene) => scene.state.count);
 loadProject(InterfaceState, '.');
-void [accepted, counted];
+void [accepted, counted, framed];

@@ -56,7 +56,9 @@ export interface Trace<S extends object = SceneState, Sh extends object = SceneS
  * `any`, gives a plain Trace.
  */
 export type TraceOf<C> = 0 extends 1 & C ? Trace
-  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<
+  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ?
+    // An erased constructor names no fields. A concrete scene can explicitly declare an empty model.
+    [SceneClass, keyof S | keyof Sh] extends [C, never] ? Trace : Trace<
     unknown extends S ? SceneState : string extends keyof S ? Jsonified<S> : Jsonified<S> & { walks?: unknown },
     unknown extends Sh ? SceneState : string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState
   >
@@ -129,7 +131,7 @@ export async function traceScene<C extends SceneClass>(SceneClass: C, opts: Scen
  * with `atRest`, each step's resting picture from the same run. `skipUntil: 0` draws every frame,
  * which `rayner check` compares with the skipped trace.
  */
-export async function traceRun(SceneClass: SceneClass, { skipUntil, ...opts }: SceneOptions & Pick<TraceSinkOptions, 'skipUntil'> = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: Scene }> {
+export async function traceRun<S extends Scene<object, object>>(SceneClass: SceneClass<S>, { skipUntil, ...opts }: SceneOptions & Pick<TraceSinkOptions, 'skipUntil'> = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: S }> {
   const sink = new TraceSink({ skipUntil, atRest });
   const scene = new SceneClass(sink, opts);
   await scene.run();

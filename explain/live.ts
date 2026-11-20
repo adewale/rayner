@@ -34,7 +34,7 @@ export interface Live extends LivePlace {
  * machine that never played is live nowhere; when two machines last played in one step, the later
  * one made is live there.
  */
-export function liveSteps(scene: Scene<any>): Map<string, Live> {
+export function liveSteps(scene: Scene<object, object>): Map<string, Live> {
   const live = new Map<string, Live>();
   for (const [index, machine] of machinesOf(scene).entries())
     if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, identity: machine.identity, machine });
@@ -46,7 +46,7 @@ export function liveSteps(scene: Scene<any>): Map<string, Live> {
  * a scene must make the same machines on every run, or the reader would drive another machine than
  * the one the page was built for and check explored.
  */
-export function liveMachine(scene: Scene<any>, step: string | null, place: LivePlace): AnyMachine {
+export function liveMachine(scene: Scene<object, object>, step: string | null, place: LivePlace): AnyMachine {
   const machine = machinesOf(scene)[place.index];
   if (!machine || machine.identity !== place.identity)
     throw new Error(`runLive(): the run${step === null ? '' : ` to ${JSON.stringify(step)}`} made different machines; a scene must make the same machines on every run`);
@@ -83,7 +83,7 @@ export async function liveBase(Source: SceneClass, step: string, place: LivePlac
  * still play there, the live machine, and `draw`, which hands the frames that follow to a sink,
  * every one drawn, or with none skips them again.
  */
-export type LiveExplore = (scene: Scene<any>, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
+export type LiveExplore = (scene: Scene<object, object>, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
 
 export interface LiveRun {
   scene: Scene<any>;

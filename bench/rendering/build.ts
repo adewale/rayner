@@ -55,7 +55,7 @@ export async function buildComparison(directory: string) {
       assert.equal(scenario.trace.steps.length, c.steps.length);
       for (const [i, step] of c.steps.entries()) {
         const traced = scenario.trace.steps[i]!;
-        assert.deepEqual(traced.after.model, step.state);
+        assert.deepEqual((traced.state ?? traced.after).model, step.state);
         assert.equal(traced.meta.caption, step.caption);
         assert.equal(traced.meta.title, step.title);
       }

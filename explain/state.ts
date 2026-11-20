@@ -3,9 +3,9 @@
 // one sampled number into its targets (under view.tween, tweenState and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
-import { Animation, playsOn } from '../src/animation.ts';
+import { Animation, NonvisualTarget, playsOn } from '../src/animation.ts';
 import type { AnimationOptions } from '../src/animation.ts';
-import { Group, Mobject as MobjectClass, keyed } from '../src/mobject.ts';
+import { Mobject as MobjectClass, keyed } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { cloneJson } from '../src/json.ts';
 import type { JsonObject } from '../src/json.ts';
@@ -13,12 +13,12 @@ import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 
 // A shared, non-drawing target makes model writers on one Scene visible to
 // play()'s ordinary overlap check. Separate scenes do not conflict.
-const stateTargets = new WeakMap<object, Group>();
+const stateTargets = new WeakMap<object, NonvisualTarget>();
 
 /** @internal The shared write target for a scene's model, including sampled changes. */
-export function stateTarget(host: object): Group {
+export function stateTarget(host: object): NonvisualTarget {
   let target = stateTargets.get(host);
-  if (!target) { target = keyed(new Group(), 'Scene.state'); stateTargets.set(host, target); }
+  if (!target) { target = keyed(new NonvisualTarget(), 'Scene.state'); stateTargets.set(host, target); }
   return target;
 }
 
@@ -43,7 +43,7 @@ export class SetState<S extends object = SceneState> extends Animation {
   constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
-    super(stateTarget(host), { runTime: 0, remover: true });
+    super(stateTarget(host), { runTime: 0 });
     this[playsOn] = host;
     this.event = event;
     this.snapshot = snapshot;

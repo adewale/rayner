@@ -404,7 +404,7 @@ export interface SvgOptions {
   cull?: boolean;
 }
 
-export function toSvgString(scene: Scene, { width = 1280, background = scene.colors.paper, cull = false }: SvgOptions = {}): string {
+export function toSvgString(scene: Pick<Scene, 'colors' | 'frame' | 'mobjects'>, { width = 1280, background = scene.colors.paper, cull = false }: SvgOptions = {}): string {
   if (typeof width !== 'number' || !Number.isSafeInteger(width) || width < 1)
     throw new TypeError('toSvgString(): width must be a positive safe integer');
   if (!isHex(background))

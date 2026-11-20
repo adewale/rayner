@@ -26,7 +26,7 @@ export type { Prediction, TeachingStep } from './script.ts';
 export { bindSnapshots, isIdentifier, resolveSettings, scenarioName, scenariosOf, settingsProblem, stepQuery } from './settings.ts';
 export type { SettingsProblem } from './settings.ts';
 export { isFurniture, isHeading, paletteOf, paperOf, withoutHeading } from './stage.ts';
-export { checkWatch, htmlEscape, pictureChange, pictureHtml, pictureSummary, stepWords, undescribed, watchedChanges, wordsHtml } from './trace.ts';
+export { checkWatch, htmlEscape, pictureChange, pictureHtml, pictureSummary, stepStates, stepWords, undescribed, watchedChanges, wordsHtml } from './trace.ts';
 export type { WatchedChange } from './trace.ts';
 export { isView, viewMismatch, viewInput } from './view.ts';
 export { describedIn, primaryLanguage, wordsFor } from './words.ts';

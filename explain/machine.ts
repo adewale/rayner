@@ -414,7 +414,7 @@ class TakePictures extends Animation {
 
 const registry = new WeakMap<object, Machine<object, string>[]>();
 /** The machines a scene made, in order: what `rayner check` explores after a run. */
-export function machinesOf(scene: Scene<any>): Machine<object, string>[] {
+export function machinesOf(scene: Scene<object, object>): Machine<object, string>[] {
   let list = registry.get(scene);
   if (!list) registry.set(scene, (list = []));
   return list;

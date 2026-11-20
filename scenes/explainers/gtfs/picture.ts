@@ -20,7 +20,7 @@ export const stopNameIn = (feed: Feed, id: string) => feed.stops.find((s) => s.s
 export function drawDaySummary(date: GtfsDate, routes: number, active: number, total: number, s: Stage): Group {
   const picture = new Group(
     new Text(`${upperFirst(weekday(date))} ${shortDate(date)}`, { fontSize: 0.62, color: s.look.ink }).moveTo([0, 2.5]),
-    new Text('A route row promises no dated departure', { fontSize: 0.62, color: s.look.soft }).moveTo([0, -3.7]),
+    new Text('A route row promises no dated departure', { fontSize: 0.62, color: s.look.soft }).moveTo([0, -3.3]),
   );
   for (const [id, x, count, title, detail] of [
     ['routes', -3.5, routes, 'Routes defined', 'in routes.txt'],
@@ -30,7 +30,7 @@ export function drawDaySummary(date: GtfsDate, routes: number, active: number, t
     const label = new Text(title, { fontSize: 0.68, color: s.look.ink }).moveTo([x, number.box()![1] - 0.3], [0, 1]);
     const note = new Text(detail, { fontSize: 0.62, color: s.look.soft }).moveTo([x, label.box()![1] - 0.25], [0, 1]);
     picture.add(keyed(new Group(
-      new Rectangle({ width: 6.3, height: 5, cornerRadius: 0.18, fill: s.look.raised, stroke: s.look.rule, strokeWidth: 0.035 }).moveTo([x, -0.8]),
+      new Rectangle({ width: 6.3, height: 4.4, cornerRadius: 0.18, fill: s.look.raised, stroke: s.look.rule, strokeWidth: 0.035 }).moveTo([x, -0.5]),
       number, label, note,
     ), `gtfs-summary:${id}`));
   }

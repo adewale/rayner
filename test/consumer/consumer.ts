@@ -361,7 +361,7 @@ export async function hostPage(Explainer: SceneClass): Promise<string> {
   const key: MatchKey = (part) => part.key;
   const match: Match = { by: 'key', text: 'whole', fallback: key };
   void new Transform(scene.mobjects[0]!, scene.mobjects[0]!.copy(), { match });
-  const state: SceneState = scene.state;
+  const state: SceneState = scene.stateJson();
   const font: FontName = 'mono';
   return `${frame} ${toSvgString(scene).length} ${scene.invariants.size} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
 }

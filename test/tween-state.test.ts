@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Succession, AnimationGroup, linear } from '../src/index.ts';
+import { Scene, Dot, Rectangle, VMobject, Succession, AnimationGroup, keyed, linear } from '../src/index.ts';
 import type { Sink } from '../src/index.ts';
 import { StringSink, SnapshotSink } from '../src/svg.ts';
 import { NullSink, renderFrame } from '../src/timeline.ts';
@@ -69,6 +69,7 @@ test('one sample feeds two dependent views atomically on every frame and leaves 
     const s = scene as Coupled;
     if (!s.a || !s.mobjects.includes(s.a)) return;
     frames++;
+    assert.deepEqual(s.mobjects, [s.a, s.b]);
     assert.equal(s.state.y, 2 * s.state.x);
     close(s.a.current.width(), 1 + s.state.x); close(s.b.current.height(), 1 + s.state.y);
   } };
@@ -80,6 +81,82 @@ test('one sample feeds two dependent views atomically on every frame and leaves 
   for (let i = 0; i < samples + 1; i++) assert.equal(reads[0]![i], reads[1]![i], `draws share sample ${i}`);
   assert.deepEqual(s.state, { x: 1, y: 2 });
   assert.deepEqual(s.mobjects, [s.a, s.b]);
+});
+
+test('model write reservations stay out of the drawing order in every play and seek', async () => {
+  class Tracking extends Scene<{ x: number }> {
+    override state = { x: 2 };
+    marker = keyed(new Dot().addUpdater(m => m.moveTo(this.mobjects.at(-1)!)), 'tracker');
+    subject = keyed(view(this, ({ x }) => new Rectangle({ width: 1, height: 1 }).moveTo([x, 1]), { place: false }), 'subject');
+    override async construct() {
+      this.add(this.marker, this.subject);
+      await this.subject.tween(t => ({ x: 2 + t }), { runTime: 0.1 });
+      const sweep = (start: number) => tweenState(this, t => ({ x: start + t }), { views: [this.subject], runTime: 0.1 });
+      await this.play(sweep(3));
+      await this.play(new AnimationGroup([new Succession([sweep(4)])]));
+      await this.play(new SetState(this, { x: 5 }));
+    }
+  }
+  const frames: number[] = [];
+  const check = (scene: Tracking) => {
+    assert.deepEqual(scene.mobjects.map(m => m.key), ['tracker', 'subject']);
+    close(scene.marker.center()[0], scene.subject.center()[0]);
+    close(scene.marker.center()[1], 1);
+  };
+  const ran = new Tracking({ async frame(scene) {
+    const s = scene as Tracking;
+    if (s.mobjects.includes(s.subject)) { check(s); frames.push(s.frameCount); }
+  } });
+  await ran.run();
+  assert.equal(frames.length, 10);
+  check(ran);
+  for (const frame of [1, 4, 7, 10]) check(await renderFrame(Tracking, frame) as Tracking);
+});
+
+test('a sampled path can disappear and a bar can flatten without moving or rescaling their later frames', async () => {
+  class Placed extends Scene<{ t: number }> {
+    override state = { t: 0 };
+    route = view(this, ({ t }) => {
+      const path = new VMobject();
+      if (t < 0.4 || t > 0.6) path.startNewPath([-1, 0]).addLineTo([1, 0]);
+      return path;
+    }).scale(1.5).moveTo([4, 2]);
+    bar = view(this, ({ t }) => new Rectangle({ width: 2, height: Math.abs(1 - 2 * t) + 3e-7 })).moveTo([0, 3]);
+    growing = view(this, ({ t }) => new Rectangle({ width: 2, height: t + 3e-7 })).scale(1.5).moveTo([0, -3]);
+    override async construct() {
+      this.add(this.route, this.bar, this.growing);
+      const views = [this.route, this.bar, this.growing];
+      await tweenState(this, t => ({ t }), { views, runTime: 1, rateFunc: linear });
+      // Finish empty and nearly flat, then adopt visible pictures in the following rebuild/sync.
+      await tweenState(this, t => ({ t: 1 - t / 2 }), { views, runTime: 0.2, rateFunc: linear });
+      this.state = { t: 1 };
+      this.route.rebuild();
+      await this.bar.sync({ match: 'index', runTime: 0.1 });
+    }
+  }
+  const full = new StringSink();
+  const check = (s: Placed) => {
+    if (s.state.t >= 0.4 && s.state.t <= 0.6) assert.equal(s.route.current.box(), null);
+    else {
+      assert.deepEqual(s.route.current.center(), [4, 2]);
+      close(s.route.current.width(), 3);
+    }
+    close(s.bar.current.width(), 2);
+    close(s.growing.current.width(), 3);
+  };
+  const played = new Placed({ async frame(scene) {
+    await full.frame(scene);
+    check(scene as Placed);
+  } });
+  await played.run();
+  assert.equal(full.frames.length, 40);
+  check(played);
+  for (const frame of [15, 27, 18, 30, 36, 39, 1]) {
+    const snap = new SnapshotSink();
+    const sought = await renderFrame(Placed, frame, snap) as Placed;
+    check(sought);
+    assert.equal(snap.svg, full.frames[frame], `placed seek ${frame}`);
+  }
 });
 
 test('shared sampling resolves pictures after a preceding sync, and seeks match full frames in either order', async () => {

@@ -40,6 +40,19 @@ class InterfaceState extends Scene<DomainState, {}> {
   }
 }
 
+// A class witness supplies declarations; the accessor never constructs an abstract base.
+abstract class SettingsBase extends Scene<DomainState, {}> {
+  static settings = LiteralSettings.settings;
+  bitCount(): '16' | '32' {
+    const values = settingsOf(this, SettingsBase);
+    // @ts-expect-error An abstract witness retains literal identifiers too.
+    void values.bitts;
+    return values.bits;
+  }
+}
+class InheritedSettings extends SettingsBase { override state = { count: 1 }; }
+void InheritedSettings;
+
 // URL values remain strings at the boundary; runtime validation chooses a valid scenario.
 export function settingsForReaders(scene: LiteralSettings, dynamicScene: Scene, Source: ExplainerClass, query: Record<string, string>) {
   const Bound = withSettings(LiteralSettings, query);
@@ -61,6 +74,7 @@ export function transformModes(from: Mobject, to: Mobject, dynamicTarget: Mobjec
   new Transform(from, to, { fromCopy: dynamicCopy });
   new Transform(from, to, { fromCopy: dynamicCopy, replace: true });
   new Transform(from, 'saved', timing);
+  new Transform(from, 'saved', { ...timing, match: undefined, replace: undefined });
   new Transform(from, dynamicTarget, timing);
   // @ts-expect-error A copy always hands over to its target.
   const contradictory: TransformOptions = { fromCopy: true, replace: false };

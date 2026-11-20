@@ -3,8 +3,8 @@
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
 schedule, `rayner check` draws and checks states up to the machine's exploration limit (256 per origin by default), and at the step
 where the machine last played the player gives the reader a button per event
-([the player](#the-player)). Eighteen explainers are machines: the ten in [the table](#ten-machines)
-and the eight chapters of the Poppy series.
+([the player](#the-player)). Nineteen explainers use machines, including the eight chapters
+of the Poppy series. [Explainers with machines](#explainers-with-machines)
 
 ## Making one
 
@@ -209,7 +209,9 @@ the scene as it ends. A machine whose
 views are not on that stage is reported, since its states could not be checked. Exploration
 visits states breadth first from `start` and from the reader's origin at the live step. The latter
 is the step's resting state when some event moves it, otherwise the machine's start, as in the
-player. Each distinct origin gets up to `limit` states, even when the live origin appears in the
+player. When two machines last played in one step, both start walks are checked on that stage.
+Only the machine whose controls the reader can use also walks from the step's resting state.
+Each distinct origin gets up to `limit` states, even when the live origin appears in the
 start's bounded walk. Overlapping states are drawn once, after each origin's completeness is
 recorded. A walk is complete only when its graph is exhausted: exactly `limit` states can still
 be the whole graph, while an unvisited successor proves truncation. Each state is redrawn as a resting
@@ -273,8 +275,8 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 At the step where a machine last played, the reader can drive it: one button per event under the
 step's caption, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
 gives the reader-facing contract: what the buttons say, how a refused event explains itself, what
-Undo, Reset and the keyboard do, and what a screen reader hears. Every one of the eighteen machines
-is live at its step, in every scenario that plays it (oauth-pkce without the attacker plays none).
+Undo, Reset and the keyboard do, and what a screen reader hears. Each of these explainers offers
+live controls in the scenarios that play its machines (oauth-pkce without the attacker plays none).
 This section says how it works and why.
 
 **Which step is live: the step the machine last played in.** There is no declaration. The step a
@@ -322,10 +324,10 @@ when none were sent. Without JavaScript, the transcript lists under a live step 
 reader can send there: "Try it yourself: press push, pop.", or "Try it yourself: from the beginning, press AUTHORIZE…"
 where the step leaves its machine finished.
 
-**How it is checked.** `test/browser/explain-live.test.ts` builds the nine pages and, at each
-live step of the default scenario (twelve steps: statecharts, latest-search and python-dict have
-two machines each), presses every event the model takes, two events deep and up to six states per
-step, each played in real time. At every state it checks that each button's kind, `aria-disabled`,
+**How it is checked.** `test/browser/explain-live.test.ts` builds eleven pages and checks an
+independent list of fifteen live steps in their default scenarios. Ring buffer, statecharts,
+latest-search and python-dict each supply two steps. The test presses available events in real
+time, two events deep and up to six states per step. At every state it checks that each button's kind, `aria-disabled`,
 reason and name agree with `outcome`, that the URL holds the events, that a press changed the
 picture when it changed the state, and that a fresh load of the URL draws the same SVG and the
 same buttons. A button set to refused where the model takes the event fails the check (the
@@ -398,14 +400,17 @@ afresh (oauth-pkce's sign-in runs to its end first). The finish takes the event'
 **Not done.**
 - The [benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md) has not been re-run with the buttons.
 
-## Ten machines
+<a id="ten-machines"></a>
 
-The ten machines outside the Poppy series, whose eight chapters are machines too:
+## Explainers with machines
+
+Eleven explainers outside the Poppy series use machines.
 
 | Explainer | Live at | State | Events | What is drawn from state | Explored |
 | --- | --- | --- | --- | --- | --- |
 | `statecharts` | `parent`, `frother` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send` (`drivenNext`); an event the configuration does not handle is refused, as SCXML discards it, naming the boxes without its arrow | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
-| `ring-buffer` | `result` | `RingState`: the buffer, the last operation and its result, outlines, the tray, the next value | `push`, `pop`; a pop of an empty ring is refused, a push to a full one returns Full, and a push after the value 9 is past the story's bound | Slots, values, pointers, outlines, push(v), the next value, the tray; the readout and card values | 256 states sampled per scenario, every transition played |
+| `ring-buffer` | `result`, `implementation-result` | `RingState` holds the slots, markers, last operation and next value | `push` and `pop`. An empty ring refuses a pop, a full one reports Full on a push, and the story stops pushing after 9 | Fixed slots, markers and queue order on the reading path. Details adds the code, pointer motion and operation readouts | Each machine samples 256 states from an empty ring and reaches all 98 states from its live result in either scenario |
+| `cache-policies` | `try` | Two independent three-slot caches and their shared request history | Each of A, B, C and D goes to both caches. The reader chooses the tenth and eleventh requests | Both newest-first orders, hit and miss counts, last results, evictions and request history | All 85 states from eight requests and all 21 from the nine-request live origin in each scenario |
 | `state-machine` | `send`, `closed` | `SocketState`: a WebSocket's readyState, the last event and what it did, the branch of `send()` it ran, the messages the server got, the links travelled | `send()`, `close()`, `server accepts`, `server answers close()`; the server's two answers are refused outside CONNECTING and CLOSING, `close()` before open and a third message are past the story's bound, and a `send()` that throws or sends nothing is an answer the picture shows | The diagram with its trail (`Diagram.picture`), the ring, `send()`'s branch boxed in Node's own code; the card | 23 states from a new socket, 14 from an open one; every transition played |
 | `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `g.follow`, then a token leaves for its box or a 429 ring appears |
 | `monty-hall` | `choice` | `Round`: what the reader knows (the pick, the door opened and what it showed, stay or switch, where the car was shown) | `pick X`, `open X: goat` or `car`, `stay`, `switch`, `car behind X`; the rules refuse a second pick, the host opening your door or opening twice, the informed host opening the car, and a decision after the car is shown | The three doors | 46 rounds with the informed host, 52 with the random one; every round is a cell of the strip, with its winner |

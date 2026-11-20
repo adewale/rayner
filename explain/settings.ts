@@ -77,7 +77,7 @@ export type ExplainerClass = SceneClass & {
   settings?: readonly Setting[];
 };
 /** Settings do not depend on the instance's domain-state or presentation-state shape. */
-type SettingsClass = (new (...args: ConstructorParameters<SceneClass>) => Scene<any, any>) & Pick<ExplainerClass, 'settings'>;
+type SettingsClass = (abstract new (...args: ConstructorParameters<SceneClass>) => Scene<any, any>) & Pick<ExplainerClass, 'settings'>;
 // Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
 const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
   id: true, title: true, lang: true, sources: true, lettering: true, textContext: true,

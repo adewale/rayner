@@ -10,7 +10,7 @@ import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { renderFrame } from '../../src/index.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
-import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery, groundingDetails, groundingSentence, predictionsOf } from '../../explain/internal.ts';
+import { pictureHtml, htmlEscape, stepStates, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery, groundingDetails, groundingSentence, predictionsOf } from '../../explain/internal.ts';
 import type { Grounding } from '../../explain/internal.ts';
 import { RTL_SCRIPTS, SnapshotSink } from '../../src/internal.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
@@ -128,7 +128,7 @@ export async function buildExplainer(
         const href = `?${stepQuery(values, s.step)}`,
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
-          changes = watchedChanges({ before: trace.steps[i - 1]?.state ?? s.before, after: s.state ?? s.after }, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
+          changes = watchedChanges(stepStates(s, trace.steps[i - 1]), project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
         const entry = `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
         const live = liveLines[n]!.get(s.step);
         // A prediction's question and options on the step that asks it, its answer only on the step that reveals it.
