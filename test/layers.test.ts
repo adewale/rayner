@@ -176,7 +176,7 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'View.placed': { files: ['tools/lib/explain-check.ts'], why: 'check redraws a view where it was placed' },
   affine: { files: ['explain/diagram-text.ts'], why: "a captured label takes the SVG's transform" },
   curveCount: { files: ['explain/diagrams.ts'], why: 'a link is a route with curves' },
-  cleanUp: { files: ['explain/view.ts'], why: 'sampled model animations remove their non-drawing state-write target when they finish' },
+  NonvisualTarget: { files: ['explain/state.ts'], why: 'model writers share an ownership target that the engine excludes from stage admission, including during playback and seeks' },
   interpolateData: { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },
   matchingFrameFor: { files: ['explain/labels.ts'], why: "a captured label gives a matching transform a frame in its text's units" },
   mergeLeaves: { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
