@@ -34,6 +34,8 @@ Commands:
                       and desktop widths; retain reviewed HTML with --out page.html
   build <scene>       HTML, receipt, header recipe, loader.js
   shots <scene>       Step contact sheet as SVG and PNG
+  film <scene>        Motion filmstrips for every scenario and bounded live event,
+                      including refused presses; HTML index, JSON, SVG and PNG
   describe <scene>    Every scenario and step as JSON for agents: words, state, what
                       changed, the picture in words and drawn as text
   see <scene> [step]  One step's resting picture as text, with its caption, its
@@ -51,12 +53,14 @@ Options:
   --port <integer>    Preview server port (default 5174)
   --watch             Preview: rebuild the page on save
   --subjects <path>   Review: use this JSON file instead of <scene>.review.json
+  --json              Check/review: print the complete report instead of a summary
+  --embed-sizes       Build: also measure framed heights at 390/640/900 px (Chromium)
   --machine           Init: write the machine starter instead of the tutorial's
   --blank             Init: write a blank explainer instead of the tutorial's
   --question <text>   Init --blank: the reader's question, the script's # heading
   --version           Print the version
 
-init, check, build, describe, see, snapshots, preview and shots need Node alone
+init, check, build, describe, see, snapshots, preview, shots and film need Node alone
 for a scene that draws no Mermaid diagram and asks for no lettering. review
 opens the page in Chromium: Playwright's own build, another Playwright build,
 or an installed Chrome or Chromium, whichever launches first (it prints which).
@@ -94,6 +98,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       machine: { type: 'boolean' },
       blank: { type: 'boolean' },
       question: { type: 'string' },
+      json: {type: 'boolean'},
+      'embed-sizes': {type: 'boolean'},
     },
   });
   const [command, input, ...extra] = positionals;
@@ -105,6 +111,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   if (flags.blank && command !== 'init') throw new TypeError('--blank is an option of rayner init alone');
   if (flags.question !== undefined && !flags.blank) throw new TypeError('--question is an option of rayner init --blank alone');
   if (flags.blank && flags.machine) throw new TypeError('rayner init takes --blank or --machine, not both');
+  if (flags['embed-sizes'] && command !== 'build') throw new TypeError('--embed-sizes is an option of rayner build alone');
   if (command === 'init') {
     const dir = resolve(input);
     const blank = flags.blank ? blankStarter(flags.question) : undefined;
@@ -123,16 +130,39 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       : `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
-  if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))
+  if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'film', 'describe', 'see'].includes(command!))
     throw new RangeError(`${JSON.stringify(command)} is not a command; rayner --help lists the commands`);
   const collection = { refresh: flags.refresh, captureLettering: command === 'snapshots' || command === 'preview' };
   const project = await collectProject(input, collection);
   const slug = sceneSlug(project);
+  const parent = dirname(dirname(project.file));
+  if (basename(parent) === 'explainers') {
+    const catalog = await readFile(join(parent, 'catalog.ts'), 'utf8').catch(() => null);
+    if (catalog && ![...catalog.matchAll(/\bid:\s*['"]([^'"]+)['"]/g)].some(m => m[1] === slug))
+      console.error(`Catalog warning: ${project.file} is under scenes/explainers but ${slug} is absent from catalog.ts. Add its entry, fidelity evidence, answer checks and generated reference, then run the complete catalog checks and review.`);
+  }
+  if (command === 'film') {
+    const {filmProject} = await import('./lib/explain-film.ts');
+    const directory = flags.out ?? resolve('out/films', slug);
+    const report = await filmProject(project, directory);
+    console.log(`Filmed ${report.films.length} sequences, ${report.frames} frames. Open ${resolve(directory, 'index.html')}`);
+    return;
+  }
   if (command === 'review') {
     const { reviewScene } = await import('./lib/explain-review-scene.ts');
     const artifact = flags.out?.endsWith('.html') ? resolve(flags.out) : undefined;
     const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
-    console.log(JSON.stringify(await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line)), null, 2));
+    const report = await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line));
+    if (flags.json) console.log(JSON.stringify(report, null, 2));
+    const phone = report.results.flatMap(s => [...s.steps, ...s.framedSteps]).filter(s => s.width === 390);
+    const maximumViews = Math.max(0, ...phone.map(s => s.views));
+    const maximumOverlap = Math.max(0, ...phone.map(s => s.maximumTourOverlap));
+    const minima = phone.flatMap(s => s.minimumLabelPxWholeStage === null ? [] : [s.minimumLabelPxWholeStage]);
+    const smallest = minima.length ? Math.min(...minima).toFixed(1) + ' px' : 'no labels';
+    const clipped = phone.reduce((n, s) => n + s.partiallyVisibleLabels.reduce((m, v) => m + v.labels.length, 0), 0);
+    const omitted=phone.reduce((n,s)=>n+s.omittedContextLabels.reduce((m,v)=>m+v.labels.length,0),0);
+    console.error(`Phone: whole-picture minimum ${smallest}; ${clipped} partly visible labels; ${omitted} context-label omissions across views; up to ${maximumViews} views per step; greatest tour-view overlap ${Math.round(maximumOverlap * 100)}%. Screenshots: ${resolve(directory)}`);
+    (flags.json ? console.error : console.log)(`Review passed: ${report.scenarios} scenarios, ${report.stepWidths} step/width checks, ${report.liveStateWidths} live-state/width checks, ${report.framedStepWidths} framed phone steps and ${report.framedLiveStateWidths} framed live states. Report: ${resolve(directory, 'review.json')}`);
     return;
   }
   if (command === 'snapshots') {
@@ -159,9 +189,25 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   }
   if (command === 'check') {
     const { checkProject } = await import('./lib/explain-check.ts');
-    console.log(
-      JSON.stringify(await checkProject(project, flags.out ?? resolve('out/checks', slug)), null, 2),
-    );
+    const directory = flags.out ?? resolve('out/checks', slug);
+    const report = await checkProject(project, directory);
+    if (flags.json) console.log(JSON.stringify(report, null, 2));
+    const scenarios = report.scenarios as {steps: number; machines?: {states: number; phoneWarnings?: string[]}[]; legibility: {minLabelPx1280: number | null; minLabelPx390: number | null; minLabelPx390WholeStage: number | null}}[];
+    const warnings = scenarios.flatMap(s => (s.machines ?? []).flatMap(m => m.phoneWarnings ?? []));
+    for (const warning of [...new Set(warnings)].slice(0, 5)) console.error(`Phone warning: ${warning}`);
+    const min = (key: keyof typeof scenarios[number]['legibility']) => {
+      const sizes = scenarios.flatMap(s => typeof s.legibility[key] === 'number' ? [s.legibility[key]!] : []);
+      return sizes.length ? Math.min(...sizes).toFixed(1) + ' px' : 'no labels';
+    };
+    const {stepLayouts, closeUps, narrowAspect} = await import('../app/embed-closeup.ts');
+    let views = 1;
+    for (const scenario of project.scenarios) {
+      const layouts = await stepLayouts(scenario.Scene), height = 358 * narrowAspect(layouts.values(), 358);
+      for (const layout of layouts.values()) views = Math.max(views, closeUps(layout, 358, height).length);
+    }
+    const states = scenarios.reduce((n, s) => n + (s.machines ?? []).reduce((m, machine) => m + machine.states, 0), 0);
+    const tests = (report.model as {passed?: number} | undefined)?.passed ?? 0;
+    (flags.json ? console.error : console.log)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} reachable states, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
     return;
   }
   /** The scenario every --scenario id=value chooses, other settings at their defaults. */
@@ -189,6 +235,16 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const out = flags.out ?? resolve('out/explainers', slug + '.html');
   const result = await buildExplainer(project, out);
   await buildLoader(join(dirname(resolve(out)), 'loader.js'));
+  if (flags['embed-sizes']) {
+    const {measureEmbed} = await import('./lib/explain-embed-size.ts');
+    const {launch} = await import('./lib/browser.ts');
+    const server = await serve(dirname(resolve(out)), 0, basename(out));
+    let browser: Awaited<ReturnType<typeof launch>> | undefined;
+    try {
+      browser = await launch('rayner build --embed-sizes');
+      await writeFile(resolve(out).replace(/\.html$/, '') + '.embed.json', JSON.stringify(await measureEmbed(browser, server.url, basename(out)), null, 2) + '\n');
+    } finally { await browser?.close(); server.close(); }
+  }
   console.log(
     `Built ${out} (${Math.round(Buffer.byteLength(result.html) / 1024)} KiB; ${project.scenarios.length} scenarios)`,
   );

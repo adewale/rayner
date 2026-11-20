@@ -90,7 +90,7 @@ export default class Poppy extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event }) => (event === 'sign-out' ? 1.6 : event === 'discover' ? 2.4 : 2.1),
+      runTime: ({ event }) => (event === 'sign-out' ? 2.1 : event === 'discover' ? 2.7 : event === 'exchange' || event === 'thief' ? 2.5 : 2.2),
       transition: {
         // poppy.json crosses from the Company to the agent, and then the lanes it lists are drawn.
         discover: (t) => {

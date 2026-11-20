@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/timeline.ts';
-import { collectProject } from '../../tools/lib/explain-project.ts';
+import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
@@ -128,6 +128,8 @@ test('rayner review visits the live states and records them in its receipt', opt
     await writeFile(join(dir, 'scene.ts'), lamp(false));
     const result = await reviewScene(await collectProject(dir, { write: false }), join(dir, 'review'));
     assert.equal(result.liveStateWidths, 4);
+    assert.equal(result.framedLiveStateWidths, 2);
+    assert.deepEqual(result.results[0]!.framedLive.map(s => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390]]);
     assert.deepEqual(result.results[0]!.live!.map((s) => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390], ['press', ['UP'], 1180], ['press', ['DOWN'], 1180]]);
     assert.deepEqual(JSON.parse(await readFile(join(dir, 'review/review.json'), 'utf8')).results[0].live, result.results[0]!.live);
   } finally {
@@ -146,4 +148,60 @@ test('`rayner init --machine` writes a scene that `rayner review` passes as writ
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('liveStart reaches earlier model states through real buttons and survives links and Reset', options, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-live-start-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    const input = lamp(false);
+    assert.ok(input.includes('views:[picture],runTime:0.3'));
+    await writeFile(join(dir, 'scene.ts'), input.replace('views:[picture],runTime:0.3', "views:[picture],runTime:0.3,liveStart:'start'"));
+    const project = await collectProject(dir, { write: false });
+    await buildExplainer(project, join(dir, 'scene.html'));
+    server = await serve(dir, 0, 'scene.html');
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    await page.goto(server.url + '/scene.html?step=press');
+    await page.waitForSelector('.live:not([hidden])');
+    assert.equal(await page.locator('[data-event=DOWN]').getAttribute('aria-disabled'), 'true', 'the model starts off although the guided picture ended dim');
+    await page.getByRole('button', { name: 'Brighter', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP');
+    await page.getByRole('button', { name: 'Brighter', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP,UP');
+    const link = page.url();
+    assert.equal(new URL(link).searchParams.get('sent'), 'UP,UP');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP,UP');
+    assert.equal(await page.locator('[data-event=UP]').getAttribute('aria-disabled'), 'true');
+    await page.getByRole('button', { name: 'Reset: the step’s own picture', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === '');
+    assert.equal(new URL(page.url()).searchParams.has('sent'), false);
+    assert.equal(await page.locator('[data-event=DOWN]').getAttribute('aria-disabled'), 'true');
+  } finally {
+    await browser.close(); server?.close(); await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('statecharts live pictures read whole on phones in both standalone and framed reviews', options, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-statecharts-phone-'));
+  try {
+    const project = await collectProject(join(ROOT, 'scenes/explainers/statecharts'), { write: false });
+    const result = await reviewScene(project, directory);
+    assert.equal(result.scenarios, 1);
+    assert.equal(result.liveStateWidths, 20);
+    assert.equal(result.framedLiveStateWidths, 10);
+    const scenario = result.results[0]!;
+    const liveSteps = [...scenario.steps.filter(s => s.width === 390), ...scenario.framedSteps]
+      .filter(s => s.step === 'parent' || s.step === 'frother');
+    assert.equal(liveSteps.length, 4);
+    for (const step of liveSteps) {
+      assert.equal(step.views, 1);
+      assert.ok(step.minimumLabelPxWholeStage !== null && step.minimumLabelPxWholeStage >= 12);
+      assert.deepEqual(step.partiallyVisibleLabels, []);
+    }
+    for (const state of [...scenario.live!, ...scenario.framedLive]) {
+      assert.ok(state.minimumLabelPx1280 !== null && state.minimumLabelPx1280 >= 44.79);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

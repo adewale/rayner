@@ -106,15 +106,24 @@ const ARI_CODE = [
   '        return True',
 ];
 // letsencrypt/boulder 4e1779d, wfe2/wfe.go:2290–2297 (validateReplacementOrder) and
-// 2487–2489 (NewOrder); comments shortened.
+// 2487–2489 (NewOrder); comments shortened, expressions wrapped for the phone.
 const EXEMPT_CODE = [
-  '// boulder wfe2/wfe.go:2290–2297, validateReplacementOrder',
-  '// exempt only if it replaces a certificate and is inside its window',
-  'renewalInfo, err := wfe.determineARIWindow(ctx, replaces)',
-  'return replaces, renewalInfo.SuggestedWindow.IsWithin(wfe.clk.Now()), nil',
+  '// boulder wfe2/wfe.go:2290–2297',
+  '// validateReplacementOrder',
+  '// exemption: replacement in its ARI window',
+  'renewalInfo, err := wfe.determineARIWindow(',
+  '    ctx, replaces)',
+  'return replaces,',
+  '    renewalInfo.SuggestedWindow.',
+  '        IsWithin(wfe.clk.Now()), nil',
+];
+// The same Boulder revision, wfe2/wfe.go:2487–2489 (NewOrder).
+const ORDER_LIMIT_CODE = [
   '// wfe2/wfe.go:2487–2489, NewOrder',
   'if !isARIRenewal {',
-  '    refundLimits, err = wfe.checkNewOrderLimits(ctx, acct.ID, idents, isRenewal)',
+  '    refundLimits, err =',
+  '        wfe.checkNewOrderLimits(',
+  '            ctx, acct.ID, idents, isRenewal)',
 ];
 
 interface Bar {
@@ -630,7 +639,9 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile and names no predecessor, so its renewals are checked. The renewal window and this exemption are different: following the window does not itself name the replaced certificate. A refused order costs nothing; an issued certificate takes a token.`,
     });
     await s.clear();
-    await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), size: 0.22 });
+    // The two functions occupy separate phone views, with each source line whole.
+    await s.code(EXEMPT_CODE, { at: [-7.55, -0.65, -0.1, 3.25], size: 0.22 });
+    await s.code(ORDER_LIMIT_CODE, { at: [0.1, -0.65, 7.55, 3.25], size: 0.22 });
     this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
     await cardOf(
       (st) => {

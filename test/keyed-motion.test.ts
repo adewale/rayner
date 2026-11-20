@@ -5,7 +5,8 @@
 // (issue #101, items 12 and 14); each fails here, and the scene as fixed passes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Group, Rectangle, Scene, keyed } from '../src/index.ts';
+import { Group, Rectangle, Scene, Text, Line, Succession, keyed } from '../src/index.ts';
+import { choreograph } from '../explain/choreograph.ts';
 import type { Vec } from '../src/index.ts';
 import { KeyedMotionSink, keyedMotionLine } from '../src/internal.ts';
 import { loadFonts } from '../explain/testing.ts';
@@ -17,6 +18,54 @@ import { motionFixture } from './fixtures/motion/scene.ts';
 import type { Defect } from './fixtures/motion/scene.ts';
 
 await loadFonts();
+
+test('travelling duplicate words fail, while a separate readable label does not', async () => {
+  const findings = async (labelY: number, mask: 'none' | 'back' | 'front' | 'translucent' = 'none') => {
+    class Duplicates extends Scene {
+      override async construct() {
+        await this.step('send');
+        const current = new Group(keyed(new Text('TOKEN', {fontSize: 0.6}).moveTo([0, labelY]), 'rest'));
+        this.add(current);
+        const c = choreograph(current, current.copy());
+        const trip = c.travel('token', new Text('TOKEN', {fontSize: 0.6}), new Line([-2,0],[2,0]), {appear: 0.2, move: 2, leave: 0.2});
+        if(mask!=='none'){
+          const token=current.children.find(m=>m.key==='token')!;
+          const paper=new Rectangle({width:3,height:1,fill:'#fff',stroke:'none',fillOpacity:mask==='translucent'?.5:1});
+          current.insert(0,paper);
+          if(mask==='back'||mask==='translucent')current.insert(0,token);
+        }
+        await this.play(new Succession([trip.appear, trip.move, trip.leave]));
+      }
+    }
+    const sink = new KeyedMotionSink();
+    await new Duplicates(sink).run();
+    return sink.finish();
+  };
+  assert.ok((await findings(0)).some(f => f.kind === 'duplicate words'));
+  assert.ok(!(await findings(2)).some(f => f.kind === 'duplicate words'));
+  assert.ok(!(await findings(0,'back')).some(f=>f.kind==='duplicate words'),'an opaque foreground plate masks the approaching word');
+  assert.ok((await findings(0,'front')).some(f=>f.kind==='duplicate words'),'a token drawn over the fixed copy still rejects');
+  assert.ok((await findings(0,'translucent')).some(f=>f.kind==='duplicate words'),'a translucent plate cannot erase duplicate ink');
+});
+
+test('motion over five seconds fails without counting trailing reading holds', async () => {
+  const findings = async (duration: number) => {
+    class Long extends Scene {
+      override async construct() {
+        await this.step('move');
+        const part = keyed(new Rectangle({width: 1, height: 1}), 'part');
+        this.add(part);
+        await this.play(part.animate.shift([2,0]), {runTime: duration});
+        await this.wait(8);
+      }
+    }
+    const sink = new KeyedMotionSink();
+    await new Long(sink).run();
+    return sink.finish();
+  };
+  assert.ok((await findings(6)).some(f => f.kind === 'long transition'));
+  assert.ok(!(await findings(0.5)).some(f => f.kind === 'long transition'));
+});
 
 /** What the check finds in the fixture with `defect`: in every transition a reader can press, and in the run's plays. */
 async function found(defect: Defect): Promise<{ pressed: string[]; played: string[] }> {
@@ -32,14 +81,8 @@ test('the fixture as the motion audit left it passes: a ticket that flies, words
   assert.deepEqual(await found('none'), { pressed: [], played: [] });
 });
 
-test('deliberate defect: a transition squeezed into a shorter run time snaps its marker, a jump only a press shows', async () => {
-  const { pressed, played } = await found('jump');
-  // Every press from every reachable state where it is squeezed, named by its events, the part, the time and the distance.
-  assert.equal(pressed.length, 2, pressed.join('\n'));
-  for (const [i, at] of ['after send, send', 'after send, send, send'].entries())
-    assert.match(pressed[i]!, new RegExp(`^${at}: jump: part “marker” at 0\\.\\d{3} s moved 1\\.\\d\\d units in (one 0\\.033 s frame|two 0\\.033 s frames)(, \\d+\\.\\d× the frames beside it| and not at all in the frames beside it); fix: carry it the whole way`));
-  // The run's own send is the first, which is not squeezed: nothing in the run shows the defect.
-  assert.deepEqual(played, []);
+test('a squeezed transition is refused with its event and both durations before it can snap', async () => {
+  await assert.rejects(found('jump'), /machine.send\("send"\): authored transition lasts 2.300 s but the event allows 0.400 s/);
 });
 
 test('deliberate defect: words no event changes going out and coming back mid-flight are flicker', async () => {

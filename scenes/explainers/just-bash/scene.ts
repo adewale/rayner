@@ -374,7 +374,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       next: (st, event) => sessionNextShell(having(st, 'shells', 'cats'), event),
       bound: (st, event) => scriptBound(having(st, 'shells', 'cats'), event),
       views: [chain],
-      runTime: ({ event }) => (event === 'RUN_PIPELINE' ? 1.6 : 1.2),
+      runTime: ({ event }) => (event === 'RUN_PIPELINE' ? 2.15 : 1.3),
       transition: Object.fromEntries(
         BASH_EVENTS.map((event) => [event, (t: Transition<BashState, BashEvent>) => commandRuns(t.choreograph(chain))]),
       ),
@@ -399,7 +399,8 @@ function commandRuns(c: Choreography): Animation | AnimationGroup {
   const moves: (Animation | AnimationGroup)[] = [];
   for (const key of added.filter((k) => /^shell:\d+:box$/.test(k))) {
     const i = Number(key.split(':')[1]);
-    moves.push(new AnimationGroup([c.enter(`run:${i}`, { create: true }, { runTime: 0.7 }), c.enter(key, { from: `shell:${i - 1}:box` }, { runTime: 0.7 })]));
+    moves.push(c.enter(`run:${i}`, { create: true }, { runTime: 0.7 }));
+    moves.push(c.enter(key, { from: `shell:${i - 1}:box` }, { runTime: 0.7 }));
     moves.push(new AnimationGroup([c.enter(`shell:${i}:name`, {}, { runTime: 0.35 }), c.enter(`shell:${i}:files`, {}, { runTime: 0.35 })]));
   }
   for (const key of added.filter((k) => k.startsWith('cat:'))) {

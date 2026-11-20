@@ -320,7 +320,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
       next: (st, event) => signInNext(signIn(st), event),
       views: [sheet],
       // A token request travels there and its answer back (2.6 s); any other message travels once (1.4 s).
-      runTime: ({ event }) => (event.endsWith('REDEEMS') ? 2.6 : 1.4),
+      runTime: ({ event }) => (event.endsWith('REDEEMS') ? 2.7 : 1.55),
       transition: Object.fromEntries(
         SIGN_IN_EVENTS.map((event) => [
           event,

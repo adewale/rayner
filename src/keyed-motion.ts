@@ -41,8 +41,9 @@ import { mergeLeaves, mobjectId, paintsFill, paintsStroke } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { playsBegun } from './scene.ts';
 import { FRAME } from './units.ts';
+import { intersect } from './box.ts';
 
-export type KeyedMotionKind = 'jump' | 'flicker' | 'early words' | 'covers' | 'small words';
+export type KeyedMotionKind = 'jump' | 'flicker' | 'early words' | 'covers' | 'small words' | 'duplicate words' | 'long transition';
 /** One defect: in which transition, which part, when (seconds from the transition's first frame), and how much. */
 export interface KeyedMotionFinding {
   kind: KeyedMotionKind;
@@ -62,6 +63,8 @@ export interface KeyedMotionFinding {
 
 /** The thresholds, each one what a reader perceives, in stage units (16 wide) and seconds. */
 export const KEYED_MOTION_LIMITS = {
+  /** A single authored transition may move for at most five seconds; trailing caption holds do not count. */
+  duration: 5,
   /** A part redrawn as new mobjects whose boxes overlap by this much (intersection over union) is handed off in place, not moved. */
   handoff: 0.5,
   /** A part counts as on screen at this alpha; fainter motion is not a visible jump. */
@@ -329,6 +332,7 @@ const moved = (a: Box, b: Box) => {
 const samePlace = (a: Box, b: Box, tol: number) =>
   moved(a, b) <= tol && Math.abs(a[2] - a[0] - (b[2] - b[0])) <= tol && Math.abs(a[3] - a[1] - (b[3] - b[1])) <= tol;
 const ms = (t: number) => Math.round(t * 1000) / 1000;
+const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
 const fmt = (n: number, d = 2) => n.toFixed(d);
 /** The distance between two boxes: 0 when they touch or overlap. */
 const gap = (a: Box, b: Box) => Math.hypot(Math.max(0, a[0] - b[2], b[0] - a[2]), Math.max(0, a[1] - b[3], b[1] - a[3]));
@@ -445,6 +449,57 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
     }
   // A token is named by its outermost travelling part, not by the words riding on it.
   const travel = trips.filter((tr) => !trips.some((o) => tr.p.startsWith(`${o.p}/`) && o.from <= tr.to && tr.from <= o.to));
+  // A travelling word must not be drawn over its stationary copy for several frames. Exact
+  // coincident ink is a seamless handoff, not a second readable word.
+  for (const tr of travel) {
+    let since: number | null = null;
+    for (let i = tr.start; i <= tr.end; i++) {
+      const part = at(i, tr.p), leaves = frames[i]!.leaves;
+      let duplicate = false;
+      if (part) for (let a = part.from; a < part.to && !duplicate; a++) {
+        const moving = leaves[a]!;
+        if (!moving.text?.trim() || moving.a < L.readable) continue;
+        for (let b = 0; b < leaves.length; b++) {
+          if (b >= part.from && b < part.to) continue;
+          const other = leaves[b]!;
+          if (other.a < L.readable || other.text !== moving.text) continue;
+          const overlap = intersect(moving.box, other.box);
+          if (!overlap) continue;
+          const overlapArea=area(overlap), share=overlapArea/Math.max(1e-9,Math.min(area(moving.box),area(other.box)));
+          if(share<=L.cover||share>=0.999)continue;
+          // Both words need visible ink. An opaque foreground plate can mask the
+          // moving copy before the fixed label, as a value arrives behind its tray.
+          const masked = a < b && leaves.some((mask, index) => index > a && index < b && !mask.text && mask.a >= 0.99 &&
+            !mask.paint.startsWith('/') && mask.poly && area(intersect(mask.box,overlap)??[0,0,0,0])>=0.99*overlapArea &&
+            inkIn(mask.poly,overlap) >= 0.99 * overlapArea);
+          if (masked) continue;
+          duplicate = true; break;
+        }
+      }
+      if (!duplicate) since = null;
+      else {
+        since ??= frames[i]!.t;
+        if (frames[i]!.t - since >= L.covering - 1e-8) {
+          out.push({kind: 'duplicate words', segment, key: named(tr.p), path: tr.p, t: ms(since - t0), value: ms(frames[i]!.t - since),
+            detail: 'travelling text overlaps another visible copy of the same words', fix: 'hide the resting copy until the travelling copy has landed'});
+          break;
+        }
+      }
+    }
+  }
+  if (frames.at(-1)!.t - t0 > L.duration) {
+    let lastChange = t0;
+    for (let i = 1; i < frames.length; i++) {
+      const before = frames[i - 1]!.parts, after = frames[i]!.parts;
+      if (before.size !== after.size || [...after].some(([p, part]) => {
+        const previous = before.get(p);
+        return !previous || previous.a !== part.a || !samePlace(previous.box, part.box, 1e-6) || previous.look !== part.look;
+      })) lastChange = frames[i]!.t;
+    }
+    const duration = lastChange - t0;
+    if (duration > L.duration + 2 * dt) out.push({kind: 'long transition', segment, key: 'transition', path: 'transition', t: 0, value: ms(duration),
+      detail: `keeps changing for ${fmt(duration)} s, over the ${L.duration} s ceiling`, fix: 'shorten or split the authored transition; leave caption reading time as a hold'});
+  }
 
   for (const p of paths) {
     const key = named(p);

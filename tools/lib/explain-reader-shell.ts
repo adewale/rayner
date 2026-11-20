@@ -40,7 +40,16 @@ export function readerShellProblems(e: ReaderShell): string[] {
   const stepper = document.querySelector<HTMLElement>('.stepper');
   const kicker = lede?.querySelector<HTMLElement>('.kicker');
   if (lede && caption && stepper && kicker) {
-    const boundary = controls && controls.getBoundingClientRect().height > 0 ? controls : stepper;
+    const navigation = controls && controls.getBoundingClientRect().height > 0 ? controls : stepper;
+    const live = document.querySelector<HTMLElement>('.player > .live:not([hidden])');
+    let boundary = navigation;
+    // Phone events intentionally precede the prose. They occupy this space; still judge the
+    // empty gaps on both sides instead of treating the whole controls row as a blank gap.
+    if (live?.checkVisibility() && live.getBoundingClientRect().height > 0) {
+      if (live.getBoundingClientRect().top - navigation.getBoundingClientRect().bottom > 24)
+        problems.push('empty space separates navigation from the live controls');
+      boundary = live;
+    }
     if (kicker.getBoundingClientRect().top - boundary.getBoundingClientRect().bottom > 24)
       problems.push('empty space separates navigation from the step heading');
     if (caption.getBoundingClientRect().top - lede.getBoundingClientRect().bottom > 18)

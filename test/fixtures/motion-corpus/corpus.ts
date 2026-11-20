@@ -190,7 +190,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-collect-too-long', chapter: 'poppy-sign-in', kind: 'too long', commit: '3038108f', method: 'adapted', events: ['collect'],
     what: 'A code coming back with tokens took 4.8 s; the fix brought it to 3.3 s.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '(a.last?.kind === \'tokens\' ? 3.4 : 1.8)', replace: '(a.last?.kind === \'tokens\' ? 4.8 : 1.8)' },
+      { file: 'poppy-sign-in/scene.ts', find: '(a.last?.kind === \'tokens\' ? 4.45 : 2.8)', replace: '(a.last?.kind === \'tokens\' ? 4.8 : 2.8)' },
     ],
   },
   {
@@ -213,7 +213,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-ask-squeezed', chapter: 'poppy-sign-in', kind: 'squeezed', commit: '58b06e8e', method: 'adapted', events: ['ask'],
     what: 'The request’s token appeared and left in 0.15 s, inside a 2.2 s runTime its beats overran, so they popped; the fix gives them 0.25 s and the event 2.6 s.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: 'event === \'ask\' ? 2.6 : 1.6', replace: 'event === \'ask\' ? 2.2 : 1.6' },
+      { file: 'poppy-sign-in/scene.ts', find: 'event === \'ask\' ? 4.1 : 2.35', replace: 'event === \'ask\' ? 2.2 : 2.35' },
       { file: 'poppy-sign-in/scene.ts', find: 'pass(c, \'request\', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 })', replace: 'pass(c, \'request\', request(), toAddress(seal), { appear: 0.15, move: 0.9, leave: 0.15 })' },
       { file: 'poppy-sign-in/scene.ts', find: 'pass(c, \'request\', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 })', replace: 'pass(c, \'request\', request(), toDesk(seal), { appear: 0.15, move: 0.6, leave: 0.15 })' },
     ],
@@ -397,8 +397,8 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-words-dissolve', chapter: 'poppy-conversations', kind: 'glyph dissolve', commit: '0a887ad4', method: 'reverted', events: [],
     what: 'Two steps’ plain view.sync() morphed the ledger’s words glyph by glyph, so they dissolved into rows of dots (#101 item 12); the fix matches words whole.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8 })' },
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6 })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8, match: {by:\'key\',text:\'glyphs\'} })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6, match: {by:\'key\',text:\'glyphs\'} })' },
     ],
   },
   {
@@ -501,7 +501,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     edits: [
       { file: 'poppy-discovery/scene.ts', find: 'route, { appear: 0.25, move: 0.6, leave: 0.25 });', replace: 'route, { appear: 0.15, move: 0.6, leave: 0.15 });\n      const barrier = bring(c, [\'rail:barrier\']) as Animation[];' },
       { file: 'poppy-discovery/scene.ts', find: '        ...token,\n        c.rest({ runTime: 0.35 }),', replace: '        ...token,\n        ...together(barrier),\n        c.rest({ runTime: 0.35 }),' },
-      { file: 'poppy-discovery/scene.ts', find: 'after.ran === 1 ? 1.5 : after.ran === 2 ? 0.75 : 1.0', replace: 'after.ran === 1 ? 1.3 : after.ran === 2 ? 0.8 : 1.0' },
+      { file: 'poppy-discovery/scene.ts', find: 'after.ran === 1 ? 1.95 : after.ran === 2 ? 1.35 : 1.55', replace: 'after.ran === 1 ? 1.3 : after.ran === 2 ? 0.8 : 1.0' },
     ],
   },
   {

@@ -23,7 +23,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes, paints, paintsStroke, viewOf, dryRun, FRAME, STAGE_BOX, zoomOf } from '../src/internal.ts';
-import { labelOf, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading } from '../explain/internal.ts';
+import { labelOf, labelCompanions, labelPaintBox, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading } from '../explain/internal.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 
@@ -51,7 +51,7 @@ export interface LayoutLabel {
 /** What a step's resting picture holds, for framing it; boxes and sizes in the camera's view units. */
 export interface StepLayout {
   /** Authored comparison, independent of incidental changed code or notes. */
-  opening?: { box: Box; labels: LayoutLabel[] };
+  opening?: { box: Box; labels: LayoutLabel[]; zoom?: number };
   /**
    * What changed or received fresh helper emphasis, in the camera's view units, as
    * separate parts in reading order (rows top to bottom, each left to right); empty
@@ -185,6 +185,7 @@ function emphasised(leaves: readonly Leaf[]): {box: Box; painted: Box}[] {
 /** Every readable label in the camera's view, in its units: a label's size grows with the camera's zoom. */
 function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
   const out: LayoutLabel[] = [];
+  const byKey = new Map(scene.familyMembers().filter(m => m.key).map(m => [m.key!, m]));
   const view = viewOf(scene),
     zoom = zoomOf(view);
   const walk = (m: Mobject, opacity: number, clip: Box) => {
@@ -195,7 +196,8 @@ function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
     const label = labelOf(m);
     if (label?.text.trim() && (m.style.drawFraction ?? 1) >= 0.95) {
       if (only && !only.has(m)) return;
-      const b = m.box(),
+      const parts = [m, ...labelCompanions(m, byKey)];
+      const b = unionBoxes([m.box(), labelPaintBox(parts)]),
         seen = b && meet(b, c);
       if (seen)
         out.push({
@@ -332,13 +334,17 @@ export function layoutSink(): { sink: LayoutSink; layouts: Map<string, StepLayou
       }
       const box = subjectLeaves.reduce<Box | null>((b, l) => union(b, l.box), null);
       const labels = labelsOf(scene);
-      const subjectLabels = labelsOf(scene, subjects);
+      // Labels may be siblings of their paper/box, rather than descendants of it.
+      const subjectBoxes = openingOf(scene).flatMap(m => m.box() ? [toView(m.box()!, view)] : []);
+      const subjectLabels = [...labelsOf(scene, subjects)];
+      for (const label of labels) if (subjectBoxes.some(b => b[0] <= label.box[0] && b[1] <= label.box[1] && b[2] >= label.box[2] && b[3] >= label.box[3]) &&
+          !subjectLabels.some(l => l.size === label.size && l.box.every((v, i) => v === label.box[i]))) subjectLabels.push(label);
       layouts.set(step.name, {
         // A fresh focus can name unchanged artwork. Keep its painted bounds
         // in the tour even when only a nearby label changed this step.
         ...partsOf([...changes, ...intent]),
         labels,
-        ...(box ? { opening: { box: toView(box, view), labels: subjectLabels } } : {}),
+        ...(box ? { opening: { box: toView(box, view), labels: subjectLabels, ...(openingOf(scene).zoom === undefined ? {} : {zoom: openingOf(scene).zoom}) } } : {}),
         ...(stress.length ? { stress } : {}),
       });
       before = leaves;
@@ -454,10 +460,10 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   // Declared subjects can stay unchanged while another part of the picture changes.
   // Their smaller labels still determine whether the opening needs enlargement.
   const read = [...labelsToRead(layout), ...(layout.opening?.labels ?? [])];
-  if (!read.length) return whole;
+  if (!read.length && !layout.opening?.zoom) return whole;
   const { s, ox, oy } = stageScale(w, h);
   const smallest = Math.min(...read.map((l) => l.size));
-  const reading = Math.min(max, Math.max(1, READ_PX / (smallest * s)));
+  const reading = Math.min(max, Math.max(1, layout.opening?.zoom ?? 1, READ_PX / (smallest * s)));
   if (reading < 1 + 1e-9) return whole;
   const bounds = STAGE_BOX,
     painted = layout.painted ?? layout.parts,
@@ -466,19 +472,20 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     vh = h / (k * s);
   // Centre the full picture in any dimension where it fits; otherwise put the
   // region's top-left corner at the stage's top-left before clamping.
-  const fitsTall = k * FRAME.h * s <= h + 1e-9,
-    fitsWide = k * FRAME.w * s <= w + 1e-9;
-  const zoomOn = ([left, , , top]: Box) =>
-    clampZoom(
+  const zoomOn = ([left, , , top]: Box, scale = k) => {
+    const fitsTall = scale * FRAME.h * s <= h + 1e-9,
+      fitsWide = scale * FRAME.w * s <= w + 1e-9;
+    return clampZoom(
       {
-        k,
-        x: fitsWide ? (w - k * FRAME.w * s) / 2 - k * ox : -k * (ox + (left - STAGE_BOX[0]) * s),
-        y: fitsTall ? (h - k * FRAME.h * s) / 2 - k * oy : -k * (oy + (STAGE_BOX[3] - top) * s),
+        k: scale,
+        x: fitsWide ? (w - scale * FRAME.w * s) / 2 - scale * ox : -scale * (ox + (left - STAGE_BOX[0]) * s),
+        y: fitsTall ? (h - scale * FRAME.h * s) / 2 - scale * oy : -scale * (oy + (STAGE_BOX[3] - top) * s),
       },
       w,
       h,
       max,
     );
+  };
   // Clamping at the frame's edge can move a region; what a close-up shows is the view it lands on.
   const views = tourRegions(painted, vw, vh, bounds).map((r) => {
     const zoom = zoomOn(r);
@@ -507,10 +514,15 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   // the whole label fits a view. Keep the original opening and add a centred view
   // for each readable label that otherwise has no complete view.
   const extra: typeof views = [];
-  for (const { box } of read) {
+  for (const { box, size } of read) {
+    // Large titles need a wider stop than small neighbouring labels. Keep the
+    // detailed grid and frame a large label at its own readable scale.
+    const scale = box[2] - box[0] > vw || box[3] - box[1] > vh
+      ? Math.min(k, Math.max(1, READ_PX / (size * s))) : k;
+    const labelWidth = w / (scale * s), labelHeight = h / (scale * s);
     if (
-      box[2] - box[0] > vw ||
-      box[3] - box[1] > vh ||
+      box[2] - box[0] > labelWidth ||
+      box[3] - box[1] > labelHeight ||
       box[0] < bounds[0] ||
       box[1] < bounds[1] ||
       box[2] > bounds[2] ||
@@ -518,9 +530,9 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     )
       continue;
     const complete = (r: Box) => inside(box[0], box[1], r) && inside(box[2], box[3], r);
-    if ([...views, ...extra].some((v) => complete(v.box))) continue;
-    for (const region of tourRegions([box], vw, vh, bounds)) {
-      const zoom = zoomOn(region),
+    if ([...views, ...extra].some((v) => complete(v.box) && v.zoom.k >= scale - 1e-6)) continue;
+    for (const region of tourRegions([box], labelWidth, labelHeight, bounds)) {
+      const zoom = zoomOn(region, scale),
         shown = viewBox(zoom, w, h);
       if (complete(shown)) extra.push({ zoom, box: shown });
     }
@@ -534,8 +546,8 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   if (layout.opening) {
     const box = meet(pad(layout.opening.box, PAD), STAGE_BOX) ?? layout.opening.box,
       size = layout.opening.labels.length ? Math.min(...layout.opening.labels.map((l) => l.size)) : Infinity,
-      minimum = Math.max(1, READ_PX / (size * s)),
-      fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s));
+      fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s)),
+      minimum = Math.max(1, Math.min(layout.opening.zoom ?? 1, fit, max), READ_PX / (size * s));
     if (minimum <= Math.min(max, fit) + 1e-9) {
       const [cx, cy] = center(box),
         x = ox + (cx - STAGE_BOX[0]) * s,
@@ -551,7 +563,10 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   for (const z of [...opening, views[open]!.zoom, ...first, ...rest])
     if (!zooms.some((o) => Math.abs(o.k - z.k) < 1e-6 && Math.abs(o.x - z.x) < 1e-6 && Math.abs(o.y - z.y) < 1e-6))
       zooms.push(z);
-  return zooms;
+  const complete: Zoom[] = [];
+  for (const zoom of zooms)
+    if (!complete.some(z => Math.abs(z.k-zoom.k) < 1e-6 && Math.abs(z.x-zoom.x) < 1e-6 && Math.abs(z.y-zoom.y) < 1e-6)) complete.push(zoom);
+  return complete;
 }
 /**
  * A narrow stage's height over its width for a scenario whose steps have these layouts, on a

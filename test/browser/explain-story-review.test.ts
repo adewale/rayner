@@ -441,7 +441,7 @@ test('served review rejects hiding the blue artwork revealed by removing a dupli
           });
         }, width);
         await assert.rejects(reviewStoryScenario(page, server.url + '/scene.html', project.scenarios[0]!),
-          /after: changed: blue has hidden or clipped ink/);
+          /after(?: at \d+px)?: changed: blue has hidden or clipped ink/);
         assert.equal(await page.evaluate(() =>
           (window as unknown as { visibleBeforePoison: boolean }).visibleBeforePoison), true, `${width}: visible blue before poison`);
         assert.equal(await page.locator('.stage svg:not(.leaving) path[fill="blue"]').evaluate(e => getComputedStyle(e).opacity),
@@ -650,7 +650,7 @@ test(
           ...claims,
           { step: 'route', targets: [{ key: 'window-route', paint: 'stroke' }] },
         ]),
-        /route: window-route has hidden or clipped ink/,
+        /route(?: at \d+px)?: window-route has hidden or clipped ink/,
         'an explicit arrow claim requires the whole route',
       );
       const outside = project.scenarios.find((v) => v.values.route === 'outside')!;
@@ -991,7 +991,7 @@ test('served review rejects hidden reordered and duplicated layers despite a cha
           });
         }, index);
         await assert.rejects(reviewStoryScenario(poisoned, server.url + '/layers.html', scenario),
-          /after: changed: layer-.* has hidden or clipped ink/, scenario.values.mode);
+          /after(?: at \d+px)?: changed: layer-.* has hidden or clipped ink/, scenario.values.mode);
         assert.equal(await poisoned.evaluate(() =>
           (window as unknown as { visibleBeforePoison: boolean }).visibleBeforePoison), true,
         'each defect starts from actually painted ink');
@@ -1103,12 +1103,22 @@ test('traffic policy reviews every scenario and step while binding its compariso
     assert.equal(compared, 12, 'all six comparisons at both widths');
     assert.ok(readableLabels >= 96, 'both policy cards checked at every width');
     await page.close();
-    // Omitting the authored caption contract reproduces the original false
-    // obligation: an old diagram becomes visible when its notes are removed.
+    // Without the caption contract, revealed diagram ink becomes a fallback
+    // obligation. The improved tour can now show it; hiding it must still reject.
     const oldInference = await browser.newPage();
     try {
+      const inferredClaims = claims.filter(c => c.step !== 'compare');
+      const inferred = (await storyFrames(project.scenarios[0]!.Scene, inferredClaims)).get('compare')!;
+      const revealed = inferred.targets.find(t => t.name === 'changed: drawing')!;
+      assert.ok(revealed?.indices.length, 'the fallback really requires revealed diagram ink');
+      await oldInference.addInitScript(index => document.addEventListener('rayner:step', e => {
+        if (innerWidth !== 1180 || (e as CustomEvent).detail.step !== 'compare') return;
+        const svg = document.querySelector('.stage svg:not(.leaving)');
+        const paths = svg && [...svg.children].filter(e => e.tagName.toLowerCase() !== 'defs');
+        if (paths) (paths[index] as SVGElement).style.opacity = '0';
+      }), revealed.indices[0]!);
       await assert.rejects(reviewStoryScenario(oldInference, url, project.scenarios[0]!, claims.filter(c => c.step !== 'compare')),
-        /compare.*changed: drawing is missing from the close-up tour/);
+        /compare.*changed: drawing.*(?:hidden or clipped ink|missing from the close-up tour)/);
     } finally {await oldInference.close();}
     const scenario = project.scenarios[0]!;
     const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));

@@ -58,6 +58,9 @@ before(async () => {
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
+  const camera = await collectProject('test/fixtures/camera-composition', { write: false });
+  projects.set('camera-composition', camera);
+  await buildExplainer(camera, join(folder, 'camera-composition.html'));
   // A real scene counts executions without adding player hooks or changing its artwork; a run after
   // the first (a step rendered on demand) can wait as it reaches step-1, as an asynchronous render does.
   const probe=join(folder,'playback-probe');await mkdir(probe);
@@ -484,6 +487,30 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
   });
   assert.equal(pages, shellFixtures.length);
   assert.equal(languages.size,2,'English and French both visited');
+});
+
+test('reader shell recognizes phone event controls without accepting empty gaps around them', options, async () => {
+  const { PRODUCT } = await import('../../scenes/explainers/catalog.ts');
+  const project = projects.get('token-bucket')!, scenario = defaultScenario(project);
+  const step = [...scenario.live!.keys()][0]!;
+  const contract = { chrome: readerChrome(chromeFor(project.Scene.meta?.lang)), home: PRODUCT.home,
+    scenarios: project.Scene.settings?.length ?? 0, steps: teachingSpecs(project, scenario.values).map(s => s.step) };
+  await readerPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' },
+    `${embed}/token-bucket.html?${new URLSearchParams({ ...scenario.values, step })}`, async page => {
+      const row = page.locator('.player > .live:not([hidden])');
+      await row.waitFor();
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+      // Each real gap must still fail under the page's CSP; controls are content, not a waiver.
+      await row.evaluate(el => { el.style.marginTop = '200px'; });
+      assert.ok((await page.evaluate(readerShellProblems, contract)).includes('empty space separates navigation from the live controls'));
+      await row.evaluate(el => { el.style.marginTop = ''; el.style.marginBottom = '200px'; });
+      assert.ok((await page.evaluate(readerShellProblems, contract)).includes('empty space separates navigation from the step heading'));
+      await row.evaluate(el => { el.style.marginBottom = ''; });
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.waitForSelector('.rail-body > .live:not([hidden])');
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+    });
 });
 // player-guidance G1: under the caption, what the step changed of the state the author watches.
 const changesOf = (page: Page) =>
@@ -1314,7 +1341,7 @@ test('the neutral tile stays independent of the scenario palette, including befo
 });
 // player-tile T6: the published height at 640 px is the height the loader gives the frame there.
 test('known heights: mr-cache measures three heights above the floor, and the loader at 640 px settles the frame at heights["640"] within 2 px', options, async () => {
-  const { measureEmbed, embedSizeProblems } = await import('../../tools/repo/lib/explain-embed-size.ts');
+  const { measureEmbed, embedSizeProblems } = await import('../../tools/lib/explain-embed-size.ts');
   const size = await measureEmbed(browser, embed, 'mr-cache.html');
   assert.deepEqual(embedSizeProblems(size), [], JSON.stringify(size));
   // Natural captions can make a phone page shorter; the settled heights and loader agreement are the contract.
@@ -1413,8 +1440,8 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
   // Heading and caption lengths and tour controls cannot shift a path while the reader steps:
   // the heading keeps the tallest heading's height, its line the tallest title's place, and the
   // caption the tallest caption's height, so what follows the caption does not move either.
-  // A narrow page's prediction or live row follows the caption's words rather than that reserve
-  // (embed.css), so on those steps only the stepper and the caption's top are held.
+  // A narrow live row precedes the words; normalize its measured height when comparing prose
+  // positions. Interactive captions use their own height rather than the tallest-caption reserve.
   // Opening the separate source disclosure deliberately changes the page's height.
   let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
@@ -1444,14 +1471,16 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
           }, { before, step, i });
           await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
           if (await page.locator('.lede .line').isVisible())
-            path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY).toFixed(1)));
+            path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY - (document.querySelector('.player > .live:not([hidden])')?.getBoundingClientRect().height ?? 0)).toFixed(1)));
           const { head, bottom, rowFollows } = await page.evaluate(() => {
             const top = (s: string) => document.querySelector(s)!.getBoundingClientRect().top + scrollY;
             const caption = document.querySelector('.words > .caption')!.getBoundingClientRect();
+            const live = document.querySelector('.player > .live:not([hidden])');
+            const liveHeight = live?.getBoundingClientRect().height ?? 0;
             return {
-              head: [top('.stepper'), caption.top + scrollY].map((v) => v.toFixed(1)).join(' '),
-              bottom: (caption.bottom + scrollY).toFixed(1),
-              rowFollows: !!document.querySelector('.words > .caption ~ .predict:not([hidden]), .words > .caption ~ .live:not([hidden])'),
+              head: [top('.stepper'), caption.top + scrollY - liveHeight].map((v) => v.toFixed(1)).join(' '),
+              bottom: (caption.bottom + scrollY - liveHeight).toFixed(1),
+              rowFollows: !!live || !!document.querySelector('.words > .caption ~ .predict:not([hidden])'),
             };
           });
           path.heads.add(head);
@@ -1622,7 +1651,7 @@ test(
     }
   },
 );
-// The author's camera (lantern's 'begin' step focuses the camera on Mobject and Animation) and the reader's
+// The fixture explicitly frames half the stage, then glides home. The author's camera and the reader's
 // zoom compose: Whole picture is the author's frame, a zoom narrows it, and the camera's glide home in the
 // next step plays under a held zoom.
 test(
@@ -1634,7 +1663,7 @@ test(
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
-      await visitReader(page, embed + '/lantern.html?step=begin');
+      await visitReader(page, embed + '/camera-composition.html?step=focus');
       await quiet(page);
       const rect = (v: string) => v.split(' ').map(Number);
       const home = '-8000 -4500 16000 9000';
@@ -1652,15 +1681,22 @@ test(
       const [cx, cy, cw, ch] = rect(zoomed.camera) as [number, number, number, number],
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
-      // Next plays 'check', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
-      const seen: Painted[] = [];
+      // Next plays 'home', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
+      // Observe in the browser before the click. Polling over CDP can miss the
+      // entire short glide under load even when the browser paints every frame.
+      await page.evaluate(() => {
+        const w=window as unknown as {cameraFrames:Painted[];cameraObserver:MutationObserver};
+        w.cameraFrames=[];
+        w.cameraObserver=new MutationObserver(()=>{
+          const svg=document.querySelector('.stage svg:not(.leaving)');if(!svg)return;
+          const size=svg.parentElement!.getBoundingClientRect();
+          w.cameraFrames.push({view:svg.getAttribute('viewBox')!,camera:svg.getAttribute('data-camera')!,w:size.width,h:size.height});
+        });
+        w.cameraObserver.observe(document.querySelector('.stage')!,{subtree:true,attributes:true,attributeFilter:['viewBox','data-camera']});
+      });
       await page.locator('.stepper').getByRole('button', { name: 'Next step' }).click();
-      const end = Date.now() + 3000;
-      while (Date.now() < end) {
-        const p = await paintedView(page).catch(() => null);
-        if (p && (!seen.length || seen.at(-1)!.view !== p.view)) seen.push(p);
-        if (p?.camera === home && seen.length > 3) break;
-      }
+      await quiet(page);
+      const seen=await page.evaluate(()=>{const w=window as unknown as {cameraFrames:Painted[];cameraObserver:MutationObserver};w.cameraObserver.disconnect();return w.cameraFrames;});
       const gliding = seen.filter((p) => p.camera !== author.camera && p.camera !== home);
       assert.ok(gliding.length > 0, `the camera glide was seen under the zoom: ${seen.map((p) => p.camera).join(' | ')}`);
       for (const p of seen)
@@ -1676,11 +1712,11 @@ test(
       try {
         const small = await phone.newPage();
         small.on('pageerror', (e) => errors.push(e.message));
-        await visitReader(small, embed + '/lantern.html?step=begin');
+        await visitReader(small, embed + '/camera-composition.html?step=focus');
         await quiet(small);
         const p = await paintedView(small);
         assert.equal(p.camera, author.camera, 'the phone shows the same author frame');
-        const layout = (await stepLayouts(projects.get('lantern')!.scenarios[0]!.Scene)).get('begin');
+        const layout = (await stepLayouts(projects.get('camera-composition')!.scenarios[0]!.Scene)).get('focus');
         const want = closeUps(layout, p.w, p.h)[0]!,
           got = zoomOf(p);
         if (want.k === 1) assert.equal(got, null);

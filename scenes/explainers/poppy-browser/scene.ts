@@ -114,7 +114,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       bound,
       end,
       views: [world],
-      runTime: ({ event }) => ({ fetch: 1.8, load: 2.6, authorize: 2.8, submit: 2.8, browse: 1.6, forge: 2.4, phish: 3.0 })[event],
+      runTime: ({ event }) => ({ fetch: 2.2, load: 4.15, authorize: 3.5, submit: 3.35, browse: 1.75, forge: 2.8, phish: 3.35 })[event],
       transition: {
         // The agent's own fetch: a ticket with its seal, and no key, on its own road.
         fetch: (t) => {

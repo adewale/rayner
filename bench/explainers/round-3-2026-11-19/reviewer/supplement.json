@@ -1,0 +1,47 @@
+[
+  {
+    "v": "X",
+    "keyboard": "S Working models\nA FIELD GUIDE TO STATECHARTS\n02 / 15 01 / Repeated arrows\nNow add a power button.\n\nAdd off and POWER_ON. POWER_OFF should work from every one of the four working states.\n\nPredict the cost before seeing the drawing.\n\nHow many POWER_OFF arrows must a flat machine add?\n1 arrow\n4 arrows\n5 arrows\nYes. One from each working state.\nFour possible starting places\nPrediction\nidle\ngrinding\nbrewing\nready\nSTART\nGROUND\nBREWED\nTAKE\nTHE REQUIREMENT\n\nFrom idle, grinding, brewing or ready, POWER_OFF must lead to off.\n\n← Back\nNext →\nStep 2 of 15 · 01 / Repeated arrows"
+  },
+  {
+    "v": "X",
+    "arrowNavigation": "Give the box the arrow."
+  },
+  {
+    "v": "X",
+    "phoneEventLayout": [
+      {
+        "top": 588.84375,
+        "scrollY": 566
+      }
+    ],
+    "overflow": {
+      "scrollWidth": 390,
+      "width": 390
+    }
+  },
+  {
+    "v": "X",
+    "reducedMotion": true
+  },
+  {
+    "v": "Y",
+    "prediction": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 2 of 17\nGive the power button one destination\nHow many POWER_OFF arrows must you add?\n\nThe four working states should all lead to off when POWER_OFF arrives. In a flat machine, an arrow belongs to its source state. Commit to a count before going on.\n\nYour prediction\n\n1 arrow\n4 arrows\n5 arrows\n\nYou chose “1 arrow”. Next shows the answer.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "parentPrediction": "What is a statechart, and why use one instead of a state machine?\nNext\n\nStep 3 of 17\nFour copies leave room for one mistake\nCan one arrow replace the repeated rule?\n\nFour arrows are needed. This hand copy accidentally omitted brewing’s arrow, so POWER_OFF leaves it brewing. That is a drawing error, not an appliance feature. How many power-off arrows could suffice if a box could contain the four working states?\n\nYou predicted “1 arrow”; the answer is “4 arrows”.\n\nYour prediction\n\n1 arrow\n4 arrows\n5 arrows\n\nYou chose “1 arrow”. Next shows the answer.\n\nWhat the picture shows\nAll 17 steps\nTranscript\nRayner\n← → to step · click a segment to jump"
+  },
+  {
+    "v": "Y",
+    "phoneEventLayout": [],
+    "overflow": {
+      "scrollWidth": 390,
+      "width": 390
+    }
+  },
+  {
+    "v": "Y",
+    "reducedMotion": true
+  }
+]

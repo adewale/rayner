@@ -14,7 +14,7 @@ How to put a built page on a website. The contracts it relies on (URL parameters
 
    The `rayner` command comes with the `rayner` package; in a checkout, use `npm run rayner -- review ...`. A host serving the page needs no package. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
 
-2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader.
+2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader. The host loader is about 3.3 KB minified, with a 9 KB test budget. It loads each page's runtime and embedded fonts inside its iframe.
 
 3. Send the headers in `cache.html.headers.json` as HTTP response headers for that file. The CSP pins the page's inline script and style by hash, so a CDN that rewrites or minifies the HTML breaks it; rebuild instead.
    - `frame-ancestors` works only as a response header, never from a `<meta>` tag. The recipe allows any site to frame the page (`frame-ancestors *`); replace `*` with your own origins to restrict it.
@@ -180,3 +180,46 @@ The repository's tests run against local files, so check the deployed page too:
 - Inside a frame, your page's background shows at the tile's corners, and the tile's footer has "Open the explainer".
 - With `--origin`, `<id>.oembed.json` is served as JSON and the page's head links to it.
 - Record the `artifactHash` from the receipt beside the URL you published. For the collection, compare the served bytes with `deployment.json`; valid CSP hashes alone do not prove that the latest reviewed page was deployed.
+
+A loader resize conversation needs an exact HTTP or HTTPS parent origin. A sandboxed host with
+an opaque origin, a file URL, or a raw iframe without `parentOrigin` uses a fixed-height iframe
+with inner scrolling. Set its height explicitly, using the exported `<id>.embed.json` measurements
+at 390, 640 and 900 px as a starting point. Include `allow="fullscreen"` when offering enlargement.
+Load one chapter at a time when a series would otherwise load several complete HTML artifacts;
+each includes its runtime and fonts. Inspect the actual built byte sizes for the selected chapters.
+
+An author-side `rayner review` checks every scenario standalone at phone and desktop widths and
+inside the real loader's iframe at 390 px. Its receipt counts framed steps and sampled live states
+separately, and the `framed/` subdirectories retain their screenshots. Caption subjects declared
+for the standalone page must also be painted in that frame. A scene edited during review fails
+with a changed-source diagnostic. Finish concurrent edits and rerun the review on stable input.
+
+An author-side review also measures the default scenario's initial framed height at 390, 640 and
+900 px and writes an `<page>.embed.json` file beside the retained HTML. With `review --out answer.html`,
+that file is `answer.embed.json`. The receipt records its path and measured sizes. These are initial
+heights for a raw iframe. The loader follows later size changes as the reader moves between steps.
+
+`rayner build scene.ts --out answer.html --embed-sizes` writes the same measured
+`answer.embed.json` directly from a build, using Chromium. Omit `--embed-sizes` for a Node-only
+build. Measurements describe the default scenario's first step with closed disclosures;
+choose enough height for later steps or use the loader when the parent has a usable origin.
+
+### Stage colours and page weight
+
+The chrome's `theme` does not recolour authored artwork. For one stage that reads with both
+chrome themes, choose an opaque stage palette with sufficient internal contrast, such as
+`stage(this,{style:'blueprint'})`, and draw text with `s.look.ink` on `s.look.paper`. Blueprint's
+ink and paper have over 7:1 contrast. Keep the ground opaque and check annotations, muted
+labels and accent colours too. Review the page with both `theme=light` and `theme=dark`.
+`meta.player.paper` optionally carries the palette into the chrome when contrast permits it.
+
+Portable pages carry their runtime and embedded faces. The Poppy pages reported in issue 101
+were 610–690 KB raw each; loading eight at once cost about 5.2 MB before compression. Actual
+sizes vary with scenes, captured diagrams and lettering. The receipt's `bytes`, `gzipBytes`
+and `lettering` report distinguish page weight from requested font subsets. `components` additionally records minified script, style, poster and embedded default-face bytes; the face bytes are already included in the script total. HTTP gzip or
+Brotli reduces transfer size but does not remove parsing and memory costs.
+
+Mount one chapter at a time on a series host. Dispose the previous loader mount before
+mounting the next, or use a lazy iframe below the fold. An iframe's own visibility does not
+unload its runtime. The host loader is separately budgeted below 9 KB; it does not carry the
+player or its faces.

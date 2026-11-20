@@ -1,8 +1,8 @@
-import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName, scriptOf } from '../../explain/internal.ts';
+import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, isFurniture, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName, scriptOf } from '../../explain/internal.ts';
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/internal.ts';
-import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
+import { serializeElement, canonicalJson, zoomOf, contains, intersect, unionBoxes, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { sceneEntry } from './scene-entry.ts';
@@ -15,7 +15,7 @@ import type { Plugin } from 'esbuild';
 import { browserFonts } from './explain-browser-fonts.ts';
 import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
 import ts from 'typescript';
-import { Text } from '../../src/index.ts';
+import { Text, Rectangle } from '../../src/index.ts';
 import { renderFrame, toSvgString } from '../../src/index.ts';
 import { InvariantSink, jsonObject } from '../../src/internal.ts';
 import { ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
@@ -70,6 +70,7 @@ export { MIN_PX };
 interface Viewed {
   familyMembers(): Mobject[];
   frame?: { box(): Box | null };
+  colors?: {paper: string};
 }
 /**
  * A label's size as the reader sees it, in CSS pixels at a 1280-pixel stage: its size
@@ -152,7 +153,44 @@ export function restingTextProblems(scene: Viewed): string[] {
   for (const t of texts)
     if (t.native && !contains(STAGE_BOX, t.box))
       problems.push(`"${t.text}" crosses the stage edge`);
-  const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+  const area = (b: Readonly<Box>) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+  const members = [...new Set(scene.familyMembers())], order = new Map(members.map((m, i) => [m, i]));
+  const pigment = (c: string) => c.toLowerCase().replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/, '#$1$1$2$2$3$3');
+  const paper = members.filter(m => {
+    if (!(m instanceof Rectangle) || isFurniture(m, {frame:true}) || m.style.fill === 'none') return false;
+    // A duck-typed imported label may itself be a rectangle in an adapter.
+    // Its glyph geometry is text, rather than an independent panel behind text.
+    for(let p:Mobject|null=m;p;p=p.parent) if(typeof (p as {text?:unknown}).text==='string')return false;
+    let opacity = m.style.fillOpacity ?? 1;
+    if (/^#[0-9a-f]{8}$/i.test(m.style.fill)) opacity *= parseInt(m.style.fill.slice(7),16)/255;
+    else if (/^#[0-9a-f]{4}$/i.test(m.style.fill)) opacity *= parseInt(m.style.fill[4]!,16)/15;
+    for (let p: Mobject | null = m; p; p = p.parent) opacity *= p.style.opacity ?? 1;
+    const box = m.box();
+    // A borderless knockout in the stage's own paper has no visible panel edge.
+    if (m.style.stroke === 'none' && scene.colors && pigment(m.style.fill) === pigment(scene.colors.paper)) return false;
+    // Filled hairlines are rules or strike-throughs, not panels carrying text.
+    if (box && m.style.stroke === 'none' && Math.min(box[2]-box[0], box[3]-box[1]) <= 0.1 &&
+      Math.max(box[2]-box[0], box[3]-box[1]) >= 5 * Math.min(box[2]-box[0], box[3]-box[1])) return false;
+    // A stroke-free ground filling the stage has no narrative paper edge.
+    if (box && m.style.stroke === 'none' && area(box) >= area(STAGE_BOX) * 0.9) return false;
+    return opacity >= 0.9;
+  });
+  for (const text of texts) for (const part of paper) {
+    // A Text's em frame includes empty ascent/descent. Judge the actual glyph ink at paper edges.
+    const ink = unionBoxes(text.m.children.map(m => m.box())) ?? text.box;
+    const box = part.box();
+    if (!box || (contains(box, ink) && order.get(part)! < order.get(text.m)!)) continue;
+    const overlap = intersect(box, ink);
+    if (!overlap || area(overlap) <= area(ink) * 0.12) continue;
+    // A foreground label plate may legitimately cover a background card's edge.
+    if (paper.some(plate => order.get(plate)! > order.get(part)! && order.get(plate)! < order.get(text.m)! && contains(plate.box()!, ink))) continue;
+    // A framed cell can have several coloured fill segments under its one label.
+    // Its enclosing outline defines the paper's edge, rather than an internal colour boundary.
+    if (members.some(frame => frame instanceof Rectangle && frame.parent === part.parent &&
+      frame.style.stroke !== 'none' && order.get(frame)! > order.get(part)! && order.get(frame)! < order.get(text.m)! &&
+      contains(frame.box()!, box, 1e-5) && contains(frame.box()!, ink, 1e-5))) continue;
+    problems.push(`"${text.text}" crosses the edge of ${part.key ? `paper "${part.key}"` : 'another part’s paper'}`);
+  }
   for (let i = 0; i < texts.length; i++)
     for (let j = i + 1; j < texts.length; j++) {
       const a = texts[i]!,
@@ -447,6 +485,7 @@ export class RestingSink implements Sink {
  */
 export class LookWordsSink implements Sink {
   readonly problems: string[] = [];
+  readonly words: {step: string; text: string}[] = [];
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     const words: string[] = [];
@@ -461,6 +500,7 @@ export class LookWordsSink implements Sink {
       if (label) words.push(label.text);
     }
     const meta = step.meta as { title?: string; line?: string; caption?: string };
+    this.words.push(...words.map(text => ({step: step.path, text})));
     this.problems.push(...captionLookProblems(meta, [meta.title ?? '', meta.line ?? ''], words).map((p) => `${step.name}: ${p}`));
   }
 }
@@ -542,11 +582,23 @@ export class LegibilitySink implements Sink {
         const record = this.staticLabels.get(key)!;
         if (completed && readable(m, (owner ?? m).box(), viewport)) this.seen(record, px, shown(m.box()), step);
       } else {
+        const glyphs=m.family().filter(g=>!g.children.length&&g.hasPoints());
+        // Unmatched proxy labels can remain wholly invisible while shapes are
+        // paired. They are not reader-visible text and must not create zero-size rows.
+        if (!glyphs.some(g=>g.style.opacity>0.01&&paints(g.style,{min:0.01}))) continue;
+        const ink=glyphs.length>0&&glyphs.every(g=>g.style.opacity>=0.95&&(g.style.drawFraction??1)>=0.95&&paints(g.style,{min:0.95}));
+        // A glyph-matching shell can combine fading fragments without ever
+        // presenting its nominal word. Measure complete words during motion;
+        // still retain incomplete resting labels so they fail the size gate.
+        if (!completed && !ink) continue;
         if (!this.labels.has(m)) this.labels.set(m, { text, px: 0, phone: 0, inView: false });
         // A camera gliding past does not make a label read: between completed frames a
         // label counts at no more than its size with the camera home.
         const credited = completed ? px : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
-        if (readable(m, m.box(), viewport)) this.seen(this.labels.get(m)!, credited, shown(m.box()), completed ? step : undefined, isHeading(m));
+        // The flat SVG renderer paints glyph styles, not their Text container's
+        // style. A matching proxy may retain an invisible container while its
+        // glyphs become fully painted. Credit only complete, actually painted glyphs.
+        if (ink && viewport && contains(viewport,m.box()!,1e-5)) this.seen(this.labels.get(m)!, credited, shown(m.box()), completed ? step : undefined, isHeading(m));
       }
     }
   }
@@ -581,7 +633,7 @@ export async function exploreMachines(
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
   only?: { events?: readonly string[] },
-): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
+): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[]; phoneWarnings: string[] }[]> {
   const explored = [];
   if (!layouts && machinesOf(scene).some((m) => m.lastPlayedIn !== null)) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
@@ -604,7 +656,7 @@ export async function exploreMachines(
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
 async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
   const diagramsBefore = diagramsOn(host);
-  const problems: string[] = [], motion: string[] = [];
+  const problems: string[] = [], motion: string[] = [], phoneWarnings: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
   if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
   // From the start, as exploration always has; and from the state the reader finds at the step
@@ -623,6 +675,16 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   for (const { state, path, origin } of reached) {
     const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
     host.state = jsonObject(state, 'machine state');
+    if (machine.spec.result) {
+      host.shown = jsonObject(machine.playedUnder ?? shownThen, 'machine presentation');
+      if (!origin) delete host.shown.result;
+      let before = origin ? stepState : machine.spec.start;
+      for (const event of path) {
+        const after = machine.after(before, event)!;
+        machine.present(event, before, after);
+        before = after;
+      }
+    }
     for (const view of machine.spec.views) {
       view.rebuild();
       const mismatch = viewMismatch(view, host.state, { shown: host.shown });
@@ -636,7 +698,10 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     sizes.resting(host, step ?? undefined);
     for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
       if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-    if (step !== null) problems.push(...livePhoneProblems(sizes, step).map((p) => `${at}: ${p}`));
+    if (step !== null) {
+      problems.push(...livePhoneProblems(sizes, step).map((p) => `${at}: ${p}`));
+      phoneWarnings.push(...livePhoneProblems(sizes, step, true).map((p) => `${at}: ${p}`));
+    }
     const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
     const words = JSON.stringify(picture?.entries ?? []);
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
@@ -648,7 +713,7 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   }
   host.shown = shownThen;
   const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
-  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion };
+  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion, phoneWarnings };
 }
 
 /**
@@ -660,14 +725,18 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
  * heading is left out, as a phone's stage leaves it out (LegibilitySink). `sizes` measured one
  * resting picture with the step's close-ups.
  */
-function livePhoneProblems(sizes: LegibilitySink, step: string): string[] {
+function livePhoneProblems(sizes: LegibilitySink, step: string, wholeOnly = false): string[] {
   const records = [...[...sizes.labels].filter(([m]) => !isHeading(m)).map(([, r]) => r), ...sizes.staticLabels.values()];
   const problems: string[] = [];
   for (const r of records) {
     if (!(r.px > 0)) continue;
     const whole = r.px * PHONE_WHOLE,
-      best = Math.max(whole, r.inView ? r.phone : 0);
+      best = wholeOnly ? whole : Math.max(whole, r.inView ? r.phone : 0);
     if (round1(best) >= READ_PX) continue;
+    if (wholeOnly) {
+      problems.push(`“${r.text}” reads ${round1(whole)} px on the whole picture at a ${PHONE_PAGE} px phone after a live event at "${step}", under ${READ_PX}; use at least ${PHONE_WHOLE_MIN_SIZE.toFixed(2)} units with the camera at home`);
+      continue;
+    }
     const closest = r.inView && r.phone > whole + 1e-9 ? `, ${round1(r.phone)} px in the best close-up of "${step}" that holds it` : `, and no close-up of "${step}" shows it larger`;
     problems.push(`“${r.text}” reads ${round1(whole)} px on the whole picture at a ${PHONE_PAGE} px phone${closest}, under ${READ_PX}; the player shows a live step's whole picture after each press, so draw it at a size of at least ${PHONE_WHOLE_MIN_SIZE.toFixed(2)} with the camera at home, or bring it into one of the step's close-ups`);
   }
@@ -748,6 +817,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
       problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
     const after = machine.after(state, event);
     if (after === undefined) continue;
+    const beforeShown = jsonObject(scene.shown, 'machine presentation');
     const motion = machine.transitionPlay(event, state, after);
     const at = `${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
     if (!motion) {
@@ -755,25 +825,32 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
       scene.state = jsonObject(state, 'machine state');
       for (const v of views) v.rebuild();
       scene.state = jsonObject(after, 'machine state');
+      machine.present(event, state, after);
       const keyedMotion = keyedMotionSink(() => at);
       await keyedMotion.frame(scene, 0);
       draw(keyedMotion);
       try { await scene.play(machine.defaultPlay(event, state, after)); } finally { draw(); }
       motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`));
+      if (machine.spec.result) problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(p => `${at}: ${p}`));
       scene.state = jsonObject(state, 'machine state');
+      scene.shown = beforeShown;
       for (const v of views) v.rebuild();
       continue;
     }
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
     // now (a rebuilt picture keeps its place), before the transition can move them.
     scene.state = jsonObject(after, 'machine state');
+    machine.present(event, state, after);
     for (const v of views) v.rebuild();
     const expected = marksOf(toSvgString(scene));
+    if (machine.spec.result) problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(p => `${at}: ${p}`));
     scene.state = jsonObject(state, 'machine state');
+    scene.shown = beforeShown;
     for (const v of views) v.rebuild();
     // As in a send: the event's SetState has already moved the scene to `after` when its transition
     // begins, so a sync inside the transition draws the state reached.
     scene.state = jsonObject(after, 'machine state');
+    machine.present(event, state, after);
     const frames = new InvariantSink();
     // Every keyed part's motion, from the picture before the transition (its first frame) to its last frame.
     const keyedMotion = keyedMotionSink(() => at);
@@ -795,6 +872,11 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     if (marksOf(toSvgString(scene)) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
     scene.state = jsonObject(after, 'machine state');
     for (const v of views) v.rebuild();
+    if (machine.spec.result) {
+      scene.state = jsonObject(state, 'machine state');
+      scene.shown = beforeShown;
+      for (const v of views) v.rebuild();
+    }
   }
   return { problems, motion: motionProblems };
 }
@@ -819,7 +901,7 @@ export async function bareRuntime(project: Project, plugins: Plugin[] = []): Pro
   });
   const script = new vm.Script(b.outputFiles[0]!.text + ';globalThis.result=bare.run(globalThis.values)');
   return async (values) => {
-    const context = vm.createContext({ TextEncoder, TextDecoder, atob, values: JSON.parse(JSON.stringify(values)) });
+    const context = vm.createContext({ TextEncoder, TextDecoder, atob, URL, URLSearchParams, values: JSON.parse(JSON.stringify(values)) });
     script.runInContext(context);
     return JSON.parse(JSON.stringify(await context.result));
   };
@@ -996,7 +1078,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
-      ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
+      ...(machines.length ? { machines: machines.map(({ events, states, sampled, phoneWarnings }) => ({ events, states, ...(sampled ? { sampled } : {}), ...(phoneWarnings.length ? { phoneWarnings } : {}) })) } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
@@ -1012,7 +1094,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         : {}),
       // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
       // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
-      claims: claimsReport(project.Scene.meta, v.trace.steps),
+      claims: claimsReport(project.Scene.meta, v.trace.steps, looks.words),
       // What each step changed of the state the author watches (meta.watch), as readers see it, and
       // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch

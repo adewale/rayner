@@ -16,16 +16,18 @@ import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
 import { applyEdits } from '../tools/repo/motion-corpus-lib.ts';
 import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 import { ROOT } from '../tools/lib/roots.ts';
+import { analyzeKeyedMotion } from '../src/keyed-motion.ts';
 
-/** The entries the check catches, as measured (docs/MOTION-CORPUS.md): 26 of 59. */
+/** Current reconstructed mutations caught on 19 November (docs/MOTION-CORPUS.md): 30 of 59. */
 const CAUGHT: readonly string[] = [
   'poppy-ticket-over-lane-names',
-  'poppy-last-object-lingers',
   'refusals-ticket-over-station',
   'refusals-ticket-over-lane-name',
   'refusals-delegation-over-station',
   'sessions-ticket-from-under-stamp',
+  'sessions-squeezed',
   'sign-in-tokens-over-labels',
+  'sign-in-ask-squeezed',
   'sign-in-code-tiny-words',
   'sign-in-tag-over-scopes',
   'browser-ticket-over-road-name',
@@ -38,6 +40,7 @@ const CAUGHT: readonly string[] = [
   'browser-read-tiny-words',
   'browser-forge-tiny-words',
   'conversations-turn-over-seat-name',
+  'conversations-person-over-ledger',
   'conversations-block-crossfades',
   'coverage-strips-cross',
   'coverage-skill-card-twice',
@@ -45,12 +48,31 @@ const CAUGHT: readonly string[] = [
   'coverage-desk-blinks',
   'coverage-user-line-blinks',
   'coverage-list-over-labels',
+  'discovery-arm-over-register',
+  'discovery-fetch-squeezed',
 ];
 /**
  * The default run: one entry for each of covers, small words and flicker, from the quicker chapters.
- * The one entry early words catches (poppy-last-object-lingers) takes most of a minute, so it runs with FULL=1.
  */
 const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades'];
+
+// Keeper for the original poppy-last-object-lingers mechanical assertion. Current
+// whole-word rest no longer reproduces its incidental size jump. These are actual
+// old frame measurements, not an expected image keyed to current source bytes.
+// The unchanged-result semantic mutation stays in CORPUS and is reported as missed.
+test('the recorded exhibit size jump remains rejected after current rest stops reproducing it', async () => {
+  const capture = JSON.parse(await readFile(join(ROOT, 'test/fixtures/motion-corpus/historical-exhibit-jump.json'), 'utf8'));
+  const frames = capture.frames.map((frame: {t: number; part: unknown; leaves: unknown[]}) => ({
+    t: frame.t, parts: new Map(frame.part ? [[capture.observation.path, frame.part]] : []), leaves: frame.leaves,
+  })) as Parameters<typeof analyzeKeyedMotion>[0];
+  const findings = analyzeKeyedMotion(frames, capture.segment, capture.dt);
+  const jump = findings.find(f => f.kind === 'jump' && f.path === capture.observation.path);
+  assert.ok(jump, 'the historical visible exhibit jump still fails');
+  assert.equal(jump.value, capture.observation.value);
+  // Invisible geometry must not earn the same finding.
+  const invisible = frames.map(f => ({...f, parts: new Map([...f.parts].map(([path, p]) => [path, {...p, a: 0}]))}));
+  assert.ok(!analyzeKeyedMotion(invisible as unknown as typeof frames, capture.segment, capture.dt).some(f => f.kind === 'jump'));
+});
 
 test('every corpus entry still applies to the current Poppy scenes, and names its events', async () => {
   const files = new Map<string, string>();

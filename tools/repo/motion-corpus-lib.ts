@@ -95,6 +95,12 @@ export async function runEntry(entry: Variant, { full = false, root = ROOT }: { 
     const findings = await keyedMotionFindings(file, full ? undefined : entry.events);
     return { id: entry.id, caught: findings.length > 0, findings, fresh: findings, ms: Date.now() - t };
   } catch (e) {
+    // Compression defects now reject before a bad frame can be rendered. Count only
+    // this exact production duration guard; unrelated build/runtime exceptions remain errors.
+    if (e instanceof RangeError && /^machine\.send\(".*"\): authored transition lasts [\d.]+ s but the event allows [\d.]+ s;/.test(e.message)) {
+      const findings=[{scenario:'during authored replay',line:`duration guard: ${e.message}`}];
+      return {id:entry.id,caught:true,findings,fresh:findings,ms:Date.now()-t};
+    }
     return { id: entry.id, caught: false, findings: [], fresh: [], ms: Date.now() - t, error: String((e as Error)?.stack ?? e) };
   } finally {
     await rm(join(root, 'out', `motion-corpus-${entry.id}`), { recursive: true, force: true });

@@ -13,6 +13,19 @@ An explainer is one Rayner `Scene`. The CLI builds it into a step-through HTML p
 
 This skill says what a finished explainer must achieve and how each part is checked. It does not tell you how to draw, lay out or word a step: use your own judgement, and copy techniques from [the examples](#start-from-an-example) when they help. Rayner's value is that it checks the result: values come from a model tested against its source, pictures are measured as painted, and the page is reviewed as served. When an instruction and a check disagree, the check wins; when you find yourself following a rule that no check or reader would miss, drop it.
 
+## Design the phone picture before drawing
+
+A live step shows its whole 16 × 9 picture after each press. At a 390 px page width its 358 px
+stage draws a 0.56-unit label at about 12.5 px. Start with words that read there and fit the
+picture around them. A dense landscape composition becomes a tour of crops on a phone. Inspect
+all stops, including clipped neighbours and repeated crops, before publishing. The reference's
+[phone geometry](../../docs/REFERENCE.md#planning-the-phone-picture) gives the units and heading space.
+
+Related explainers can share a picture module in `scenes/explainers/lib/`, as the Poppy series
+does. Keep each explainer's model tests and fidelity evidence with its own scene. Look for official
+JSON Schemas, published examples and reference vectors before choosing an oracle for a protocol.
+Declare the evidence actually exercised in the script's Checked against and Grounding lines.
+
 ## Script first
 
 An explainer is three files, each with one job:

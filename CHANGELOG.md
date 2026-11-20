@@ -6,6 +6,26 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Machine responses can live in `shown.result` outside durable state identity. Live links and Reset replay them, and check validates every accepted edge's response.
+- `s.opening` measures sibling labels inside its subjects and accepts a requested `zoom`. Raw iframes reapply their planned crop after resizing. Phone crops keep neighbouring words whole, and review rejects partial label ink while retaining required subject coverage.
+- `view.sync({how:'fade'})`, whole-word `c.rest()`, order-independent replacement construction and Group entry preserve picture families and keys. Overlong authored transitions report their declared and actual durations instead of squeezing their fades.
+- `rayner film` records every bounded live press, including refusals, as native stage filmstrips. Review adds two mid-play samples per step and phone contact sheets; `build --embed-sizes` writes measured iframe heights.
+- Check/review default to concise summaries with explicit `--json`. Drawn text and reader questions join claim lint; uncatalogued local explainers warn; contrasting paper-edge collisions, overlapping duplicate words and movement after five seconds gain checks. Source Sans 3 adds four registered sans cuts.
+
+- Phone live controls follow the picture navigation before the prose, keeping statechart event presses and their changed picture visible together. Resizing preserves event focus.
+- Prepared diagram sources survive `s.clear()`. The ext4 answer pie now selects its source from recorded model state, with checks across all nine settings combinations.
+- The host loader shares only its localized frame label with the player, reducing its minified output from about 16 KB to 3.3 KB under a 9 KB regression budget.
+
+- The statecharts coffee and frother live pictures use the phone-safe type floor, separate labels from their routes, and read in one whole-picture view. The owning regression explores all five coffee and nine frother configurations.
+
+- Author and catalog review repeat phone steps and sampled live states inside the production loader's iframe. Receipts bind the framed inventory, retain each tour stop, and report whole-picture label sizes, partly visible labels and tour overlap. Author review writes measured initial embed heights beside its retained HTML.
+- A machine may set `liveStart: 'start'` so reader events begin before a nonterminal authored resting state. Buttons, links and Reset use the same model start, with regressions through the phone player.
+- A plain view sync replaces changed keyed words whole, using the same staged default as a machine transition. The halfway regression verifies the old and new glyph sets are both absent at the handoff.
+- The bare-runtime checker provides the browser's `URL` and `URLSearchParams` APIs for protocol models, with a normal check regression.
+
+- `s.prepareDiagrams(specs)` resolves a finite source set before a view draws. Its synchronous drawing function selects a complete captured picture from state, so view fidelity checks reject a stale source picture.
+- Machine check reports retain warnings for labels below 12 px on the whole picture after an event, including labels that pass in a close-up. The check command prints up to five warnings and a verdict with the report path. Review prints its scenario and width-check counts with its receipt path.
+
 - View fidelity also compares rendered SVG paint, path data, draw fraction, paint order and effective clips against a placed redraw. Regression controls cover the previously accepted defects and legitimate state-dependent paths/clips; the seasons latitude emphasis is now derived from state.
 - `npm run bench:rendering` builds and measures matched Rayner/native-SVG fixtures from shared oracle-tested models and scripts, retaining inputs, conformance evidence and browser samples. It establishes rendering outcomes, not author productivity or learning.
 - The unified-diff teaching model follows Git's default refusal to reuse an earlier hunk's postimage, including unchanged context. A deterministic regression preserves the repeated-context counterexample from a failed random campaign; rejection messages retain earlier hunk offsets.

@@ -57,6 +57,8 @@ export interface ReviewedScenario {
   steps: { step: string; width: number; views: number; targets: string[]; openingAt320?: NarrowOpeningReview }[];
   /** The live states visited, each at both widths; absent when the scenario has no live step. */
   live?: LiveStateReview[];
+  framedSteps?: ReviewedScenario['steps'];
+  framedLive?: LiveStateReview[];
 }
 export type NarrowOpeningObligation =
   | { step: string; reviewed: true; targets: string[]; labels: string[] }
@@ -101,6 +103,8 @@ export interface ReviewReceipt {
   stepWidths: number;
   /** Live states times widths: every visited live state at 390 and 1180 px. */
   liveStateWidths?: number;
+  framedStepWidths?: number;
+  framedLiveStateWidths?: number;
   results: ReviewedScenario[];
   consoleErrors: string[];
   runtimeConnections: string[];
@@ -181,6 +185,8 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     'tools/lib/explain-review-scene.ts',
     'tools/lib/explain-review-plan.ts',
     'tools/lib/explain-live-review.ts',
+    'tools/lib/review-reader.ts',
+    'tools/lib/explain-embed-size.ts',
     'tools/lib/explain-serve.ts',
     'tools/lib/explain-reader-shell.ts',
     'tools/lib/explain-check.ts',
@@ -227,6 +233,17 @@ export function validateReviewedScenarios(actual: ReviewedScenario[], expected: 
       `${c.scene}: each step needs a verified subject and reader view`,
     );
     validateLiveStates(c.live, expected[i]!.live ?? [], c.scene);
+    assert.ok(Array.isArray(c.framedSteps), `${c.scene}: missing framed phone review`);
+    assert.deepEqual(c.framedSteps.map(({ step, width }) => ({ step, width })),
+      expected[i]!.steps.map(step => ({ step, width: PHONE_VIEWPORT.width })), `${c.scene}: exact framed step inventory`);
+    assert.ok(c.framedSteps.every(s => s.targets.length > 0 && s.views >= 1), `${c.scene}: framed steps need painted subjects`);
+    assert.deepEqual((c.framedLive ?? []).map(s => [s.step, s.sent, s.width]),
+      (c.live ?? []).filter(s => s.width === PHONE_VIEWPORT.width).map(s => [s.step, s.sent, s.width]),
+      `${c.scene}: exact framed live-state inventory`);
+    // Reuse the live-state acceptance rules by pairing each framed phone row with its
+    // independently reviewed desktop row. The exact phone inventory was checked above.
+    validateLiveStates([...(c.framedLive ?? []), ...(c.live ?? []).filter(s => s.width !== PHONE_VIEWPORT.width)], expected[i]!.live ?? [], c.scene);
+
     const obligations = expected[i]!.narrowOpenings;
     validateNarrowObligations(obligations, expected[i]!.steps, c.scene);
     for (const step of c.steps) {
@@ -319,6 +336,8 @@ export function mergeStoryReviews(
       p.results.reduce((n, c) => n + c.steps.length, 0),
     );
     assert.equal(p.liveStateWidths ?? 0, p.results.reduce((n, c) => n + (c.live?.length ?? 0), 0), 'live-state count');
+    assert.equal(p.framedStepWidths ?? 0, p.results.reduce((n, c) => n + (c.framedSteps?.length ?? 0), 0), 'framed step count');
+    assert.equal(p.framedLiveStateWidths ?? 0, p.results.reduce((n, c) => n + (c.framedLive?.length ?? 0), 0), 'framed live-state count');
     assert.deepEqual(p.consoleErrors, []);
     assert.deepEqual(p.runtimeConnections, []);
     assert.equal(p.collectionChecks, i === 0, 'shared collection checks belong to exactly the first shard');
@@ -338,6 +357,8 @@ export function mergeStoryReviews(
     reviewCodeHash: codeHash,
     scenarios: results.length,
     stepWidths: results.reduce((n, c) => n + c.steps.length, 0),
+    framedStepWidths: results.reduce((n, c) => n + (c.framedSteps?.length ?? 0), 0),
+    framedLiveStateWidths: results.reduce((n, c) => n + (c.framedLive?.length ?? 0), 0),
     liveStateWidths: results.reduce((n, c) => n + (c.live?.length ?? 0), 0),
     results,
     consoleErrors: [],

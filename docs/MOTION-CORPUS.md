@@ -22,7 +22,37 @@ node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 
 `test/motion-corpus.test.ts` checks that every entry's edits still apply, runs a sample by default (one entry each for covers, small words and flicker; 16 s), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry (14 minutes on four cores) and fails if one caught when recall was measured is missed. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
-## Recall
+## Latest measurement: 19 November 2026
+
+A fresh focused run on the follow-up implementation caught **30 of 59** mutations;
+all eight baselines were clean and no entry errored. The score by kind is 19/28
+passes over, 0/5 result before cause, 0/8 layout motion, 2/4 two copies, 3/3
+squeezed, 0/3 too long, 3/3 small label in flight, 0/1 glyph dissolve and 3/4
+flicker. This remains a measure of reconstructed mutations, not general detection
+accuracy or proof of narrative correctness.
+
+The strict event-duration check now catches all three squeezed mutations. The
+normal scenes declare enough time for their actual choreography. A five-second
+motion ceiling and a duplicate-word rule also have independent poison controls;
+the three historical “too long” examples remain below that ceiling. The glyph
+mutation explicitly requests glyph matching now that whole-word matching is the
+default; removing an option alone would no longer recreate the old behaviour.
+
+The earlier `poppy-last-object-lingers` hit was an incidental **size jump**, not a
+semantic stale-result finding. Current transition defaults remove that jump, so
+the unchanged-result mutation is correctly reported as missed. Its former
+mechanical assertion has a keeper in `test/motion-corpus.test.ts`, replaying actual
+frame measurements in `historical-exhibit-jump.json`, captured from the earlier
+implementation at commit `0b1fe3e`. The fixture records provenance, not a current
+source hash to refresh. The test still rejects the recorded 53% size jump and
+accepts invisible geometry. The full current-corpus gate preserves the other 25
+previous hits and five new hits individually. The archived jump is **not** added
+to the current 30/59 score.
+
+`rayner film` and review's native mid-play frames provide visual evidence for the
+remaining semantic and pacing cases. They do not turn those misses into passes.
+
+## Historical recall: 15 November 2026
 
 Measured on 2026-11-15, focused runs, the catalog as of this page. Before: 3 of 59 (5%). After: 26 of 59 (44%). The "which rule" column names the rules whose findings were the entry's own (not in its chapter's baseline).
 
@@ -105,7 +135,7 @@ Measured on 2026-11-15, focused runs, the catalog as of this page. Before: 3 of 
 
 The change from 3/59 to 26/59 is coverage of these reconstructed historical mutations. It is not a measured 44% detection rate for arbitrary animation defects, and the 33 misses are not 33 known defects still present in the current catalog. The examples share one eight-chapter subject and drawing kit, were selected from defects older checks missed, and were used to tune the new rules. There is no independent held-out sample here.
 
-Of the 59 entries, 24 directly reverse a fix and 35 adapt an old defect to later source. The edit-applicability test proves the mutation still changes code, not that it still reproduces the intended visible defect; some misses now cross nothing in the current layout. The score also counts any finding absent from the baseline as a hit, even if it names a different problem from the historical one. The full regression test preserves the 26 named hits, so a new hit cannot compensate for losing an old one; its fast sample covers three detector kinds. Those tests omit baseline runs on the assumption that the separate catalog gate is clean. The reporting command runs baselines and subtracts their findings.
+Of the 59 entries, 24 directly reverse a fix and 35 adapt an old defect to later source. The edit-applicability test proves the mutation still changes code, not that it still reproduces the intended visible defect; some misses now cross nothing in the current layout. The score also counts any finding absent from the baseline as a hit, even if it names a different problem from the historical one. At that measurement the full regression test preserved the 26 named hits; the latest section accounts for each assertion after the transition changes, so a new hit cannot silently compensate for losing an old one; its fast sample covers three detector kinds. Those tests omit baseline runs on the assumption that the separate catalog gate is clean. The reporting command runs baselines and subtracts their findings.
 
 The 23 additional hits are 19 **covers**, 3 **small words**, and 1 **flicker**; the earlier 3 were 1 **jump** and 2 **flicker**. There are no early-words hits in this corpus. The result-before-cause entry counted as caught is detected as a jump. The mechanical work left includes glyph dissolution, occlusion by drawings rather than readable labels, and engine paint-order defects outside this scene-mutation corpus. Timing and narrative causality need authored meaning or editorial review; shortening every long transition would not establish either.
 

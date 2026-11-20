@@ -1,5 +1,5 @@
 import { frames as readerFrames, colourKey, giveUpTable, heatMap, KEY_TOP, KEY_PITCH } from './picture.ts';
-import { Scene, Create } from '../../../src/index.ts';
+import { Scene, Create, keyed } from '../../../src/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
@@ -27,8 +27,9 @@ import { listed, numberWord } from '../lib/format.ts';
 const REPORT = 'https://blogs.gnome.org/udoijiibike/files/2024/11/Detailed-Report-for-Files-Usability-Test-.pdf';
 const ARTICLE = 'https://technicallywewrite.com/2025/01/06/gnomeusability';
 const STYLE = 'github-light';
-// Native text is 0.46 units, about 11 px on a 390 px phone; the grid's labels are smaller to fit 11 rows.
-const SIZE = 0.46;
+// The colour key reads whole at 12.5 px on a 358 px phone stage. The heat map
+// has its own smaller labels and retains detail views for its eleven rows.
+const SIZE = 0.56;
 
 /**
  * Why a give-up happened, from the report's findings for that task (printed page numbers; the PDF's
@@ -117,13 +118,18 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
         'Researchers for GNOME’s design team watched six first-time GNOME users, aged 21 to 47, try eleven tasks in test builds of Files 47. Their report colours each attempt from green, no difficulty, to black, could not complete; gray marks an approach the study excluded. This page also scores green 5 down to black 1 for its charts; that spacing is its choice, not a measured interval.',
     });
     await s.clear();
-    const key = colourKey(ink, SIZE);
+    const key = keyed(colourKey(ink, SIZE), 'colour-key');
     await s.enter(key, {
       describe: `The report’s colour key with this page’s scores: ${COLOURS.map((c) => `${c}, ${SCORE[c] ?? 'no score'}, ${MEANING[c]}`).join('; ')}`,
     });
-    await s.note('Colours and meanings: the report, page 7. Scores: this page’s, for its charts.', {
+    s.opening(key);
+    await s.note('Colours and meanings: the report, page 7.', {
       at: [0, KEY_TOP - 6 * KEY_PITCH - 0.1],
-      size: 0.32,
+      size: SIZE,
+    });
+    await s.note('Scores: this page’s, for its charts.', {
+      at: [0, KEY_TOP - 6 * KEY_PITCH - 0.75],
+      size: SIZE,
     });
     this.state.key = Object.fromEntries(COLOURS.map((c) => [c, SCORE[c]]));
 

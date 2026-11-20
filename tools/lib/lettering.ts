@@ -48,6 +48,7 @@ const registry: Record<string, RegistryFace> = {
   // Weight 400 of the variable TrueType release, from LETTERING_CJK=1 tools/lettering-outline-fonts.sh. No Bold cut yet.
   'noto-sans-sc': { cuts: { '': 'noto-sans-sc.ttf' }, license: 'Noto-CJK-OFL.txt' },
   'eb-garamond': fontsource('eb-garamond', 'latin', { '': '400-normal', bold: '700-normal', italic: '400-italic', 'bold-italic': '700-italic' }),
+  'source-sans-3': fontsource('source-sans-3', 'latin', { '': '400-normal', bold: '700-normal', italic: '400-italic', 'bold-italic': '700-italic' }),
   // The jetbrains-mono npm package's own LICENSE is the MIT licence of its CSS; the font's OFL is vendored.
   'jetbrains-mono': {
     cuts: Object.fromEntries((['', 'bold', 'italic', 'bold-italic'] as const).map((cut, i) =>

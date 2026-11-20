@@ -97,7 +97,7 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
     const pile = drawPile(s, axes, m.counts);
     s.keep(pile, { describe: `Bins filled to ${m.counts.join(', ')} balls, left to right` });
     // PulseAlongPath moves evenly by default; smooth lets each ball leave the top slowly and settle into its bin.
-    const stream = new LaggedStart(all.map((route) => new PulseAlongPath(ball(s), routePath(route), { runTime: 1.5, rateFunc: smooth })), { lagRatio: 0.045 });
+    const stream = new LaggedStart(all.map((route) => new PulseAlongPath(ball(s), routePath(route), { runTime: 1.5, rateFunc: smooth })), { lagRatio: 0.03 });
     await this.play(
       stream,
       new LaggedStart(pile.children.map((bar) => new GrowFromEdge(bar, [0, -1], { runTime: stream.runTime * 0.7 })), { lagRatio: 0.03, runTime: stream.runTime }),

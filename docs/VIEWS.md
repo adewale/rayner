@@ -129,7 +129,7 @@ morphs with `new Transform(old, next, { match })`:
 
 | `match` | pairs | good for |
 |---|---|---|
-| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
+| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, changed keyed words are replaced whole and unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
 | `{ by: 'key', fallback?, unkeyed?, text? }` | as `'key'`, saying what unkeyed parts and relabelled words do | `fallback` to keep unkeyed parts too, `text: 'whole'` when a keyed word's change is a new identity |
 | `'text'` | glyphs by character | a bare `Text` readout, code without keys: unchanged characters stay where they are |
 | `'index'` | family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
@@ -151,6 +151,11 @@ morphed, removed, added }`, with the View's key as `view` when it has one; a syn
 and one whose picture did not change record none.
 
 ### A picture that did not change
+
+Use `view.sync({how:'fade'})` to exchange whole pictures without shrinking unmatched parts.
+The old picture fades out in the first half and the new one fades in in the second, retaining
+their geometry and each child's authored opacity. It needs no keys. `how:'morph'` is the usual
+matching sync; its keyed default replaces changed words whole.
 
 If the rebuilt, placed picture matches the current one, the sync sets up no
 transform. "Matches" means the same family shape and point counts, points within
@@ -289,3 +294,24 @@ afterwards, which shows it by the same view. A walk runs over the view as it is;
   unchanged digits stay and changed digits fade across. With
   `sync({ match: 'index' })` its own interpolation runs, and the number counts
   through the values in between (`0 -> 5 -> 10`).
+
+### Diagram sources selected from state
+
+Resolve the finite source set before making a view. Each draw then selects the full captured
+picture synchronously, including its geometry and description.
+
+```ts
+const sources = [{ source: 'graph LR\nA --> B' }, { source: 'graph LR\nA --> C' }];
+const draw = await s.prepareDiagrams(sources);
+const diagram = view(this, st => draw(sources[st.branch]!), { place: false });
+s.keep(diagram);
+this.state.branch = 1;
+await this.play(diagram.sync());
+```
+
+The returned function also takes a second argument with `marks`, `notes`, `dim` and `prefix`,
+as `diagramView` does. A source absent from the declared set fails immediately. Preparation
+captures or resolves snapshots without playing animations or adding pictures to the stage.
+A stale source picture fails the usual view redraw comparison. The scene's model test still
+owns the correctness of the source-building function. Existing imperative diagrams retain
+their pinned-snapshot checks.

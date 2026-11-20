@@ -55,14 +55,14 @@ export function liveMachine(scene: Scene<any>, step: string | null, place: LiveP
 
 /**
  * Where a reader's log starts: where the step leaves the machine (`rest`, the state as the step
- * ends), or, when no event can go anywhere from there (the step played every event the story has),
- * the machine's own start, so the reader can send the events again in their own order.
+ * ends). With liveStart: 'start', or when no event can go anywhere from the resting state,
+ * the log begins at the machine's own start, so readers can send events in their own order.
  */
 export type LogStart = 'rest' | 'start';
 /** Where the log starts for a machine whose state as the step ends is `rest`; null when no event goes anywhere from either. */
 export function logStart(machine: AnyMachine, rest: object): { from: LogStart; state: object } | null {
   const moves = (state: object) => machine.spec.events.some((e) => 'next' in machine.outcome(state, e));
-  if (moves(rest)) return { from: 'rest', state: rest };
+  if (machine.spec.liveStart !== 'start' && moves(rest)) return { from: 'rest', state: rest };
   const start = JSON.parse(JSON.stringify(machine.spec.start)) as object;
   return moves(start) ? { from: 'start', state: start } : null;
 }
@@ -183,6 +183,7 @@ export async function runLive(
     // From the machine's start: its views redrawn there, in place, as exploration draws a state.
     if (from === 'start' && log.length) {
       at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
+      if (machine.spec.result) delete at.shown.result;
       for (const view of machine.spec.views) view.rebuild();
     }
     for (const [i, event] of log.entries()) {

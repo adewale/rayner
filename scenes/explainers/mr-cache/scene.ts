@@ -48,7 +48,7 @@ const PATH = {
 } as const;
 const FONT = 0.21;
 /** Where the code sits: the bottom region, with a column on the right for callouts on what the diff did. */
-const CODE_BOX: Box = [-7.55, -4.25, 3.35, -0.65],
+const CODE_BOX: Box = [-7.55, -4.25, 3.35, 0.1],
   NOTES_BOX: Box = [3.65, -4.25, 7.55, -0.65];
 const ADDED = '#2ea043',
   CHANGED = '#bf8700';
@@ -140,7 +140,7 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
 
     await this.step('diff', {
       kind: 'detail',
-      title: 'Four added lines and one rewritten',
+      title: 'Eight added lines and one rewritten',
       line: 'The old return keeps its D1 call; the added lines check KV first.',
       caption:
         'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the added lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
@@ -196,7 +196,7 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
       await this.play(new Create(note, { runTime: 0.6, lagRatio: 0.15 }));
       said.push(note);
     }
-    const lookup = new Circumscribe(linesBox(after, 1, 2), {
+    const lookup = new Circumscribe(linesBox(after, 1, 3), {
       keep: true,
       color: hot,
       buff: 0.06,
@@ -225,23 +225,23 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
       kind: 'detail',
       title:
         which === 'hit'
-          ? 'In the merged code, a hit stops at line 3'
-          : 'In the merged code, a miss runs on to line 6',
+          ? 'In the merged code, a hit stops at line 4'
+          : 'In the merged code, a miss runs on to line 10',
       line:
         which === 'hit'
-          ? 'Lines 2 and 3 run; the hit returns before line 4’s D1 query.'
-          : 'After the empty lookup, lines 4 to 6 read D1, write KV and return.',
+          ? 'Lines 2 to 4 run; the hit returns before line 5’s D1 query.'
+          : 'After the empty lookup, lines 5 to 10 read D1, write KV and return.',
       caption:
         which === 'hit'
-          ? 'Walked through the edited diagram and code, the hit takes KV’s hit branch: line 2 reads KV and line 3 returns what it found, before line 4’s D1 query. The two rows put both paths side by side: the miss row carries the read this request avoids and the 300-second write it does not need.'
-          : 'Walked through the edited diagram and code, the miss finds nothing at line 3 and runs on: line 4 reads D1 as before the change, line 5 writes the row to KV for 300 seconds, and line 6 returns it. A later lookup for the same user can take the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
+          ? 'Walked through the edited diagram and code, the hit takes KV’s hit branch: lines 2 and 3 read KV and line 4 returns what it found, before line 5’s D1 query. The two rows put both paths side by side: the miss row carries the read this request avoids and the 300-second write it does not need.'
+          : 'Walked through the edited diagram and code, the miss finds nothing at line 4 and runs on: lines 5 and 6 read D1 as before the change, lines 7 to 9 write the row to KV for 300 seconds, and line 10 returns it. A later lookup for the same user can take the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
     });
     const path = PATH[which];
     await showFlow({ notes: [], dim: [...new Set(path.flat())] });
     await flow.walk(path);
     await showFlow({ walked: path.map(([a, b]) => [a, b] as [string, string]) });
     // A hit runs the lookup and returns; a miss runs the lookup too, then the lines outlined here.
-    const [a, b] = which === 'hit' ? [1, 2] : [3, 5];
+    const [a, b] = which === 'hit' ? [1, 3] : [4, 9];
     const ran = s.keep(new SurroundingRectangle(linesBox(after, a, b), outline), {
       describe: `Lines ${a + 1} to ${b + 1}, ${which === 'hit' ? 'the ones this request runs' : 'the ones only a miss runs'}, outlined`,
     });

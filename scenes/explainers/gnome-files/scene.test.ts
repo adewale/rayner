@@ -1,12 +1,49 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diagramOf, loadFonts, loadSnapshots } from '../../../explain/testing.ts';
+import { diagramOf, loadFonts, loadProject, loadSnapshots } from '../../../explain/testing.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
-import { GROUPS, PARTICIPANTS, gaveUp, journey, source } from './model.ts';
+import { COLOURS, GROUPS, MEANING, PARTICIPANTS, SCORE, gaveUp, journey, source } from './model.ts';
 import type { Participant } from './model.ts';
+import { Text } from '../../../src/index.ts';
+import GnomeFiles from './scene.ts';
 
 // ---------------------------------------------------------------- journey words (explain/diagrams.ts)
 await loadFonts();
+
+test('the report colour key and attribution read whole on a phone for every participant', async () => {
+  const project = await loadProject(GnomeFiles, import.meta.dirname), checked: string[] = [];
+  const words = [
+    ...COLOURS.map(c => `${c}: ${MEANING[c]}`),
+    ...COLOURS.map(c => SCORE[c] == null ? '–' : String(SCORE[c])),
+    'Colours and meanings: the report, page 7.',
+    'Scores: this page’s, for its charts.',
+  ];
+  for (const scenario of project.scenarios) {
+    await new scenario.Scene({
+      skipUntil: Infinity,
+      async frame() {},
+      async stepEnd(scene, step) {
+        if (step.name !== 'test') return;
+        const key = scene.find('colour-key');
+        assert.ok(key);
+        const labels = [
+          ...key.family(),
+          ...scene.familyMembers().filter(m => m instanceof Text &&
+            (m.text.startsWith('Colours and meanings:') || m.text.startsWith('Scores:'))),
+        ].filter((m): m is Text => m instanceof Text);
+        assert.equal(labels.length, 14, 'six meanings, six scores and two attribution lines');
+        for (const text of words) assert.ok(labels.some(m => m.text === text), text);
+        for (const m of labels) {
+          assert.ok(m.textSize() * 358 / 16 >= 12, m.text);
+          const b = m.box()!;
+          assert.ok(b[0] >= -8 && b[1] >= -4.5 && b[2] <= 8 && b[3] <= 4.5, m.text);
+        }
+        checked.push(scenario.values.participant!);
+      },
+    }).run();
+  }
+  assert.deepEqual(checked, [...PARTICIPANTS]);
+});
 
 const NB = '\u202f';
 

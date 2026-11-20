@@ -13,7 +13,7 @@ import type { EmbedWidth } from './review-sizes.ts';
 
 export { shareable };
 
-/** A framed page's measured heights at the three reading widths (tools/repo/lib/explain-embed-size.ts measures them). */
+/** A framed page's measured heights at the three reading widths (tools/lib/explain-embed-size.ts measures them). */
 export interface EmbedSize {
   schema: 1;
   aspect: '16/9';

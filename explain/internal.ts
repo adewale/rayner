@@ -14,7 +14,7 @@ export { groundingDetails, groundingSentence } from './grounding.ts';
 export { isPlaceholder, placeholdersIn } from './intent.ts';
 export type { Grounding } from './grounding.ts';
 export { diagramsOn, isDiagramConnector } from './diagrams.ts';
-export { labelOf, readingLabelSize } from './labels.ts';
+export { labelOf, labelCompanions, labelPaintBox, readingLabelSize } from './labels.ts';
 export { LiveSink, liveBase, liveMachine, liveSteps, runLive } from './live.ts';
 export { machinesOf } from './machine.ts';
 export type { Live, LiveDraw, LiveExplore, LivePlace, LiveRun, LiveSession, LogStart } from './live.ts';

@@ -52,11 +52,51 @@ before(async () => {
     layouts.set(id, await stepLayouts(project.scenarios[0]!.Scene));
     await buildExplainer(project, join(folder, id + '.html'));
   }
+  const legendDir = join(folder, 'src', 'legend');
+  await mkdir(legendDir, {recursive: true});
+  await writeFile(join(legendDir, 'scene.ts'), `import {Scene, Text, Rectangle, keyed} from 'rayner';
+import {stage} from 'rayner/explain';
+export default class Legend extends Scene {
+  async construct(){
+    const s=stage(this,{heading:false});await this.step('legend');
+    const subject=new Rectangle({width:2,height:2}).moveTo([-4,0]);
+    this.add(subject,
+      keyed(new Rectangle({width:.3,height:.3,fill:'#123abc',stroke:'none'}).moveTo([-.3,0]),'pie:legend:Readers'),
+      keyed(new Text('Readers can write',{fontSize:.5,color:'#ef1234',anchor:'left'}).moveTo([.1,0],[-1,0]),'pie:legend-label:Readers'));
+    s.opening(subject,{zoom:2});await this.wait(.1);
+  }
+}`);
+  await buildExplainer(await collectProject(legendDir, {write:false}), join(folder, 'legend.html'));
   await buildLoader(join(folder, 'loader.js'));
   embed = await serve(folder, 0, 'whole.html');
   await new Promise<void>((r) => hostServer.listen(0, '127.0.0.1', r));
   host = `http://127.0.0.1:${(hostServer.address() as { port: number }).port}`;
   browser = await launch();
+});
+
+test('reader crops keep a legend swatch and its label together, and Whole picture restores both', options, async () => {
+  const context = await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
+  try {
+    const page=await context.newPage();
+    await page.goto(`${embed!.url}/legend.html`);
+    await page.waitForSelector('[data-ready=true]');
+    const states=async()=>page.locator('.stage svg:not(.leaving)').evaluate(svg=>{
+      const mark=svg.querySelector('[fill="#123abc"]')!, words=[...svg.querySelectorAll('[fill="#ef1234"]')];
+      return {mark:getComputedStyle(mark).visibility,words:words.map(el=>getComputedStyle(el).visibility)};
+    });
+    let omitted=false;
+    const stage=await page.locator('.stage').boundingBox();assert.ok(stage);
+    // Pan through the boundary as a reader can, beyond the planner's chosen stops.
+    for(let i=0;i<8;i++){
+      const state=await states();assert.ok(state.words.length>0);
+      if(state.words.some(v=>v==='hidden')){omitted=true;assert.equal(state.mark,'hidden','no orphaned legend swatch');}
+      await page.mouse.move(stage.x+stage.width*.6,stage.y+stage.height*.5);
+      await page.mouse.down();await page.mouse.move(stage.x+stage.width*.5,stage.y+stage.height*.5,{steps:4});await page.mouse.up();
+    }
+    assert.ok(omitted,'the reader actually crossed the legend boundary');
+    await page.getByRole('button',{name:'Whole picture',exact:true}).click();
+    const whole=await states();assert.equal(whole.mark,'visible');assert.ok(whole.words.every(v=>v==='visible'));
+  } finally {await context.close();}
 });
 after(async () => {
   if (!enabled) return;
@@ -78,6 +118,26 @@ async function stageAt(where: Page | Frame, step: string) {
     return { w: r.width, h: r.height, narrow: s.classList.contains('narrow') };
   });
 }
+
+test('a raw iframe replans and reapplies its opening after growing from the browser default height', options, async () => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'});
+  try {
+    const page = await context.newPage();
+    hostBody = `<!doctype html><style>body{margin:0}iframe{width:100%;border:0}</style><iframe src="${embed!.url}/closer.html"></iframe>`;
+    await page.goto(host);
+    const handle = await page.waitForSelector('iframe'), frame = (await handle.contentFrame())!;
+    await frame.waitForSelector('[data-ready=true]');
+    await stageAt(frame, STEPS[0]!);
+    await page.locator('iframe').evaluate(el => { el.style.height = '1000px'; });
+    await frame.waitForFunction(() => innerHeight === 1000);
+    await stageAt(frame, STEPS[0]!);
+    const resized = await frame.locator('.stage svg:not(.leaving)').evaluate(el => el.getAttribute('viewBox'));
+    await frame.goto(frame.url());
+    await frame.waitForSelector('[data-ready=true]');
+    await stageAt(frame, STEPS[0]!);
+    assert.equal(await frame.locator('.stage svg:not(.leaving)').evaluate(el => el.getAttribute('viewBox')), resized, 'resized opening equals a fresh opening at the final size');
+  } finally { await context.close(); }
+});
 
 /** The stage on every step, standalone and framed by the loader, at a 390 × 844 phone. */
 async function phoneStages(id: string) {

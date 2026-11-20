@@ -21,7 +21,8 @@ import { perf } from '../src/perf.ts';
 import { hasUpdaters } from '../src/mobject.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
-import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation, matchRows } from '../src/animation.ts';
+import { Transform } from '../src/index.ts';
 import { advanceBox } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
@@ -504,4 +505,43 @@ test('a play\'s lagRatio has nothing to stagger in a tween, which draws one samp
   const plain = await frames({});
   assert.ok(plain.length > 20);
   assert.deepEqual(await frames({ lagRatio: 1 }), plain);
+});
+
+test('fade-only sync preserves geometry and child opacity while replacing an unkeyed picture', () => {
+  const scene = new Scene<{ changed: boolean }>(new StringSink());
+  scene.state = { changed: false };
+  const v = view(scene, st => new Group(new Rectangle({width: st.changed ? 3 : 2, height: 1, opacity: 0.4})), {place: false});
+  scene.add(v);
+  const old = v.current, box = old.box();
+  scene.state.changed = true;
+  const sync = new ViewSync(v, {how: 'fade'});
+  beginAnimation(sync);
+  interpolateAnimation(sync, 0.25);
+  assert.deepEqual(old.box(), box, 'fading does not shrink the picture');
+  assert.equal(old.children[0]!.style.opacity, 0.4);
+  interpolateAnimation(sync, 0.5);
+  assert.ok(v.children.every(m => m.style.opacity === 0), 'the pictures do not overlap at the handoff');
+  finishAnimation(sync);
+  assert.equal(v.children.length, 1);
+  assert.equal(v.current.width(), 3);
+  assert.equal(v.current.children[0]!.style.opacity, 0.4);
+});
+
+test('a plain view sync replaces changed keyed words as whole words with staged fades', () => {
+  const scene = new Scene<{ word: string }>(new StringSink());
+  scene.state = { word: 'before' };
+  const picture = view(scene, st => keyed(new Group(keyed(new Text(st.word), 'word')), 'readout'));
+  scene.add(picture);
+  scene.state.word = 'after';
+  const sync = new ViewSync(picture);
+  beginAnimation(sync);
+  const inner = sync.inner as Transform;
+  assert.equal(inner[matchRows].moves.length, 0);
+  assert.ok(inner[matchRows].fadesOut.length > 0);
+  assert.ok(inner[matchRows].fadesIn.length > 0);
+  interpolateAnimation(sync, 0.5);
+  assert.ok(inner[matchRows].fadesOut.every(r => r.sub.style.opacity === 0));
+  assert.ok(inner[matchRows].fadesIn.every(r => r.sub.style.opacity === 0));
+  finishAnimation(sync);
+  assert.deepEqual(picture.texts, ['after']);
 });
