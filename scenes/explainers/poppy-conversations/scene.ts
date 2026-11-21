@@ -23,6 +23,11 @@ function clearLaunch(turn: Mobject, writer: Mobject, seat: Vec): Vec {
   return [at[0] + fraction * dx, at[1] + fraction * dy];
 }
 
+/** Repeating the already displayed message changes no pictured turn. */
+function sameTurn(before: World, after: World): boolean {
+  return !!before.said && !!after.said && before.said.at === after.said.at && before.said.speaker === after.said.speaker && before.said.line === after.said.line;
+}
+
 // A conversation between your agent and a Company, as a table with four seats, driven as a machine:
 // each message, read, request for a person, a person joining, the Company's invitation, the Direct
 // Conversation and its close is an event of the model, the picture is a view of its state, and the
@@ -60,17 +65,20 @@ export default class Conversations extends Scene {
     const world = view(this, (w, sh, drawing) => drawWorld(w, drawing, sh), { drawing: s.drawing, place: false });
 
     /**
-     * What a turn brings with it: the turn, and the two fields under "On the table" that say who wrote
-     * it, which wait for it to land. The heading, its rules and the fields' labels stay where they are,
+     * What a turn brings with it: the turn, and changed values under "On the table" that say who
+     * wrote it, which wait for it to land. Unchanged values, the heading, rules and labels stay,
      * rather than blink out and back for a second at every message.
      */
-    const SAID = ['turn', 'written:author.type:value', 'written:role:value'];
+    const SAID = ['turn'];
     // These are context, not new information brought by a message. Name each subject so a
     // missing rule or row label cannot be excused by the heading still being visible.
     const WRITTEN_CONTEXT = ['written:title:0', 'written:rule', 'written:author.type:label', 'written:author.type:rule', 'written:role:label', 'written:role:rule'];
     /** A turn of speech grows out of its writer's mark and comes to rest on the table. */
     const spoken = (t: Transition<World, TableEvent>) => {
       const c = t.choreograph(world), seat = speakerAt(t.after);
+      // The model can accept a repeated send without changing the pictured message. Its
+      // existing turn and ledger values remain: there is no new visible information to carry.
+      if (sameTurn(t.before, t.after)) return beats(c, () => [], { fresh: [] });
       if (!seat || !c.has('turn', 'to')) return beats(c, () => [], { fresh: SAID });
       // Start inside the table, towards the writer. The protected subject is the seat's mark;
       // the historical seat-name claim was not reproduced on these speaking routes.
@@ -106,7 +114,8 @@ export default class Conversations extends Scene {
       const moved = (k: string) => {
         const a = c.from(k), b = c.to(k);
         if (a instanceof Text && b instanceof Text && a.text !== b.text) return true;
-        return !TRAVELS.has(k) && RELOCATED_CAPTIONS.has(k);
+        const [ax, ay] = a.center(), [bx, by] = b.center();
+        return !TRAVELS.has(k) && RELOCATED_CAPTIONS.has(k) && Math.hypot(ax - bx, ay - by) > 1e-6;
       };
       for (const k of c.keys('from')) if (!c.has(k, 'to') || moved(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.25 }));
       for (const k of c.keys('to')) if (!c.has(k, 'from') || moved(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));
@@ -123,7 +132,7 @@ export default class Conversations extends Scene {
       bound,
       views: [world],
       motion: ({event, before, after}) => {
-        if (['ask', 'you', 'read'].includes(event) && after.said?.at === activeOf(after))
+        if (['ask', 'you', 'read'].includes(event) && after.said?.at === activeOf(after) && !sameTurn(before, after))
           return [{view: world, during: 'turn:flight', present: WRITTEN_CONTEXT}];
         if (event === 'joins') return [{view: world, during: openDirectOf(before)?.handoff === 'pending' ? 'specialist:mark:flight' : 'person:mark:flight', present: WRITTEN_CONTEXT}];
         return [];

@@ -125,9 +125,10 @@ export default class PoppyBrowser extends Scene {
         if (t.event === 'phish') return [{view: world, during: 'carried:half', present: ['evil:half']}];
         if (t.event !== 'load') return [];
         const record = `row:${codeOf(t)}`;
-        return ['request', 'page:stub:flight', 'shelf:join:flight'].map(during => ({
+        const emptyRack = !!world.current.find('rack:none');
+        return [...(emptyRack ? ['request'] : []), 'page:stub:flight', 'shelf:join:flight'].map(during => ({
           view: world, during, ...(during !== 'request' ? {present: [`${record}:stub`, `${record}:ring`]} : {}),
-          absent: world.current.find('rack:none') ? ['rack:none'] : [],
+          absent: emptyRack ? ['rack:none'] : [],
         }));
       },
       runTime: ({ event }) => ({ fetch: 2.2, load: 4.15, authorize: 3.5, submit: 3.35, browse: 1.75, forge: 2.8, phish: 3.35 })[event],
@@ -135,7 +136,7 @@ export default class PoppyBrowser extends Scene {
         // The agent's own fetch: a ticket with its seal, and no key, on its own road.
         fetch: (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM]), { lead: AGENT_ROAD });
+          return beats(c, flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM]), { fresh: FRESH, lead: AGENT_ROAD });
         },
         // The browser asks for the join page; the code comes back into the page, then the cookie half down onto the shelf.
         load: (t) => {

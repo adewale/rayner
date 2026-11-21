@@ -45,6 +45,9 @@ export interface CorpusEntry {
    * these from every reachable state, with every play of the run. Absent: every event, as `rayner check`.
    */
   events?: readonly string[];
+  /** An explicitly authored refusal with a separately verified historical cause.
+   * Ordinary build/runtime exceptions remain measurement errors. */
+  expectedRefusal?: { name: string; message: RegExp; kind: 'authored pacing guard' };
   /** When present, credit only a fresh finding matching the observed historical defect. */
   expectedFinding?: {
     scenario: string;
@@ -180,6 +183,10 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sessions-too-long', chapter: 'poppy-sessions', kind: 'too long', commit: '9e7d166a', method: 'reverted',
     what: 'A tamper took 3.1 s, and 4.35 s with the published key’s trip; the last audit commit shortened every beat.',
+    expectedRefusal: {
+      name: 'Error', kind: 'authored pacing guard',
+      message: /^Sessions tamper pacing: (?:3\.100 s exceeds this ticket-check sequence's 2\.850|4\.350 s exceeds this key-transfer sequence's 3\.900) s budget$/,
+    },
     edits: [
       { file: 'poppy-sessions/scene.ts', find: '{ appear: 0.25, move: 0.35, leave: 0.2 })();', replace: '{ appear: 0.25, move: 0.45, leave: 0.25 })();' },
       { file: 'poppy-sessions/scene.ts', find: '.map((k) => c.enter(k, {}, { runTime: 0.25 }));\n          return here.length', replace: '.map((k) => c.enter(k, {}, { runTime: 0.3 }));\n          return here.length' },
@@ -412,7 +419,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-layout-slides', chapter: 'poppy-conversations', kind: 'layout motion', commit: 'f3a705cf', method: 'adapted', events: ['direct', 'close'],
     what: 'Opening or closing the Direct Conversation slid every part that only changed place for the composition; the fix moves only the travellers and cross-fades the rest.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && RELOCATED_CAPTIONS.has(k);', replace: 'return false;' },
+      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && RELOCATED_CAPTIONS.has(k) && Math.hypot(ax - bx, ay - by) > 1e-6;', replace: 'return false;' },
     ],
   },
   {
@@ -446,14 +453,14 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'Filmed after the audit (origin/claude/film-fixes): the whole “On the table” block (heading, rules, labels) went out from about 0.2 s to 1.1 s on every message, because beats’ fresh named its prefix; only the two values change. The fix lists just the values.',
     expectedFinding: { scenario: '{}', transition: /^step "read", event "read"$/, kind: 'motion contract', path: 'turn:flight', subjects: ['written:title:0'], requirement: 'present' },
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: "const SAID = ['turn', 'written:author.type:value', 'written:role:value'];", replace: "const SAID = ['turn', 'written:'];" },
+      { file: 'poppy-conversations/scene.ts', find: "const SAID = ['turn'];", replace: "const SAID = ['turn', 'written:'];" },
     ],
   },
   {
     id: 'conversations-block-crossfades', chapter: 'poppy-conversations', kind: 'flicker', commit: '46cdb7e6', method: 'adapted', events: ['direct', 'close'],
     what: 'Filmed after the audit: opening or closing the Direct Conversation shifted the “On the table” block 0.1 units, just over the reflow’s 0.1 threshold, so it was cross-faded and gone from 0.4 s to 1.0 s. The fix morphs shifts under 0.5 units.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && RELOCATED_CAPTIONS.has(k);', replace: "const [ax, ay] = a.center(), [bx, by] = b.center();\n        return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.1;" },
+      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && RELOCATED_CAPTIONS.has(k) && Math.hypot(ax - bx, ay - by) > 1e-6;', replace: "return !TRAVELS.has(k) && Math.hypot(ax - bx, ay - by) > 0.1;" },
     ],
   },
   // -------------------------------------------------------------------------------------- coverage

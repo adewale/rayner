@@ -8,7 +8,7 @@ import { isRefusal } from '../../../explain/index.ts';
 import { loadFonts, loadProject } from '../../../explain/testing.ts';
 import { routeInkCheck } from '../lib/route-ink/fidelity.ts';
 import Conversations from './scene.ts';
-import { STORY, activeOf, next, start } from './model.ts';
+import { STORY, activeOf, authorOf, next, roleOf, start } from './model.ts';
 import type { World } from './model.ts';
 
 await loadFonts();
@@ -32,6 +32,45 @@ function paintedPixels(scene: Scene, part: Mobject): number {
 
 const inked = (m: Mobject) => m.family().some(p => p instanceof VMobject && p.hasPoints() && p.style.opacity * p.style.fillOpacity >= 0.5);
 const opaque = (m: Mobject) => m.family().filter(p => p instanceof VMobject && p.hasPoints()).every(p => p.style.opacity >= 0.99);
+
+test('a speaking turn retains unchanged author values while changed values wait for arrival', async () => {
+  const project = await loadProject(Conversations, import.meta.dirname);
+  let before = start(), last = JSON.stringify(before), unchanged = 0, withheld = 0;
+  let expected: { key: string; value: string; changed: boolean }[] = [];
+  let destination: Vec | undefined;
+  const unchangedValues = new Set<string>(), changedValues = new Set<string>();
+  await new project.scenarios[0]!.Scene({ async frame(scene) {
+    const world = scene.state as World, json = JSON.stringify(world), family = scene.familyMembers();
+    if (json !== last) {
+      expected = [];
+      if (world.said && world.said.at === activeOf(world)) {
+        const old = before.said?.at === activeOf(before) ? before.said : null;
+        expected = [
+          { key: 'written:author.type:value', value: authorOf(world.said.speaker), changed: !old || authorOf(old.speaker) !== authorOf(world.said.speaker) },
+          { key: 'written:role:value', value: roleOf(world.said.speaker), changed: !old || roleOf(old.speaker) !== roleOf(world.said.speaker) },
+        ];
+        const view = scene.mobjects.find((m): m is View => 'draw' in m && typeof m.draw === 'function');
+        destination = view?.draw(world, scene.shown).family().find(m => m.key === 'turn')?.center();
+      }
+      before = structuredClone(world); last = json;
+    }
+    const traveller = family.find(m => m.key === 'turn:flight' && inked(m) && opaque(m));
+    if (!traveller || !destination || Math.hypot(traveller.center()[0] - destination[0], traveller.center()[1] - destination[1]) < 0.05) return;
+    for (const { key, value, changed } of expected) {
+      const visible = family.filter((m): m is Text => m instanceof Text && m.key === key && m.text === value && inked(m));
+      if (changed) {
+        assert.equal(visible.length, 0, `${key} ${value} arrives before its turn`);
+        withheld++; changedValues.add(`${key}:${value}`);
+      } else {
+        assert.equal(visible.length, 1, `${key} ${value} blinks although its value is unchanged`);
+        unchanged++; unchangedValues.add(value);
+      }
+    }
+  } }).run();
+  assert.ok(unchanged > 10 && withheld > 10, 'both lifetimes were observed during actual movement');
+  assert.deepEqual([...unchangedValues].sort(), ['agent', 'human']);
+  assert.deepEqual([...changedValues].sort(), ['written:author.type:value:agent', 'written:author.type:value:human', 'written:role:value:company', 'written:role:value:user']);
+});
 
 test('ledger context stays painted through speech and both table layouts while captions use only their authored seats', async () => {
   const project = await loadProject(Conversations, import.meta.dirname);

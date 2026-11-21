@@ -52,7 +52,7 @@ export function applyEdits(text: string, edits: readonly Edit[], where: string):
 }
 
 /** What a variant is built from: an entry, or a chapter with no edits (its baseline). */
-export type Variant = Pick<CorpusEntry, 'id' | 'chapter' | 'edits' | 'events'>;
+export type Variant = Pick<CorpusEntry, 'id' | 'chapter' | 'edits' | 'events' | 'expectedRefusal'>;
 /** The baseline of `chapter`: its scene as it is, which the catalog's gate keeps free of findings. */
 export const baseline = (chapter: string): Variant => ({ id: `base-${chapter}`, chapter, edits: [] });
 
@@ -109,6 +109,15 @@ export function attributedFindings(fresh: readonly Found[], expected: NonNullabl
  * matches in `attributed`; the historical metric counts any fresh finding.
  */
 export interface EntryResult { id: string; caught: boolean; findings: Found[]; fresh: Found[]; attributed?: Found[]; ms: number; error?: string }
+
+/** Only a declared error type and exact authored reason establish this refusal. */
+export function authoredRefusal(entry: Variant, error: unknown): Found | undefined {
+  const expected = entry.expectedRefusal;
+  if (!expected || !(error instanceof Error) || error.name !== expected.name) return;
+  expected.message.lastIndex = 0;
+  if (!expected.message.test(error.message)) return;
+  return {scenario: 'during authored replay', line: `${expected.kind}: ${error.message}`};
+}
 /** `full`: every event's transitions, as `rayner check`; otherwise only the entry's `events`. */
 export async function runEntry(entry: Variant, { full = false, root = ROOT }: { full?: boolean; root?: string } = {}): Promise<EntryResult> {
   const t = Date.now();
@@ -117,6 +126,8 @@ export async function runEntry(entry: Variant, { full = false, root = ROOT }: { 
     const findings = await keyedMotionFindings(file, full ? undefined : entry.events);
     return { id: entry.id, caught: findings.length > 0, findings, fresh: findings, ms: Date.now() - t };
   } catch (e) {
+    const refusal = authoredRefusal(entry, e);
+    if (refusal) return {id: entry.id, caught: true, findings: [refusal], fresh: [refusal], ms: Date.now() - t};
     // Compression defects now reject before a bad frame can be rendered. Count only
     // this exact production duration guard; unrelated build/runtime exceptions remain errors.
     if (e instanceof RangeError && /^machine\.send\(".*"\): authored transition lasts [\d.]+ s but the event allows [\d.]+ s;/.test(e.message)) {
@@ -133,7 +144,7 @@ export async function runEntry(entry: Variant, { full = false, root = ROOT }: { 
 export function againstBaseline(result: EntryResult, base: EntryResult | undefined, expected?: CorpusEntry['expectedFinding']): EntryResult {
   // A failed baseline (including a duration guard that ended its replay early)
   // cannot establish which findings are new. Keep the observations for diagnosis.
-  if (base?.error || base?.findings.some(f => f.line.startsWith('duration guard: '))) {
+  if (base?.error || base?.findings.some(f => /^(?:duration guard|authored pacing guard): /.test(f.line))) {
     const why = base.error ?? 'a duration guard stopped its replay';
     return { ...result, fresh: [], caught: false, error: [result.error, `${base.id}: ${why}`].filter(Boolean).join('\n') };
   }

@@ -203,9 +203,12 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
     onlyFamily = !!state.family;
   const memberZ = new Set(members.map((m) => m.z));
   const picture = new Group();
+  // Cell papers can cross while the packed rows become a schematic. Keep every
+  // retiring symbol above those papers until its own fade has finished.
+  const lettering = new Group();
   for (let col = 1; !compact && !packed && !schematic && col <= 18; col++) {
     const hot = band && col === group;
-    picture.add(
+    lettering.add(
       new Text(String(col), { fontSize: 0.24, color: hot ? INK : SOFT, weight: hot ? 'bold' : 'normal' }).moveTo([
         colX(col),
         HEADER_Y,
@@ -244,15 +247,16 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
       weight: chosen ? 'bold' : 'normal',
     }).moveTo([x, packed ? y : y - 0.11]);
     keyed(letters, `periodic-symbol:${p.z}`);
-    picture.add(letters);
+    lettering.add(letters);
     if (!packed)
-      picture.add(
+      lettering.add(
         new Text(String(p.z), { fontSize: 0.22, font: 'mono', color: number }).moveTo(
           [x - CELL_W / 2 + 0.05, y + 0.175],
           [-1, 0],
         ),
       );
   }
+  picture.add(lettering);
   // The chosen column, outlined over its cells.
   const top = rowY(members[0]!.period) + CELL_H / 2 + 0.05,
     bottom = rowY(members.at(-1)!.period) - CELL_H / 2 - 0.05;

@@ -15,7 +15,7 @@ import { toSvgString } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
 import { ROOT, collectProject } from '../tools/lib/explain-project.ts';
-import { band } from '../tools/lib/explain-raster.ts';
+import { band, rasterize } from '../tools/lib/explain-raster.ts';
 import { contactSheet } from '../tools/lib/explain-shots.ts';
 
 // resvg is a devDependency here and an optional peer for users: without it there is no PNG to make.
@@ -100,4 +100,23 @@ test('a translucent element under a zoomed camera rasterises through band()', { 
   await writeFile(file, svg.replace('<svg overflow="visible" ', '<svg '));
   const bare = spawnSync(process.execPath, ['-e', `import('@resvg/resvg-js').then(({Resvg})=>{new Resvg(require('node:fs').readFileSync(${JSON.stringify(file)},'utf8')).render();console.log('ok')})`], { cwd: ROOT, encoding: 'utf8' });
   assert.notEqual(bare.status, 0, 'resvg no longer panics here: the overflow workaround may be dropped');
+});
+
+
+test('rasterize preserves native pixels and PNG bytes for clipped, translucent and transformed SVG paint', {skip}, async () => {
+  const {Resvg} = await import('@resvg/resvg-js');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="227" height="129" viewBox="0 0 227 129">
+    <defs><clipPath id="outer"><rect x="13" y="11" width="151" height="98"/></clipPath>
+      <clipPath id="inner"><circle cx="78" cy="63" r="44"/></clipPath></defs>
+    <g clip-path="url(#outer)"><path d="M0 0H227V129H0Z" fill="#ffeedd"/>
+      <g clip-path="url(#inner)"><path d="M10 15L170 101L36 110Z" fill="#cc1166" opacity="0.43"/>
+        <path d="M0 20C30 110 120 0 180 90" fill="none" stroke="#2255cc" stroke-width="8" stroke-linecap="round" transform="translate(6 3)"/></g>
+    </g></svg>`;
+  const expected = new Resvg(svg, {font: {loadSystemFonts: false}}).render();
+  const actual = await rasterize(svg), pixels = actual.pixels;
+  assert.deepEqual([actual.width, actual.height], [227, 129]);
+  assert.ok(pixels.some((value, i) => i % 4 === 3 && value === 0), 'the viewport retains transparent pixels');
+  assert.ok(pixels.some((value, i) => i % 4 === 3 && value > 0), 'the clipped shapes visibly paint');
+  assert.deepEqual(pixels, expected.pixels);
+  assert.deepEqual(actual.asPng(), expected.asPng());
 });

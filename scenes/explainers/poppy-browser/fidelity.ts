@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Text, VMobject } from '../../../src/index.ts';
 import type { Mobject, Scene } from '../../../src/index.ts';
 import { routeInkCheck } from '../lib/route-ink/fidelity.ts';
+import { MachineMotionCheck } from '../../../tools/lib/explain-motion-rules.ts';
 import { intersect } from '../../../src/box.ts';
 import { LiveSink, liveSteps, runLive } from '../../../explain/internal.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
@@ -40,6 +41,22 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
     },
   } });
   assert.ok(sawPair, 'the load step actually displayed the existing and newly issued records');
+  // On a second reader load the rack is already populated: there is no empty-state subject.
+  // Attach the actual rule checker here, rather than merely observing the resulting geometry.
+  const reissue = new MachineMotionCheck();
+  await runLive(scenario.Scene, step, place, ['load', 'submit'], {from: 'start', explore: async (scene, machine, draw) => {
+    draw(reissue);
+    await reissue.during(scene, () => scene.play(machine.send('load')));
+  }});
+  assert.deepEqual(reissue.findings, [], 'second-load rules must be nonempty and preserve the new record during issuance');
+  const afterMessage = new MachineMotionCheck();
+  await runLive(scenario.Scene, step, place,
+    ['load', 'authorize', ...(values.signin === 'no-scope' ? ['authorize'] : []), 'submit', 'phish'],
+    {from: 'start', explore: async (scene, machine, draw) => {
+      draw(afterMessage);
+      await afterMessage.during(scene, () => scene.play(machine.send('fetch')));
+    }});
+  assert.deepEqual(afterMessage.findings, [], 'a new fetch retires the declined message before its ticket travels');
   await checkTravel(scenario);
 }
 

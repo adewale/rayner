@@ -8,10 +8,89 @@ import { lerpColor } from '../../../src/index.ts';
 import { check } from './fidelity.ts';
 import PeriodicGroupsScene from './scene.ts';
 import { readFileSync } from 'node:fs';
+import { Resvg } from '@resvg/resvg-js';
+import { toSvgString } from '../../../src/index.ts';
 
 const PeriodicGroupsExplainer = withIntent(PeriodicGroupsScene, readFileSync('scenes/explainers/periodic-groups/script.md', 'utf8'), 'scenes/explainers/periodic-groups/script.md');
 type PeriodicGroupsExplainer = PeriodicGroupsScene;
 const project = loadProject(PeriodicGroupsExplainer, 'scenes/explainers/periodic-groups');
+
+test('retiring symbols remain above crossing cell papers while the rows stack', async () => {
+  await loadFonts();
+  const greenInk = (scene: PeriodicGroupsExplainer) => {
+    const { pixels } = new Resvg(toSvgString(scene, { width: 1200 }), { font: { loadSystemFonts: false } }).render();
+    let n = 0;
+    for (let i = 0; i < pixels.length; i += 4)
+      if (pixels[i + 1]! > pixels[i]! + 40 && pixels[i + 1]! > pixels[i + 2]! + 40) n++;
+    return n;
+  };
+  const victims = [
+    { z: 72, mask: 73, t: 0.867 }, { z: 73, mask: 74, t: 0.9 },
+    { z: 74, mask: 75, t: 0.9 }, { z: 75, mask: 76, t: 0.967 },
+    { z: 76, mask: 77, t: 1 }, { z: 77, mask: 78, t: 0.967 },
+    { z: 85, mask: 117, t: 1.4 }, { z: 104, mask: 105, t: 0.867 },
+  ];
+  for (const poison of [false, true]) {
+    let observed = 0, lost = 0, began = -1;
+    const checked = new Set<number>();
+    const Source = withSettings(PeriodicGroupsExplainer, { element: 'na' });
+    await new Source({ async frame(scene) {
+      assert.ok(scene instanceof PeriodicGroupsExplainer);
+      if (scene.currentStep?.name === 'stack') {
+        if (began < 0) began = scene.time;
+        const table = scene.table!.current;
+        if (poison) {
+          // Restore the former chapter paint order, without changing any geometry,
+          // alpha, keys or routes: each paper follows the previous symbol.
+          const alternating: Mobject[] = [];
+          for (let z = 1; z <= 118; z++) {
+            const paper = table.find(`periodic-cell:${z}`), word = table.find(`periodic-symbol:${z}`);
+            if (paper) alternating.push(paper);
+            if (word) alternating.push(word);
+          }
+          table.add(...alternating);
+        }
+        const word = table.find('periodic-symbol:72'), paper = table.find('periodic-cell:73');
+        if (word && paper && scene.time - began >= 0.6 && scene.time - began <= 1) {
+          const paint = word.family().map(m => ({ ...m.style }));
+          word.setFill('#00ff00');
+          const visible = greenInk(scene), opacity = paper.style.opacity;
+          paper.setOpacity(0);
+          const exposed = greenInk(scene);
+          paper.setOpacity(opacity);
+          word.family().forEach((m, i) => m.setStyle(paint[i]!));
+          if (exposed > 20) {
+            observed++;
+            if (!visible) lost++;
+            // The retiring run is translucent, so changing the backing can change
+            // antialias colours. It must still paint substantial distinct glyph ink.
+            if (!poison) assert.ok(visible >= exposed * 0.3, 'Hf retains painted glyph ink over Ta’s cell');
+          }
+        }
+        for (const victim of victims) if (Math.abs(scene.time - began - victim.t) < 1 / (3 * scene.fps)) {
+          const word = table.find(`periodic-symbol:${victim.z}`), paper = table.find(`periodic-cell:${victim.mask}`);
+          assert.ok(word && paper, `the actual crossing retains symbol ${victim.z} and paper ${victim.mask}`);
+          const paint = word.family().map(m => ({ ...m.style }));
+          word.setFill('#00ff00');
+          const visible = greenInk(scene), opacity = paper.style.opacity;
+          paper.setOpacity(0);
+          const exposed = greenInk(scene);
+          paper.setOpacity(opacity);
+          word.family().forEach((m, i) => m.setStyle(paint[i]!));
+          assert.ok(exposed > 5, `removing paper ${victim.mask} exposes real symbol ${victim.z} ink`);
+          if (poison) assert.ok(visible < exposed * 0.3, `old painter hides symbol ${victim.z}: ${visible}/${exposed} pixels`);
+          else assert.ok(visible >= exposed * 0.3, `symbol ${victim.z} retains painted ink: ${visible}/${exposed} pixels`);
+          checked.add(victim.z);
+        }
+      }
+    } }).run();
+    assert.ok(observed >= 8, 'native observations establish positive Hf ink throughout the crossing');
+    assert.deepEqual([...checked].sort((a, b) => a - b), victims.map(victim => victim.z).sort((a, b) => a - b), 'all eight victims have independent native paint observations');
+    if (poison) {
+      assert.ok(lost >= 4, 'former paint order erases Hf for at least four native frames; removing only Ta restores it');
+    } else assert.equal(lost, 0);
+  }
+});
 
 test('every scenario records the model’s answers at each step', async () => {
   const { scenarios } = await project;

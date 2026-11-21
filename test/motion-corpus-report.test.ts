@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
-import { againstBaseline, type EntryResult, type Found } from '../tools/repo/motion-corpus-lib.ts';
+import { againstBaseline, authoredRefusal, type EntryResult, type Found } from '../tools/repo/motion-corpus-lib.ts';
 import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 
 const observation = (segment: string, path: string, t: number): Found => ({
@@ -12,6 +12,27 @@ const observation = (segment: string, path: string, t: number): Found => ({
 function result(id: string, findings: Found[] = []): EntryResult {
   return { id, caught: findings.length > 0, findings, fresh: findings, ms: 0 };
 }
+
+test('the Sessions pacing refusal credits only its declared historical budget violation', () => {
+  const entry = CORPUS.find(e => e.id === 'sessions-too-long')!;
+  const reasons = [
+    "Sessions tamper pacing: 3.100 s exceeds this ticket-check sequence's 2.850 s budget",
+    "Sessions tamper pacing: 4.350 s exceeds this key-transfer sequence's 3.900 s budget",
+  ];
+  for (const reason of reasons) {
+    assert.equal(authoredRefusal(entry, new Error(reason))?.line, 'authored pacing guard: ' + reason);
+    assert.equal(authoredRefusal(entry, new TypeError(reason)), undefined, 'a wrong exception type is not this refusal');
+    assert.equal(authoredRefusal({...entry, expectedRefusal: undefined}, new Error(reason)), undefined);
+    assert.equal(authoredRefusal(entry, new Error('unrelated failure: ' + reason)), undefined);
+  }
+  for (const reason of [
+    'missing mutation anchor',
+    "Sessions tamper pacing: 3.100 s exceeds this ticket-check sequence's 1.000 s budget",
+    "Sessions tamper pacing: 9.000 s exceeds this key-transfer sequence's 3.900 s budget",
+  ]) assert.equal(authoredRefusal(entry, new Error(reason)), undefined);
+  const base = result('base-poppy-sessions', [authoredRefusal(entry, new Error(reasons[0]!))!]);
+  assert.match(againstBaseline(result(entry.id, [observation('check', 'stamp', 0.2)]), base).error!, /base-poppy-sessions/);
+});
 
 test('the baseline removes a shifted finding on the same part and retains findings in another transition or part', () => {
   const before = observation('press: open: gate', 'ledger (old)/title', 0.4);
