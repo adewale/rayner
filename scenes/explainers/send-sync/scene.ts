@@ -40,7 +40,10 @@ type ChartShown = { notes: PictureNote[]; marks: Record<string, { color: string;
 type CodeFocus = { lines: [number, number]; as: string } | null;
 type SendSyncShown = { chart?: ChartShown; opener?: CodeFocus; rules?: CodeFocus };
 
-export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShown> {
+export default class SendSyncExplainer extends Scene {
+  override state: SendSyncState = {};
+  override shown: SendSyncShown = {};
+
   static meta = {
     sources: [
       RUST + 'alloc/src/sync.rs#L284-L286',
@@ -102,8 +105,8 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
     const column = async (rows: (st: SendSyncState) => readonly (readonly [string, string])[], title?: string) => {
       const v = view(
         this,
-        (state) => {
-          const c = card(s, rows(state), {
+        (state, _shown, drawing) => {
+          const c = card(drawing, rows(state), {
             at: RIGHT,
             align: 'top',
             size: SIZE,
@@ -113,7 +116,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
           c.shift([RIGHT[0] + 0.1 - c.box()![0], 0]);
           return c;
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
       await s.enter(v);
       return v;
@@ -125,7 +128,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
      */
     const locator = async (here: Quadrant) => {
       this.state.here = here;
-      const map = view(this, (state) => quadrantMap(having(state, 'here').here, s.look), { place: false });
+      const map = view(this, (state, _shown, drawing) => quadrantMap(having(state, 'here').here, drawing.look), { drawing: s.drawing, place: false });
       await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[having(this.state, 'here').here]}” filled` });
     };
     // How the chart in view is shown, apart from its source: the note on its point and the point
@@ -159,15 +162,15 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
       this.shown[name] = null satisfies CodeFocus;
       return view(
         this,
-        (_st, sh) => {
-          return code(s, source, {
+        (_st, sh, drawing) => {
+          return code(drawing, source, {
             at,
             size: SIZE,
             lit: sh[name] ?? null,
             key: name,
           });
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
     };
     const focusCode = async (panel: View, name: 'opener' | 'rules', focus: CodeFocus) => {

@@ -2,7 +2,7 @@ import { Scene, Group, Brace, MathTex, Create, FadeIn, MoveAlongPath, Transform,
 import { ArcBetweenPoints } from '../../../extras/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta, Setting } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta, Setting } from '../../../explain/index.ts';
 import { table } from '../../../explain/drawing.ts';
 import { SUMS, others, sumStory } from './model.ts';
 import type { SumState } from './model.ts';
@@ -12,7 +12,13 @@ const CHOICE = { 'two-tenths': '0.1+0.2', 'three-tenths': '0.1+0.3' } as const;
 /** A fraction of a gap, in words: the model's places are fifths and halves here. */
 const fraction = (x: number) => ({ 0.2: 'a fifth', 0.4: 'two fifths', 0.5: 'half', 0.6: 'three fifths', 0.8: 'four fifths' })[Math.round(x * 10) / 10] ?? `${x.toFixed(2)}`;
 
-export default class FloatSum extends Scene<SumState, {}> {
+export default class FloatSum extends Scene {
+  private readonly sum = sumStory(SUMS[CHOICE[settingsOf(this, FloatSum).sum]]);
+  override state: SumState = {
+    a: this.sum.a, b: this.sum.b, expected: this.sum.expected, equal: this.sum.equal,
+    prints: this.sum.prints, expectedPrints: this.sum.expectedPrints, stored: [], ticks: [],
+  };
+
   static meta = {
     // The fraction a double holds, and the gap between doubles, are typeset once by rayner snapshots.
     lettering: { math: true },
@@ -34,9 +40,9 @@ export default class FloatSum extends Scene<SumState, {}> {
 
   override async construct() {
     const s = stage(this, { style: 'nord', headingSize: 0.6 });
-    const m = sumStory(SUMS[CHOICE[settingsOf(this, FloatSum).sum]]);
+    const m = this.sum;
     const { a, b, expected } = m, sum = `${a} + ${b}`;
-    const base: SumState = { a, b, expected, equal: m.equal, prints: m.prints, expectedPrints: m.expectedPrints, stored: [], ticks: [] };
+    const base = this.state;
     const kept = m.stored.map(({ typed, double }) => ({ typed, double }));
     const ticks = m.ticks.map((t) => t.double), prints = m.ticks.map((t) => t.prints);
     const [first, , third] = m.stored as [(typeof m.stored)[0], (typeof m.stored)[0], (typeof m.stored)[0]];
@@ -53,7 +59,7 @@ export default class FloatSum extends Scene<SumState, {}> {
           ? `Ask JavaScript or Python whether ${sum} equals ${expected} and it says true, yet 0.1 + 0.2 == 0.3 is false in the same languages. Neither answer is a bug, and every language that uses the processor’s own floating-point numbers gives both. The numbers the machine adds are not quite the ones typed, and the sum is rounded once more. Here the rounding happens to land where ${expected} is kept.`
           : `Ask JavaScript or Python for ${sum} and it prints ${m.prints}; ask whether that equals ${expected} and it says false. Nothing is broken: every language that uses the processor’s own floating-point numbers says false too. The numbers the machine adds are not quite the ones typed, and the sum is rounded once more.`,
         state: base,
-        draw: (st: SumState, s: Stage) =>
+        draw: (st: SumState, s: DrawContext) =>
           new Group(table(s, ['You type', 'It prints'], [
             { key: 'sum', cells: [`${st.a} + ${st.b}`, st.prints] },
             { key: 'expected', cells: [st.expected, st.expectedPrints] },
@@ -71,17 +77,17 @@ export default class FloatSum extends Scene<SumState, {}> {
     await s.clear({ runTime: 0.2 });
     this.state = { ...base, stored: kept };
     const rowY = [1.9, 1.05, 0.2] as const, left = -7.1;
-    const typedFirst = startAt(s, a, [left, rowY[0]], { size: DIGITS, mono: true });
-    const head = startAt(s, 'Typed, then what is kept, digit for digit', [left, 2.7], { soft: true });
+    const typedFirst = startAt(s.drawing, a, [left, rowY[0]], { size: DIGITS, mono: true });
+    const head = startAt(s.drawing, 'Typed, then what is kept, digit for digit', [left, 2.7], { soft: true });
     await s.enter(typedFirst, head);
     // The typed digits stay where they are and the digits the machine keeps grow out of them.
-    const keptFirst = keyed(digitsAt(s, first.digits, [left, rowY[0]]), 'kept:0');
+    const keptFirst = keyed(digitsAt(s.drawing, first.digits, [left, rowY[0]]), 'kept:0');
     await this.play(new Transform(typedFirst, keptFirst, { match: 'text', runTime: 1.4 }));
     s.keep(keptFirst);
-    const rest = m.stored.slice(1).map((v, i) => keyed(digitsAt(s, v.digits, [left, rowY[i + 1]!]), `kept:${i + 1}`));
-    const notes = m.stored.map((v, i) => startAt(s, v.high ? 'high' : 'low', [5.2, rowY[i]!], { soft: true }));
+    const rest = m.stored.slice(1).map((v, i) => keyed(digitsAt(s.drawing, v.digits, [left, rowY[i + 1]!]), `kept:${i + 1}`));
+    const notes = m.stored.map((v, i) => startAt(s.drawing, v.high ? 'high' : 'low', [5.2, rowY[i]!], { soft: true }));
     await s.enter(...rest, ...notes, { runTime: 0.5 });
-    const said = startAt(s, `${a} is kept as exactly`, [left, -1.7]);
+    const said = startAt(s.drawing, `${a} is kept as exactly`, [left, -1.7]);
     const kept0 = keyed(new MathTex(`\\frac{${first.fraction.num}}{2^{${first.fraction.power}}}`, { display: true, fontSize: 0.95, color: s.look.ink, shaping: this.textShaping }), 'fraction');
     kept0.moveTo([said.box()![2] + 0.4, -1.7], [-1, 0]);
     await s.enter(said, kept0, { describe: `${a} is kept as exactly ${first.fraction.num} over 2 to the power ${first.fraction.power}` });
@@ -94,7 +100,7 @@ export default class FloatSum extends Scene<SumState, {}> {
     });
     await s.clear({ runTime: 0.2 });
     this.state = { ...base, stored: kept, ticks, expectedAt: m.expectedAt, expectedTick: m.expectedTick };
-    const { line, marks, labels } = drawLine(s, prints);
+    const { line, marks, labels } = drawLine(s.drawing, prints);
     const at = (place: number): Vec => line.n2p(place);
     // The gap, braced, with its width at the brace's tip: the last gap on the line, clear of the marks.
     const last = m.ticks.length - 1, gapBox = [at(last - 1)[0], LINE_Y - 0.1, at(last)[0], LINE_Y + 0.1] as const;
@@ -103,11 +109,11 @@ export default class FloatSum extends Scene<SumState, {}> {
     brace.putAtTip(width, 0.16);
     await s.enter(line, marks, labels, { describe: `A number line with ${m.ticks.length} ticks, each a double; the first two are named by what they print as, ${prints[0]} and ${prints[1]}` });
     await s.enter(brace, width, { describe: `A brace over one gap between ticks: 2 to the power minus ${m.gap.power}` });
-    const typedMark = keyed(ring(s, at(m.expectedAt)), 'mark:typed');
-    const typedFlag = flag(s, `${expected}, as typed`, typedMark, m.expectedAt <= m.sumAt ? 'left' : 'right');
+    const typedMark = keyed(ring(s.drawing, at(m.expectedAt)), 'mark:typed');
+    const typedFlag = flag(s.drawing, `${expected}, as typed`, typedMark, m.expectedAt <= m.sumAt ? 'left' : 'right');
     await s.enter(typedMark, typedFlag, { describe: `A ring at ${expected} exactly as typed, ${fraction(m.expectedAt % 1)} of the way across a gap` });
     // The typed value stays where it is; a copy of its mark settles on the nearer double.
-    const keptMark = keyed(stored(s, at(m.expectedTick)), 'mark:kept');
+    const keptMark = keyed(stored(s.drawing, at(m.expectedTick)), 'mark:kept');
     await this.play(new Transform(typedMark, keptMark, { fromCopy: true, runTime: 0.9 }));
     s.keep(keptMark, { describe: `A dot on the tick ${expected} is kept as, the one that prints as ${prints[m.expectedTick]}` });
 
@@ -120,8 +126,8 @@ export default class FloatSum extends Scene<SumState, {}> {
       predict: { options: [`The same double as ${expected}`, 'A different double'], answer: m.equal ? `The same double as ${expected}` : 'A different double' },
     });
     this.state = { ...base, stored: kept, ticks, expectedAt: m.expectedAt, expectedTick: m.expectedTick, sumAt: m.sumAt, sumTick: null };
-    const sumMark = keyed(square(s, at(m.sumAt)), 'mark:sum');
-    const sumFlag = flag(s, `${sum}, exactly`, sumMark, m.expectedAt <= m.sumAt ? 'right' : 'left');
+    const sumMark = keyed(square(s.drawing, at(m.sumAt)), 'mark:sum');
+    const sumFlag = flag(s.drawing, `${sum}, exactly`, sumMark, m.expectedAt <= m.sumAt ? 'right' : 'left');
     await s.enter(sumMark, sumFlag, { describe: () => `A square for the exact sum of the two kept numbers, ${Math.abs(sumMark.center()[0] - at(m.sumAt)[0]) < 1e-6 ? `${m.rounded.where === 'tie' ? 'exactly halfway between two ticks' : 'between two ticks'}` : `moved onto the tick that prints as ${m.prints}`}` });
 
     // 5. The rounding: the sum hops to the tick it is kept as.
@@ -150,13 +156,13 @@ export default class FloatSum extends Scene<SumState, {}> {
     await s.clear({ runTime: 0.2 });
     const digitsX = -2.9, rows = [2.2, 1.3, -0.3, -1.2] as const;
     const sumDigits = m.ticks[m.sumTick]!.digits, expectedDigits = third.digits;
-    const longSum = keyed(digitsAt(s, sumDigits, [digitsX, rows[0]]), 'sum:kept');
-    const longExpected = keyed(digitsAt(s, expectedDigits, [digitsX, rows[2]]), 'expected:kept');
-    const names = ['Sum, kept', 'Sum, printed', `${expected}, kept`, `${expected}, printed`].map((t, i) => startAt(s, t, [left, rows[i]!], { soft: true }));
+    const longSum = keyed(digitsAt(s.drawing, sumDigits, [digitsX, rows[0]]), 'sum:kept');
+    const longExpected = keyed(digitsAt(s.drawing, expectedDigits, [digitsX, rows[2]]), 'expected:kept');
+    const names = ['Sum, kept', 'Sum, printed', `${expected}, kept`, `${expected}, printed`].map((t, i) => startAt(s.drawing, t, [left, rows[i]!], { soft: true }));
     await s.enter(longSum, longExpected, names[0]!, names[2]!);
     // A copy of the kept digits travels down a row: the digits the print keeps move, the rest fade.
     const shorten = (long: typeof longSum, short: string, y: number, key: string) => {
-      const from = long.copy(), to = keyed(startAt(s, short, [digitsX, y], { size: DIGITS, mono: true, bold: true }), key);
+      const from = long.copy(), to = keyed(startAt(s.drawing, short, [digitsX, y], { size: DIGITS, mono: true, bold: true }), key);
       this.add(from);
       return { play: new Transform(from, to, { match: 'text', runTime: 1.2 }), to };
     };
@@ -173,7 +179,7 @@ export default class FloatSum extends Scene<SumState, {}> {
         line: 'Four sums, what each prints as, and whether that is the decimal expected.',
         caption: `Sums of decimals go through the same two roundings; what differs is where the exact sum falls between two doubles. ${list[1]!.sum} rounds onto the double for ${list[1]!.expected}, ${list[2]!.sum} rounds to the double below the one for ${list[2]!.expected}, and only ${list[3]!.sum} is exact, because halves and quarters are whole numbers over a power of two. So do not test sums of decimals with ==: compare within a tolerance, or count in whole units such as cents.`,
         state: { ...base, stored: kept, ticks, others: list } as SumState,
-        draw: (st: SumState, s: Stage) =>
+        draw: (st: SumState, s: DrawContext) =>
           new Group(table(s, ['Sum', 'Prints as', 'Against'], having(st, 'others').others.map((o) => ({ key: o.sum.replace(/[^0-9]+/g, '-'), cells: [o.sum, o.prints, `${o.equal ? 'equals' : 'not'} ${o.expected}`] })),
             { key: 'others', columns: { left: -7.1, gap: 0.7 }, at: [0, 2.3], gap: 1.15, size: 0.58 })),
       },

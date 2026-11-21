@@ -1,3 +1,4 @@
+import { drawContext } from '../explain/drawing.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Scene, Group, Code} from '../src/index.ts';
@@ -12,7 +13,7 @@ test('copied and restored cards own their readouts, geometry and mutable row ind
   await loadFonts();
   await fc.assert(fc.asyncProperty(fc.integer({min: 1, max: 99}), fc.integer({min: 100, max: 999}), async (before, after) => {
     const scene = new Scene(new NullSink());
-    const original = new Card(scene, palette('nord'), [['Count', before]]);
+    const original = new Card(drawContext({ palette: palette('nord') }), [['Count', before]]);
     const wrapper = new Group(original), copied = wrapper.copy().children[0] as Card;
     scene.add(wrapper, copied);
     copied.shift([4, 0]);
@@ -37,7 +38,7 @@ test('copied and restored cards own their readouts, geometry and mutable row ind
     assert.ok(copied.family().includes(copied.values.get('Count')!));
     assert.equal(copied.describe().parts[0]!.name, `Count: ${after}`);
     // A lit card's copy reports its own bar, not the original's.
-    const lit = new Card(scene, palette('nord'), [['Count', before]], {lit: {row: 'Count'}});
+    const lit = new Card(drawContext({ palette: palette('nord') }), [['Count', before]], {lit: {row: 'Count'}});
     const litCopy = new Group(lit).copy().children[0] as Card;
     scene.add(litCopy);
     assert.ok(emphasisOf(scene).has(litCopy.bar));
@@ -47,7 +48,7 @@ test('copied and restored cards own their readouts, geometry and mutable row ind
 test('code composites rebind named lines, marks and panels when copied and restored', async () => {
   await loadFonts();
   const scene = new Scene(new NullSink());
-  const original = new CodeBlock(scene, palette('nord'), ['+ added', '- removed'], {diff: true, title: 'Change', lit: {lines: 0}});
+  const original = new CodeBlock(drawContext({ palette: palette('nord') }), ['+ added', '- removed'], {diff: true, title: 'Change', lit: {lines: 0}});
   const copy = new Group(original).copy().children[0] as CodeBlock;
   for (const component of [copy.code, copy.panel, copy.bar, ...copy.marks.map(m => m.mob), ...copy.code.lines])
     assert.ok(copy.family().includes(component));
@@ -67,8 +68,7 @@ test('code composites rebind named lines, marks and panels when copied and resto
 
 test('a copied Card owns its rows and names prototype-sensitive labels as ordinary rows', async () => {
   await loadFonts();
-  const scene = new Scene(new NullSink());
-  const original = new Card(scene, palette('nord'), [['__proto__', 1], ['constructor', 2]]), copy = original.copy();
+  const original = new Card(drawContext({ palette: palette('nord') }), [['__proto__', 1], ['constructor', 2]]), copy = original.copy();
   for (const key of ['__proto__', 'constructor']) {
     assert.notEqual(copy.values.get(key), original.values.get(key));
     assert.ok(copy.family().includes(copy.values.get(key)!));
@@ -78,8 +78,8 @@ test('a copied Card owns its rows and names prototype-sensitive labels as ordina
 test('live copied panels expose inherited highlights without registering temporary copies', async () => {
   await loadFonts();
   const scene = new Scene(new NullSink()), colors = palette('nord');
-  const card = new Card(scene, colors, [['Count', 1]], {lit: {row: 'Count'}});
-  const code = new CodeBlock(scene, colors, ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
+  const card = new Card(drawContext({ palette: colors }), [['Count', 1]], {lit: {row: 'Count'}});
+  const code = new CodeBlock(drawContext({ palette: colors }), ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
   const copies = new Group(card, code).copy();
   const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
   scene.remove(...scene.mobjects); scene.add(copies);
@@ -105,9 +105,8 @@ test('live copied panels expose inherited highlights without registering tempora
 
 test('repeated card labels keep last-value lookup for ordinary and prototype-sensitive keys', async () => {
   await loadFonts();
-  const scene = new Scene(new NullSink());
   fc.assert(fc.property(fc.constantFrom('same', '__proto__', 'constructor'), fc.integer(), fc.integer(), (key, first, last) => {
-    const card = new Card(scene, palette('nord'), [[key, first], [key, last]]), copy = card.copy();
+    const card = new Card(drawContext({ palette: palette('nord') }), [[key, first], [key, last]]), copy = card.copy();
     assert.equal(card.values.get(key)!.text, String(last));
     assert.equal(copy.values.get(key)!.text, String(last));
     assert.ok(copy.family().includes(copy.values.get(key)!));

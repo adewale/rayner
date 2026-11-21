@@ -1,4 +1,4 @@
-import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName, scriptOf } from '../../explain/internal.ts';
+import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedReadings, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, observedValue, viewMismatch, scenarioName, scriptOf } from '../../explain/internal.ts';
 import { viewInput } from '../../explain/internal.ts';
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
@@ -184,7 +184,7 @@ export const PHONE_WHOLE_MIN_SIZE = READ_PX / PHONE_UNIT;
  * The keyed motion sink `rayner check` runs (src/keyed-motion.ts), able to judge words by size:
  * a label's reading size, and the size that reads on a phone showing the whole picture.
  */
-export const keyedMotionSink = (segmentOf?: (scene: Scene<object, object>) => string | null) =>
+export const keyedMotionSink = (segmentOf?: (scene: Scene) => string | null) =>
   new KeyedMotionSink(segmentOf, { labelSize: readingLabelSize, legible: PHONE_WHOLE_MIN_SIZE });
 /** A step's close-ups on the phone, as the player works them out: the opening's zoom, and each view's zoom and box in view units. */
 type PhoneCloseUps = { k: number; views: { k: number; box: Box }[] };
@@ -288,19 +288,25 @@ export class ViewSink implements Sink {
   private readonly states: Record<string, unknown>[] = [];
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
-    this.states.push(structuredClone(scene.state));
+    const model = scene.stateJson(), shown = scene.shownJson();
+    this.states.push(model);
     for (const m of scene.familyMembers()) {
       if (!isView(m)) continue;
       this.checked++;
-      const state = m[viewInput](scene.state);
-      if (state !== scene.state) this.states.push(structuredClone(state));
-      const mismatch = viewMismatch(m, state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
+      const state = m[viewInput](model);
+      if (state !== model) this.states.push(structuredClone(state));
+      const mismatch = viewMismatch(m, state, { shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
+      // An explicit observation is checked on actual reachable models by exploreMachine below.
+      // A synthetic input that throws, or a legitimate singleton observation, is no contrast proof.
+      if (machinesOf(scene).some(machine => machine.spec.observe && machine.spec.views.includes(m) && machineSteps(machine, liveSteps(scene)).includes(step.path))) {
+        continue;
+      }
       // Asked at each step's end that shows the view, while the scene is as the step left it (a draw
       // may read live parts of the scene), until one shows the picture depends on the state: a list
       // that is empty at first and grows later shows it only later.
       if (this.proven.has(m)) continue;
-      const others = viewIgnoresState(m, state, scene.shown, this.states);
+      const others = viewIgnoresState(m, state, shown, this.states);
       if (others === null) { this.proven.add(m); this.unproven.delete(m); }
       else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others });
     }
@@ -523,9 +529,9 @@ export class LegibilitySink implements Sink {
    * A resting picture that belongs to no step (a state a machine reaches): measured in full, and on
    * the phone in the close-ups of `step` when given (the live step the state is shown at).
    */
-  resting(scene: Scene<object, object>, step?: string): void { this.measure(scene, true, step); }
+  resting(scene: Scene, step?: string): void { this.measure(scene, true, step); }
 
-  private measure(scene: Scene<object, object>, completed: boolean, step?: string): void {
+  private measure(scene: Scene, completed: boolean, step?: string): void {
     // Sizes on screen: world size times the camera's zoom, inside the camera's view
     // cut by every clip; boxes for the phone's close-ups in the view's own units.
     const view = viewOf(scene);
@@ -581,11 +587,11 @@ export class LegibilitySink implements Sink {
  * `rayner check` plays every event's.
  */
 export async function exploreMachines(
-  scene: Scene<object, object>,
+  scene: Scene,
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
   only?: { events?: readonly string[] },
-): Promise<{ step?: string; events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
+): Promise<{ step?: string; events: string[]; states: number; observations: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
   const explored: Awaited<ReturnType<typeof exploreMachines>> = [];
   const controls = liveSteps(scene);
   if (!layouts && controls.size) layouts = await stepLayouts(Source);
@@ -595,8 +601,12 @@ export async function exploreMachines(
       const active = live?.machine === made;
       const place = active ? live : { index, identity: made.identity };
       const explore: LiveExplore = async (host, machine, draw) => {
-        const checked = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events);
-        explored.push(step !== null && live?.offered && active ? { ...checked, step } : checked);
+        try {
+          const checked = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events);
+          explored.push(step !== null && live?.offered && active ? { ...checked, step } : checked);
+        } catch (error) {
+          throw new Error(`Machine ${index + 1}${step === null ? '' : ` at step "${step}"`}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+        }
       };
       if (step !== null) await runLive(Source, step, place, [], { explore });
       else {
@@ -610,7 +620,7 @@ export async function exploreMachines(
 }
 
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
-async function exploreMachine(host: Scene<object, object>, machine: ReturnType<typeof machinesOf>[number], step: string | null, active: boolean, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
+async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, active: boolean, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
   const diagramsBefore = diagramsOn(host);
   const problems: string[] = [], motion: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
@@ -631,10 +641,12 @@ async function exploreMachine(host: Scene<object, object>, machine: ReturnType<t
   const shownThen = host.shown;
   // runLive already chose the shown state for this historical step. A play outside any step has its own shown state.
   if (step === null) host.shown = machine.playedUnder ?? shownThen;
-  const said = new Map<string, string>();
+  const said = new Map<string, { observation: string; at: string }>(), observations = new Set<string>();
   for (const { state, path, origin } of reached) {
     const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
     const model = jsonObject(state, 'machine state');
+    const observation = canonicalJson(observedValue(machine, state, `${at}, model ${canonicalJson(state)}`));
+    observations.add(observation);
     host.state = model;
     for (const view of machine.spec.views) {
       view.rebuild();
@@ -653,15 +665,16 @@ async function exploreMachine(host: Scene<object, object>, machine: ReturnType<t
     const picture = host.derivedJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
     const words = JSON.stringify(picture?.entries ?? []);
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
-    else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
-    else said.set(words, at);
+    else if (said.has(words) && said.get(words)!.observation !== observation)
+      problems.push(`${at}: the picture is described exactly as ${said.get(words)!.at}, a different observation`);
+    else if (!said.has(words)) said.set(words, { observation, at });
     const played = await transitionProblems(host, machine, state, path, origin, draw, only);
     problems.push(...played.problems);
     motion.push(...played.motion);
   }
   host.shown = shownThen;
   const sampled = !startWalk.complete || liveWalk?.complete === false;
-  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion };
+  return { events: [...machine.spec.events], states: reached.length, observations: observations.size, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion };
 }
 
 /**
@@ -742,7 +755,7 @@ const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
  * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
  * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
  */
-async function transitionProblems(scene: Scene<object, object>, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[]): Promise<{ problems: string[]; motion: string[] }> {
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[]): Promise<{ problems: string[]; motion: string[] }> {
   const problems: string[] = [], motionProblems: string[] = [];
   const { views, events } = machine.spec;
   for (const event of events) {
@@ -1001,7 +1014,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
-      ...(machines.length ? { machines: machines.map(({ step, events, states, sampled }) => ({ ...(step ? { step } : {}), events, states, ...(sampled ? { sampled } : {}) })) } : {}),
+      ...(machines.length ? { machines: machines.map(({ step, events, states, observations, sampled }) => ({ ...(step ? { step } : {}), events, states, observations, ...(sampled ? { sampled } : {}) })) } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
@@ -1024,7 +1037,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         ? {
             watch: v.trace.steps.map((s, index) => {
               const unformatted: string[] = [];
-              const changes = watchedChanges(s, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
+              const changes = watchedReadings(s, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
               return { step: s.step, changes, unformatted };
             }),
           }

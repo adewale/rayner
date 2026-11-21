@@ -134,7 +134,10 @@ type MapShown = {
   dim: string[] | null;
 };
 
-export default class WcagMapExplainer extends Scene<WcagState, { map?: MapShown }> {
+export default class WcagMapExplainer extends Scene {
+  override state: WcagState = {};
+  override shown: { map?: MapShown } = {};
+
   static meta = {
     sources: [
       'https://www.w3.org/WAI/WCAG22/wcag.json',

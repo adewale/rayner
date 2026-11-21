@@ -1,6 +1,6 @@
 import { Circle, Group, Line, Polygon, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, STROKE, TICKET, TONE, TYPE, addAll, barrier, certificate, clock, counter, key, lane, laneRoute, person, seal, sheet, station, stationExit, stationHolds, ticket, label } from '../lib/poppy-kit.ts';
 import { SID } from '../poppy/model.ts';
@@ -83,17 +83,17 @@ const OUTCOME_Y = -2.32;
 const RAIL_Y = -3.42, RAIL_LABEL_Y = -4.08;
 
 /** The poppy.json, as a sheet of paper, for the transition that carries a fresh copy to the agent. */
-export const documentToken = (s: Stage): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
+export const documentToken = (s: DrawContext): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
 /** A delegation, for the transition that brings the agent a new one. */
-export const delegationToken = (s: Stage): Mobject => certificate(s, { width: 1.2, height: 0.86 });
+export const delegationToken = (s: DrawContext): Mobject => certificate(s, { width: 1.2, height: 0.86 });
 /** The Company's clock at the counter, for a rate limit: full while the agent must wait, empty once it has. */
-export const paceClock = (s: Stage, remaining: number): Mobject => clock(s, { at: CLOCK_AT, r: CLOCK_R, remaining: Math.max(remaining, 0.004) });
+export const paceClock = (s: DrawContext, remaining: number): Mobject => clock(s, { at: CLOCK_AT, r: CLOCK_R, remaining: Math.max(remaining, 0.004) });
 
 const poly = (points: Vec[], colour: string) => new Polygon(points, { fill: colour, stroke: 'none' });
 const keyedPart = <T extends Mobject>(m: T, k: string): T => keyed(m, k);
 
 /** A key cut for one service: the kit's key with a square plate round its bow, so it reads as a different key at a glance. */
-export function serviceKey(s: Stage, { at, size, teeth, onPaper = false }: { at: Vec; size: number; teeth: number; onPaper?: boolean }): Group {
+export function serviceKey(s: DrawContext, { at, size, teeth, onPaper = false }: { at: Vec; size: number; teeth: number; onPaper?: boolean }): Group {
   const bow: Vec = [at[0] - 0.66 * size, at[1]], o = 0.4 * size, i = 0.17 * size, colour = onPaper ? TONE.brassDeep : TONE.brass;
   const plate = new VMobject({ fill: colour, stroke: 'none', fillRule: 'evenodd' });
   const square = (h: number): Vec[] => [[bow[0] - h, bow[1] - h], [bow[0] + h, bow[1] - h], [bow[0] + h, bow[1] + h], [bow[0] - h, bow[1] + h]];
@@ -116,7 +116,7 @@ function partsOf(at: Vec): Record<'seal' | 'key' | 'tab', { at: Vec; w: number; 
  * what is wrong drawn on it (an expired key's empty clock, a cracked seal); and its version tag,
  * hung under its body on a cord. Keyed `ticket` (the ticket and its marks) and `ticket:tab`, `ticket:tab:version`.
  */
-function heroTicket(s: Stage, at: Vec, o: { teeth: number; mcpKey: boolean; expired: boolean; cracked: boolean; version: string }): Mobject[] {
+function heroTicket(s: DrawContext, at: Vec, o: { teeth: number; mcpKey: boolean; expired: boolean; cracked: boolean; version: string }): Mobject[] {
   const p = partsOf(at), body: Mobject[] = [ticket(s, { at, keyTeeth: o.teeth }).scale(BIG, { aboutPoint: at })];
   if (o.mcpKey) body.push(serviceKey(s, { at: p.key.at, size: 0.52 * BIG, teeth: 2, onPaper: true }));
   if (o.expired) body.push(clock(s, { at: [p.key.at[0] - 0.62, p.key.at[1]], r: 0.36, remaining: 0 }));
@@ -136,7 +136,7 @@ function heroTicket(s: Stage, at: Vec, o: { teeth: number; mcpKey: boolean; expi
 const RADIUS_TAG = 0.08;
 
 /** The slip the Company hands back with a refused ticket: torn from a pad along its top edge, the number large, what it is about, and the code. */
-function slip(s: Stage, reply: Reply, part: Part): Mobject[] {
+function slip(s: DrawContext, reply: Reply, part: Part): Mobject[] {
   const { left: l, right: r, top: t, bottom: b } = SLIP, w = r - l, teeth = Math.round(w / 0.2), tear: Vec[] = [];
   for (let i = 0; i <= teeth; i++) tear.push([l + (i * w) / teeth, t - (i % 2 ? 0.1 : 0)]);
   const k = 0.08;
@@ -178,7 +178,7 @@ function pointer(at: Vec, part: Part): Mobject[] {
 }
 
 /** One remedy on the rail, drawn as an object of the subject's world: centre (x, RAIL_Y), about 0.8 high. */
-function remedyObject(s: Stage, fix: Fix, x: number): Group {
+function remedyObject(s: DrawContext, fix: Fix, x: number): Group {
   const y = RAIL_Y;
   switch (fix) {
     case 'refresh': {
@@ -218,7 +218,7 @@ function remedyObject(s: Stage, fix: Fix, x: number): Group {
 }
 
 /** The rail's slots: each remedy's centre, spaced by the width of its name so the six fill the stage. */
-function railSlots(s: Stage): number[] {
+function railSlots(s: DrawContext): number[] {
   const widths = RAIL.map((f) => Math.max(label(s, FIX_NAME[f], { bold: true, align: 'start' }).width(), 0.9));
   const gap = (MARGIN.right - MARGIN.left - widths.reduce((a, b) => a + b, 0)) / (RAIL.length - 1);
   let x = MARGIN.left;
@@ -235,7 +235,7 @@ function knownBy(w: World): { label: string; value: string; quiet?: boolean; cha
 }
 
 /** The state as its picture. */
-export function drawWorld(w: World, shown: Shown, s: Stage): Group {
+export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
   const parts = keyedParts(), last = w.last, refused = pending(w), answered = !!last?.fix;
   const on = last ? laneOfTrouble(last.trouble) : null, docked = !!last && !refused, mcpShown = on === 'mcp';
   const teeth = refused && last!.trouble === 'read-only' ? 1 : 2;

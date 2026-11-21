@@ -18,6 +18,14 @@ for (const entry of EXPLAINERS)
     const project = await collectProject(`scenes/explainers/${entry.id}`, { write: false });
     for (const scenario of project.scenarios) {
       const { values, trace } = scenario;
+      // Construction is the declared scenario's initial domain state. A deliberate event before
+      // the first named step records prelude evidence; an unexplained setup assignment must not
+      // make frame zero describe another scenario or an empty required model.
+      if (trace.steps.length && !trace.evidence?.some(record => record.kind === 'event')) {
+        const initial = new scenario.Scene({ async frame() {} });
+        assert.deepEqual(initial.stateJson(), trace.steps[0]!.before,
+          `${entry.id} ${JSON.stringify(values)}: initialize the selected model before frame zero`);
+      }
       // Every visible token (including sequence build-ins) names a link in a captured diagram.
       const links = Object.values(project.store)
         .flatMap((s) => s.parts)

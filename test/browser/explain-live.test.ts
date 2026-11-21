@@ -27,7 +27,7 @@ const LIVE_STEPS = {
   statecharts: ['parent', 'frother'],
   'token-bucket': ['later'],
   'monty-hall': ['choice'],
-  'latest-search': ['overwrite', 'reader-guard'],
+  'latest-search': ['overwrite', 'reader-guard', 'page-only'],
   'oauth-pkce': ['any-order'],
   'just-bash': ['lesson'],
   'python-dict': ['broken', 'missing'],
@@ -146,8 +146,10 @@ test('every live step: buttons agree with outcome, the URL holds the events, and
           await pressing.click(`.live-events button[data-event="${o.event}"]`);
           presses++;
           await landed(pressing, [...log, o.event]);
-          // A press that reaches another state draws another picture: the comparisons below compare something.
-          if (JSON.stringify(o.kind === 'next' && s.live.machine.after(state, o.event)) !== JSON.stringify(state))
+          // Different declared observations require a different picture; hidden model changes may
+          // legitimately leave it unchanged. The walk and all controls still use full model states.
+          const observe = s.live.machine.spec.observe ?? ((state: object) => state);
+          if (JSON.stringify(observe(s.live.machine.after(state, o.event)!)) !== JSON.stringify(observe(state)))
             assert.notEqual(await picture(pressing), before, `${where}: ${o.event} changed nothing on the stage`);
           assert.match(await pressing.locator('.live-said').textContent() ?? '', new RegExp(`^${o.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\. \\S`), `${where}: ${o.event} is announced`);
           await visit([...log, o.event]);
@@ -162,7 +164,7 @@ test('every live step: buttons agree with outcome, the URL holds the events, and
     await pressing.close();
     await fresh.close();
   }
-  assert.equal(subjects.length, 15, 'fifteen default live steps in eleven explainers');
+  assert.equal(subjects.length, 16, 'sixteen default live steps in eleven explainers');
   assert.ok(states >= 40 && presses >= 30, `${states} states, ${presses} presses`);
 });
 

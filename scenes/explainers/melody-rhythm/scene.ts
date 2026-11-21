@@ -1,7 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { musicStory, NOTE_NAMES } from './model.ts';
 import { scorePicture } from './picture.ts';
 import type { Look } from './picture.ts';
@@ -14,7 +14,7 @@ interface Music { clips: AudioClip[]; movedStarts: number }
  */
 const BPM = 96;
 
-export default class MelodyRhythm extends Scene<{}, {}> {
+export default class MelodyRhythm extends Scene {
   static meta = {
     sources: [
       'https://learningmusic.ableton.com/make-beats/make-beats.html',
@@ -133,7 +133,7 @@ export default class MelodyRhythm extends Scene<{}, {}> {
         },
         audio: { clips },
         // The score from the step's own clips; what it outlines and says, from them and whether B moved any start.
-        draw: (st: Music, s: Stage) => scorePicture(s, st.clips, look(st)),
+        draw: (st: Music, s: DrawContext) => scorePicture(s, st.clips, look(st)),
       })),
     );
   }

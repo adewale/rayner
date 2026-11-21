@@ -3,7 +3,7 @@
 // stage colours, so the scene reads as its steps.
 import { Text, Group, Rectangle, keyed } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
 import { clock, headwayWords, shortDate, stopTimesOf, weekday } from './model.ts';
 import type { Feed, GtfsDate, StopDay, WeekGrid } from './model.ts';
@@ -17,7 +17,7 @@ const SIZE = 0.26;
 export const stopNameIn = (feed: Feed, id: string) => feed.stops.find((s) => s.stop_id === id)!.stop_name!.replace(/ \(Demo\)$/, '');
 
 /** The route list and the dated service are different things; show their counts together. */
-export function drawDaySummary(date: GtfsDate, routes: number, active: number, total: number, s: Stage): Group {
+export function drawDaySummary(date: GtfsDate, routes: number, active: number, total: number, s: DrawContext): Group {
   const picture = new Group(
     new Text(`${upperFirst(weekday(date))} ${shortDate(date)}`, { fontSize: 0.62, color: s.look.ink }).moveTo([0, 2.5]),
     new Text('A route row promises no dated departure', { fontSize: 0.62, color: s.look.soft }).moveTo([0, -3.3]),
@@ -69,7 +69,7 @@ export function drawColumn(rows: readonly (string | { head: string })[], { ink, 
 }
 
 /** The week grid, drawn from the step's state alone: each service's cell per date, each date's trips, and the date asked about framed. */
-export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Group {
+export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: DrawContext): Group {
   const { week: g, date: asked } = st;
   const at = g.dates.indexOf(asked);
   const GX0 = -5.6,
@@ -154,7 +154,7 @@ export function departuresPicture(feed: Feed) {
         feed.trips.some((t) => t.route_id === r.route_id && stopTimesOf(feed, t.trip_id!).some((x) => x.stop_id === stop)),
       )
       .map((r) => r.route_short_name!);
-  return (st: { departures: StopDay; usual: StopDay | null; date: GtfsDate }, s: Stage) => {
+  return (st: { departures: StopDay; usual: StopDay | null; date: GtfsDate }, s: DrawContext) => {
     const { departures: here, usual: byCalendar, date: on } = st;
     const going = here.departures.length + here.headways.length > 0,
       shown = byCalendar ?? here,

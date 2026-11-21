@@ -19,7 +19,7 @@ import type { Shown } from './picture.ts';
 // the right edge; the invitation crosses the table from the Company's end to your agent, not to you;
 // and when the Direct Conversation opens, you move from the big table to the small one, and back
 // when it closes. Words that change are replaced, never morphed.
-export default class Conversations extends Scene<World, Shown> {
+export default class Conversations extends Scene {
   static meta = {
     sources: ['https://personalagentprotocol.org/docs/1.0/spec'],
     claims: [
@@ -31,7 +31,7 @@ export default class Conversations extends Scene<World, Shown> {
       { says: 'Only your agent can open it', test: 'model.test.ts: 8.10: the Company can only ask for the User' },
     ],
   } satisfies ExplainerMeta;
-  override state = start();
+  override state: World = start();
   override shown: Shown = {};
 
   override async construct() {
@@ -42,9 +42,8 @@ export default class Conversations extends Scene<World, Shown> {
       return after;
     }, start());
 
-    this.state = start();
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, sh) => drawWorld(w, s, sh), { place: false });
+    const world = view(this, (w, sh, drawing) => drawWorld(w, drawing, sh), { drawing: s.drawing, place: false });
 
     /**
      * What a turn brings with it: the turn, and the two fields under "On the table" that say who wrote

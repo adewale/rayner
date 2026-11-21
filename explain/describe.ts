@@ -5,7 +5,7 @@
 import { groundingLabel, groundingSentence } from './grounding.ts';
 import type { Grounding } from './grounding.ts';
 import { renderText } from '../src/ascii.ts';
-import { machinesOf } from './machine.ts';
+import { machinesOf, observedValue } from './machine.ts';
 import { liveSteps, logStart, machineSteps } from './live.ts';
 import type { LogStart } from './live.ts';
 import { predictionsOf, teachingIndices } from './script.ts';
@@ -13,10 +13,10 @@ import type { Prediction, StepKind } from './script.ts';
 import { traceRun } from '../src/trace.ts';
 import { canonicalJson, cloneJson } from '../src/json.ts';
 import type { Scene, SceneState } from '../src/index.ts';
-import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
+import { scenariosOf, withSettings, scenarioName, bindSnapshots, checkExplainerMeta } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
-import { pictureSummary, stepStates, stepWords, watchedChanges } from './trace.ts';
-import type { WatchedChange } from './trace.ts';
+import { pictureSummary, stepStates, stepWords, watchedReadings } from './trace.ts';
+import type { WatchReading } from './trace.ts';
 import { paperOf, withoutHeading } from './stage.ts';
 import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
 
@@ -39,13 +39,13 @@ export interface StepDescription {
   shown?: SceneState;
   /** Computed observations at rest; never fed back into the view draw. */
   derived?: SceneState;
-  /** Each state value the step changed, before and after; a side is left out when the value was not set. */
+  /** Difference in the reader's displayed input (local specimen when present, otherwise model), relative to the preceding displayed input. This is not model evidence; watched rows retain explicit source ownership. */
   changed: Record<string, { before?: unknown; after?: unknown }>;
   /**
-   * What the step changed of the state the scene names for readers (`meta.watch`), formatted as the
-   * player shows it, at most four; present only when the scene declares `watch`.
+   * Selected readouts (`meta.watch`): true model changes or current source-qualified values,
+   * formatted as the player shows them, at most four; present only when watch is declared.
    */
-  watched?: WatchedChange[];
+  watched?: WatchReading[];
   /** The resting picture in words, as the page's description gives it; empty if the scene gives none. */
   picture: string;
   /** The resting picture drawn as text (heading left out), when `drawings` asks for this step. */
@@ -66,12 +66,14 @@ export interface MachineDescription {
   events: string[];
   start: SceneState;
   states: number;
+  /** Distinct declared observations among the visited full model states. A singleton is valid. */
+  observations: number;
   complete: boolean;
   sampled?: true;
   /** The step where the machine was offered or last played, when there is one such step. */
   step?: string;
   /** The actual reader origin at step end (or the reset start), absent when this machine has no live controls. Counts may overlap start's. */
-  live?: { from: LogStart; state: SceneState; states: number; complete: boolean; sampled?: true };
+  live?: { from: LogStart; state: SceneState; states: number; observations: number; complete: boolean; sampled?: true };
   /** All offered steps when a machine is available at several, each with its own reader origin. */
   offers?: { step: string; live?: MachineDescription['live'] }[];
 }
@@ -148,6 +150,7 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
 
 /** One scenario of `describeExplainer`, for a caller that needs only that scenario (`rayner see`). */
 export async function describeScenario(Scene: ExplainerClass, values: Settings, options: DescribeOptions = {}): Promise<ScenarioDescription> {
+  checkExplainerMeta(Scene.meta);
   const Source = options.snapshots ? bindSnapshots(Scene, options.snapshots) : Scene,
     Bound = withSettings(Source, values),
     draw = options.drawings ?? true,
@@ -183,7 +186,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       ...(Object.keys(shown).length ? { shown } : {}),
       ...(s.derived ? { derived: s.derived } : {}),
       changed,
-      ...(Scene.meta?.watch ? { watched: watchedChanges(s, Scene.meta.watch, Scene.meta.lang) } : {}),
+      ...(Scene.meta?.watch ? { watched: watchedReadings(s, Scene.meta.watch, Scene.meta.lang) } : {}),
       picture: pictureSummary(s.derived),
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
@@ -201,7 +204,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
   }
   const invariants = [...scene.invariants.keys()];
   const lives = liveSteps(scene);
-  const machines: MachineDescription[] = machinesOf(scene).map((machine) => {
+  const machines: MachineDescription[] = machinesOf(scene).map((machine, machineIndex) => {
     const walked = machine.explore(), states = walked.states.length;
     const sites = machineSteps(machine, lives).flatMap((step) => {
       if (step === null) return [];
@@ -209,12 +212,15 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       const base = rest && lives.get(step)?.machine === machine ? logStart(machine, rest) : null;
       if (!base) return [{ step }];
       const reached = canonicalJson(base.state) === canonicalJson(machine.spec.start) ? walked : machine.explore(base.state);
-      return [{ step, live: { from: base.from, state: base.state as SceneState, states: reached.states.length, complete: reached.complete, ...(!reached.complete ? { sampled: true as const } : {}) } }];
+      return [{ step, live: { from: base.from, state: base.state as SceneState, states: reached.states.length,
+        observations: new Set(reached.states.map(({ state, path }) => canonicalJson(observedValue(machine, state, `machine ${machineIndex + 1} at step "${step}", ${path.length ? `after ${path.join(', ')}` : 'at the origin'}, model ${canonicalJson(state)}`)))).size,
+        complete: reached.complete, ...(!reached.complete ? { sampled: true as const } : {}) } }];
     });
     return {
       events: [...machine.spec.events],
       start: JSON.parse(JSON.stringify(machine.spec.start)) as SceneState,
       states,
+      observations: new Set(walked.states.map(({ state, path }) => canonicalJson(observedValue(machine, state, `machine ${machineIndex + 1} from start, ${path.length ? `after ${path.join(', ')}` : 'at the start'}, model ${canonicalJson(state)}`)))).size,
       complete: walked.complete,
       ...(!walked.complete ? { sampled: true as const } : {}),
       ...(sites.length > 1 ? { offers: sites } : sites[0]),

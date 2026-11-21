@@ -74,7 +74,9 @@ type FilesState = {
   journey?: [number, number | null][];
 };
 
-export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
+export default class GnomeFilesExplainer extends Scene {
+  override state: FilesState = {};
+
   static meta = {
     sources: [REPORT, ARTICLE, 'https://technicallywewrite.com/images/2025/01/gnome3.png'],
     claims: [
@@ -177,7 +179,7 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
       for (const [r, n] of SESSION.entries()) {
         const q = quitters(n);
         if (!q.length) continue;
-        const note = callout(s, rowBox(r), `${listed(q)} gave up`, {
+        const note = callout(s.drawing, rowBox(r), `${listed(q)} gave up`, {
           side: 'right',
           gap: 0.3,
           color: q.includes(p) ? s.look.emphasis : s.look.soft,

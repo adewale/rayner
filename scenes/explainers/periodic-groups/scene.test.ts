@@ -64,6 +64,7 @@ test('reader descriptions match the run fills and complete block fills in every 
       async frame() {},
       async stepEnd(scene, step) {
         if (!phases.includes(step.name)) return;
+        assert.ok(scene instanceof PeriodicGroupsExplainer);
         const label = `${expected.element}/${step.name}`;
         const blocks = ['stack', 'names', 'family'].includes(step.name);
         assert.equal(scene.state.note, step.name, label);

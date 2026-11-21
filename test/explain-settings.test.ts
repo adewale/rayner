@@ -265,7 +265,7 @@ test('the innermost withSettings binding wins, and two bindings never share stat
 test('static meta takes the keys ExplainerMeta names, and refuses any other, naming it and the keys it takes', () => {
   const full: ExplainerMeta = {
     id: 'a', title: 'A', lang: 'en', sources: [], lettering: { scripts: ['Grek'] }, textContext: 'explicit',
-    player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: { n: 'N' },
+    player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: [{ source: 'model', key: "n", label: 'N' }] as const,
     answer: 'Yes', questions: [{ question: 'Q?', answer: 'A' }], checkedAgainst: 'model.test.ts', claims: [{ says: 'x', shown: true }],
   };
   checkExplainerMeta(full);

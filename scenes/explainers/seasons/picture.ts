@@ -1,6 +1,6 @@
 import { Circle, Line, Text, Group, Polygon, Dot, Arc, Arrow, Rectangle, Axes, keyed } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
 import { percent } from '../lib/format.ts';
 import { MID_MONTH } from './model.ts';
@@ -570,7 +570,7 @@ export function drawLatitudeCircles(places: readonly { name: string; lat: number
 /** Where a solstice's daylight table sits: under its globe. */
 export const tableBox = (center: Vec): Box => [center[0] - 2.8, -4.2, center[0] + 2.8, CY - R - 0.2];
 /** One solstice's daylight at each place, with the observed place's row lit. */
-export const drawDaylightTable = (s: Stage, rows: [string, string][], title: string, box: Box, lit: string) =>
+export const drawDaylightTable = (s: DrawContext, rows: [string, string][], title: string, box: Box, lit: string) =>
   card(s, rows, { at: box, title, size: 0.27, align: 'top', direction: 'ltr', lit: { row: lit } });
 
 // ------------------------------------------------------------------ the year chart

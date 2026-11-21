@@ -5,10 +5,10 @@ import { initial, request, run, REQUESTS } from './model.ts';
 import type { Comparison, Key } from './model.ts';
 import { drawCache, drawRequests } from './picture.ts';
 
-export default class CachePolicies extends Scene<Comparison, {}> {
+export default class CachePolicies extends Scene {
   static meta = { sources: ['https://en.wikipedia.org/wiki/Cache_replacement_policies', 'https://www.vldb.org/conf/1985/P127.PDF'] } satisfies ExplainerMeta;
   static settings = [{ id: 'pattern', label: 'After A B C D', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }] as const;
-  override state = initial();
+  override state: Comparison = initial();
 
   override async construct() {
     const s = stage(this, { style: 'github-light', headingSize: 0.55 });
@@ -16,9 +16,9 @@ export default class CachePolicies extends Scene<Comparison, {}> {
     const fourth = run(keys.slice(0, 4));
     const answer = fourth.lru.evicted === fourth.mru.evicted
       ? `Both drop ${fourth.lru.evicted}` : `LRU drops ${fourth.lru.evicted}; MRU drops ${fourth.mru.evicted}`;
-    const left = keyed(view(this, st => drawCache(s, 'lru', st.lru), { place: false }), 'cache:lru');
-    const right = keyed(view(this, st => drawCache(s, 'mru', st.mru), { place: false }), 'cache:mru');
-    const stream = keyed(view(this, st => drawRequests(s, st), { place: false }), 'cache:stream');
+    const left = keyed(view(this, (st, _shown, drawing) => drawCache(drawing, 'lru', st.lru), { drawing: s.drawing, place: false }), 'cache:lru');
+    const right = keyed(view(this, (st, _shown, drawing) => drawCache(drawing, 'mru', st.mru), { drawing: s.drawing, place: false }), 'cache:mru');
+    const stream = keyed(view(this, (st, _shown, drawing) => drawRequests(drawing, st), { drawing: s.drawing, place: false }), 'cache:stream');
     const match = { by: 'key', text: 'whole' } as const;
     const send = async (events: readonly Key[]) => {
       for (const key of events) {

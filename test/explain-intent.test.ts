@@ -97,7 +97,7 @@ test('independent project loads retain their own script and inherited declaratio
   const { Scene } = await import('../src/index.ts');
   const { answerOf, settingsOf } = await import('../explain/index.ts');
   const { loadProject, traceScene, withIntent, withSettings } = await import('../explain/testing.ts');
-  class Base extends Scene<{ answer: string; selected: string }> {
+  class Base extends Scene {
     static meta: { sources: string[]; title?: 'Original?' } = { sources: ['first source'] };
     static subject = 'the lamp';
     static settings = [{ id: 'mode', label: 'Mode', default: 'one', options: [

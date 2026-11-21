@@ -1,7 +1,7 @@
 import { Scene, Group, Line, Brace, Create, FadeIn, FadeOut, Succession, SurroundingRectangle, Text, Transform, TransformDiff, parseUnifiedDiff, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta, Setting } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta, Setting } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
 import { AFTER, BEFORE, COPIES, LOOKALIKE, NAME, PATCH, apply, header, newSide, oldSide, placed, report, sectionAt } from './model.ts';
 import type { Hunk, PatchState } from './model.ts';
@@ -18,7 +18,10 @@ const WIDE_FILE = 12, WIDE_PATCH = 15;
 const wrap = (text: string, width: number): string[] =>
   text.split(' ').reduce<string[]>((lines, word) => (lines.length && (lines.at(-1)! + ' ' + word).length <= width ? [...lines.slice(0, -1), `${lines.at(-1)} ${word}`] : [...lines, word]), []);
 
-export default class UnifiedDiff extends Scene<PatchState, {}> {
+export default class UnifiedDiff extends Scene {
+  private readonly hunk: Hunk = parseUnifiedDiff(PATCH)[0]!;
+  override state: PatchState = { file: [...BEFORE], header: header(this.hunk) };
+
   static meta = {
     sources: [
       'https://git-scm.com/docs/git-apply/2.43.0',
@@ -40,7 +43,7 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
   override async construct() {
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
     const which = settingsOf(this, UnifiedDiff).copy, copy = [...COPIES[which]];
-    const [hunk] = parseUnifiedDiff(PATCH) as [Hunk], head = header(hunk), old = oldSide(hunk);
+    const hunk = this.hunk, head = this.state.header, old = oldSide(hunk);
     const made = apply(BEFORE, [hunk]), yours = apply(copy, [hunk]);
     if (!made.ok) throw new Error('the patch applies to the file it was made from');
     const ink = s.look.ink, soft = s.look.soft, accent = s.look.emphasis;
@@ -52,10 +55,9 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
       line: 'Minus: remove. Plus: add. No mark: context, left alone.',
       caption: `This patch changes one setting in ${NAME} and adds another. Lines marked with a minus are removed and lines marked with a plus are added. The two unmarked lines are context: they are not changed, they are there so the change can be found. A block like this, context and all, is a hunk, and the line that starts @@ is its header.`,
     });
-    this.state = { file: [...BEFORE], header: head };
-    const patch = keyed(codeAt(s, PATCH.trimEnd().split('\n'), PATCH_AT), 'patch');
-    const file = fileAt(s, BEFORE, FILE_AT, 'file');
-    const titles = [wordsAt(s, 'The patch', [PATCH_AT[0], LABEL_Y], { soft: true }), wordsAt(s, `${NAME}, as its author had it`, [FILE_AT[0], LABEL_Y], { soft: true })];
+    const patch = keyed(codeAt(s.drawing, PATCH.trimEnd().split('\n'), PATCH_AT), 'patch');
+    const file = fileAt(s.drawing, BEFORE, FILE_AT, 'file');
+    const titles = [wordsAt(s.drawing, 'The patch', [PATCH_AT[0], LABEL_Y], { soft: true }), wordsAt(s.drawing, `${NAME}, as its author had it`, [FILE_AT[0], LABEL_Y], { soft: true })];
     await s.enter(patch, ...titles, { describe: `The patch: ${PATCH.trimEnd().split('\n').join(' / ')}` });
     await s.enter(file.code, ...file.numbers, { describe: () => `${NAME}, numbered from 1: ${(this.state.result ?? this.state.file).join(' / ')}` });
 
@@ -82,8 +84,8 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
       caption: `Git finds the ${hunk.oldLines} old-side lines at line ${made.placements[0]!.at}, takes out the minus line and puts the plus lines in its place. This is the file the patch was made from, so everything is where the header says. But ${answerOf(this).replace(/^A/, 'a')}. The next steps change the file under the patch to show it.`,
     });
     this.state = { file: [...BEFORE], header: head, tried: made.placements[0]!.tried, at: made.placements[0]!.at, offset: 0, applied: true, report: report(made, NAME), result: made.file };
-    const after = keyed(codeAt(s, AFTER, FILE_AT), 'file');
-    const brace2 = braceOn(hunk.newStart, hunk.newStart + hunk.newLines - 1), added = numberAt(s, AFTER.length, FILE_AT, 'file');
+    const after = keyed(codeAt(s.drawing, AFTER, FILE_AT), 'file');
+    const brace2 = braceOn(hunk.newStart, hunk.newStart + hunk.newLines - 1), added = numberAt(s.drawing, AFTER.length, FILE_AT, 'file');
     await this.play(new TransformDiff(file.code, after, { hunks: [hunk], runTime: 1.4 }));
     s.keep(after, added);
     await this.play(new Transform(brace, brace2, { runTime: 0.6 }), new Transform(link, new Line(from, brace2.tip(), { stroke: accent, strokeWidth: 0.05 }), { runTime: 0.6 }), new FadeIn(added, { runTime: 0.4 }));
@@ -101,17 +103,17 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
     });
     await s.clear({ runTime: 0.2 });
     this.state = { file: copy, header: head };
-    const mine = fileAt(s, copy, COPY_AT, 'copy');
+    const mine = fileAt(s.drawing, copy, COPY_AT, 'copy');
     const changed = moved ? [1, 2] as const : [2, 2] as const;
     const note = keyed(new Brace(linesBox(COPY_AT, changed[0], changed[1], WIDE_FILE, { gutter: true }), [-1, 0], { stroke: soft, strokeWidth: 0.04 }), 'changed');
     const noted = new Text(moved ? 'added' : 'changed', { fontSize: SIZE, color: soft, shaping: this.textShaping });
     note.putAtTip(noted, 0.12);
     // The hunk's old side, level with the lines the header names.
     const cardAt = (line: number): Vec => [CARD_X, rowY(TOP, line - 1)];
-    const card = keyed(codeAt(s, old, cardAt(hunk.oldStart), accent), 'card');
+    const card = keyed(codeAt(s.drawing, old, cardAt(hunk.oldStart), accent), 'card');
     // The card and, from the next step, the frame around it and the file's lines move as one.
     const probe = keyed(new Group(card), 'probe');
-    const expects = wordsAt(s, 'The hunk expects:', [CARD_X, rowY(TOP, hunk.oldStart - 2)], { soft: true });
+    const expects = wordsAt(s.drawing, 'The hunk expects:', [CARD_X, rowY(TOP, hunk.oldStart - 2)], { soft: true });
     await s.enter(mine.code, ...mine.numbers, note, noted, { describe: () => `Your copy of ${NAME}, numbered from 1: ${(this.state.result ?? this.state.file).join(' / ')}. ${moved ? 'Lines 1 and 2 are marked added' : 'Line 2 is marked changed'}` });
     await s.enter(probe, expects, { describe: () => `Beside the file, the three lines the hunk expects: ${old.join(' / ')}${this.state.tried ? `, framed with the file’s lines from line ${this.state.at ?? hunk.oldStart}` : `, level with line ${hunk.oldStart}`}` });
 
@@ -146,8 +148,8 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
     });
     this.state = { file: copy, header: head, tried, at: yours.ok ? yours.placements[0]!.at : null, ...(yours.ok ? { offset: yours.placements[0]!.offset, result: yours.file } : {}), applied: yours.ok, report: said };
     if (yours.ok) {
-      const place = yours.placements[0]!, next = keyed(codeAt(s, yours.file, COPY_AT), 'copy'), extra = numberAt(s, yours.file.length, COPY_AT, 'copy');
-      const says = stack(s, ['git apply -v says:', ...said.flatMap((l) => wrap(l, 22))], [1.3, rowY(TOP, 1)], { soft: false });
+      const place = yours.placements[0]!, next = keyed(codeAt(s.drawing, yours.file, COPY_AT), 'copy'), extra = numberAt(s.drawing, yours.file.length, COPY_AT, 'copy');
+      const says = stack(s.drawing, ['git apply -v says:', ...said.flatMap((l) => wrap(l, 22))], [1.3, rowY(TOP, 1)], { soft: false });
       await this.play(...fade(probe));
       // The hunk as it was placed: its header's lines moved by the offset, so it describes this file.
       await this.play(new TransformDiff(mine.code, next, { hunks: [placed(hunk, place)], runTime: 1.4 }), new FadeIn(extra, { runTime: 0.4 }));
@@ -158,7 +160,7 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
         new SurroundingRectangle(linesBox(COPY_AT, 2, 2, WIDE_FILE), { buff: 0, cornerRadius: 0.06, stroke: s.look.bad, strokeWidth: 0.05 }),
         new SurroundingRectangle(linesBox(cardAt(hunk.oldStart), 1, 1, WIDE_FILE), { buff: 0, cornerRadius: 0.06, stroke: s.look.bad, strokeWidth: 0.05 }),
       ].map((m, i) => emphasised(keyed(m, `differ:${i}`), 'outlined: the lines that differ'));
-      const says = stack(s, said, [COPY_AT[0] - 1.2, rowY(TOP, copy.length + 0.6)], { mono: false });
+      const says = stack(s.drawing, said, [COPY_AT[0] - 1.2, rowY(TOP, copy.length + 0.6)], { mono: false });
       s.keep(differ[0]!, differ[1]!, { describe: 'Outlined: port = 8081 in the file and port = 8080 in the hunk, the lines that differ' });
       await this.play(...differ.map((m) => new Create(m, { runTime: 0.5 })));
       await s.enter(says);
@@ -175,7 +177,7 @@ export default class UnifiedDiff extends Scene<PatchState, {}> {
         line: 'Git matched the lines. It cannot know which section was meant.',
         caption: `In this copy the ${sectionAt(LOOKALIKE, landed.at)} section comes first and holds the same three lines. The hunk finds its old side at line ${landed.at} and Git applies it without a word: to ${sectionAt(LOOKALIKE, landed.at)}, though the author changed ${sectionAt(BEFORE, hunk.oldStart)}. One line of context was too little to tell the sections apart. With the usual three, the hunk would have carried the ${sectionAt(BEFORE, hunk.oldStart)} line itself and been refused. After applying a patch to a file that has changed, read the result.`,
         state: { file: [...LOOKALIKE], header: head, tried: landed.tried, at: landed.at, offset: landed.offset, applied: true, report: report(wrong, NAME), result: wrong.file, landed: sectionAt(LOOKALIKE, landed.at), meant: sectionAt(BEFORE, hunk.oldStart) } as PatchState,
-        draw: (state: PatchState, s: Stage) => {
+        draw: (state: PatchState, s: DrawContext) => {
           const st = having(state, 'result', 'landed', 'meant'), at = st.at ?? 1;
           const shown = fileAt(s, st.result, COPY_AT, 'copy');
           const size = newSide(hunk).length, box = linesBox(COPY_AT, at, at + size - 1, WIDE_FILE, { gutter: true });

@@ -22,6 +22,7 @@ import { describeScenario } from '../explain/describe.ts';
 await loadFonts();
 
 type Lamp = { level: number };
+class LampHost extends Scene { override state: Lamp = { level: 0 }; }
 const LEVELS = ['off', 'dim', 'bright'] as const;
 const next = (s: Lamp, e: 'UP' | 'OFF'): Lamp => ({ level: e === 'OFF' ? 0 : Math.min(2, s.level + 1) });
 
@@ -43,8 +44,8 @@ test('a machine refuses invalid JSON in start at construction, with its field pa
 test('a machine plays prototype-named events through their own transition or the default', async () => {
   const names = ['constructor', 'valueOf', '__proto__'];
   const authored: string[] = [];
-  const scene = await new (class extends Scene<Lamp> {
-    override state = { level: 0 };
+  const scene = await new (class extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       await this.step('press');
       const machine = new Machine<Lamp, string>(this, {
@@ -61,9 +62,9 @@ test('a machine plays prototype-named events through their own transition or the
 
 /** A lamp of three levels as a machine; `blind` draws the same picture whatever the level. */
 function lampScene(blind = false, size = 0.5) {
-  return class LampScene extends Scene<Lamp> {
+  return class LampScene extends Scene {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
@@ -84,7 +85,7 @@ function lampScene(blind = false, size = 0.5) {
 }
 
 test('SetState takes a model step: a function of a copy of the state when it begins, recorded with its event', async () => {
-  const scene = await new (class extends Scene<{ n: number }> {
+  const scene = await new (class extends Scene {
     override state = { n: 1 };
     override async construct() {
       await this.step('a');
@@ -128,8 +129,7 @@ test('a machine replays events through the model as one schedule: state, evidenc
 
 test('without an authored transition, the views morph by key, staged: what goes is gone by halfway, and what comes starts there', async () => {
   // The lamp's word is keyed: "lamp off" and "lamp dim" are different words, so the old fades out and the new fades in.
-  const scene = new Scene<Lamp>(new NullSink());
-  scene.state = { level: 0 };
+  const scene = new LampHost(new NullSink());
   const lamp = view(scene, (st: Lamp) => keyed(new Group(
     keyed(new Rectangle({ width: 4, height: 1.2 }), 'lamp:box'),
     keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word'),
@@ -171,7 +171,7 @@ test('reachable states are found breadth first, each with its shortest events, u
   assert.equal(capped.reachable().length, 2);
   // A state built with its keys in another order is the same state, reached once.
   type Pair = { a: number; b: number };
-  const flip = new Machine<Pair, 'FLIP' | 'BACK'>(ran as unknown as Scene<Pair>, {
+  const flip = new Machine<Pair, 'FLIP' | 'BACK'>(Object.assign(new Scene(new NullSink()), { state: { a: 0, b: 0 } }), {
     start: { a: 0, b: 0 }, events: ['FLIP', 'BACK'], views: [],
     next: (s, e) => (e === 'FLIP' ? { b: 1 - s.b, a: s.a } : { a: s.a, b: 1 - s.b }),
   });
@@ -179,7 +179,7 @@ test('reachable states are found breadth first, each with its shortest events, u
 });
 
 test('machine exploration distinguishes a closed graph exactly at its limit from an equally sized truncated prefix', () => {
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = new LampHost(new NullSink());
   const closed = new Machine(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: 3 });
   assert.deepEqual(closed.explore(), { states: [
     { state: { level: 0 }, path: [] },
@@ -194,7 +194,7 @@ test('machine exploration distinguishes a closed graph exactly at its limit from
 });
 
 test('Machine rejects invalid exploration limits at JavaScript boundaries before registration', () => {
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = new LampHost(new NullSink());
   for (const limit of [0, -1, 1.5, Infinity, -Infinity, NaN, '3', new Number(3), null, {}]) {
     assert.throws(() => new Machine(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: limit as number }),
       /^RangeError: new Machine\(\): limit must be a positive finite integer$/);
@@ -205,8 +205,7 @@ test('Machine rejects invalid exploration limits at JavaScript boundaries before
 });
 
 test('Machine rejects a same-shaped view of another scene before it can read the wrong state', () => {
-  const left = new Scene<Lamp>(new NullSink()), right = new Scene<Lamp>(new NullSink());
-  left.state = right.state = { level: 0 };
+  const left = new LampHost(new NullSink()), right = new LampHost(new NullSink());
   const foreign = view(left, (s) => new Rectangle({ width: 1 + s.level, height: 1 }));
   assert.throws(() => new Machine(right, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [foreign] }),
     /^RangeError: new Machine\(\): every view must belong to this scene/);
@@ -217,7 +216,7 @@ test('Machine rejects a same-shaped view of another scene before it can read the
 
 /** The start is either absorbing, or the first state of the same chain as the live origin. */
 function originScene(limit: number, absorbingStart: boolean) {
-  return class Origins extends Scene<{ n: number }> {
+  return class Origins extends Scene {
     override state = { n: 1 };
     override async construct() {
       const s = stage(this);
@@ -246,8 +245,8 @@ test('check retains each origin\'s completeness before deduplicating their overl
     const described = await describeScenario(Source, {}, { drawings: false });
     assert.equal(described.machines!.length, 1);
     assert.deepEqual(described.machines![0], {
-      events: ['NEXT', 'RESET'], start: { n: 0 }, states: 1, complete: true, step: 'press',
-      live: { from: 'rest', state: { n: 2 }, states: limit, complete: limit === 6, ...(limit === 3 ? { sampled: true } : {}) },
+      events: ['NEXT', 'RESET'], start: { n: 0 }, states: 1, observations: 1, complete: true, step: 'press',
+      live: { from: 'rest', state: { n: 2 }, states: limit, observations: limit, complete: limit === 6, ...(limit === 3 ? { sampled: true } : {}) },
     });
   }
 });
@@ -262,16 +261,16 @@ test('a live origin already in the start\'s sampled prefix still gets its own ex
   assert.deepEqual(checked!.problems, []);
   const [described] = (await describeScenario(Source, {}, { drawings: false })).machines!;
   assert.deepEqual([described!.states, described!.complete, described!.sampled], [3, false, true]);
-  assert.deepEqual(described!.live, { from: 'rest', state: { n: 2 }, states: 3, complete: false, sampled: true });
+  assert.deepEqual(described!.live, { from: 'rest', state: { n: 2 }, states: 3, observations: 3, complete: false, sampled: true });
 });
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
   const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
-  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
+  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, observations: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
   const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
-    'after UP: the picture is described exactly as at the start, a different state',
-    'after UP, UP: the picture is described exactly as at the start, a different state',
+    'after UP: the picture is described exactly as at the start, a different observation',
+    'after UP, UP: the picture is described exactly as at the start, a different observation',
   ]);
 });
 
@@ -291,9 +290,9 @@ test('rayner check measures every label an explored state shows: one too small t
  * their font sizes; with `play: false` the machine is made but never played, so no step is live.
  */
 function notedLamp({ note, word, play = true }: { note: number; word: number; play?: boolean }) {
-  return class NotedLamp extends Scene<Lamp> {
+  return class NotedLamp extends Scene {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => keyed(new Group(
@@ -333,9 +332,9 @@ test('at a live step, every label a reachable state shows reads 12 px on a phone
 /** A lamp whose UP has an authored transition, given the transition and the lamp's view. */
 function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => Animation | AnimationGroup, invariant = false) {
   const nextUp = (s: Lamp, e: 'UP' | 'OFF'): Lamp | undefined => (e === 'UP' && s.level === 2 ? undefined : next(s, e));
-  return class LitLamp extends Scene<Lamp> {
+  return class LitLamp extends Scene {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
@@ -364,7 +363,7 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
 const morphUp = (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => new Transform(lamp.current, t.target(lamp));
 
 test('a machine refuses an event name a link cannot carry: empty, or with a comma, which a shared link would split', () => {
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = new LampHost(new NullSink());
   const spec = { start: { level: 0 }, next: (s: Lamp) => s, views: [] };
   assert.throws(() => new Machine(scene, { ...spec, events: ['a,b'] }), /^RangeError: new Machine\(\): "a,b" is not an event name/);
   assert.throws(() => new Machine(scene, { ...spec, events: ['UP', ''] }), /^RangeError: new Machine\(\): "" is not an event name/);
@@ -378,7 +377,7 @@ test('a machine refuses an event name a link cannot carry: empty, or with a comm
 });
 
 test('nothing changes a machine’s model once it is made: not the caller’s spec, nor its own', () => {
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = new LampHost(new NullSink());
   const start = { level: 0 }, events: Array<'UP' | 'DOWN'> = ['UP'];
   const machine = new Machine<Lamp, 'UP' | 'DOWN'>(scene, { start, events, next: (s) => (s.level < 3 ? { level: s.level + 1 } : undefined), views: [] });
   const explored = () => machine.reachable().map((r) => r.state.level);
@@ -400,7 +399,7 @@ test('a refused event: next says undefined, exploration does not follow it, and 
 });
 
 test('a model refuses with its reason: refuse(reason) where next refuses, and outcome, send and exploration treat it as a refusal', () => {
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = new LampHost(new NullSink());
   // The lamp's own rule, said where it is decided.
   const lamp = new Machine<Lamp, 'UP' | 'OFF'>(scene, {
     start: { level: 0 }, events: ['UP', 'OFF'], views: [],
@@ -420,8 +419,8 @@ test('a model refuses with its reason: refuse(reason) where next refuses, and ou
 });
 
 test('a schedule built for one state refuses to play from another', async () => {
-  class Stale extends Scene<Lamp> {
-    override state = { level: 0 };
+  class Stale extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const picture = view(this, (st: Lamp) => new Text(`lamp ${LEVELS[st.level]}`));
       this.add(picture);
@@ -435,8 +434,8 @@ test('a schedule built for one state refuses to play from another', async () => 
   await assert.rejects(new Stale(new NullSink()).run(), /UP was built for \{"level":0\} but plays from \{"level":2\}/);
   // The same state with its keys in another order is the state it was built for.
   type Pair = { a: number; b: number };
-  class Reordered extends Scene<Pair> {
-    override state = { a: 1, b: 2 };
+  class Reordered extends Scene {
+    override state: Pair = { a: 1, b: 2 };
     override async construct() {
       const picture = view(this, (st: Pair) => new Text(`a ${st.a} b ${st.b}`));
       this.add(picture);
@@ -516,9 +515,10 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
 });
 
 test('what is shown may change between a machine\'s events; exploration draws its states under the last', async () => {
-  class Shown extends Scene<Lamp> {
+  class Shown extends Scene {
+    override shown: { room?: string } = {};
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       // Which room the lamp is in is what is shown, not part of the lamp's model.
@@ -556,8 +556,8 @@ test('what is shown may change between a machine\'s events; exploration draws it
 
 test('exploration checks a machine on the stage where it last played, not the stage the run ends with', async () => {
   /** The lamp, cleared away after its events: in a later step, or (`within`) in the step where it played. */
-  const cleared = (within: boolean) => class Cleared extends Scene<Lamp> {
-    override state = { level: 0 };
+  const cleared = (within: boolean) => class Cleared extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
@@ -589,8 +589,8 @@ test('exploration checks a machine on the stage where it last played, not the st
 });
 
 test('a transition finds each view by the view itself, and refuses a view the machine does not have', async () => {
-  class Two extends Scene<Lamp> {
-    override state = { level: 0 };
+  class Two extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const lamp = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp'));
       const meter = view(this, (st: Lamp) => keyed(new Text(`level ${st.level}`, { fontSize: 0.5 }).moveTo([0, -2]), 'meter'));
@@ -619,9 +619,9 @@ test('a transition finds each view by the view itself, and refuses a view the ma
 test('a bound stops the story where the model would go on; check fails a bound the model refuses anyway', async () => {
   // UP is refused at bright: that is the lamp's rule, and the model says so.
   const nextUp = (s: Lamp, e: 'UP' | 'OFF') => (e === 'UP' && s.level === 2 ? refuse(`the lamp is already ${LEVELS[s.level]}`) : next(s, e));
-  const bounded = (bound: (s: Lamp, e: 'UP' | 'OFF') => string | undefined) => class extends Scene<Lamp> {
+  const bounded = (bound: (s: Lamp, e: 'UP' | 'OFF') => string | undefined) => class extends Scene {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp'));
@@ -654,9 +654,9 @@ test('a bound stops the story where the model would go on; check fails a bound t
 test('end finishes the story at a state: the model\'s moves from it are beyond the story, its refusals stay refusals', async () => {
   // UP is refused at bright; this story ends once the lamp is bright.
   const nextUp = (s: Lamp, e: 'UP' | 'OFF') => (e === 'UP' && s.level === 2 ? refuse(`the lamp is already ${LEVELS[s.level]}`) : next(s, e));
-  class Ends extends Scene<Lamp> {
+  class Ends extends Scene {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp'));
@@ -677,13 +677,13 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
   // A live step that ends finished starts the reader's events from the machine's start.
   assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
   assert.deepEqual((await describeScenario(Ends, {}, { drawings: false })).machines![0]!.live,
-    { from: 'start', state: { level: 0 }, states: 3, complete: true });
+    { from: 'start', state: { level: 0 }, states: 3, observations: 3, complete: true });
 });
 
 test('check and describe explore a shared step\'s resting state only with the machine that owns its controls', async () => {
   type Chapter = { level: number } | { count: number };
   let offerLast = false;
-  class SharedStep extends Scene<Chapter, {}> {
+  class SharedStep extends Scene {
     override state: Chapter = { level: 0 };
     override async construct() {
       const s = stage(this);
@@ -709,11 +709,11 @@ test('check and describe explore a shared step\'s resting state only with the ma
   assert.equal(machines!.length, 2);
   assert.deepEqual(machines!.map((m) => m.step), ['press', 'press']);
   assert.equal(machines![0]!.live, undefined, 'the first machine is not the one whose buttons the player shows');
-  assert.deepEqual(machines![1]!.live, { from: 'rest', state: { count: 1 }, states: 3, complete: true });
+  assert.deepEqual(machines![1]!.live, { from: 'rest', state: { count: 1 }, states: 3, observations: 3, complete: true });
   const checked = await exploreMachines(await new SharedStep(new NullSink()).run(), SharedStep);
-  assert.deepEqual(checked.map(({states, sampled, problems}) => ({states, sampled, problems})), [
-    { states: 2, sampled: false, problems: [] },
-    { states: 3, sampled: false, problems: [] },
+  assert.deepEqual(checked.map(({states, observations, sampled, problems}) => ({states, observations, sampled, problems})), [
+    { states: 2, observations: 2, sampled: false, problems: [] },
+    { states: 3, observations: 3, sampled: false, problems: [] },
   ]);
   offerLast = true;
   const offered = await exploreMachines(await new SharedStep(new NullSink()).run(), SharedStep);
@@ -723,8 +723,8 @@ test('check and describe explore a shared step\'s resting state only with the ma
 });
 
 test('one machine offered twice reopens and checks each historical model and shown state, including its first unsent step', async () => {
-  class Chapters extends Scene<Lamp, { chapter: string }> {
-    override state = { level: 10 };
+  class Chapters extends Scene {
+    override state: Lamp = { level: 10 };
     override shown = { chapter: 'early' };
     override async construct() {
       const s = stage(this);
@@ -766,7 +766,7 @@ test('one machine offered twice reopens and checks each historical model and sho
   const { machines } = await describeScenario(Chapters, {}, { drawings: false });
   assert.equal(machines!.length, 1);
   assert.deepEqual(machines![0]!.offers, [10, 20].map((level, i) => ({
-    step: i === 0 ? 'first' : 'second', live: { from: 'rest', state: { level }, states: 2, complete: true },
+    step: i === 0 ? 'first' : 'second', live: { from: 'rest', state: { level }, states: 2, observations: 2, complete: true },
   })));
   const checked = await exploreMachines(ran, Chapters);
   assert.deepEqual(checked.map(({ step, states }) => [step, states]), [['first', 4], ['second', 4]]);
@@ -777,8 +777,8 @@ test('one machine offered twice reopens and checks each historical model and sho
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {
   // The machine starts bright, where UP is refused; the scene plays it from off, so the step rests at dim,
   // a state the start never reaches. Dim's label is too small to read: only the walk from the step finds it.
-  class FromStep extends Scene<Lamp> {
-    override state = { level: 0 };
+  class FromStep extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 1 ? 0.08 : 0.5 }), 'lamp'));
@@ -804,8 +804,8 @@ test('exploration also walks the states a reader reaches from the live step, not
  * off finds the small label.
  */
 function restingLamp(rest: 'code' | 'listener', caption?: string) {
-  return class RestingLamp extends Scene<Lamp> {
-    override state = { level: 0 };
+  return class RestingLamp extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 0 ? 0.08 : 0.5 }), 'lamp'));
@@ -867,9 +867,9 @@ test('the live player and check start a live step after its end listeners: a lis
 test('an authored transition lands a picture whose parts repeat a key by redrawing it, never by drawing one part twice', async () => {
   // Two parts share the key "part": a landing that matched by key would put the second part in both places.
   type N = { n: number };
-  class Repeated extends Scene<N> {
+  class Repeated extends Scene {
     pair!: View;
-    override state = { n: 0 };
+    override state: N = { n: 0 };
     override async construct() {
       this.pair = view(this, (st: N) => {
         const a = keyed(new Text(`a${st.n}`, { fontSize: 0.5 }).shift([-2, 0]), 'part');
@@ -893,8 +893,8 @@ test('an authored transition lands a picture whose parts repeat a key by redrawi
 });
 
 test('exploration refuses a run to the live step that made a different machine at the same place: events swapped, or another start', async () => {
-  const made = (events: ('UP' | 'OFF')[], start: Lamp) => class extends Scene<Lamp> {
-    override state = { level: 0 };
+  const made = (events: ('UP' | 'OFF')[], start: Lamp) => class extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => keyed(new Group(new Rectangle({ width: 4, height: 1.2 }), keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word')), 'lamp'));

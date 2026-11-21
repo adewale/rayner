@@ -82,7 +82,7 @@ class Nudge extends Animation {
 /** A tiny native scene, run inside this one: a box grows, and a dot crosses a track. */
 function demoScene(ink: string, emphasis: string, soft: string, motion: Motion, nudges: Nudge[]) {
   const parts = tiny(ink, emphasis, soft);
-  return class SeekDemo extends Scene<{}, {}> {
+  return class SeekDemo extends Scene {
     override async construct() {
       const box = parts.box(3, 2.4, [-4.5, 1.6]);
       const dot = parts.dot(START[0]);
@@ -191,7 +191,10 @@ type LanternState = { frameAtSeek?: number; ruler?: { fps: number; times: number
 /** The pipeline's walked links, and how the classes are shown. */
 type LanternShown = { flowWalked?: [string, string][]; classes?: ClassesShown };
 
-export default class LanternExplainer extends Scene<LanternState, LanternShown> {
+export default class LanternExplainer extends Scene {
+  override state: LanternState = {};
+  override shown: LanternShown = {};
+
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern',

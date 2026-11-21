@@ -1,6 +1,6 @@
 import { Scene, Group, Text, FadeIn, keyed } from '../../../src/index.ts';
 import { settingsOf, stage, having, Machine, view } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { bloomStory, locations, saturation, ROW_EVENTS, rowStart, rowNext } from './model.ts';
 import type { Row, RowEvent } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
@@ -12,7 +12,9 @@ const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 
 const count = (n: number) => numberWord(n, { zero: 'none' });
 
-export default class BloomFilter extends Scene<Row, {}> {
+export default class BloomFilter extends Scene {
+  override state: Row = rowStart(Number(settingsOf(this, BloomFilter).bits) as 16 | 32);
+
   static meta = {
     sources: [
       'https://doi.org/10.1145/362686.362692',
@@ -168,7 +170,7 @@ export default class BloomFilter extends Scene<Row, {}> {
         return {
           ...frame,
           state,
-          draw: (st: typeof state, s: Stage) => {
+          draw: (st: typeof state, s: DrawContext) => {
             if (i === 7) return drawPipeline(s, having(st, 'queries', 'sampleSize', 'sizes'));
             const query = st.query;
             // A lookup's bits; while inserting, the bits of the name just inserted.
@@ -222,7 +224,7 @@ export default class BloomFilter extends Scene<Row, {}> {
     });
     await s.clear({ runTime: 0.18 });
     this.state = start;
-    const row = view(this, (st) => drawRow(s, st), { place: false });
+    const row = view(this, (st, _shown, drawing) => drawRow(drawing, st), { drawing: s.drawing, place: false });
     const machine = new Machine<Row, RowEvent>(this, {
       start,
       events: ROW_EVENTS,

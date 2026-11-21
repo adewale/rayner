@@ -14,7 +14,11 @@ import type { YearState, LookState, DayAt } from './sky.ts';
 /** The year's turn, then the camera's descent: each a view of its own state. */
 type HengeState = YearState | LookState;
 
-export default class Henge extends Scene<HengeState, {}> {
+export default class Henge extends Scene {
+  private readonly year = henge(settingsOf(this, Henge).place);
+  private readonly winter: YearState = { bearing: this.year.bearing, latitude: this.year.latitude, start: -90, longitude: -90, crossings: this.year.ideal };
+  override state: HengeState = { ...this.winter };
+
   static meta = {
     sources: [
       'https://www.amnh.org/research/hayden-planetarium/manhattanhenge',
@@ -52,7 +56,7 @@ export default class Henge extends Scene<HengeState, {}> {
   ] }] as const;
   override async construct() {
     const answer = answerOf(this);
-    const m = henge(settingsOf(this, Henge).place), where = m.where, manhattan = m.place === 'manhattan';
+    const m = this.year, where = m.where, manhattan = m.place === 'manhattan';
     const other = PLACES[OTHER[m.place]];
     const [december, , june] = m.seasons;
     const day = ({ latitude, declination, hourAngle }: { latitude: number; declination: number; hourAngle: number }) => ({ latitude, declination, hourAngle });
@@ -137,7 +141,7 @@ export default class Henge extends Scene<HengeState, {}> {
     // The year as a turn of state: the view tweened over the orbital longitude, from the December
     // solstice round to the next, redraws the day's circle from the model at every frame.
     const dayAt: DayAt = (longitude) => { const d = sunset(m.latitude, declination(longitude)); return { latitude: m.latitude, declination: d.declination, hourAngle: d.hourAngle, azimuth: d.azimuth }; };
-    const start: YearState = { bearing: m.bearing, latitude: m.latitude, start: -90, longitude: -90, crossings: m.ideal };
+    const start = this.winter;
     await this.step('sweep', {
       title: 'Follow the sunset through a year', line: 'Predict: how many times will the sunset cross the street?',
       // The idealised model's crossings of the street's bearing in one year.
@@ -146,7 +150,7 @@ export default class Henge extends Scene<HengeState, {}> {
     });
     await s.clear({ runTime: 0.18 });
     this.state = { ...start };
-    const sweep = view(this, (st) => year(having(st, 'longitude'), dayAt, s), { place: false });
+    const sweep = view(this, (st, _shown, drawing) => year(having(st, 'longitude'), dayAt, drawing), { drawing: s.drawing, place: false });
     s.opening(sweep);
     await s.enter(sweep, { runTime: 0.24, describe: () => yearWords(having(this.state, 'longitude'), dayAt) });
     await this.play(sweep.tween((t) => ({ ...start, longitude: start.longitude + (270 - start.longitude) * t }), { runTime: 9, rateFunc: linear }));
@@ -168,7 +172,7 @@ export default class Henge extends Scene<HengeState, {}> {
     });
     await s.clear({ runTime: 0.18 });
     this.state = { ...eye(0) };
-    const streetLook = view(this, (st) => look(having(st, 'pitch'), s.look.paper, names, s), { place: false });
+    const streetLook = view(this, (st, _shown, drawing) => look(having(st, 'pitch'), drawing.look.paper, names, drawing), { drawing: s.drawing, place: false });
     // The phone opens on the camera's window and its legend; the sky's lines run on past the window, under the paper.
     s.opening(...streetLook.current.family().filter((part) => ['henge-look-window', 'henge-look-legend', 'henge-look-sides', 'henge-look-sun'].includes(part.key ?? '')));
     await s.enter(streetLook, { runTime: 0.24, describe: () => lookWords(having(this.state, 'pitch'), names) });

@@ -2,7 +2,7 @@
 import { Scene, Dot, Line, Circle, keyed, linear } from 'rayner';
 import { view, tweenState } from 'rayner/explain';
 
-export default class SharedOrbit extends Scene<{ angle: number }, {}> {
+export default class SharedOrbit extends Scene {
   override state = { angle: 0 };
   override async construct() {
     const point = view(this, st => new Dot({ radius: 0.16 }).moveTo([3 * Math.cos(st.angle), 3 * Math.sin(st.angle)]), { place: false });

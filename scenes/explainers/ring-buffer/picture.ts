@@ -2,7 +2,7 @@ import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross, keyed } from '
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { TYPE, label, tile, emphasised } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions, Look } from '../../../explain/index.ts';
+import type { Stage, DrawContext, StagedStepsOptions, Look } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
 /**
@@ -210,7 +210,7 @@ export function sayRing(st: RingState): string {
 }
 
 /** The whole argument at phone size: fixed slots, markers, queue order and the last outcome. */
-export function drawOverview(st: RingState, s: Stage): Group {
+export function drawOverview(st: RingState, s: DrawContext): Group {
   const g = new Group(), centre: Vec = [-3.6, -0.4], radius = 2.0;
   const at = (i: number, r: number = radius, offset = 0): Vec => [centre[0] + Math.cos(angle(i) + offset) * r, centre[1] + Math.sin(angle(i) + offset) * r];
   for (let i = 0; i < SLOTS; i++) {

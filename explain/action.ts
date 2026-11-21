@@ -9,13 +9,13 @@ import { Beats } from '../src/animation.ts';
 import type { BeatPlan } from '../src/animation.ts';
 
 /** The actions each scene has made that have not begun to play: each must, by the end of its step. */
-const unplayed = new WeakMap<Scene<any, any>, Set<{ readonly name: string }>>();
+const unplayed = new WeakMap<Scene, Set<{ readonly name: string }>>();
 
 /**
  * Track `action` until it plays. A scene checks for unplayed actions before its first named
  * step and after each named step's closing listeners have had a chance to play them.
  */
-function track(scene: Scene<any, any>, action: { readonly name: string }): void {
+function track(scene: Scene, action: { readonly name: string }): void {
   let waiting = unplayed.get(scene);
   if (!waiting) {
     const left = (waiting = new Set());
@@ -64,8 +64,8 @@ export interface Action<T = void> extends Succession, PromiseLike<T> {
  * playing, and which awaiting plays alone.
  */
 class Played<T> extends Beats<T> implements Action<T> {
-  readonly #scene: Scene<any, any>;
-  constructor(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }) {
+  readonly #scene: Scene;
+  constructor(scene: Scene, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }) {
     super(scene, name, make, opts);
     this.#scene = scene;
     track(scene, this);
@@ -95,6 +95,6 @@ class Played<T> extends Beats<T> implements Action<T> {
  * or with `late` once `ready` has settled and the play that holds it begins (a play waits for
  * `ready`): it plays awaited, in play(), or inside a Succession, a group or a machine's transition.
  */
-export function action<T>(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }): Action<T> {
+export function action<T>(scene: Scene, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }): Action<T> {
   return new Played(scene, name, make, opts);
 }

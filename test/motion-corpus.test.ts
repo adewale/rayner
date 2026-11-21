@@ -50,7 +50,11 @@ const CAUGHT: readonly string[] = [
  * The default run: one entry for each of covers, small words and flicker, from the quicker chapters.
  * The one entry early words catches (poppy-last-object-lingers) takes most of a minute, so it runs with FULL=1.
  */
-const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades'];
+const SAMPLE = new Map([
+  ['coverage-list-over-labels', 'covers'],
+  ['sign-in-code-tiny-words', 'small words'],
+  ['conversations-block-crossfades', 'flicker'],
+]);
 
 test('every corpus entry still applies to the current Poppy scenes, and names its events', async () => {
   const files = new Map<string, string>();
@@ -64,16 +68,19 @@ test('every corpus entry still applies to the current Poppy scenes, and names it
     for (const [file, edits] of byFile) assert.notEqual(applyEdits(files.get(file)!, edits, `${e.id}, ${file}`), files.get(file), e.id);
   }
   assert.equal(new Set(CORPUS.map((e) => e.id)).size, CORPUS.length, 'corpus ids are unique');
-  for (const id of [...CAUGHT, ...SAMPLE]) assert.ok(CORPUS.some((e) => e.id === id), `${id} is a corpus entry`);
+  for (const id of [...CAUGHT, ...SAMPLE.keys()]) assert.ok(CORPUS.some((e) => e.id === id), `${id} is a corpus entry`);
 });
 
 test('a sample of the corpus: a defect each for covers, small words and flicker is caught', async () => {
-  const entries = CORPUS.filter((e) => SAMPLE.includes(e.id));
+  const entries = CORPUS.filter((e) => SAMPLE.has(e.id));
   // The catalog's gate keeps the scenes as they are free of findings, so no baseline is run here.
   const { results } = await runCorpus(entries, { bases: false });
+  assert.deepEqual(results.map((r) => r.id).sort(), [...SAMPLE.keys()].sort());
   for (const r of results) {
     assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
     assert.ok(r.caught, `${r.id} is no longer caught`);
+    const kind = SAMPLE.get(r.id)!;
+    assert.ok(r.fresh.some((finding) => finding.line.includes(`: ${kind}: part “`)), `${r.id} should produce a ${kind} finding`);
   }
 });
 

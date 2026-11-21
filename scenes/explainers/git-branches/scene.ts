@@ -1,11 +1,11 @@
 import { Scene } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from './model.ts';
 import type { GitFrame } from './model.ts';
 import { picture } from './picture.ts';
 
-export default class GitBranches extends Scene<{}, {}> {
+export default class GitBranches extends Scene {
   static meta = {
     sources: [
       'https://git-scm.com/docs/git-merge/2.52.0',
@@ -58,7 +58,7 @@ export default class GitBranches extends Scene<{}, {}> {
         predict: advanced
           ? { options: ['Nothing', 'The green edit', 'The Home edit'], answer: unreachable(moved).some((id) => moved.commits.find((c) => c.id === id)!.title) ? 'The Home edit' : unreachable(moved).length ? 'The green edit' : 'Nothing' }
           : { options: ['Yes, an edit', 'No, nothing'], answer: unreachable(moved).length ? 'Yes, an edit' : 'No, nothing' },
-        draw: (st: Shown, s: Stage) => picture(s, st.frame, 'Arrows point from a commit to its parent.'),
+        draw: (st: Shown, s: DrawContext) => picture(s, st.frame, 'Arrows point from a commit to its parent.'),
       },
       ...(advanced
         ? [
@@ -68,7 +68,7 @@ export default class GitBranches extends Scene<{}, {}> {
               line: `B’s history is ${history(moved, 'B').join(', then ')}; C is not in it.`,
               caption: `With main on B, checking out main gives ${currentFiles(moved).colour} and no title.txt. B’s history is ${history(moved, 'B').join(', then ')}, so neither branch would contain C or the Home edit. C is still stored: moving the label does not delete the commit. To keep main’s history, following parent arrows from its new destination must still reach its old commit. A merge needs a new commit when each branch has a commit the other lacks.`,
               state: shown(moved, { lost: unreachable(moved) }),
-              draw: (st: Shown, s: Stage) => picture(s, st.frame, 'C is outside both branch histories.'),
+              draw: (st: Shown, s: DrawContext) => picture(s, st.frame, 'C is outside both branch histories.'),
             },
           ]
         : []),
@@ -86,7 +86,7 @@ export default class GitBranches extends Scene<{}, {}> {
         predict: advanced
           ? { options: ['Yes, it still needs M', 'No, main just moves to B'], answer: other.merge === 'commit' ? 'Yes, it still needs M' : 'No, main just moves to B' }
           : { options: ['Yes, moving the label still does', 'No, it needs a new commit M'], answer: other.merge === 'commit' ? 'No, it needs a new commit M' : 'Yes, moving the label still does' },
-        draw: (st: Shown, s: Stage) => picture(s, st.frame, mergeNote(st)),
+        draw: (st: Shown, s: DrawContext) => picture(s, st.frame, mergeNote(st)),
       },
       {
         id: 'countercase',
@@ -97,7 +97,7 @@ export default class GitBranches extends Scene<{}, {}> {
           : 'Here main made C, adding Home. B does not contain C, so moving main to B would drop that edit from main’s history. git merge feature creates M with parents C and B, keeping green and Home. --no-ff can request a commit even when a fast-forward could keep both histories.',
         state: { frame: other, files: currentFiles(other), advanced: !advanced },
         // The other history's merge: its state says which.
-        draw: (st: Shown, s: Stage) => picture(s, st.frame, mergeNote(st)),
+        draw: (st: Shown, s: DrawContext) => picture(s, st.frame, mergeNote(st)),
       },
     ];
     await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(lessons);

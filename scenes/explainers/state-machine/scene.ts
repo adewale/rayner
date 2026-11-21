@@ -21,7 +21,7 @@ const DIAGRAM = regionBox('top', { left: -7.9, right: 7.9, bottom: 0.85 }),
   CARD = regionBox('full', { left: 2.35, top: 0.7 });
 const OPTIONS = ['It throws an error', 'It sends the message', 'It returns, sends nothing'];
 
-export default class StateMachineExplainer extends Scene<SocketState, {}> {
+export default class StateMachineExplainer extends Scene {
   static meta = {
     sources: [
       'https://websockets.spec.whatwg.org/#dom-websocket-send',
@@ -46,7 +46,7 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
       ],
     },
   ] as const satisfies readonly Setting[];
-  override state = socketStart();
+  override state: SocketState = socketStart();
   /** The socket's card, rebuilt from scene.state at every sync. */
   readout!: View<Card>;
 
@@ -76,16 +76,16 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
     // Its lit bar is on the branch the last event ran, so the panel is a view of the state too.
     const codeView = view(
       this,
-      (st) => {
+      (st, _shown, drawing) => {
         const lines = st.branch && BRANCH_LINES[st.branch];
-        return code(s, SEND_LINES, { at: CODE, size: 0.19, key: 'code', lit: lines ? { lines: [lines[0]!, lines.at(-1)!], as: 'run' } : null });
+        return code(drawing, SEND_LINES, { at: CODE, size: 0.19, key: 'code', lit: lines ? { lines: [lines[0]!, lines.at(-1)!], as: 'run' } : null });
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(codeView, { runTime: 0.4 });
     const codeLines = () => (codeView.current as CodeBlock).code.lines;
     // The card shows the state, not a copy of it: each sync rebuilds it from scene.state.
-    const readout = (this.readout = view(this, (st) => drawSocketCard(s, st, CARD), { place: false }));
+    const readout = (this.readout = view(this, (st, _shown, drawing) => drawSocketCard(drawing, st, CARD), { drawing: s.drawing, place: false }));
     s.keep(readout);
 
     const spans = branchSpans((codeView.current as CodeBlock).code);

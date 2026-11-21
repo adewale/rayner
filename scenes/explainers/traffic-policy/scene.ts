@@ -125,7 +125,11 @@ const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
 
-export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluster?: ClusterShown }> {
+export default class TrafficPolicyExplainer extends Scene {
+  private readonly settings = settingsOf(this, TrafficPolicyExplainer);
+  override state: TrafficState = { policy: this.settings.policy, placement: [...PLACEMENTS[this.settings.pods]], client: CLIENT_IP };
+  override shown: { cluster?: ClusterShown } = {};
+
   static meta = {
     sources: [
       K8S + 'pkg/proxy/iptables/proxier.go#L390-L392',
@@ -177,7 +181,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this, TrafficPolicyExplainer),
+    const values = this.settings,
       policy = values.policy,
       key = values.pods,
       other: Policy = policy === 'local' ? 'cluster' : 'local';
@@ -193,12 +197,12 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
     const cardOf = (rows: (st: TrafficState) => readonly CardRow[], opts: CardOptions, keys?: (card: Card) => void): View<Card> =>
       view(
         this,
-        (state) => {
-          const drawn = card(s, rows(state), opts);
+        (state, _shown, drawing) => {
+          const drawn = card(drawing, rows(state), opts);
           keys?.(drawn);
           return drawn;
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
     /** Both policies' flows, from what the flow step records. */
     const flowPictures = (st: Having<TrafficState, 'flow'>) => ({
@@ -236,9 +240,6 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       caption: `A Service of type LoadBalancer: a cloud load balancer sends outside requests to the nodes, and rules that kube-proxy writes on each node hand every request to a pod. ${placementWords(counts)}. The Service’s externalTrafficPolicy sets which pods a node may pick: under Cluster, the default, any pod in the cluster; under Local, only the pods on that node. This one is set to ${POLICY[policy]}.`,
     });
     await s.clear();
-    this.state.placement = [...counts];
-    this.state.policy = policy;
-    this.state.client = CLIENT_IP;
     let d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
     this.shown.cluster = PLAIN;
     const setup = cardOf(
@@ -288,10 +289,10 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
     // a view of the chain the step records: each rule's probability and the pod it jumps to.
     const chainView = view(
       this,
-      (state) => {
+      (state, _shown, drawing) => {
         const st = having(state, 'chain', 'chainPods');
         return code(
-          s,
+          drawing,
           [
             `# ${st.policy === 'cluster' ? 'KUBE-SVC' : 'KUBE-SVL'} chain on ${st.policy === 'cluster' ? 'every node' : 'Node 1'}, one rule per pod`,
             ...st.chainPods.map((pod, i) =>
@@ -301,7 +302,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
           { at: BELOW, size: 0.22 },
         );
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(chainView);
     // Each pod in the chain says its share of the node's requests.

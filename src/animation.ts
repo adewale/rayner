@@ -1677,7 +1677,7 @@ export abstract class Beats<T> extends Succession {
   readonly #waiting: Promise<void> | null;
   #state: BeatsState<T>;
 
-  constructor(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
+  constructor(scene: Scene, name: string, make: () => BeatPlan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
     let decision: BeatDecision<T> = null;
     if (!late)
       try {

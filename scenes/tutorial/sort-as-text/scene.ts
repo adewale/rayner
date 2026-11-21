@@ -7,7 +7,7 @@ import { drawSort } from './picture.ts';
 
 const PLACES = ['First', 'Between 1 and 9', 'Last'];
 
-export default class SortAsText extends Scene<State, {}> {
+export default class SortAsText extends Scene {
   static meta = {
     sources: ['https://tc39.es/ecma262/2025/#sec-sortcompare'],
   } satisfies ExplainerMeta;
@@ -15,14 +15,13 @@ export default class SortAsText extends Scene<State, {}> {
     { id: 'compare', label: 'Compare function', default: 'none', options: [{ value: 'none', label: 'none' }, { value: 'numbers', label: '(a, b) => a - b' }] },
   ] as const satisfies readonly Setting[];
 
-  override state = start('none');
+  override state: State = start(settingsOf(this, SortAsText).compare);
 
   override async construct() {
     const s = stage(this);
     const compare = settingsOf(this, SortAsText).compare;
     const asText = compare === 'none';
-    this.state = start(compare);
-    const picture = view(this, (st) => drawSort(s, st));
+    const picture = view(this, (st, _shown, drawing) => drawSort(drawing, st), { drawing: s.drawing });
     // The reader's buttons: each puts a number on the end of the array. Its sorted box flies down
     // from just under where the number joins the array, along the gap between the rows and down into
     // its place, over no other number, after the boxes it passes have made room.

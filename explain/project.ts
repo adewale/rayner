@@ -38,7 +38,7 @@ export interface LoadedProject<S extends object = SceneState, Sh extends object 
   /** The scenario these values choose, every other setting at its default, as a page link chooses one. */
   scenario(values?: Settings): LoadedScenario<S, Sh, C>;
 }
-/** The project loadProject loads for scene class `C`, typed from the `Scene<S, Sh>` it extends. */
+/** The project loadProject loads for scene class `C`, typed from its initialized model and presentation. */
 type ProjectOf<C extends SceneClass> = 0 extends 1 & C ? LoadedProject
   : TraceOf<C> extends Trace<infer S, infer Sh> ? LoadedProject<S, Sh, C> : never;
 
@@ -144,8 +144,8 @@ function adoptScript(Scene: ExplainerClass, file: string, script: string | null)
  * run left, which the command reads its colours and live steps from. loadProject and the rayner
  * command both collect a project's scenarios by it.
  */
-export async function traceScenarios(Explainer: ExplainerClass, snapshots: SnapshotStore, api: string): Promise<(LoadedScenario & { scene: Scene<object, object> })[]> {
-  const out: (LoadedScenario & { scene: Scene<object, object> })[] = [];
+export async function traceScenarios(Explainer: ExplainerClass, snapshots: SnapshotStore, api: string): Promise<(LoadedScenario & { scene: Scene })[]> {
+  const out: (LoadedScenario & { scene: Scene })[] = [];
   for (const values of scenariosOf(Explainer)) {
     const Bound = withSettings(bindSnapshots(Explainer, snapshots), values);
     const { trace, scene } = await traceRun(Bound);

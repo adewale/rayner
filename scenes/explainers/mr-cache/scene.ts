@@ -59,13 +59,16 @@ type FlowState = { walked: [string, string][]; notes: { id: string; text: string
 /** How many database reads the change leaves, then the request followed and its reads. */
 type CacheState = { databaseReads?: string; request?: 'hit' | 'miss'; reads?: number };
 
-export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowState }> {
+export default class CacheMRExplainer extends Scene {
+  override state: CacheState = {};
+  override shown: { flow?: FlowState } = {};
+
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts',
       'https://developers.cloudflare.com/kv/api/read-key-value-pairs/',
     ],
-    watch: { databaseReads: 'Database reads', request: 'Request', reads: 'D1 reads' },
+    watch: [{ source: 'model', key: "databaseReads", label: 'Database reads' }, { source: 'model', key: "request", label: 'Request' }, { source: 'model', key: "reads", label: 'D1 reads' }] as const,
     // Each speaks of the code drawn in its own step.
     claims: [
       { says: 'Before: every request reads D1', shown: true as const },
@@ -116,9 +119,9 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
     // The merged file's panel decides where the code sits, and the old file
     // starts at its top-left corner: in the diff, the header line stays put and
     // the other lines move only down, to where the hunks put them.
-    const merged = panel(s, after, CODE_BOX, 'users.ts');
+    const merged = panel(s.drawing, after, CODE_BOX, 'users.ts');
     const [left, , , top] = merged.rect.box()!;
-    const shown = panel(s, before, CODE_BOX, 'users.ts', [left, top]);
+    const shown = panel(s.drawing, before, CODE_BOX, 'users.ts', [left, top]);
     // One description for the panel, whichever code it holds: its title stays through the diff.
     let held = before;
     const panelWords = () => inWords('users.ts', held);
@@ -186,7 +189,7 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
     for (const r of runs.sort((a, b) => a.from - b.from)) {
       const box = linesBox(after, r.from, r.to);
       const note = s.keep(
-        callout(s, [right - 0.1, box[1], right - 0.1, box[3]], `${counted(r.to - r.from + 1, 'line')} ${r.what}`, {
+        callout(s.drawing, [right - 0.1, box[1], right - 0.1, box[3]], `${counted(r.to - r.from + 1, 'line')} ${r.what}`, {
           side: 'right',
           gap: NOTES_BOX[0] - right + 0.15,
           color: r.color,

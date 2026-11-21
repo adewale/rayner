@@ -3,7 +3,7 @@
 // descriptions have their own vocabulary (explain/words.ts); a page in a language it lacks
 // shows them in English and marks them lang="en".
 import type { ExplainerClass, Settings } from '../explain/index.ts';
-import type { SettingsProblem, WatchedChange } from '../explain/internal.ts';
+import type { SettingsProblem, WatchReading } from '../explain/internal.ts';
 import { scenarioName, describedIn, primaryLanguage, wordsFor } from '../explain/internal.ts';
 export type { SettingsProblem } from '../explain/internal.ts';
 
@@ -75,6 +75,8 @@ export interface Chrome {
   failed: string;
   /** The quiet label before a step's changes to the state its author watches (`meta.watch`). */
   changed: string;
+  /** Neutral heading for readouts that include current specimen/presentation/derived values. */
+  atStep: string;
   /** A boolean watched value; the same words as the descriptions' (explain/words.ts). */
   yes: string;
   no: string;
@@ -82,6 +84,7 @@ export interface Chrome {
   removed: string;
   /** The transcript's line of a step's changes: "What changed: Tokens: 5 → 0; Allowed: 0 → 5". */
   changes: (...items: string[]) => string;
+  readings: (...items: string[]) => string;
   /** At rest on the last step, Next's visible word, and its accessible name. */
   startAgain: string;
   startAgainLabel: string;
@@ -177,10 +180,12 @@ const EN: Chrome = {
   checkedAgainst: (what) => `The model is checked against: ${what}`,
   failed: 'The interactive player could not start. The transcript is available below.',
   changed: 'What changed',
+  atStep: 'At this step',
   yes: wordsFor('en').yes,
   no: wordsFor('en').no,
   removed: 'removed',
   changes: (...items) => `What changed: ${items.join('; ')}`,
+  readings: (...items) => `At this step: ${items.join('; ')}`,
   startAgain: 'Start again',
   startAgainLabel: 'Start again from step 1',
   tryScenario: (label) => `Try ‘${label}’`,
@@ -260,10 +265,12 @@ const FR: Chrome = {
   checkedAgainst: (what) => `Le modèle est vérifié par\u202f: ${what}`,
   failed: 'Le lecteur interactif n’a pas pu démarrer. La transcription se trouve plus bas.',
   changed: 'Ce qui a changé',
+  atStep: 'À cette étape',
   yes: wordsFor('fr').yes,
   no: wordsFor('fr').no,
   removed: 'supprimé',
   changes: (...items) => `Ce qui a changé\u202f: ${items.join('\u202f; ')}`,
+  readings: (...items) => `À cette étape\u202f: ${items.join('\u202f; ')}`,
   startAgain: 'Recommencer',
   startAgainLabel: 'Recommencer à l’étape 1',
   tryScenario: (label) => `Essayer «\u202f${label}\u202f»`,
@@ -315,5 +322,8 @@ export const descriptionLang = (lang = 'en') => {
 export const scenarioNameIn = (lang: string, Scene: ExplainerClass, values: Settings): string =>
   scenarioName(Scene, values, chromeFor(lang).setting);
 /** One watched change as a reader reads it: "Tokens: 5 → 0", "Tokens: 5" (it appeared), "Tokens: removed". */
-export const changeText = (t: Chrome, c: WatchedChange): string =>
-  t.setting(c.label, c.after === undefined ? t.removed : c.before === undefined ? c.after : `${c.before} → ${c.after}`);
+export const watchText = (t: Chrome, c: WatchReading): string =>
+  t.setting(c.label, c.kind === 'value' ? c.value : c.after === undefined ? t.removed : c.before === undefined ? c.after : `${c.before} → ${c.after}`);
+export const watchHeading = (t: Chrome, rows: readonly WatchReading[]): string => rows.some(row => row.kind === 'value') ? t.atStep : t.changed;
+export const watchSummary = (t: Chrome, rows: readonly WatchReading[]): string =>
+  (rows.some(row => row.kind === 'value') ? t.readings : t.changes)(...rows.map(row => watchText(t, row)));

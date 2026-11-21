@@ -21,15 +21,18 @@ import { Follow, stateTarget } from './state.ts';
 import type { Match, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import { Text } from '../src/text.ts';
-import type { Scene, SceneState, Evidence } from '../src/scene.ts';
+import type { Scene, SceneInputs, SceneState, Evidence } from '../src/scene.ts';
 import type { Vec } from '../src/vec.ts';
 import { action } from './action.ts';
 import type { Action } from './action.ts';
+import { drawContext, type DrawContext } from './draw-context.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
 export type ViewPlace = 'left' | 'center' | 'right';
 
 export interface ViewOptions {
+  /** A detached drawing context, supplied to every draw and used for default paint. */
+  drawing?: DrawContext;
   /**
    * The point a rebuilt picture keeps (default 'center'): a left-placed
    * readout whose text grows stays put at its left edge, as a Text's `anchor`
@@ -86,7 +89,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
   readonly draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
-  private readonly host: Scene<any, Sh>;
+  private readonly host: SceneInputs<any, Sh>;
   /** A staged step's input, when this picture belongs to a local specimen instead of the model. */
   private readonly localState: S | undefined;
   /** The point a rebuilt picture keeps (see ViewOptions.place). */
@@ -101,12 +104,18 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * draw that check can call again. A draw can still read variables outside the state; the checks
    * catch that when a redraw disagrees.
    */
-  constructor(scene: Scene<any, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOptions = {}, localState?: S) {
+  constructor(scene: SceneInputs<any, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center', drawing }: ViewOptions = {}, localState?: S) {
     super();
     this.host = scene;
     this.localState = localState;
     // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
-    this.build = () => paintedFor(scene, draw(this[viewInput](scene.state), scene.shown)); this.draw = draw; this.place = place;
+    this.draw = drawing ? (st, sh) => {
+      const picture = draw(st, sh);
+      if (picture instanceof Mobject) paintDefaults(picture, drawing.look);
+      return picture;
+    } : draw;
+    this.build = () => paintedFor(scene, this.draw(this[viewInput](scene.state), scene.shown));
+    this.place = place;
     const first = fresh(this.build(), null);
     this.placedBox = place ? layoutBox(first) : null;
     this.add(first);
@@ -119,7 +128,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   get texts(): string[] { return pictureText(this.current); }
 
   /** @internal Whether this view reads this scene's model, rather than another host or a local specimen. */
-  belongsTo(scene: Scene<any, any>): boolean { return this.host === scene && this.localState === undefined; }
+  belongsTo(scene: Scene): boolean { return this.host === scene && this.localState === undefined; }
 
   /** @internal The input a fidelity check redraws: the local specimen, or the checked scene's model. */
   [viewInput](state: S): S { return this.localState ?? state; }
@@ -208,7 +217,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
  * An action of one beat, `runTime` long, whose animation `make` makes when the beat's turn comes:
  * what view.sync(), view.tween(), tweenState(), machine.send() and machine.sendSequence() return.
  */
-export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation, targets?: readonly Mobject[]): Action {
+export function turnAction(scene: Scene, name: string, runTime: number, make: () => ScheduledAnimation, targets?: readonly Mobject[]): Action {
   return action(scene, name, () => ({ value: undefined, beats: [{ runTime, targets, play: () => [make()] }] }));
 }
 
@@ -303,19 +312,19 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
  */
 class StateTween<S extends object, Sh extends object> extends Enclosing {
   private readonly views: readonly View<Mobject, S, Sh>[];
-  private readonly host: Scene<S, Sh>;
+  private readonly host: SceneInputs<S, Sh>;
   private readonly draw: (t: number) => readonly Mobject[];
   /** Fixed before the first sample, so a frame never derives its placement from a preceding frame. */
   private placements!: ViewPlacement[];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
 
-  constructor(host: Scene<S, Sh>, views: readonly View<Mobject, S, Sh>[], stateAt: (t: number) => S, opts: TweenOptions, call: string) {
+  constructor(host: SceneInputs<S, Sh>, views: readonly View<Mobject, S, Sh>[], stateAt: (t: number) => S, opts: TweenOptions, call: string) {
     super(views[0]!.current, opts);
     this.host = host;
     this.views = views;
     this.draw = (t) => {
-      host.state = cloneJson(stateAt(t), call, 'stateAt(t)') as Scene<S, Sh>['state'];
+      host.state = cloneJson(stateAt(t), call, 'stateAt(t)') as SceneInputs<S, Sh>['state'];
       return views.map((v, i) => v.measure(fresh(paintedFor(host, v.draw(host.state, host.shown)), v.current), this.placements[i]!).picture);
     };
   }
@@ -348,13 +357,13 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
  * Like view.tween(), this is seekable and single-use; a preceding sync's new picture is used.
  */
 export function tweenState<S extends object, Sh extends object>(
-  scene: Scene<S, Sh>, stateAt: (t: number) => NoInfer<S>, options: TweenStateOptions<NoInfer<S>, NoInfer<Sh>>,
+  scene: SceneInputs<S, Sh>, stateAt: (t: number) => NoInfer<S>, options: TweenStateOptions<NoInfer<S>, NoInfer<Sh>>,
 ): Action {
   return sampledState(scene, stateAt, options, 'tweenState()');
 }
 
 function sampledState<S extends object, Sh extends object>(
-  scene: Scene<S, Sh>, stateAt: (t: number) => S, { views, runTime = 1, rateFunc }: TweenStateOptions<S, Sh>, call: string,
+  scene: SceneInputs<S, Sh>, stateAt: (t: number) => S, { views, runTime = 1, rateFunc }: TweenStateOptions<S, Sh>, call: string,
 ): Action {
   if (!views.length) throw new RangeError(`${call}: it needs the views to redraw, views: [a, b, ...]`);
   if (new Set(views).size !== views.length) throw new Error(`${call}: a view is listed twice; list each view once`);
@@ -365,7 +374,7 @@ function sampledState<S extends object, Sh extends object>(
 }
 
 /** `m`, its parts given `scene`'s colours where they still hold a default. */
-function paintedFor<M extends Mobject>(scene: Scene<any, any>, m: M): M {
+function paintedFor<M extends Mobject>(scene: Scene, m: M): M {
   // A stand-in for a scene (a test's `{ state, shown }`) has no colours: its parts take them when they enter one.
   if (scene.colors && m instanceof Mobject) paintDefaults(m, scene.colors);
   return m;
@@ -376,11 +385,22 @@ export const isView = (m: Mobject): m is View => m instanceof View;
 
 /**
  * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync, its arguments typed
- * from the scene (`Scene<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
+ * from the scene (`SceneInputs<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
  * (see viewMismatch) and redrawn for any state a Machine reaches. Most draws read only the model.
  */
-export function view<S extends object, Sh extends object, M extends Mobject>(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOptions): View<M, S, Sh> {
-  return new View(scene, draw, opts);
+export function view<S extends object, Sh extends object, M extends Mobject>(
+  scene: SceneInputs<S, Sh>, draw: (state: S, shown: Sh, context: DrawContext) => M, opts: ViewOptions & { drawing: DrawContext },
+): View<M, S, Sh>;
+export function view<S extends object, Sh extends object, M extends Mobject>(
+  scene: SceneInputs<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOptions,
+): View<M, S, Sh>;
+export function view<S extends object, Sh extends object, M extends Mobject>(
+  scene: SceneInputs<S, Sh>, draw: (state: S, shown: Sh, context: DrawContext) => M, opts?: ViewOptions,
+): View<M, S, Sh> {
+  if (!opts?.drawing) return new View(scene, draw as (st: S, sh: Sh) => M, opts);
+  // A structurally supplied context can be a mutable object. Snapshot its drawing inputs once.
+  const context = drawContext(opts.drawing);
+  return new View(scene, (st: S, sh: Sh) => draw(st, sh, context), { ...opts, drawing: context });
 }
 
 /**

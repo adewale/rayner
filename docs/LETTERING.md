@@ -8,7 +8,7 @@ Request the work on the scene class:
 import { Scene, MathTex, Text } from 'rayner';
 import { stage } from 'rayner/explain';
 
-export default class Example extends Scene<{}, {}> {
+export default class Example extends Scene {
   static meta = {
     id: 'joining', title: 'Arabic and maths',
     textContext: 'explicit' as const,
@@ -27,7 +27,7 @@ export default class Example extends Scene<{}, {}> {
 
 `Text`, `Code`, native stage panels, headings and diagram labels use the requested faces. The browser and resvg draw the same stored paths: there is no browser font request, system-font lookup, HarfBuzz or TeX at runtime. `MathTex` is laid out at build time by glyph's TeX subset and OpenType MATH; `{ display: true }` selects display layout. Invalid TeX, unavailable glyphs, and `MathTex` without `math: true` fail the build.
 
-`textContext: 'explicit'` makes shaping belong to the objects the scene creates: pass `shaping: this.textShaping` to `Text`, `Code`, `MathTex`, axes and every other text-bearing primitive. Stage headings, cards, code blocks, the drawing kit's pictures (labels, tiles, tables, annotations and the rest) and diagram labels get the scene's shaping automatically. A copied text keeps its shaping, including when edited after the scene finishes, so explicit scenes with different faces can run together. A scene without `textContext` gives `new Text(...)` the running scene's shaping, which serializes conflicting scene contexts across awaits.
+`textContext: 'explicit'` makes shaping belong to the objects the scene creates: pass `shaping: this.textShaping` to `Text`, `Code`, `MathTex`, axes and every other text-bearing primitive. Inside a view bound with `{ drawing: s.drawing }` or a staged step’s draw, pass `shaping: drawing.shaping` to native primitives. The context keeps its selected lettering when the picture is redrawn later. Stage headings, cards, code blocks, the drawing kit's pictures (labels, tiles, tables, annotations and the rest) and diagram labels get the scene's shaping automatically. A copied text keeps its shaping, including when edited after the scene finishes, so explicit scenes with different faces can run together. A scene without `textContext` gives `new Text(...)` the running scene's shaping, which serializes conflicting scene contexts across awaits.
 
 ## Capture, check, build
 

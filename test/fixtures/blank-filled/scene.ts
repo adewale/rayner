@@ -3,8 +3,8 @@ import { stage, view } from '../../../explain/index.ts';
 import { start, type State } from './model.ts';
 
 // rayner init --blank's scene, filled in: one step, the reader's array and what sort() makes of it.
-export default class Explainer extends Scene<State, {}> {
-  override state = start();
+export default class Explainer extends Scene {
+  override state: State = start();
 
   override async construct() {
     const s = stage(this);

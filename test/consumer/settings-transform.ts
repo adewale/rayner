@@ -30,9 +30,9 @@ class LiteralSettings extends Scene {
 
 // Domain interfaces need no string index signature merely to read their scene's settings.
 interface DomainState { count: number }
-class InterfaceState extends Scene<DomainState, {}> {
+class InterfaceState extends Scene {
   static settings = LiteralSettings.settings;
-  override state = { count: 0 };
+  override state: DomainState = { count: 0 };
   override async construct() {
     const bits: '16' | '32' = settingsOf(this, InterfaceState).bits;
     const dynamic: Settings = settingsOf(this);
@@ -41,7 +41,9 @@ class InterfaceState extends Scene<DomainState, {}> {
 }
 
 // A class witness supplies declarations; the accessor never constructs an abstract base.
-abstract class SettingsBase extends Scene<DomainState, {}> {
+abstract class SettingsBase extends Scene {
+  override state: DomainState = { count: 0 };
+
   static settings = LiteralSettings.settings;
   bitCount(): '16' | '32' {
     const values = settingsOf(this, SettingsBase);

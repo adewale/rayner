@@ -42,11 +42,12 @@ export interface ExplainerMeta {
   /** Text takes the scene's shaping as TextOptions.shaping (this.textShaping) instead of the running scene's. */
   textContext?: 'explicit';
   player?: PlayerMeta;
-  /**
-   * The model JSON readers follow, from a `scene.stateJson()` key to its label in the scene's language (at most
-   * eight): each step shows what it changed of these, under its caption.
-   */
-  watch?: Readonly<Record<string, string>>;
+  /** Ordered reader readouts (at most eight): model changes, or current local/presentation/derived values. Keys are literal own top-level properties. */
+  watch?: readonly {
+    readonly source: 'model' | 'local' | 'shown' | 'derived';
+    readonly key: string;
+    readonly label: string;
+  }[];
   /**
    * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
    * step's title, line or caption contains it, and reports the step where it first appears; it
@@ -72,12 +73,37 @@ export interface ExplainerMeta {
    */
   claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
 }
+const WATCH_MAX = 8;
+/** Validate the wire declaration on every public readout path, including direct describe/runLive. */
+export function watchSelections(watch: unknown): NonNullable<ExplainerMeta['watch']> {
+  if (watch === undefined) return [];
+  if (!Array.isArray(watch)) throw new TypeError('meta.watch: it must be an ordered list of { source, key, label }');
+  if (watch.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${watch.length} keys; name at most ${WATCH_MAX}, so readouts stay readable`);
+  const addresses = new Set<string>(), labels = new Set<string>(), selections: NonNullable<ExplainerMeta['watch']>[number][] = [];
+  for (const entry of watch) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) ||
+        Object.keys(entry).some(key => !['source', 'key', 'label'].includes(key)) ||
+        !['source', 'key', 'label'].every(key => Object.hasOwn(entry, key)))
+      throw new TypeError('meta.watch: each entry must contain only source, key and label');
+    const { source, key, label } = entry;
+    if (!['model', 'local', 'shown', 'derived'].includes(source)) throw new TypeError('meta.watch: source must be model, local, shown or derived');
+    if (typeof key !== 'string' || !key) throw new TypeError('meta.watch: it has an empty key');
+    if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${source}.${JSON.stringify(key)} an empty label`);
+    const address = JSON.stringify([source, key]);
+    if (addresses.has(address)) throw new RangeError(`meta.watch: it selects ${source}.${JSON.stringify(key)} twice`);
+    if (labels.has(label.trim())) throw new RangeError(`meta.watch: labels must distinguish the selected values; ${JSON.stringify(label.trim())} is repeated`);
+    addresses.add(address); labels.add(label.trim());
+    selections.push(Object.freeze({ source, key, label }));
+  }
+  return Object.freeze(selections);
+}
+
 export type ExplainerClass = SceneClass & {
   meta?: ExplainerMeta;
   settings?: readonly Setting[];
 };
 /** Settings do not depend on the instance's domain-state or presentation-state shape. */
-type SettingsClass = (abstract new (...args: ConstructorParameters<SceneClass>) => Scene<any, any>) & Pick<ExplainerClass, 'settings'>;
+type SettingsClass = (abstract new (...args: ConstructorParameters<SceneClass>) => Scene) & Pick<ExplainerClass, 'settings'>;
 // Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
 const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
   id: true, title: true, lang: true, sources: true, lettering: true, textContext: true,
@@ -126,6 +152,7 @@ export function checkExplainerMeta(meta: unknown): void {
       throw new TypeError(`${where}: ${extra.map((k) => JSON.stringify(k)).join(', ')} ${extra.length > 1 ? 'are not keys' : 'is not a key'} it takes; it takes ${Object.keys(keys).join(', ')}`);
   };
   unknown(META_KEYS, meta, 'static meta');
+  watchSelections(meta.watch);
   if (meta.id !== undefined && typeof meta.id !== 'string') throw new TypeError('meta.id: it must be a string');
   if (meta.id !== undefined && !isIdentifier('id', meta.id)) throw new RangeError(`meta.id: ${JSON.stringify(meta.id)} is not a page id; an id is ${identifierRule('id')}`);
   if (meta.player === undefined) return;
@@ -214,9 +241,9 @@ export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values:
  * A project load validates that selection against the declarations it captured for the base.
  * Without the class, dynamically declared settings keep their string-record type.
  */
-export function settingsOf<const Declarations extends readonly Setting[]>(scene: Scene<any, any>, Source: SettingsClass & { settings: Declarations }): Settings<Declarations>;
-export function settingsOf(scene: Scene<any, any>, Source?: SettingsClass): Settings;
-export function settingsOf(scene: Scene<any, any>, Source?: SettingsClass): Settings {
+export function settingsOf<const Declarations extends readonly Setting[]>(scene: Scene, Source: SettingsClass & { settings: Declarations }): Settings<Declarations>;
+export function settingsOf(scene: Scene, Source?: SettingsClass): Settings;
+export function settingsOf(scene: Scene, Source?: SettingsClass): Settings {
   if (Source && !(scene instanceof Source)) throw new TypeError('settingsOf(): the supplied class must be this scene\'s class or one of its base classes');
   // A bound subclass may override the declarations of the supplied base class. Revalidate against
   // the definition whose type we return, so a narrowed type never conceals incompatible values.

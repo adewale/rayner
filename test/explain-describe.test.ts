@@ -110,7 +110,7 @@ test('describe follows the all-detail fallback and reports a broken prediction i
 });
 
 test('machine descriptions use the player\'s raw model origin while step descriptions retain trace-only JSON', async () => {
-  class WithEvidence extends Scene<{ n: number }> {
+  class WithEvidence extends Scene {
     override state = { n: 0 };
     override async construct() {
       this.addJson(() => ({ aux: 'trace only' }));
@@ -132,7 +132,7 @@ test('machine descriptions use the player\'s raw model origin while step descrip
   assert.deepEqual(described.steps[0]!.state, { n: 1 });
   assert.deepEqual(described.steps[0]!.derived, { aux: 'trace only' });
   assert.equal(described.machines!.length, 1);
-  assert.deepEqual(described.machines![0]!.live, { ...actual.base, states: 3, complete: true });
+  assert.deepEqual(described.machines![0]!.live, { ...actual.base, states: 3, observations: 3, complete: true });
 });
 
 test('a step\'s resting picture has one text drawing: rayner check\'s restingFrames is describe\'s drawing, the heading left out of both', async () => {

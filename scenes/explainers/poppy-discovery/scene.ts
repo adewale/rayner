@@ -35,7 +35,7 @@ const runParts = (c: Choreography) =>
 // issuer fills its rows, and an arrow is drawn back from the row that lists the shop, closing the
 // loop. The agent's line extends to each stop a check passes, and a barrier drops before the one
 // that refuses. The verdict comes last, once its check has run.
-export default class PoppyDiscovery extends Scene<World, {}> {
+export default class PoppyDiscovery extends Scene {
   static meta = {
     sources: ['https://personalagentprotocol.org/docs/1.0/spec', 'https://www.rfc-editor.org/rfc/rfc9728', 'https://www.rfc-editor.org/rfc/rfc8414'],
     claims: [
@@ -44,12 +44,11 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       { says: 'signed-out Sessions only', test: 'model.test.ts: 3.2: 404 means no issuer: the Company is its HTTPS domain and offers signed-out Sessions only' },
     ],
   } satisfies ExplainerMeta;
-  override state = start();
+  override state: World = start();
 
   override async construct() {
-    this.state = start();
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w) => drawWorld(w, s), { place: false });
+    const world = view(this, (w, _shown, drawing) => drawWorld(w, drawing), { drawing: s.drawing, place: false });
 
     /** Parts only the new picture has, brought in one after another in this order, where present. */
     const bring = (c: Choreography, keys: readonly string[], create: readonly string[] = []): Beat[] =>
@@ -86,7 +85,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       const path = c.to('url:path'), from: [number, number] = [path.center()[0]!, 2.55];
       const onBoard = c.has('board', 'to'), to = onBoard ? BOARD_SHEET : DOORSTEP;
       const route: [number, number][] = onBoard ? [from, to] : [from, [STREET_X, from[1]], [STREET_X, to[1]], to];
-      const token = pass(c, 'sheet:token', sheet(s, { width: 0.7, height: 0.9, lines: 2 }), route, { appear: 0.25, move: 0.6, leave: 0.25 });
+      const token = pass(c, 'sheet:token', sheet(s.drawing, { width: 0.7, height: 0.9, lines: 2 }), route, { appear: 0.25, move: 0.6, leave: 0.25 });
       return new Succession([
         ...(out.length ? [new AnimationGroup(out)] : []),
         ...together(arrive),

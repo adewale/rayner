@@ -260,7 +260,7 @@ export async function collectProject(
   const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
   // Every scene this collection runs: its page needs diagram code when one of them made a diagram.
-  const ran: Scene<object, object>[] = [];
+  const ran: Scene[] = [];
   let edits = 0;
   const warned = new Set<string>();
   const inspect = (snapshot: SnapshotStore[string]) => {

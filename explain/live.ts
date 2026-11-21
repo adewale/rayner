@@ -8,11 +8,14 @@
 // explored. See docs/MACHINES.md, "The player".
 
 import type { Scene, SceneClass, SceneState, Sink } from '../src/scene.ts';
-import { stopAt } from '../src/scene.ts';
+import { stopAt, stepStateOf } from '../src/scene.ts';
 import { canonicalJson } from '../src/json.ts';
 import { machinesOf } from './machine.ts';
 import type { Machine } from './machine.ts';
 import { offeredMachine } from './machine-offers.ts';
+import { watchedReadings } from './trace.ts';
+import type { WatchReading } from './trace.ts';
+import type { ExplainerClass } from './settings.ts';
 
 type AnyMachine = Machine<object, string>;
 
@@ -36,7 +39,7 @@ export interface Live extends LivePlace {
  * its last played step, with later-made machines winning an implicit tie. A step's offer takes
  * precedence over any inferred controls there.
  */
-export function liveSteps(scene: Scene<object, object>): Map<string, Live> {
+export function liveSteps(scene: Scene): Map<string, Live> {
   const implicit = new Map<string, Live>(), explicit = new Map<string, Live>();
   const offers = scene.steps.map((step) => ({ path: step.path, owner: offeredMachine(step) }));
   for (const [index, machine] of machinesOf(scene).entries()) {
@@ -59,7 +62,7 @@ export function machineSteps(machine: AnyMachine, controls: ReadonlyMap<string, 
  * a scene must make the same machines on every run, or the reader would drive another machine than
  * the one the page was built for and check explored.
  */
-export function liveMachine(scene: Scene<object, object>, step: string | null, place: LivePlace): AnyMachine {
+export function liveMachine(scene: Scene, step: string | null, place: LivePlace): AnyMachine {
   const machine = machinesOf(scene)[place.index];
   if (!machine || machine.identity !== place.identity)
     throw new Error(`runLive(): the run${step === null ? '' : ` to ${JSON.stringify(step)}`} made different machines; a scene must make the same machines on every run`);
@@ -106,10 +109,10 @@ export async function liveBase(Source: SceneClass, step: string, place: LivePlac
  * still play there, the live machine, and `draw`, which hands the frames that follow to a sink,
  * every one drawn, or with none skips them again.
  */
-export type LiveExplore = (scene: Scene<object, object>, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
+export type LiveExplore = (scene: Scene, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
 
 export interface LiveRun {
-  scene: Scene<any>;
+  scene: Scene;
   machine: AnyMachine;
   /** The scene's state as the live step ends, before any event (JSON): where the reader's log starts from. */
   rest: object;
@@ -117,6 +120,8 @@ export interface LiveRun {
   shown: SceneState;
   /** Computed observations after the log, including the stage picture description. */
   derived: SceneState;
+  /** Reader readouts after the log, with model changes measured from its actual origin. */
+  watched?: WatchReading[];
   /** With `keep`, the run held at this picture, to play the reader's next event from it. */
   session?: LiveSession;
 }
@@ -189,7 +194,7 @@ export async function runLive(
   step: string,
   place: LivePlace,
   log: readonly string[],
-  { sink, animate, onStart, onRest, from = 'rest', keep = false, explore }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean; explore?: LiveExplore } = {},
+  { sink, animate, onStart, onRest, from = 'rest', keep = false, explore }: LiveDraw & { onRest?: (scene: Scene) => void; from?: LogStart; keep?: boolean; explore?: LiveExplore } = {},
 ): Promise<LiveRun> {
   let result: LiveRun | undefined;
   // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
@@ -199,17 +204,31 @@ export async function runLive(
   // Run there as a seek does, every frame skipped; the scene stops itself as the step ends, and
   // plays the log there (see stopAt).
   const out = new LiveSink();
-  const scene = new Source(out) as Scene<any>;
+  const scene = new Source(out) as Scene;
   stopAt(scene, step, async (at, draw) => {
     const machine = liveMachine(at, step, place);
     if (!place.offered && machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
     const rest = JSON.parse(JSON.stringify(at.state)) as object;
     onRest?.(at);
-    // From the machine's start: its views redrawn there, in place, as exploration draws a state.
-    if (from === 'start' && log.length) {
-      at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
-      for (const view of machine.spec.views) view.rebuild();
-    }
+    // An empty log displays the historic resting picture. A kept run resets exactly once when
+    // its first event begins, just as a fresh run of that same nonempty log does.
+    let beganLog = false, origin = at.stateJson();
+    const beginLog = () => {
+      if (beganLog) return;
+      beganLog = true;
+      if (from === 'start') {
+        at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
+        for (const view of machine.spec.views) view.rebuild();
+        origin = at.stateJson();
+      }
+    };
+    if (log.length) beginLog();
+    const meta = (Source as ExplainerClass).meta;
+    const observations = () => {
+      const shown = at.shownJson(), derived = at.derivedJson();
+      return { shown, derived, ...(meta?.watch ? { watched: watchedReadings({ before: origin, after: at.stateJson(), shown, derived,
+        ...(at.currentStep ? { state: stepStateOf(at.currentStep) } : {}) }, meta.watch, meta.lang) } : {}) };
+    };
     for (const [i, event] of log.entries()) {
       if (animate && i === log.length - 1) {
         out.draw(animate);
@@ -220,7 +239,7 @@ export async function runLive(
     }
     const drawn = animate ?? sink;
     if (drawn) await draw(drawn);
-    result = { scene: at, machine, rest, shown: at.shownJson(), derived: at.derivedJson() };
+    result = { scene: at, machine, rest, ...observations() };
     if (explore) {
       try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
     }
@@ -235,6 +254,7 @@ export async function runLive(
       if (!command) break;
       const { event, draw: how } = command;
       try {
+        beginLog();
         // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
         out.draw(how.animate);
         if (how.animate) {
@@ -244,7 +264,7 @@ export async function runLive(
         await at.play(machine.send(event));
         const last = how.animate ?? how.sink;
         if (last) await draw(last);
-        command.done({ scene: at, machine, rest, shown: at.shownJson(), derived: at.derivedJson() });
+        command.done({ scene: at, machine, rest, ...observations() });
       } catch (error) {
         command.failed(error);
         break;

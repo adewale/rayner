@@ -199,7 +199,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     edits: [
       { file: 'poppy-sign-in/scene.ts', find: 'const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];', replace: 'const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 1.2, DESK[1]], DESK];' },
       { file: 'poppy-sign-in/scene.ts', find: 'const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];', replace: 'const toAddress = (seal: Pt): Pt[] => [seal, [-4.6, seal[1] + 0.6], [-4.6, ADDRESS_AT[1]], ADDRESS_AT];' },
-      { file: 'poppy-sign-in/scene.ts', find: 'const request = () => requestToken(s).scale(0.55);', replace: 'const request = () => requestToken(s);' },
+      { file: 'poppy-sign-in/scene.ts', find: 'const request = () => requestToken(s.drawing).scale(0.55);', replace: 'const request = () => requestToken(s.drawing);' },
     ],
   },
   {
@@ -251,8 +251,8 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-code-tiny-words', chapter: 'poppy-sign-in', kind: 'small label in flight', commit: 'cb20195a', method: 'adapted', events: ['collect'],
     what: 'The code travelled as the kit’s code slip, with its words, at 0.6 scale: words far under a phone’s legible size in flight; the fix draws a slip too small to carry words.',
     edits: [
-      { file: 'poppy-sign-in/picture.ts', find: 'export const codeToken = (_s: Stage): Mobject => {', replace: 'export const codeToken = (s: Stage): Mobject => codeSlip(s, { code: \'c_5Rm2\' });\nexport const wordlessSlip = (_s: Stage): Mobject => {' },
-      { file: 'poppy-sign-in/scene.ts', find: 'const code = () => codeToken(s);', replace: 'const code = () => codeToken(s).scale(0.6);' },
+      { file: 'poppy-sign-in/picture.ts', find: 'export const codeToken = (_s: DrawContext): Mobject => {', replace: 'export const codeToken = (s: DrawContext): Mobject => codeSlip(s, { code: \'c_5Rm2\' });\nexport const wordlessSlip = (_s: DrawContext): Mobject => {' },
+      { file: 'poppy-sign-in/scene.ts', find: 'const code = () => codeToken(s.drawing);', replace: 'const code = () => codeToken(s.drawing).scale(0.6);' },
     ],
   },
   {
@@ -366,7 +366,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'browser-read-tiny-words', chapter: 'poppy-browser', kind: 'small label in flight', commit: 'cb20195a', method: 'adapted', events: ['authorize'],
     what: 'The code the agent reads travelled as a copy of the page’s stub at 0.6 scale, its code far under a phone’s legible size; the fix sends a code slip.',
     edits: [
-      { file: 'poppy-browser/scene.ts', find: 'const read = codeSlip(s, { code: shortCode(t.after.page ?? \'\') });', replace: 'const read = c.from(\'page:stub\').copy().scale(0.6);' },
+      { file: 'poppy-browser/scene.ts', find: 'const read = codeSlip(s.drawing, { code: shortCode(t.after.page ?? \'\') });', replace: 'const read = c.from(\'page:stub\').copy().scale(0.6);' },
     ],
   },
   {
@@ -374,7 +374,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'The forged stub travelled as a stub at 0.6 scale, its code far under a phone’s legible size; the fix sends a code slip.',
     edits: [
       { file: 'poppy-browser/scene.ts', find: '  drawLogins, drawWorld, sayLogins, sayWorld, shortCode,\n', replace: '  drawLogins, drawWorld, sayLogins, sayWorld, shortCode, stub,\n' },
-      { file: 'poppy-browser/scene.ts', find: 'const token = codeSlip(s, { code: shortCode(ATTACK_CODE) });', replace: 'const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);' },
+      { file: 'poppy-browser/scene.ts', find: 'const token = codeSlip(s.drawing, { code: shortCode(ATTACK_CODE) });', replace: 'const token = stub(s.drawing, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);' },
     ],
   },
   // --------------------------------------------------------------------------------- conversations
@@ -436,7 +436,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'A report went in three legs (to the station, to the slot, back to the desk) over a 4.0 s event; the fix drops the first leg and runs it in 2.75 s.',
     edits: [
       { file: 'poppy-coverage/scene.ts', find: '  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,\n', replace: '  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, slipToken, stripKeys, TRAY_AT,\n' },
-      { file: 'poppy-coverage/scene.ts', find: '            ...pass(c, \'report:sent\', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),', replace: '            ...pass(c, \'report:slip\', slipToken(s), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),\n            ...pass(c, \'report:sent\', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),' },
+      { file: 'poppy-coverage/scene.ts', find: '            ...pass(c, \'report:sent\', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),', replace: '            ...pass(c, \'report:slip\', slipToken(s.drawing), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),\n            ...pass(c, \'report:sent\', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),' },
       { file: 'poppy-coverage/scene.ts', find: 'read: 2.2, report: 2.75, sort', replace: 'read: 2.2, report: 4.0, sort' },
     ],
   },

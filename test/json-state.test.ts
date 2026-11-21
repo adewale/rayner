@@ -17,8 +17,7 @@ test('JSON state retains valid values, own prototype-sensitive keys and independ
   assert.deepEqual(jsonObject({optional: undefined, values: [null, false, 0]}), {values: [null, false, 0]});
 });
 test('state and evidence refuse silent data loss and cycles with a useful field path', () => {
-  const scene = new Scene<{count: number}>(new NullSink());
-  scene.state = {count: 1};
+  const scene = Object.assign(new Scene(new NullSink()), { state: { count: 1 } });
   assert.deepEqual(scene.stateJson(), {count: 1});
   for (const bad of [NaN, Infinity, -Infinity, ()=>1, Symbol('x'), 1n, new Date(), new Map(), new Set(), {[Symbol('key')]: 1}, [undefined], Array(1)]) {
     assert.throws(() => jsonObject({answer: bad}), /state.answer/);

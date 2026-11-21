@@ -7,12 +7,15 @@ import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './pic
 import type { RaceStep, LatestSearchState } from './picture.ts';
 import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from './model.ts';
 import type { RaceState, RaceEvent } from './model.ts';
+import { card } from '../../../explain/drawing.ts';
 
 // The story (script.md): the race without a guard first, then the ticket as its fix. Search A is
 // the keystroke "ca", search B the latest keystroke "cat". The two timelines that show the page are
 // machines: each event is a search starting or its response landing, through the same handler
 // createSearch runs, so `rayner check` explores every interleaving under each rule.
-export default class LatestSearchExplainer extends Scene<LatestSearchState, {}> {
+export default class LatestSearchExplainer extends Scene {
+  override state: LatestSearchState = raceStart(false);
+
   static meta = {
     sources: [
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/model.ts',
@@ -20,6 +23,7 @@ export default class LatestSearchExplainer extends Scene<LatestSearchState, {}> 
     ],
     // Three requests, finishing newest first: only the newest ticket publishes, and the two older ones stay stale.
     claims: [
+      { says: 'shows only the published result', shown: true },
       { says: 'publish only the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
       { says: 'publish it only if its ticket is still the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
       { says: 'makes every older ticket stale', test: 'model.test.ts: tickets distinguish repeated query text' },
@@ -101,7 +105,7 @@ export default class LatestSearchExplainer extends Scene<LatestSearchState, {}> 
 
     /** One machine per rule, each with its own timeline view: the race's events, under that rule's handler. */
     const raceMachine = (guarded: boolean) => {
-      const timeline = view(this, (st) => raceTimeline(s, isRace(st) ? st : raceStart(guarded)), { place: false });
+      const timeline = view(this, (st, _shown, drawing) => raceTimeline(drawing, isRace(st) ? st : raceStart(guarded)), { drawing: s.drawing, place: false });
       const machine = new Machine<LatestSearchState, RaceEvent>(this, {
         start: raceStart(guarded),
         events: RACE_EVENTS,
@@ -128,5 +132,24 @@ export default class LatestSearchExplainer extends Scene<LatestSearchState, {}> 
     await played(overwrite, off, false);
     await s.steps(middle, { kind: 'short' });
     await played(guard, on, true);
+
+    await this.step('page-only', {
+      title: 'A blank page can hide a running search',
+      line: 'This view shows only the published result; the buttons still follow the full model.',
+      caption: 'Start A: the page stays blank, but A can now land. Start B before A lands: the page is still blank, and A’s older response will be ignored. The same page can have different work in flight. The timeline above shows that hidden work; here, use the buttons to see what can happen next.',
+      kind: 'detail',
+    });
+    await s.clear();
+    this.state = raceStart(true);
+    const drawing = s.drawing;
+    const page = view(this, st => card(drawing, [['Result', raceOf(st).page === null ? 'Nothing published yet' : raceOf(st).page === 'A' ? 'ca' : 'cat']],
+      { title: 'Published page', at: 'full', width: 9, size: 0.65 }), { place: false });
+    const pageMachine = new Machine<LatestSearchState, RaceEvent>(this, {
+      start: raceStart(true), events: RACE_EVENTS, next: (st, event) => raceNext(raceOf(st), event),
+      observe: st => raceOf(st).page, views: [page], runTime: 0.6,
+    });
+    await s.enter(page);
+    s.opening(page);
+    pageMachine.offer();
   }
 }

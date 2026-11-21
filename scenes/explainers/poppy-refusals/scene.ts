@@ -30,7 +30,9 @@ const RAIL_MARKS = RAIL.flatMap((fix) => [`rail:${fix}:mark`, `rail:${fix}:strik
 // first, then the remedy's product comes from where it really comes from (a key from the Company's
 // sign-in stop, a delegation from the agent's own systems, a fresh poppy.json from the counter, a
 // fresh seal pressed at the agent), and then the same request sets off again and docks.
-export default class Refusals extends Scene<World, Shown> {
+export default class Refusals extends Scene {
+  override shown: Shown = {};
+
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -41,7 +43,7 @@ export default class Refusals extends Scene<World, Shown> {
     ],
     claims: [],
   } satisfies ExplainerMeta;
-  override state = start();
+  override state: World = start();
 
   override async construct() {
     // The world after each event of the story, from the model, so the words say what it computed.
@@ -54,10 +56,9 @@ export default class Refusals extends Scene<World, Shown> {
     const pair = (i: number) => ({ refused: after[i + 1]!.last!.reply, answered: after[i + 2]!, tempting: temptation(after[i + 2]!)! });
     const expired = pair(0), scope = pair(2), seal_ = pair(4), ended = pair(6), version = pair(8), door = pair(10), pace = pair(12);
 
-    this.state = start();
     this.shown = {};
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, sh) => drawWorld(w, sh, s), { place: false });
+    const world = view(this, (w, sh, drawing) => drawWorld(w, sh, drawing), { drawing: s.drawing, place: false });
     const fresh = ['slip', 'ticket', 'barrier', 'outcome', 'panel', ...RAIL_MARKS];
 
     /** A request sets off: its lane lights, the ticket leaves the agent's seal along the lane, and a refused one meets the barrier. */
@@ -85,14 +86,14 @@ export default class Refusals extends Scene<World, Shown> {
           case 'sign-in':
             return flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
           case 'fix':
-            return pass(c, 'delegation', delegationToken(s), DELEGATION_ROUTE, { move: 0.7 });
+            return pass(c, 'delegation', delegationToken(s.drawing), DELEGATION_ROUTE, { move: 0.7 });
           case 'new-session':
-            return pass(c, 'fresh-seal', seal(s, { r: 0.42 }), DELEGATION_ROUTE, { move: 0.7 });
+            return pass(c, 'fresh-seal', seal(s.drawing, { r: 0.42 }), DELEGATION_ROUTE, { move: 0.7 });
           case 'reread':
-            return pass(c, 'document', documentToken(s), documentRoute(y), { move: 0.8 });
+            return pass(c, 'document', documentToken(s.drawing), documentRoute(y), { move: 0.8 });
           case 'wait':
             // Time passes: the Company's clock empties, one number followed from full to none, before the agent sends again.
-            return [c.follow({ from: 1, to: 0, draw: (v: number) => [paceClock(s, v)] }, { targets: ['slip:clock'], runTime: 1.4, rateFunc: linear })];
+            return [c.follow({ from: 1, to: 0, draw: (v: number) => [paceClock(s.drawing, v)] }, { targets: ['slip:clock'], runTime: 1.4, rateFunc: linear })];
           default:
             return [];
         }

@@ -10,8 +10,9 @@ import { thereAndBack } from '../extras/index.ts';
 import type { ViewPlace } from '../explain/index.ts';
 
 type Pair = { x: number; y: number };
-const host = () => { const s = new Scene<Pair>(new NullSink()); s.state = { x: 0, y: 0 }; return s; };
-const pictures = (s: Scene<Pair>) => [
+class PairScene extends Scene { override state: Pair = { x: 0, y: 0 }; }
+const host = () => new PairScene(new NullSink());
+const pictures = (s: PairScene) => [
   view(s, (st) => new Rectangle({ width: 1 + st.x, height: 1 }), { place: false }),
   view(s, (st) => new Rectangle({ width: 1, height: 1 + st.y }), { place: false }),
 ] as const;
@@ -54,8 +55,8 @@ test('a sampled model and a machine event or replay declare their shared write b
 test('one sample feeds two dependent views atomically on every frame and leaves no resource on stage', async () => {
   let frames = 0, samples = 0;
   const reads: Pair[][] = [[], []];
-  class Coupled extends Scene<Pair> {
-    override state = { x: 0, y: 0 };
+  class Coupled extends Scene {
+    override state: Pair = { x: 0, y: 0 };
     a = view(this, (st) => { reads[0]!.push(st); return new Rectangle({ width: 1 + st.x, height: 1 }); }, { place: false });
     b = view(this, (st) => { reads[1]!.push(st); return new Rectangle({ width: 1, height: 1 + st.y }); }, { place: false });
     override async construct() {
@@ -84,7 +85,7 @@ test('one sample feeds two dependent views atomically on every frame and leaves 
 });
 
 test('model write reservations stay out of the drawing order in every play and seek', async () => {
-  class Tracking extends Scene<{ x: number }> {
+  class Tracking extends Scene {
     override state = { x: 2 };
     marker = keyed(new Dot().addUpdater(m => m.moveTo(this.mobjects.at(-1)!)), 'tracker');
     subject = keyed(view(this, ({ x }) => new Rectangle({ width: 1, height: 1 }).moveTo([x, 1]), { place: false }), 'subject');
@@ -114,7 +115,7 @@ test('model write reservations stay out of the drawing order in every play and s
 });
 
 test('a sampled path can disappear and a bar can flatten without moving or rescaling their later frames', async () => {
-  class Placed extends Scene<{ t: number }> {
+  class Placed extends Scene {
     override state = { t: 0 };
     route = view(this, ({ t }) => {
       const path = new VMobject();
@@ -160,9 +161,10 @@ test('a sampled path can disappear and a bar can flatten without moving or resca
 });
 
 test('shared sampling resolves pictures after a preceding sync, and seeks match full frames in either order', async () => {
-  class Shared extends Scene<Pair> {
+  class Shared extends Scene {
+    override state: Pair = { x: 0, y: 0 };
+
     override async construct() {
-      this.state = { x: 0, y: 0 };
       const [a, b] = pictures(this), old = a.current;
       this.add(a, b);
       this.state = { x: 1, y: 2 };
@@ -199,8 +201,7 @@ test('shared sampling preserves there-and-back endpoints and permits sequential 
 
 test('a state tween clamps eased samples to the interval and finishes on its last eased sample', async () => {
   const seen: number[] = [];
-  const s = new Scene<Pair>({ async frame(scene) { seen.push(scene.state.x as number); } });
-  s.state = { x: 0, y: 0 };
+  const s = new PairScene({ async frame(scene) { seen.push(scene.stateJson().x as number); } });
   const views = pictures(s);
   s.add(...views);
   await tweenState(s, t => ({ x: t, y: t * 2 }), { views, runTime: 0.1, rateFunc: t => t < 0.5 ? -0.2 : t < 1 ? 1.2 : 0.25 });
@@ -211,7 +212,7 @@ test('a state tween clamps eased samples to the interval and finishes on its las
 
 test('default placement keeps intrinsic height and width changes at their model dimensions on every frame', async () => {
   let checked = 0;
-  class DefaultPlaced extends Scene<{ n: number }> {
+  class DefaultPlaced extends Scene {
     override state = { n: 0 };
     tall = view(this, (st) => new Rectangle({ width: 1, height: 1 + st.n }));
     wide = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }));
@@ -235,8 +236,7 @@ test('default placement keeps intrinsic height and width changes at their model 
 
 test('sampled fits preserve moved and scaled anchors through returning tweens, later syncs and rebuilds', async () => {
   for (const place of ['left', 'center', 'right'] as const satisfies readonly ViewPlace[]) {
-    const s = new Scene<{ n: number }>(new NullSink());
-    s.state = { n: 0 };
+    const s = Object.assign(new Scene(new NullSink()), { state: { n: 0 } });
     const v = view(s, (st) => new Rectangle({ width: 1 + st.n, height: 2 + st.n }), { place });
     v.scale(2.5).moveTo([3, -1]); s.add(v);
     const anchor = () => { const b = v.current.box()!; return [place === 'left' ? b[0] : place === 'right' ? b[2] : (b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; };
@@ -256,9 +256,10 @@ test('sampled fits preserve moved and scaled anchors through returning tweens, l
 });
 
 test('default placed and scaled sampled pictures seek to the same frames as a full run', async () => {
-  class Sized extends Scene<{ n: number }> {
+  class Sized extends Scene {
+    override state = { n: 0 };
+
     override async construct() {
-      this.state = { n: 0 };
       const tall = view(this, (st) => new Rectangle({ width: 1, height: 1 + st.n })).scale(1.5).moveTo([-2, 1]);
       const wide = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: 'left' }).scale(0.75).moveTo([2, -1]);
       this.add(tall, wide);

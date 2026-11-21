@@ -28,7 +28,7 @@ import { advanceBox } from '../src/text.ts';
 const RIGHT: Vec = [1, 0];
 
 /** A scene holding `st` as its state, for views tested without running a scene. */
-const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
+const held = (state: SceneState = {}) => Object.assign(new Scene(new StringSink()), { state });
 
 /** The animation a view's sync action plays, for tests that read what it decided. */
 const syncOf = <M extends Mobject>(v: View<M>, opts?: SyncOptions) => new ViewSync<M>(v, opts);
@@ -47,6 +47,7 @@ const readoutOf = (s: SceneState) => new Text(`len ${s.len}  head ${s.head}`, { 
 
 /** A ring buffer's counters as a View of this.state, inside a panel Group. */
 class Ring extends Scene {
+  override state = { len: 0, head: 0 };
   static skipSync = false;
   readout?: View<Text>;
   panel!: Group;
@@ -54,7 +55,6 @@ class Ring extends Scene {
   anchors: Array<[number, number]> = [];
 
   override async construct(): Promise<void> {
-    this.state = { len: 0, head: 0 };
     const skip = (this.constructor as typeof Ring).skipSync;
     const readout = view(this, readoutOf, { place: 'left' });
     readout.moveTo([-1, 1]);
@@ -120,9 +120,9 @@ test('a sync rebuilds from the state, morphs by glyph, and keeps the View, its p
 test('sync() inside a Succession builds from the state at its turn, not at construction', async () => {
   const seen: number[] = [];
   class Lazy extends Scene {
+    override state = { n: 0 };
     override async construct() {
-      this.state = { n: 0 };
-      const v = view(this, (state) => {
+        const v = view(this, (state) => {
         seen.push(state.n as number);
         return new Text(String(state.n));
       });
@@ -140,9 +140,10 @@ test('sync() inside a Succession builds from the state at its turn, not at const
 
 test('tween() writes into the picture on screen when it begins: after a sync in the same Succession, the synced one', async () => {
   let before: Mobject | null = null;
-  class Tweened extends Scene<{ n: number }, {}> {
+  class Tweened extends Scene {
+    override state = { n: 0 };
+
     override async construct() {
-      this.state = { n: 0 };
       const v = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: false });
       this.add(v);
       before = v.current;
@@ -161,9 +162,10 @@ test('tween() writes into the picture on screen when it begins: after a sync in 
 
 test('a sync finishes the morph it begins: it ends finished, as an animation the scene began does', async () => {
   const phases: Record<string, string> = {};
-  class Finished extends Scene<{ n: number }, {}> {
+  class Finished extends Scene {
+    override state = { n: 0 };
+
     override async construct() {
-      this.state = { n: 0 };
       const draw = (st: { n: number }) => new Group(keyed(new Rectangle({ width: 1 + st.n, height: 1 }), 'box'), keyed(new Text(`n ${st.n}`, { fontSize: 0.4 }), 'label'));
       const v = view(this, draw, { place: false });
       this.add(v);
@@ -227,7 +229,7 @@ test('the fidelity helper: the picture at every step is what the traced state re
   await assert.rejects(assertViewFollowsState(Forgetful, (s) => (s as Ring).readout), /step "push-a"/);
   // viewMismatch, the pure form, on one state
   const st = { len: 3, head: 1 };
-  const v = view({ state: st } as unknown as Scene, readoutOf);
+  const v = view(held(st), readoutOf);
   assert.equal(viewMismatch(v, st), null);
   assert.match(viewMismatch(v, { len: 4, head: 1 })!, /the view shows \["len 3  head 1"\]/);
 });
@@ -351,7 +353,7 @@ test('a no-motion sync can return a described card to its own built-in descripti
   const scene = new Scene(new StringSink()), s = stage(scene);
   let custom = true;
   const v = view(scene, () => {
-    const panel = card(s, [['status', 'ready']]);
+    const panel = card(s.drawing, [['status', 'ready']]);
     return custom ? described(panel, () => ({ what: 'Server', parts: [] })) : panel;
   });
   scene.add(v);
@@ -373,8 +375,8 @@ test('a no-motion sync uses the meter’s copyData hook on its retained child, i
     }
   }
   const frames: number[] = [];
-  const scene = new Scene<{ reading: number }>({ async frame(s) { frames.push((s.find('meter') as Meter).reading); } }, { fps: 2 });
-  scene.state = { reading: 1 };
+  class MeterScene extends Scene { override state = { reading: 1 }; }
+  const scene = new MeterScene({ async frame(s) { frames.push((s.find('meter') as Meter).reading); } }, { fps: 2 });
   const v = view(scene, ({ reading }) => new Group(keyed(described(new Meter(reading),
     m => ({ what: 'Meter', parts: [{ name: String(m.reading) }] })), 'meter')));
   scene.add(v);
@@ -425,13 +427,13 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
 
 test('a card view of the scene\'s state keeps its labels put as values change', async () => {
   class Counter extends Scene {
+    override state = { tokens: 10, responses: [] as number[] };
     rv?: View<Card>;
     s?: Stage;
     override async construct(): Promise<void> {
-      this.state = { tokens: 10, responses: [] as number[] };
-      const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
+        const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
       const s = (this.s = stage(this, { style: 'github-dark', heading: false }));
-      const rv = (this.rv = view(this, (st) => card(s, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
+      const rv = (this.rv = view(this, (st) => card(s.drawing, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
       await this.step('show');
       await this.play(new FadeIn(rv));
       for (const [i, code] of [200, 200, 429].entries()) {
@@ -444,7 +446,7 @@ test('a card view of the scene\'s state keeps its labels put as values change', 
   }
   const s = await new Counter(new StringSink()).run();
   assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
-  const first = card(s.s!, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
+  const first = card(s.s!.drawing, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
   for (const key of ['tokens', 'responses'])
     assert.ok(Math.abs(s.rv!.current.labels.get(key)![advanceBox][0]! - first.labels.get(key)![advanceBox][0]!) < 1e-5, 'label left edge held');
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);
@@ -479,7 +481,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
 test('rayner check names a view whose picture lags the state at the end of a step', async () => {
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
   const { NullSink } = await import('../src/timeline.ts');
-  const lagging = (sync: boolean) => class extends Scene<{ n: number }> {
+  const lagging = (sync: boolean) => class extends Scene {
     override state = { n: 1 };
     override async construct() {
       const readout = view(this, (st) => new Text(`n ${st.n}`), { place: false });
@@ -503,7 +505,7 @@ test('rayner check names a view whose words match its state but whose marks do n
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
   const { Group, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts');
   // A label and a bar under row `lit`: moving the bar by hand, outside the state, leaves the words alone.
-  const marked = (byHand: boolean) => class extends Scene<{ lit: number }> {
+  const marked = (byHand: boolean) => class extends Scene {
     override state = { lit: 0 };
     override async construct() {
       const card = view(this, (st) => new Group(new Text('rows'), new Rectangle({ width: 2, height: 0.4 }).shift([0, -0.5 * st.lit])), { place: false });
@@ -528,7 +530,7 @@ test('view checking accepts state-dependent paths and clips, fresh identities an
   for (const kind of ['path', 'clip'] as const) {
     const checks = new ViewSink();
     let checkedView: View | undefined;
-    const example = new (class extends Scene<{ flag: boolean }> {
+    const example = new (class extends Scene {
       override state = { flag: true };
       override async construct() {
         await this.step('one');
@@ -554,10 +556,12 @@ test('view checking accepts state-dependent paths and clips, fresh identities an
 
 test('having narrows a state to the shapes that hold its keys and throws on a state of another shape, so check sees the draw read it', async () => {
   type Chaptered = { chapter: 'year'; longitude: number } | { chapter: 'look'; pitch: number };
-  class Chapters extends Scene<Chaptered, { lit?: string }> {
+  class Chapters extends Scene {
+    override state: Chaptered = { chapter: 'year', longitude: 10 };
+    override shown: { lit?: string } = {};
+
     year!: View<Text, Chaptered, { lit?: string }>;
     override async construct() {
-      this.state = { chapter: 'year', longitude: 10 };
       this.year = view(this, (st, sh) => new Text(`${having(st, 'longitude').longitude} ${sh.lit ?? ''}`));
       this.add(this.year);
     }
@@ -576,8 +580,7 @@ test('having narrows a state to the shapes that hold its keys and throws on a st
 test('a view measures a fresh picture without changing itself, and records its fit only once it takes the picture', async () => {
   const { thereAndBack } = await import('../extras/index.ts');
   const { NullSink } = await import('../src/timeline.ts');
-  const scene = new Scene<{ w: number }>(new NullSink());
-  scene.state = { w: 1 };
+  const scene = Object.assign(new Scene(new NullSink()), { state: { w: 1 } });
   const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: st.w }));
   scene.add(v);
   v.scale(2);
@@ -604,9 +607,10 @@ test('a view measures a fresh picture without changing itself, and records its f
 test('a play\'s lagRatio has nothing to stagger in a tween, which draws one sampled state at every frame', async () => {
   const frames = async (opts: { lagRatio?: number }) => {
     const sink = new StringSink();
-    class Slide extends Scene<{ x: number }> {
+    class Slide extends Scene {
+      override state = { x: 0 };
+
       override async construct() {
-        this.state = { x: 0 };
         const v = view(this, (s: { x: number }) => new Group(keyed(new Rectangle().moveTo([s.x, 0]), 'a'), keyed(new Rectangle().moveTo([s.x, 2]), 'b')), { place: false });
         this.add(v);
         await this.play(v.tween((t) => ({ x: 4 * t })), opts);

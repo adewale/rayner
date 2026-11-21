@@ -5,8 +5,8 @@ import { stage } from '../explain/index.ts';
 import { traceScene, describeExplainer } from '../explain/testing.ts';
 import { playerTrace } from '../app/embed-trace.ts';
 
-class Channels extends Scene<{ tokens: number; walks: string[] }, { chapter: string; picture: string }> {
-  override state = { tokens: 2, walks: ['a real domain field'] };
+class Channels extends Scene {
+  override state: { tokens: number; walks: string[] } = { tokens: 2, walks: ['a real domain field'] };
   override shown = { chapter: 'example', picture: 'an authored choice' };
   override async construct() {
     const s = stage(this, { heading: false });
@@ -47,9 +47,10 @@ test('model, authored presentation, local specimens, derived observations and ev
   assert.equal(description.steps[0]!.derived!.doubled, 4);
   assert.match(description.steps[0]!.picture, /0/);
 
-  const player = playerTrace(trace, { tokens: 'Tokens' });
+  const player = playerTrace(trace, [{source:'model',key:'tokens',label:'Tokens'}]);
   assert.equal(player.steps.length, 2);
-  assert.deepEqual(player.steps.map(s => s.after), [{ tokens: 2 }, { tokens: 3 }]);
+  assert.deepEqual(player.steps.map(s => s.watched), [[], [{kind:'change',label:'Tokens',before:'2',after:'3'}]]);
+  assert.ok(player.steps.every(s => !Object.hasOwn(s, 'before') && !Object.hasOwn(s, 'after')));
   assert.ok(player.steps.every(s => s.derived?.picture));
   assert.ok(player.steps.every(s => Object.keys(s.derived!).join(',') === 'picture'));
   assert.ok(player.steps.every(s => !Object.hasOwn(s, 'shown') && !Object.hasOwn(s, 'evidence')));

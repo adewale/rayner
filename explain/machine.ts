@@ -8,10 +8,11 @@ import { Animation, AnimationGroup, MadeAtTurn, Succession } from '../src/animat
 import type { Match } from '../src/animation.ts';
 import { SetState, stateTarget } from './state.ts';
 import { canonicalJson, cloneJson } from '../src/json.ts';
+import type { JsonValue } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
-import type { Scene } from '../src/scene.ts';
+import type { Scene, SceneInputs } from '../src/scene.ts';
 import { turnAction, ViewSync } from './view.ts';
 import type { View } from './view.ts';
 import type { Action } from './action.ts';
@@ -23,6 +24,8 @@ import type { ScheduledAnimation } from '../src/animation.ts';
 import { offerMachine } from './machine-offers.ts';
 
 export interface MachineSpec<S extends object, E extends string> {
+  /** Pure JSON observation the picture must distinguish. Omitted means the full model. Never changes exploration identity or which events are checked. */
+  observe?: (state: Readonly<S>) => unknown;
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
   start: S;
   /** Every event the machine accepts, in order: what a reader's buttons would be. */
@@ -134,7 +137,7 @@ type MachineModel<S extends object, E extends string> = Readonly<Required<Pick<M
 
 /** A model driven by events on one scene, typed by the scene's model type `S`. */
 export class Machine<S extends object, E extends string> {
-  private readonly scene: Scene<S, any>;
+  private readonly scene: SceneInputs<S>;
   /** The spec the machine was made with, its defaults filled in. Frozen; its `start` is a fresh copy at every read. */
   readonly spec: Readonly<Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
@@ -142,7 +145,7 @@ export class Machine<S extends object, E extends string> {
   /** The step this machine last played in; exploration checks it on that step's stage. */
   private playedInStep: string | null = null;
 
-  constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
+  constructor(scene: SceneInputs<S>, spec: MachineSpec<S, E>) {
     // The spec's shape is its type's to check; what a type cannot say is checked here.
     // A scene may read its events from its data (a statechart's arrows), as a list whose type does not carry its length.
     if (!spec.events.length) throw new RangeError('new Machine(): it needs at least one event');
@@ -153,6 +156,7 @@ export class Machine<S extends object, E extends string> {
       if (!label?.trim()) throw new RangeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
     if (spec.limit !== undefined && (!Number.isInteger(spec.limit) || spec.limit <= 0))
       throw new RangeError('new Machine(): limit must be a positive finite integer');
+    if (spec.observe !== undefined && typeof spec.observe !== 'function') throw new TypeError('new Machine(): observe must be a pure function');
     // A structurally compatible View may belong to a different scene; its sync would read that
     // scene while this machine updates this one. Reject the mismatch before registering it.
     if (spec.views.some((view) => !view.belongsTo(scene)))
@@ -341,6 +345,28 @@ export class Machine<S extends object, E extends string> {
   }
 }
 
+/** @internal A detached, validated observation. It is never a machine-state identity. */
+export function observedValue<S extends object, E extends string>(machine: Machine<S, E>, state: S, where?: string): JsonValue {
+  const read = () => {
+    const input = cloneJson(state, 'machine.observe()', 'model') as S;
+    const before = canonicalJson(input);
+    const value = machine.spec.observe ? machine.spec.observe(input) : input;
+    if (canonicalJson(input) !== before) throw new TypeError('machine.observe(): the selector must not change the model');
+    const copied = cloneJson({ value }, 'machine.observe()', 'observation');
+    if (!Object.hasOwn(copied, 'value')) throw new TypeError('machine.observe(): the selector must return a JSON value');
+    return copied.value!;
+  };
+  try {
+    const value = read();
+    if (machine.spec.observe && canonicalJson(value) !== canonicalJson(read())) throw new TypeError('machine.observe(): repeated observations of the same model must agree');
+    return value;
+  } catch (error) {
+    if (!where) throw error;
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`machine.observe(): ${where}: ${detail.replace(/^machine\.observe\(\):\s*/, '')}`, { cause: error });
+  }
+}
+
 /**
  * `spec` with its defaults, kept apart from the caller's object: a frozen copy whose events, views,
  * labels and transitions are frozen copies too, and whose `start` is copied at construction and again
@@ -387,8 +413,8 @@ class WhenItsTurnComes extends MadeAtTurn {
  */
 class TakePictures extends Animation {
   views: readonly View[];
-  scene: Scene<any>;
-  constructor(scene: Scene<any>, views: readonly View[]) {
+  scene: Scene;
+  constructor(scene: Scene, views: readonly View[]) {
     super(views[0] ?? new Group(), { runTime: 1 / scene.fps, rateFunc: linear });
     this.scene = scene; this.views = views;
   }
@@ -417,7 +443,7 @@ class TakePictures extends Animation {
 
 const registry = new WeakMap<object, Machine<object, string>[]>();
 /** The machines a scene made, in order: what `rayner check` explores after a run. */
-export function machinesOf(scene: Scene<object, object>): Machine<object, string>[] {
+export function machinesOf(scene: Scene): Machine<object, string>[] {
   let list = registry.get(scene);
   if (!list) registry.set(scene, (list = []));
   return list;

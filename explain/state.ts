@@ -9,7 +9,7 @@ import { Mobject as MobjectClass, keyed } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { cloneJson } from '../src/json.ts';
 import type { JsonObject } from '../src/json.ts';
-import type { Scene, SceneState, Evidence } from '../src/scene.ts';
+import type { SceneInputs, SceneState, Evidence } from '../src/scene.ts';
 
 // A shared, non-drawing target makes model writers on one Scene visible to
 // play()'s ordinary overlap check. Separate scenes do not conflict.
@@ -35,12 +35,12 @@ export interface SetStateOptions {
  */
 export class SetState<S extends object = SceneState> extends Animation {
   /** @internal The scene whose state it sets: a play on another scene refuses it. */
-  readonly [playsOn]: Scene<S, any>;
+  readonly [playsOn]: SceneInputs<S>;
   readonly event: string | undefined;
   private readonly snapshot: JsonObject | null;
   private readonly update: ((current: S) => S) | null;
 
-  constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
+  constructor(host: SceneInputs<S>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
     super(stateTarget(host), { runTime: 0 });
@@ -54,7 +54,7 @@ export class SetState<S extends object = SceneState> extends Animation {
     const next = this.update
       ? this.update(cloneJson(this[playsOn].state, 'machine.send()', 'this.state') as S)
       : this.snapshot;
-    this[playsOn].state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
+    this[playsOn].state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as SceneInputs<S>['state'];
     super.doBegin();
   }
 

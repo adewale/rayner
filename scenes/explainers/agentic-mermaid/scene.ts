@@ -87,7 +87,10 @@ type MermaidState = {
 type MermaidShown = { diagrams?: Partial<Record<Slot, DiagramState>> };
 
 // scene.test.ts runs the pinned verifier on each check question's diagram.
-export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> {
+export default class MermaidExplainer extends Scene {
+  override state: MermaidState = {};
+  override shown: MermaidShown = {};
+
   static meta = {
     sources: [
       'https://github.com/adewale/agentic-mermaid',
@@ -118,7 +121,7 @@ export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> 
     const colors: Record<Tone, string> = { emphasis: s.look.emphasis, bad: s.look.bad, good: s.look.good };
     /** A code panel; `lit` puts its bar on line i or lines [a, b]. */
     const block = (lines: readonly string[], fontSize = 0.3, at: Box = SIDE, lit?: number | [number, number]) =>
-      code(s, lines, { at, size: fontSize, ...(lit != null ? { lit: { lines: lit } } : {}) });
+      code(s.drawing, lines, { at, size: fontSize, ...(lit != null ? { lit: { lines: lit } } : {}) });
     /** Side panels share one left edge and one gap, stacked and centred beside the diagram. */
     const stack = (...panels: Mobject[]) => {
       const total = panels.reduce((h, p) => h + p.height(), 0) + GAP * (panels.length - 1);

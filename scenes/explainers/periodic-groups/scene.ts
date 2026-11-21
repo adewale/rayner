@@ -46,7 +46,12 @@ function rowSum(jump: number): string {
   return `${jump} = ${row.map((b) => CAPACITY[b]).join(' + ')}`;
 }
 
-export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
+export default class PeriodicGroupsExplainer extends Scene {
+  private readonly choice = settingsOf(this, PeriodicGroupsExplainer).element;
+  private readonly symbol = ELEMENTS[this.choice];
+  private readonly z = atomicNumber(this.symbol);
+  override state: PeriodicState = { element: this.symbol, z: this.z, group: POSITIONS[this.z - 1]!.group!, note: 'column' };
+
   static meta = {
     player: { minStageWidth: 880 },
     sources: [
@@ -84,13 +89,11 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
 
   override async construct() {
     const answer = answerOf(this);
-    const choice = settingsOf(this, PeriodicGroupsExplainer).element;
-    const symbol = ELEMENTS[choice],
-      z = atomicNumber(symbol),
-      name = nameOf(symbol),
+    const choice = this.choice;
+    const { element: symbol, z, group } = this.state;
+    const name = nameOf(symbol),
       Name = upperFirst(name);
-    const here = POSITIONS[z - 1]!,
-      group = here.group!;
+    const here = POSITIONS[z - 1]!;
     const core = coreOf(z),
       coreSymbol = core ? symbolOf(core) : null;
     const members = membersOf(group);

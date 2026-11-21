@@ -1,5 +1,5 @@
 import { Group, Rectangle, Text, Line, keyed } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { Host, threeDoorCells } from './model.ts';
 
@@ -37,7 +37,7 @@ export const cellWords = (c: Cell) => [c.opened, c.shows, c.stay === 'ends' ? 'o
  * One host's strip of rounds at height y, keyed `strip:<as>`; `dim` greys the rounds the reader has ruled out.
  * Switching wins are tinted, rounds that show the car are drawn in the warning colour.
  */
-export function strip(s: Stage, cells: readonly Cell[], y: number, as: string, dim?: (c: Cell) => boolean): Group {
+export function strip(s: DrawContext, cells: readonly Cell[], y: number, as: string, dim?: (c: Cell) => boolean): Group {
   let x = X0;
   const parts = cells.map((c) => {
     const w = c.sixths * SIX,
@@ -69,7 +69,7 @@ export function strip(s: Stage, cells: readonly Cell[], y: number, as: string, d
   return keyed(new Group(...parts), `strip:${as}`);
 }
 /** The car's three places, a third of the strip each: each head centred over its third, a rule under it spanning the third. */
-export const heads = (s: Stage, y: number) =>
+export const heads = (s: DrawContext, y: number) =>
   keyed(
     new Group(
       ...[0, 1, 2].flatMap((i) => {

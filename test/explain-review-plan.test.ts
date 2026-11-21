@@ -369,7 +369,7 @@ test('live states: the built description names the live steps; a receipt must vi
 });
 
 test('the story plan reviews every offered or inferred step where a reader can send an event', async () => {
-  class Switches extends Scene<{ on: boolean }> {
+  class Switches extends Scene {
     override state = { on: false };
     override async construct() {
       const spec = { start: { on: true }, events: ['ON'] as const, views: [], next: (s: { on: boolean }) => s.on ? undefined : { on: true } };

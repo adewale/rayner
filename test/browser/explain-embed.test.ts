@@ -3484,7 +3484,7 @@ test('source tours show the token-cap calculation and send()’s answer in every
             const dot=keyed('balance:found:R10').center(),drop=keyed('balance:spend:R10').box()!;
             assert.ok(Math.abs(dot[0]-1.6)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
-            assert.equal(scene.state.tokens,after);
+            assert.equal(scene.stateJson().tokens,after);
           }else{
             // A send() on a new socket throws; one after close() returns without sending.
             const early=scenario.values.when==='connecting', ready=early?'CONNECTING':'CLOSING';
@@ -3494,7 +3494,7 @@ test('source tours show the token-cap calculation and send()’s answer in every
             assert.ok(ring[0]<=state[0]&&ring[1]<=state[1]&&ring[2]>=state[2]&&ring[3]>=state[3]);
             const box=keyed(`send:box:${early?'throw':'return'}`).box()!;
             assert.ok(box[2]>box[0]&&box[3]>box[1]);
-            assert.equal(scene.state.ready,ready);
+            assert.equal(scene.stateJson().ready,ready);
           }
           nativeChecked=true;
         }}).run();
@@ -3563,7 +3563,7 @@ test('both pen drawings retain every construction mark and its readable count th
         const members=scene.familyMembers(),marks=members.filter(m=>m.key==='construction:marks'),
           tallies=members.filter(m=>m.key==='construction:tally');
         assert.equal(marks.length,1);assert.equal(tallies.length,1);
-        assert.deepEqual(scene.state.marks,{outlines:40,filled:13,words:8});
+        assert.deepEqual(scene.stateJson().marks,{outlines:40,filled:13,words:8});
         assert.deepEqual(tallies[0]!.family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),
           ['40 outlines · 13 filled shapes · 8 words']);
         // Each period has four plank sides, four event sides, a ring, string,

@@ -63,7 +63,10 @@ const lastMatches = (scene: Scene, n: number): Evidence[] => {
 const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
 
 
-export default class GitExplainer extends Scene<GitState, GitShown> {
+export default class GitExplainer extends Scene {
+  override state: GitState = {};
+  override shown: GitShown = {};
+
   static meta = {
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
@@ -100,7 +103,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     const codeView = (name: string, at: Box, lines: (g: GitState) => string[]) => {
       const draw = (g: GitState, shown: GitShown) => {
         const focus = shown.focus?.[name];
-        return codePanel(s, name, lines(g), at, focus);
+        return codePanel(s.drawing, name, lines(g), at, focus);
       };
       return { v: view(this, draw, { place: false }) };
     };
@@ -423,11 +426,11 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     this.state.paired = { tree: treeMatch!.matched as number, commit: commitMatch!.matched as number };
     const counts = view(
       this,
-      (state) => {
+      (state, _shown, drawing) => {
         const g = having(state, 'paired', 'samePlace');
-        return pairCounts(g.paired, g.samePlace, idX, s.look.soft);
+        return pairCounts(g.paired, g.samePlace, idX, drawing.look.soft);
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(counts, { runTime: 0.4 });
     await mark([]);

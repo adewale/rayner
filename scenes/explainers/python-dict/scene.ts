@@ -1,7 +1,7 @@
 import { Scene, FadeIn, Text } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { settingsOf, stage, Machine, view } from '../../../explain/index.ts';
-import type { Stage, StagedStep, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, StagedStep, ExplainerMeta } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from './model.ts';
 import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from './model.ts';
 import { picture, stateView, visit, type View } from './picture.ts';
@@ -13,8 +13,11 @@ const words = (m: Mobject) => m.family().filter((t): t is Text => t instanceof T
 /** A staged step's state: the table, the lookup it shows, the key asked for and the policy, and the lookup's route. */
 type DictFrame = { dict: DictTable; result: DictLookup; key: number; policy: string; route?: ReturnType<typeof route> };
 
-export default class PythonDict extends Scene<DictState, {}> {
+export default class PythonDict extends Scene {
+  override state: DictState = dictStart('incorrect-clear');
+
   static meta = {
+    watch: [{source:'model',key:'policy',label:'Active deletion rule'}, {source:'local',key:'policy',label:'Rule in this example'}] as const,
     sources: [
       'https://github.com/python/cpython/blob/v3.12.14/Objects/dictobject.c',
       'https://github.com/python/cpython/blob/v3.12.14/Include/internal/pycore_dict.h',
@@ -68,7 +71,7 @@ export default class PythonDict extends Scene<DictState, {}> {
       s.steps(frames.map(({ view, ...frame }): StagedStep<DictFrame> => ({
         ...frame,
         // The table, and the route where the view draws one, come from the step's state; the view adds how to show them.
-        draw: (state, st: Stage) =>
+        draw: (state, st: DrawContext) =>
           picture(st, { ...view, dict: state.dict, ...(view.path ? { path: state.result } : {}) }),
       })));
     const lookupView = (dict: DictTable, q: DictLookup, rest: Omit<View, 'dict' | 'path' | 'ask' | 'middle'>): View =>
@@ -107,7 +110,7 @@ export default class PythonDict extends Scene<DictState, {}> {
       await s.clear({ runTime: 0.18 });
       const start = dictStart(policy);
       this.state = { ...start };
-      const pictures = view(this, (st) => picture(s, stateView(st)), { place: false });
+      const pictures = view(this, (st, _shown, drawing) => picture(drawing, stateView(st)), { drawing: s.drawing, place: false });
       const machine = new Machine<DictState, DictEvent>(this, {
         start,
         events: DICT_EVENTS,

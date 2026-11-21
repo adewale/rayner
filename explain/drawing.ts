@@ -15,9 +15,11 @@
 import { AnimationGroup, Group, Rectangle, Line, Arrow, Succession, Text, keyed } from '../src/index.ts';
 import type { Animation, Mobject, Style, Vec, Box } from '../src/index.ts';
 import type { Choreography } from './choreograph.ts';
-import type { Stage } from './stage.ts';
+import type { DrawContext } from './draw-context.ts';
+export { drawContext } from './draw-context.ts';
+export type { DrawContext } from './draw-context.ts';
 import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
-import { emphasisSource, stagePalette } from './look.ts';
+import { emphasisSource } from './look.ts';
 import type { LegendItem } from './annotate.ts';
 import type { Side } from './diagrams.ts';
 import { Card, CodeBlock } from './panels.ts';
@@ -77,7 +79,7 @@ export interface Tones {
   readonly bad: string;
 }
 /** The stage's colours by role (`Tones`), from its look. */
-export function tones(s: Stage): Tones {
+export function tones(s: DrawContext): Tones {
   const l = s.look;
   return { ground: l.paper, ink: l.ink, soft: l.soft, idle: l.muted, raised: l.raised, rule: l.rule, accent: l.emphasis, good: l.good, bad: l.bad };
 }
@@ -132,7 +134,7 @@ export function addAll(parts: Parts, composite: Mobject | readonly Mobject[]): v
 }
 
 /**
- * The kit's conventions, the same in every function: the stage `s` first, for its look and its
+ * The kit's conventions, the same in every function: the detached context `s` first, for its look and its
  * text shaping; then what the picture shows, positionally (its text, rows or items, and what it
  * measures or points at); then one options object. In it, `at` is where the picture stands, `size`
  * its text size, and `key` the address of a composite and its parts. A function whose parts are keyed
@@ -168,12 +170,12 @@ export type LabelOptions = {
  * width; key it with `keyed()`.
  */
 export function label(
-  s: Stage,
+  s: DrawContext,
   text: string | number,
   { at = [0, 0], size = TYPE.small, color = s.look.ink, bold = false, mono = false, align = 'middle' }: LabelOptions = {},
 ): Text {
   if (!(size >= TYPE.small - 1e-9)) throw new RangeError(`label(): ${JSON.stringify(String(text))} at ${size} units is under TYPE.small (${TYPE.small}), which a phone cannot read; put the fact in the caption instead`);
-  return new Text(String(text), { fontSize: size, color, shaping: s.scene.textShaping, anchor: align, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}) })
+  return new Text(String(text), { fontSize: size, color, shaping: s.shaping, anchor: align, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}) })
     .moveTo(at, [align === 'start' ? -1 : align === 'end' ? 1 : 0, 0]);
 }
 
@@ -189,7 +191,7 @@ export function label(
  * moves the box apart.
  */
 export function tile(
-  s: Stage,
+  s: DrawContext,
   text: string | number,
   { at = [0, 0], width, height = PLATE_HEIGHT, active = false, bad = false, raised = false, size = 0.62, mono = false, radius, key }: {
     at?: Vec; width?: number; height?: number; active?: boolean; bad?: boolean; raised?: boolean; size?: number; mono?: boolean; radius?: number; key?: string;
@@ -225,7 +227,7 @@ export type PlateOptions = Omit<LabelOptions, 'at'> & {
  * held to the type scale, standing from `at` unless `align` says otherwise. Returns two parts, keyed `<key>:plate` and `<key>:label`; the plate comes
  * first, so the words paint over it. Add them with `addAll(parts, plate(...))`.
  */
-export function plate(s: Stage, text: string, { at, key, padding = 0.18, align = 'start', ...style }: PlateOptions): Mobject[] {
+export function plate(s: DrawContext, text: string, { at, key, padding = 0.18, align = 'start', ...style }: PlateOptions): Mobject[] {
   const words = label(s, text, { at, align, ...style });
   const w = words.width();
   const centre = align === 'start' ? at[0] + w / 2 : align === 'end' ? at[0] - w / 2 : at[0];
@@ -250,7 +252,7 @@ export type ConnectorOptions = {
  * a Line, so `rayner check` treats it as a connector (and fails one that crosses a label), not as an
  * object. Key it with `keyed()`. At least two points.
  */
-export function connector(s: Stage, points: readonly Vec[], { active = false, color, strokeWidth, radius = 0.22 }: ConnectorOptions = {}): Line {
+export function connector(s: DrawContext, points: readonly Vec[], { active = false, color, strokeWidth, radius = 0.22 }: ConnectorOptions = {}): Line {
   if (points.length < 2) throw new RangeError('connector(): a connector needs at least two points');
   const t = tones(s);
   return roundedPath(points, radius, { stroke: color ?? (active ? t.ink : t.idle), strokeWidth: strokeWidth ?? (active ? STROKE.bold : STROKE.line), fill: 'none' });
@@ -317,7 +319,7 @@ export interface TableRow { key: string; cells: readonly TableCell[] }
  * identity, and two parts cannot share one.
  */
 export function table(
-  s: Stage,
+  s: DrawContext,
   headers: readonly string[],
   rows: readonly (TableRow | readonly TableCell[])[],
   { key, columns = [-5.5, -1.7, 2.2, 5.8], at = [0, 1.9], gap = 1.05, size = 0.6 }: { key: string; columns?: TableColumns; at?: Vec; gap?: number; size?: number },
@@ -336,8 +338,8 @@ export function table(
     rowsSeen.add(k);
   }
   const values = named.map((row) => row.cells);
-  const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.look.ink, weight: 'bold', shaping: s.scene.textShaping }));
-  const cells = values.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.look.ink, shaping: s.scene.textShaping })));
+  const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.look.ink, weight: 'bold', shaping: s.shaping }));
+  const cells = values.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.look.ink, shaping: s.shaping })));
   const widths = headers.map((_, c) => Math.max(heads[c]!.width(), ...cells.map((row) => row[c]!.width())));
   const xs = (Array.isArray(columns) ? (columns as readonly number[]) : columnCentres(widths, columns as Exclude<TableColumns, readonly number[]>)).map((x) => x + dx);
   const isNumber = (v: TableCell | undefined) =>
@@ -385,7 +387,7 @@ function columnCentres(widths: readonly number[], at: { left: number; right: num
   });
 }
 /** A title over a large value, centred on `at`'s x. Keyed `key`, with its parts `key:title` and `key:value`. */
-export function stat(s: Stage, title: string, value: string | number, { at = [0, 0], key }: { at?: Vec; key: string }): Group {
+export function stat(s: DrawContext, title: string, value: string | number, { at = [0, 0], key }: { at?: Vec; key: string }): Group {
   const [x, y] = at;
   return keyed(
     new Group(
@@ -400,7 +402,7 @@ export function stat(s: Stage, title: string, value: string | number, { at = [0,
  * names wrap inside their box. Keyed `key`: each box `key:i` (its parts `key:i:box` and
  * `key:i:label`, a wrapped name's lines `key:i:label:j`), and the arrow into box i `key:i:arrow`.
  */
-export function flow(s: Stage, names: readonly string[], { at = [0, 1], key }: { at?: Vec; key: string }): Group {
+export function flow(s: DrawContext, names: readonly string[], { at = [0, 1], key }: { at?: Vec; key: string }): Group {
   const [x0, y] = at;
   const width = names.length === 4 ? 3.0 : 3.8,
     gap = names.length === 4 ? 0.75 : 1.35;
@@ -411,7 +413,7 @@ export function flow(s: Stage, names: readonly string[], { at = [0, 1], key }: {
     const lines: string[] = [];
     for (const word of name.split(' ')) {
       const next = lines.length ? `${lines.at(-1)} ${word}` : word;
-      if (lines.length && new Text(next, { fontSize: 0.62, shaping: s.scene.textShaping }).width() <= width - 0.3) lines[lines.length - 1] = next;
+      if (lines.length && new Text(next, { fontSize: 0.62, shaping: s.shaping }).width() <= width - 0.3) lines[lines.length - 1] = next;
       else lines.push(word);
     }
     return lines;
@@ -463,7 +465,7 @@ export function flow(s: Stage, names: readonly string[], { at = [0, 1], key }: {
  * `key:i:track`, bar `key:i:bar` (none for a zero value) and value `key:i:value`.
  */
 export function bars(
-  s: Stage,
+  s: DrawContext,
   rows: readonly { label: string; value: number; display: string }[],
   maximum: number,
   { at = [0, 1.7], key }: { at?: Vec; key: string },
@@ -505,12 +507,12 @@ export function bars(
  * `key:backing` and `key:text`. Described by its words.
  */
 export function callout(
-  s: Stage,
+  s: DrawContext,
   target: Vec | Box | Mobject,
   text: string,
   { side = 'right', gap = 0.55, color = s.look.ink, size = 0.24, key }: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
 ): Group {
-  return calloutLook(target, text, { color, size, side, gap, background: s.look.paper, shaping: s.scene.textShaping, ...(key === undefined ? {} : { key }) });
+  return calloutLook(target, text, { color, size, side, gap, background: s.look.paper, shaping: s.shaping, ...(key === undefined ? {} : { key }) });
 }
 /**
  * A dimension line from `a` to `b`, set off by `offset` (positive: to the left of a→b), with ticks
@@ -519,13 +521,13 @@ export function callout(
  * dimension line marked …”.
  */
 export function dimension(
-  s: Stage,
+  s: DrawContext,
   a: Vec,
   b: Vec,
   label: string,
   { offset = 0.3, color = s.look.emphasis, size = 0.24, key }: { offset?: number; color?: string; size?: number; key?: string } = {},
 ): Group {
-  return dimensionLook(a, b, label, { color, size, offset, background: s.look.paper, shaping: s.scene.textShaping, ...(key === undefined ? {} : { key }) });
+  return dimensionLook(a, b, label, { color, size, offset, background: s.look.paper, shaping: s.shaping, ...(key === undefined ? {} : { key }) });
 }
 /**
  * A pin stuck in at `point`, with an optional label beside its head on its `side` (right by
@@ -533,11 +535,11 @@ export function dimension(
  * `key:needle`, `key:head` and `key:label`. Described as “A pin marked …”.
  */
 export function pin(
-  s: Stage,
+  s: DrawContext,
   point: Vec,
   { label, color = s.look.emphasis, size = 0.24, side = 'right', key }: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {},
 ): Group {
-  return pinLook(point, { color, size, side, shaping: s.scene.textShaping, ...(label ? { label } : {}), ...(key === undefined ? {} : { key }) });
+  return pinLook(point, { color, size, side, shaping: s.shaping, ...(label ? { label } : {}), ...(key === undefined ? {} : { key }) });
 }
 /**
  * A key: swatches (a filled square, a short line, dashed or not) with the words for what each
@@ -549,12 +551,12 @@ export function pin(
  * the stage too, and `rayner check` finds it there.
  */
 export function legend(
-  s: Stage,
+  s: DrawContext,
   items: readonly LegendItem[],
   opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string },
 ): Group {
   const { at = [0, 0], size = 0.3, stack = 'column', gap, key } = opts;
-  return legendLook(items, { ink: s.look.ink, shaping: s.scene.textShaping, size, at, stack, key, ...(gap === undefined ? {} : { gap }) });
+  return legendLook(items, { ink: s.look.ink, shaping: s.shaping, size, at, stack, key, ...(gap === undefined ? {} : { gap }) });
 }
 /**
  * Labelled values on a panel in the stage's colours: `s.card`'s picture, not entered, for a view's
@@ -563,9 +565,8 @@ export function legend(
  * its value, or one value per column with `columns`. A card describes itself, its lit row with its
  * word.
  */
-export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {}): Card {
-  const api = (opts as { api?: string }).api ?? 'card()';
-  return new Card(s.scene, stagePalette(s, api), rows, { ...opts, at: physicalAt(opts.at, s.direction), direction: opts.direction ?? s.direction });
+export function card(s: DrawContext, rows: readonly CardRow[], opts: CardOptions = {}): Card {
+  return new Card(s, rows, { ...opts, at: physicalAt(opts.at, s.direction) });
 }
 /**
  * Code on a panel in the stage's colours, one string per line: `s.code`'s picture, not entered, for
@@ -573,8 +574,8 @@ export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {})
  * its lit, added and removed lines with their words. For code text with no panel (the engine's
  * matching and diff transforms), use the engine's `Code`.
  */
-export function code(s: Stage, source: readonly string[], opts: CodeBlockOptions = {}): CodeBlock {
-  return new CodeBlock(s.scene, stagePalette(s, (opts as { api?: string }).api ?? 'code()'), source, { ...opts, at: physicalAt(opts.at, s.direction) });
+export function code(s: DrawContext, source: readonly string[], opts: CodeBlockOptions = {}): CodeBlock {
+  return new CodeBlock(s, source, { ...opts, at: physicalAt(opts.at, s.direction) });
 }
 
 // ---------------------------------------------------------------------------------------------

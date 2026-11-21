@@ -36,7 +36,10 @@ type GamutState = {
   srgbOfP3?: Row['srgbOfP3'][];
 };
 
-export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes?: PictureNote[] }> {
+export default class TailwindGamutExplainer extends Scene {
+  override state: GamutState = {};
+  override shown: { dotNotes?: PictureNote[] } = {};
+
   static meta = {
     sources: [
       THEME + '#L10-L323',
@@ -94,7 +97,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
       texts: readonly string[],
       curves: readonly Curve[] = [],
     ) => {
-      const c = cardRows.length ? card(s, cardRows, { at: SIDE, align: 'top', size: SIZE }) : null;
+      const c = cardRows.length ? card(s.drawing, cardRows, { at: SIDE, align: 'top', size: SIZE }) : null;
       if (c) c.shift([SIDE[0] - c.box()![0], 0]);
       const { made } = lines(texts, SIDE[3] - (c ? c.height() + 0.3 : 0));
       if (c || made.length) await s.enter(...(c ? [c] : []), ...made);

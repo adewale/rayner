@@ -34,7 +34,9 @@ export function statusRow(labels: readonly string[]): Group {
   return new Group(...badges).arrange([1, 0], 1);
 }
 
-export default class ExtensionScene extends Scene<{ labels?: string[] }, {}> {
+export default class ExtensionScene extends Scene {
+  override state: { labels?: string[] } = {};
+
   override async construct() {
     const s = stage(this, { heading: false });
     const row = statusRow(['queued', 'running', 'done']);

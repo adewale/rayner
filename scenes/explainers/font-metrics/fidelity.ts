@@ -37,7 +37,7 @@ export async function check(trace: TraceOf<typeof FontMetrics>, values: Record<s
   assert.ok(Math.abs(rulers.markers.measured - (layout.wrong + 0.5)) < 1e-5 && Math.abs(rulers.markers.drawn - (layout.actual + 0.5)) < 1e-5);
   assertSteps(trace, ['rulers', 'cuts']);
   const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
-  const actual = trace.steps.find(s => s.step === 'cuts')!.after.advances;
+  const actual = having(trace.steps.find(s => s.step === 'cuts')!.after, 'advances').advances;
   assert.deepEqual(Object.keys(actual), Object.keys(expected));
   for (const [cut, advance] of Object.entries(expected)) assert.ok(Math.abs(actual[cut]! - advance) < 1e-6, `${cut}: raw-font advance ${advance}, scene ${actual[cut]}`);
   const shown = pictureWordsAt(trace, 'cuts').full;

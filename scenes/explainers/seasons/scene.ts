@@ -34,7 +34,10 @@ const EVENTS = [
   { day: 365 - 10, name: 'Dec solstice' },
 ] as const;
 
-export default class SeasonsExplainer extends Scene<SeasonState, {}> {
+export default class SeasonsExplainer extends Scene {
+  private readonly place = PLACES[settingsOf(this, SeasonsExplainer).place]!;
+  override state: SeasonState = { place: this.place.name, latitude: this.place.lat, june: sunlight(this.place.lat, TILT) };
+
   static meta = {
     sources: [
       'https://spaceplace.nasa.gov/seasons/en/',
@@ -72,7 +75,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
   ] as const;
   override async construct() {
     const key = settingsOf(this, SeasonsExplainer).place,
-      place = PLACES[key]!,
+      place = this.place,
       s = stage(this, { headingSize: 0.6, style: 'tokyo-night' });
     const soft = s.look.soft;
     const colours = s.look;
@@ -120,7 +123,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     // dimensions and the pen-drawn curve are the stage's (a draw cannot call them); they say what the
     // state holds.
     const now = () => this.state;
-    const june = sunlight(place.lat, TILT),
+    const june = this.state.june,
       december = sunlight(place.lat, -TILT);
     // The orbit's Sun, carried here; the side views draw it at the same size.
     const sun = tilt.sun;
@@ -133,7 +136,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
       const S = sideOf(now(), month, colours),
         r = month === 'June' ? now().june : now().december!;
       const { mid, gap } = daylightAnchor(S);
-      const note = s.keep(callout(s, mid, `${hours(r.daylight)} of daylight`, {
+      const note = s.keep(callout(s.drawing, mid, `${hours(r.daylight)} of daylight`, {
         side: 'below', gap, color: SUN, size: 0.28, key: `${S.month.toLowerCase()}-daylight-callout`,
       }));
       await this.play(new Create(note, { runTime: 0.6, lagRatio: 0.15 }));
@@ -167,7 +170,6 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
               ? 'In June the north end leans toward the Sun, but the day–night line still cuts the equator exactly in half. Quito’s circle is half day and half night, so it gets 12 hours of daylight.'
               : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ` At noon in June the Sun is overhead at ${exactly(TILT)} N; that latitude is the Sun’s declination, and through the year it moves between ${exactly(TILT)} N and ${exactly(TILT)} S.`,
     });
-    this.state = { place: place.name, latitude: place.lat, june };
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
     await this.play(
       ...[tilt.orbit, tilt.december, tilt.september, tilt.march, nearestNote].map((m) => new FadeOut(m, { runTime: 0.4 })),
@@ -335,11 +337,11 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     const table = (month: 'june' | 'december', title: string, box: ReturnType<typeof tableBox>) => {
       const card = view(
         this,
-        (st) => {
+        (st, _shown, drawing) => {
           const rows = Object.entries(having(st, 'daylightTable').daylightTable[month]);
-          return drawDaylightTable(s, rows, title, box, place.name);
+          return drawDaylightTable(drawing, rows, title, box, place.name);
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
       keyed(card, `${month}-daylight-table`);
       return card;
@@ -418,7 +420,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
       const lit = days.flatMap((d, i) => (d >= 24 ? [i] : [])),
         top = axes.c2p(0, 24)[1];
       const polar = s.keep(
-        dimension(s, [axes.c2p(xOn(lit[0]!), 24)[0], top], [axes.c2p(xOn(lit.at(-1)!), 24)[0], top], `${now().polarDay} days`, {
+        dimension(s.drawing, [axes.c2p(xOn(lit[0]!), 24)[0], top], [axes.c2p(xOn(lit.at(-1)!), 24)[0], top], `${now().polarDay} days`, {
           offset: -0.6,
           size: 0.22,
         }),
@@ -426,7 +428,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
       await this.play(new Create(polar, { runTime: 0.6, lagRatio: 0.1 }));
       said.push(polar);
       if (polarNight) {
-        const night = s.keep(callout(s, axes.c2p(xOn(EVENTS[3].day), 0), `${now().polarNight} days at 0 h`, { side: 'above', gap: 1.1, size: 0.22 }));
+        const night = s.keep(callout(s.drawing, axes.c2p(xOn(EVENTS[3].day), 0), `${now().polarNight} days at 0 h`, { side: 'above', gap: 1.1, size: 0.22 }));
         await this.play(new Create(night, { runTime: 0.6, lagRatio: 0.15 }));
         said.push(night);
       }
@@ -438,7 +440,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         describe: `Dashed lines from the shortest day, ${hours(shortest)}, and the longest, ${hours(longest)}, to the right of the chart`,
       });
       const between = s.keep(
-        dimension(s, axes.c2p(LEVEL_X, shortest), axes.c2p(LEVEL_X, longest), `longest − shortest: ${spread}`, { offset: -0.05, size: 0.22 }),
+        dimension(s.drawing, axes.c2p(LEVEL_X, shortest), axes.c2p(LEVEL_X, longest), `longest − shortest: ${spread}`, { offset: -0.05, size: 0.22 }),
       );
       await this.play(new Create(between, { runTime: 0.6, lagRatio: 0.1 }));
       said.push(levels, between);
@@ -502,7 +504,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     });
     // The January values, said beside their dots on tags that read over the curves: a view of the
     // state's daylight and its mirror.
-    const tags = view(this, (st) => drawTags(st, axes, s.look.paper), { place: false });
+    const tags = view(this, (st, _shown, drawing) => drawTags(st, axes, drawing.look.paper), { drawing: s.drawing, place: false });
     await s.enter(tags, {
       describe: () => {
         const st = now(),

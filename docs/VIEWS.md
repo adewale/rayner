@@ -8,10 +8,10 @@ import { Scene, Text, FadeIn } from 'rayner';
 import { view } from 'rayner/explain';
 import type { View } from 'rayner/explain';
 
-class Ring extends Scene<{ len: number; head: number }, {}> {   // the model's type, and what is shown's
+class Ring extends Scene {
+  override state = { len: 0, head: 0 };
   readout!: View<Text>;                    // kept on the scene, so a test can reach it
   override async construct() {
-    this.state = { len: 0, head: 0 };
     this.readout = view(this, (s) => new Text(`len ${s.len}  head ${s.head}`, { font: 'mono' }), { place: 'left' });
     await this.play(new FadeIn(this.readout));
 
@@ -26,7 +26,7 @@ This is manim's `always_redraw` in the engine's form. The picture changes only
 when you play `sync()`, and each change is a matching transform from the old
 picture to the new one. `sync()` returns an [action](REFERENCE.md#actions), as a stage
 verb does: await it, or hand it to `play()`, a `Succession` or a group. The draw's arguments are typed from the scene: the scene
-declares its model and shown types, `Scene<Model, Shown>`, and `view(this, draw)`
+initializes its model and shown fields, and `view(this, draw)`
 infers `draw(state: Model, shown: Shown)` ([typed state](REFERENCE.md#typed-state-and-shown)).
 
 ## How a sync plays
@@ -106,7 +106,7 @@ advances both on each request.
 ## API
 
 ```ts
-view(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
+view(scene: Scene & { state: S, shown: Sh }, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
 having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one chapter (below)
 
 view.current            // the picture on screen (the View's one child)
@@ -259,23 +259,23 @@ from `shown` when it is presentation rather than model. A draw is synchronous an
 picture whole, so each has a builder a draw can call, which puts the mark in the picture and
 lets the part describe itself. The drawing kit builds cards, code panels and annotations
 (`card`, `code` and `callout` from `rayner/drawing`); the stage's `s.card` and `s.code`
-enter the same pictures for a part that does not change, and `s.enter` or `s.keep` any other.
+enter the same pictures for a part that does not change. Bind `{ drawing: s.drawing }` to give the draw the stage’s colour roles, lettering, direction and language. The view keeps that snapshot for each sync and historical redraw.
 
 ```ts
 import { view, having } from 'rayner/explain';
 import { card, code, callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.
-const counts = view(this, (st) =>
-  card(s, rows(st), { at: box, lit: { row: st.chosen, as: 'this check' } }), { place: false });
+const counts = view(this, (st, _shown, drawing) =>
+  card(drawing, rows(st), { at: box, lit: { row: st.chosen, as: 'this check' } }), { drawing: s.drawing, place: false });
 await s.enter(counts);                      // no describe: the card describes itself, its lit row too
 
 // A code panel with lit lines, and a callout beside the lit line, from the same state.
-const program = view(this, (st) => {
-  const panel = code(s, lines(st), { at: box, lit: { lines: st.passes ? [1, 2] : 1, as: 'run' } });
+const program = view(this, (st, _shown, drawing) => {
+  const panel = code(drawing, lines(st), { at: box, lit: { lines: st.passes ? [1, 2] : 1, as: 'run' } });
   const line = panel.code.lines[1]!.box()!;
-  return new Group(panel, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.look.good : s.look.bad }));
-}, { place: false });
+  return new Group(panel, callout(drawing, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? drawing.look.good : drawing.look.bad }));
+}, { drawing: s.drawing, place: false });
 
 // A diagram note, placed as a diagram picture places one, from the state's words.
 const note = view(this, (st) => d.notePicture('Capture', `${st.families} families`, { side: 'below' }), { place: false });

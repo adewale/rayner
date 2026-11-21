@@ -53,7 +53,7 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     // no Rayner, the Rayner running the check.
     assert.deepEqual(report.model, { file: join(dir, 'model.test.ts'), tests: 2, passed: 2 });
     const scenario = report.scenarios[0];
-    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
+    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3, observations: 3 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
     assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is not an option of rayner check; use it with rayner init/);

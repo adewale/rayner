@@ -25,7 +25,7 @@ One row per idea.
 | Step kind | `kind: 'short' \| 'main' \| 'detail'` | Which path a step is on: the reader's short path, the story, or a detail players skip | `reader: true`, `detail: true` |
 | Scenario | `scenario`, `scenariosOf`, `scenarios` | One value for every setting | `variant`, `variantsOf`, `variants`, and `case`, `casesOf`, `cases` (`case` is reserved in JavaScript) |
 | Picture | a `Mobject` tree | What a frame shows | |
-| State to picture | `draw` | The name for a pure function that makes a picture from what it is given, which the checks call again. Four take different arguments: a view's `draw(state, shown)`; `s.diagramView`'s `draw(state, shown)`, which returns what the diagram's picture marks, a `DiagramPicture`, rather than a mobject; a staged step's `draw(state, stage)`, which takes the stage for its colours and kit, since a step list is often written in a picture module apart from the scene, and reads nothing shown; and a follow's `draw(value)` (`FollowSpec`), the picture at one value of the number it follows | `render` (views), the parameterless `draw(stage)` (steps), `build` |
+| State to picture | `draw` | The name for a pure function that makes a picture from what it is given, which the checks call again. Four take different arguments: a view's `draw(state, shown)`, with a third drawing context when the view binds one; `s.diagramView`'s `draw(state, shown)`, which returns what the diagram's picture marks, a `DiagramPicture`, rather than a mobject; a staged step's `draw(state, drawing)`, which takes its local specimen and a detached snapshot of the palette, lettering, direction and language; and a follow's `draw(value)` (`FollowSpec`), the picture at one value of the number it follows | `render` (views), the parameterless `draw(stage)` (steps), `build` |
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state, scene.shown)`; sync morphs it there. `view(scene, draw)` is the one way to make one, and `View` is its type | `View.render`, `view(build)`, `stateView` |
 | Staged steps | `s.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each picture is drawn from its own local `StepRecord.state`, leaving `scene.state` and its typed `before`/`after` intact | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
@@ -133,7 +133,7 @@ author could not preserve or check the result reliably with ordinary TypeScript:
   A public definition or project-builder hierarchy would add another authoring language without
   improving this guarantee.
 - A staged step's local specimen and the persistent model are different facts. `meta.watch`
-  always names the persistent model’s traced JSON fields; `describe` can still select a specimen to explain the local picture.
+  names an explicit source and literal key. Model rows show true changes; local, shown and derived rows show current values without replacing that model.
   Merging these records would silently discard a legitimate value when both use the same key.
 - Serialization preserves those boundaries. `before` and `after` contain exactly the authored
   model's JSON shape, and `shown` contains exactly authored presentation. Helpers register
@@ -156,18 +156,35 @@ author could not preserve or check the result reliably with ordinary TypeScript:
   [The workflow](DOMAIN-MODEL.md#the-cli-workflow-and-its-evidence) describes successful results
   for current inputs, rather than persistent "checked" or "reviewed" scene states.
 
-The following need a concrete adopter and a design before implementation:
+The four follow-up contracts are implemented:
 
-- **A narrower draw context.** A read-only drawing input must actually provide palette, shaping
-  and direction support. A type-only facade would leave verification dependent on a hidden Stage.
-- **Qualified watches.** Selecting fields across model, local specimen, presentation and derived
-  data needs a reader use that cannot be expressed by the current model-only `meta.watch` map.
-- **Observation selectors.** Distinct hidden states may legitimately share a visible picture.
-  A selector must say which observation is checked while preserving exploration of full model
-  states; it cannot collapse those states merely because their pictures match.
-- **Stronger initial-state contracts.** Authors initialize the model in ordinary TypeScript,
-  commonly with an `override state` field. Requiring initialization through types or runtime
-  validation needs a coherent contract; there is no new initialization language.
+- **Drawing context.** `DrawContext` and `drawContext` provide a detached, frozen palette/look,
+  shaping service, direction and description language. `s.drawing` exposes the stage's current
+  snapshot; staged draws receive the snapshot captured for that picture. Cards and code panels
+  do not retain the mutable stage. Palette adoption affects subsequent drawings, not historical
+  verification. Native views keep the engine's native color behavior.
+- **Qualified watches.** Ordered `{ source, key, label }` entries select model, local specimen,
+  authored shown or derived data. Model rows use begin/end deltas; the other sources show values
+  at rest, under a neutral mixed heading. Literal keys are never paths. Poppy Sessions compares
+  request state with displayed links, Python Dict distinguishes specimen policy from model
+  policy, and Layout Direction measures the label's actual side as a derived scalar.
+- **Observation selectors.** `MachineSpec.observe(model)` specifies which model distinctions the
+  description must communicate. Different observations need distinguishable descriptions;
+  equal observations permit the same picture or extra detail. Exploration, event outcomes,
+  transition checks and replay retain full model states. A singleton is valid. Latest Search's
+  optional page-only view has ten full states and three published values.
+- **Initial-state contracts.** The model and presentation types come from initialized ordinary
+  class fields. Both are validated as JSON before the first frame. Bound settings are available
+  to field initializers, so the selected scenario starts in its actual domain state. Erased
+  constructors promise object/JSON access, not invented domain keys. Type assertions or untyped
+  input still require the application's domain validation; JSON validation cannot recover
+  required keys erased by the author.
+
+These are separate contracts: a model owns system state, drawing capabilities supply the
+picture's environment, observations declare distinctions, and watches select reader readouts.
+There is no universal selector or initialization language. Watch values do not feed reducers,
+and observations never become graph identities. Nested watch paths and nonmodel delta
+snapshots have no demonstrated reader requirement and remain outside this API.
 
 The lightweight export prototype (audit item 14) and human study (item 16) remain outside this
 implementation. Automated checks do not substitute for evidence about authoring or learning.

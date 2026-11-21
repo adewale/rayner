@@ -28,7 +28,7 @@ const PAGE = ['window:frame', 'window:host', 'window:page', 'page:title', 'page:
 // signature to the counter's desk, and the key and the tag come back from there; a poll runs to the
 // desk and back; a swapped code and a thief's copy come from outside, not from the page or the agent,
 // and stop before a barrier or apart; at sign-out the tag goes back to the desk.
-export default class SignIn extends Scene<World, Shown> {
+export default class SignIn extends Scene {
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -57,7 +57,7 @@ export default class SignIn extends Scene<World, Shown> {
       ],
     },
   ] as const satisfies readonly Setting[];
-  override state = start('direct');
+  override state: World = start(settingsOf(this, SignIn).flow);
   override shown: Shown = { password: true };
 
   override async construct() {
@@ -74,10 +74,8 @@ export default class SignIn extends Scene<World, Shown> {
     const firstKey = at(story.indexOf('collect', story.indexOf('approve-read')));
     if (firstKey.kind !== 'tokens') throw new Error('the story expected tokens');
 
-    this.state = start(flow);
-    this.shown = { password: true };
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, shown) => drawWorld(w, shown, s), { place: false });
+    const world = view(this, (w, shown, drawing) => drawWorld(w, shown, drawing), { drawing: s.drawing, place: false });
 
     type Pt = [number, number];
     type C = Choreography;
@@ -92,8 +90,8 @@ export default class SignIn extends Scene<World, Shown> {
     const LANE = -1.62, FACE_LEFT = DESK[0] - 2.2;
     const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
     const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];
-    const request = () => requestToken(s).scale(0.55);
-    const code = () => codeToken(s);
+    const request = () => requestToken(s.drawing).scale(0.55);
+    const code = () => codeToken(s.drawing);
     /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
     const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 }): Beat[] => {
       const part = c.to(k), walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);

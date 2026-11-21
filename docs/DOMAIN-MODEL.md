@@ -9,7 +9,7 @@ the [tutorial](TUTORIAL.md) for a complete explainer and the
 
 ## State, presentation and a picture
 
-`Scene<Model, Shown>` gives the scene two authored inputs. `scene.state` is the
+A scene initializes its two authored inputs as class fields. `scene.state` is the
 persistent model: tokens left, a door's position, or a cache's contents.
 `scene.shown` is presentation: which chapter is visible or which row is emphasised.
 A view's `draw(state, shown)` makes the picture from both. Changing the model and
@@ -25,7 +25,7 @@ import { stage, view } from 'rayner/explain';
 type Model = { tokens: number };
 type Shown = { chapter: 'supply' | 'request' };
 
-export default class Bucket extends Scene<Model, Shown> {
+export default class Bucket extends Scene {
   override state: Model = { tokens: 3 };
   override shown: Shown = { chapter: 'supply' };
 
@@ -71,8 +71,9 @@ Place that fragment inside `construct`, where `s` is in scope. Its trace keeps
 `before.tokens === 2`, `after.tokens === 2` and `state.tokens === 0`. The first two
 are the persistent model; the third is the local `StepRecord.state`. A field called
 `tokens` can legitimately occur in both. Combining them would lose information.
-`meta.watch` reads persistent model fields; the description of a staged step uses
-its local specimen. [Typed state and shown](REFERENCE.md#typed-state-and-shown)
+`meta.watch` names each selected source explicitly. Model selections show real
+changes; local, shown and derived selections show current values without mixing
+their owners. The description of a staged step uses its local specimen. [Typed state and shown](REFERENCE.md#typed-state-and-shown)
 
 ## What a run records
 

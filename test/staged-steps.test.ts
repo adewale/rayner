@@ -8,10 +8,10 @@ import assert from 'node:assert/strict';
 import { Scene, Group, Text } from '../src/index.ts';
 import { TraceSink, assertStepState } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
-import type { StagedStep, Stage } from '../explain/index.ts';
+import type { StagedStep, DrawContext } from '../explain/index.ts';
 import { FanSink, ViewSink } from '../tools/lib/explain-check.ts';
 
-const words = (s: Stage, n: number) => new Group(new Text(`count ${n}`, { fontSize: 0.5, color: s.look.ink, shaping: s.scene.textShaping }));
+const words = (s: DrawContext, n: number) => new Group(new Text(`count ${n}`, { fontSize: 0.5, color: s.look.ink, shaping: s.shaping }));
 
 // Each test's steps have their own state type; `any` lets one runner take them all.
 async function run(steps: (bump: () => number) => StagedStep<any>[], kind: 'short' | 'main' = 'main') {
@@ -80,7 +80,7 @@ test('a lone step reading its state passes; one with an empty state is exempt; a
   assert.deepEqual({ checked: still.checked, problems: still.problems, ignoring: still.ignoring }, { checked: 1, problems: [], ignoring: [] });
   // A flag that only colours the picture moves no box, yet the picture depends on it.
   const lit = await run(() => [staged('lit', { lit: true },
-    (st, s) => new Group(new Text('lamp', { fontSize: 0.5, color: st.lit ? s.look.emphasis : s.look.ink, shaping: s.scene.textShaping })))]);
+    (st, s) => new Group(new Text('lamp', { fontSize: 0.5, color: st.lit ? s.look.emphasis : s.look.ink, shaping: s.shaping })))]);
   assert.deepEqual(lit.problems, []);
   // A draw that cannot draw a different state has read it.
   const picky = await run(() => [staged('picky', { level: 'AA' },
@@ -96,14 +96,14 @@ test('a step whose state is not JSON is refused before anything is drawn', async
 });
 
 test('stage.steps types each step by its own state, so one list holds steps whose states differ', async () => {
-  class Mixed extends Scene<{}, {}> {
+  class Mixed extends Scene {
     override async construct() {
       const s = stage(this);
       await s.steps([
         { id: 'count', title: 'A count', line: 'A line.', caption: 'A caption long enough to read.', state: { n: 3 }, draw: (st, s) => words(s, st.n) },
         {
           id: 'name', title: 'A name', line: 'A line.', caption: 'A caption long enough to read.', state: { name: 'three' },
-          draw: (st, s) => new Group(new Text(st.name, { fontSize: 0.5, color: s.look.ink, shaping: s.scene.textShaping })),
+          draw: (st, s) => new Group(new Text(st.name, { fontSize: 0.5, color: s.look.ink, shaping: s.shaping })),
           describe: (st) => `The word ${st.name}`,
         },
       ]);
@@ -116,7 +116,7 @@ test('stage.steps types each step by its own state, so one list holds steps whos
 
 test('heterogeneous staged inputs preserve the typed model during frames, callbacks and the following ordinary step', async () => {
   const observed: number[] = [], trace = new TraceSink(), checks = new ViewSink();
-  class Persistent extends Scene<{ count: number }> {
+  class Persistent extends Scene {
     override state = { count: 7 };
     override async construct() {
       const model = this.state;
@@ -156,7 +156,7 @@ test('a staged step’s prediction reaches its step’s metadata, where the play
 
 
 test('threshold pictures need a valid contrasting example; equal probes do not prove constant drawing', async () => {
-  const draw = (st: { n: number }, s: Stage) => new Group(new Text(st.n >= 3 ? 'open' : 'waiting', { color: s.look.ink }));
+  const draw = (st: { n: number }, s: DrawContext) => new Group(new Text(st.n >= 3 ? 'open' : 'waiting', { color: s.look.ink }));
   const threshold = await run(() => [step('waiting', 0, draw)]);
   assert.equal(threshold.problems.length, 1);
   assert.match(threshold.problems[0]!, /state dependence is unproven/);

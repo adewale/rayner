@@ -82,13 +82,13 @@ import { start, type State } from './model.ts';
 // The scene explains the model: each step sets this.state from the model, and a view draws it.
 // This one step shows where the model starts. Write its words, draw the state as a picture of
 // your system, and add a step for each change the reader should see.
-export default class Explainer extends Scene<State, {}> {
-  override state = start();
+export default class Explainer extends Scene {
+  override state: State = start();
 
   override async construct() {
     const s = stage(this);
     // A view draws the state. After a step changes this.state, await picture.sync() redraws it.
-    const picture = view(this, (st) => new Text(\`count: \${st.count}\`, { fontSize: 0.8, color: s.look.ink }));
+    const picture = view(this, (st, _shown, drawing) => new Text(\`count: \${st.count}\`, { fontSize: 0.8, color: drawing.look.ink, shaping: drawing.shaping }), { drawing: s.drawing });
 
     await this.step('start', {
       title: 'TODO: what this picture proves',

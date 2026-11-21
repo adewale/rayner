@@ -368,7 +368,7 @@ test('a card drawn lit and code drawn lit carry their bar on the row or lines, a
   const scene = new Scene(new NullSink());
   const s = stage(scene);
   const rows = [['a', 1], ['b', 22], ['c', 333]] as const;
-  const lit = card(s, rows, { at: [1, 0.5], title: 'T', lit: { row: 'b', as: 'chosen' } });
+  const lit = card(s.drawing, rows, { at: [1, 0.5], title: 'T', lit: { row: 'b', as: 'chosen' } });
   // The bar runs across the panel, on row b.
   const bar = lit.bar.box()!, panel = lit.panel.box()!;
   assert.ok(Math.abs(lit.bar.center()[1] - lit.values.get('b')!.anchorPoint()[1]) < 1e-6);
@@ -382,21 +382,21 @@ test('a card drawn lit and code drawn lit carry their bar on the row or lines, a
   assert.deepEqual(lit.describe().parts.map((p) => p.mark), [undefined, 'chosen', undefined]);
   assert.equal(lit.describe().parts.find((p) => p.mark)?.name.startsWith('b'), true);
   // Unlit, the bar is there but hidden, so a picture keeps one family shape whether lit or not.
-  const plain = card(s, rows, { at: [1, 0.5], title: 'T' });
+  const plain = card(s.drawing, rows, { at: [1, 0.5], title: 'T' });
   assert.equal(plain.bar.style.opacity, 0);
   assert.equal(plain.family().length, lit.family().length);
   assert.equal(plain.describe().parts.some((p) => p.mark), false);
-  assert.throws(() => card(s, rows, { lit: { row: 'nope' } }), /card\(\): lit names no row of the card, "nope"/);
+  assert.throws(() => card(s.drawing, rows, { lit: { row: 'nope' } }), /card\(\): lit names no row of the card, "nope"/);
 
   const lines = ['one', 'two', 'three', 'four'];
-  const built = code(s, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
+  const built = code(s.drawing, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
   // The bar covers lines 1 and 2, and neither line beside them.
   const span = built.bar.box()!, ys = built.code.lines.map((l) => l.anchorPoint()[1]);
   assert.equal(built.bar.style.opacity, 1);
   assert.ok(ys[1]! > span[1] && ys[1]! < span[3] && ys[2]! > span[1] && ys[2]! < span[3]);
   assert.ok(ys[0]! > span[3] && ys[3]! < span[1]);
   assert.deepEqual(built.describe().parts.map((p) => p.mark), [undefined, 'run', 'run', undefined]);
-  assert.throws(() => code(s, lines, { lit: { lines: [2, 9] } }), /code\(\): lit names lines 2\.\.9, which are not lines of this panel/);
+  assert.throws(() => code(s.drawing, lines, { lit: { lines: [2, 9] } }), /code\(\): lit names lines 2\.\.9, which are not lines of this panel/);
 
   // On stage, each says what it emphasises.
   scene.add(lit, built);
@@ -414,14 +414,14 @@ test('a view of a card or code is described as that card or code, and a describe
       const s = stage(this);
       this.state = { n: 7 };
       await this.step('card');
-      const card = view(this, (st) => cardPicture(s, [['n', (st as { n: number }).n]], { lit: { row: 'n', as: 'now' } }), { place: false });
+      const card = view(this, (st) => cardPicture(s.drawing, [['n', (st as { n: number }).n]], { lit: { row: 'n', as: 'now' } }), { place: false });
       await s.enter(card);
       await this.step('both');
       await s.clear();
       // A card beside words of its own: the card describes itself, the describe says the rest.
       const pair = view(
         this,
-        (st) => new Group(code(s, [`n = ${(st as { n: number }).n}`], { lit: { lines: 0 } }), new Text('beside', { color: INK }).moveTo([0, -2])),
+        (st) => new Group(code(s.drawing, [`n = ${(st as { n: number }).n}`], { lit: { lines: 0 } }), new Text('beside', { color: INK }).moveTo([0, -2])),
         { place: false },
       );
       await s.enter(pair, { describe: 'Words beside the code' });
@@ -458,7 +458,9 @@ test('described reads each copy and leaves an unrelated group’s describe metho
 });
 
 test('a described meter inside a view reports its fresh reading when the rounded digits stay the same', async () => {
-  class Meter extends Scene<{ temperature: number }> {
+  class Meter extends Scene {
+    override state = { temperature: 10.1 };
+
     override async construct() {
       const s = stage(this);
       this.state = { temperature: 10.1 };

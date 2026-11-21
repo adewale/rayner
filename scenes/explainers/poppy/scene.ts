@@ -30,7 +30,7 @@ const APPROVALS: Record<string, readonly Scope[]> = { 'read-write': ['orders:rea
 // network. The answer appears only once the ticket has landed. Each is an authored transition, so
 // a reader's own presses at the live step move as the story's do, and rayner check plays every one
 // from every state.
-export default class Poppy extends Scene<World, {}> {
+export default class Poppy extends Scene {
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -53,7 +53,7 @@ export default class Poppy extends Scene<World, {}> {
       ],
     },
   ] as const satisfies readonly Setting[];
-  override state = start(APPROVALS['read-write']!);
+  override state: World = start(APPROVALS[settingsOf(this, Poppy).approve]!);
 
   override async construct() {
     const approves = APPROVALS[settingsOf(this, Poppy).approve]!, scopes = approves.join(' and ');
@@ -70,11 +70,10 @@ export default class Poppy extends Scene<World, {}> {
     };
     const challenge = answered(4), both = answered(6), thief = answered(7);
 
-    this.state = start(approves);
     // No heading on the stage: the picture takes the stage's full height, so its words read on a
     // phone; the page prints each step's title and line under the picture.
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w) => drawWorld(w, s), { place: false });
+    const world = view(this, (w, _shown, drawing) => drawWorld(w, drawing), { drawing: s.drawing, place: false });
 
     /** A request leaves the agent: its ticket appears on the agent's seal, follows its lane and stops where it rests. */
     const request = (t: Transition<World, PoppyEvent>) => {
@@ -97,7 +96,7 @@ export default class Poppy extends Scene<World, {}> {
           const c = t.choreograph(world);
           return beats(c, () => {
             const lanes = LANES.map((name) => c.enter(`lane:${name}:line`, { create: true }, { runTime: 0.6 }));
-            return [...pass(c, 'document', documentToken(s), DOCUMENT_ROUTE), new AnimationGroup(lanes)];
+            return [...pass(c, 'document', documentToken(s.drawing), DOCUMENT_ROUTE), new AnimationGroup(lanes)];
           }, { fresh: FRESH });
         },
         cart: request,

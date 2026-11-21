@@ -6,6 +6,7 @@ export { Machine, refuse, isRefusal } from './machine.ts';
 export type { MachineSpec, Transition, Refusal } from './machine.ts';
 export type { Choreography } from './choreograph.ts';
 export { stage } from './stage.ts';
+export type { DrawContext } from './draw-context.ts';
 export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions, DiagramPicture } from './stage.ts';
 export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';

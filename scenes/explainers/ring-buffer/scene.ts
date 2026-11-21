@@ -37,7 +37,9 @@ const turnBetween = (from: number, to: number) => {
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
 
-export default class RingBufferExplainer extends Scene<RingState, {}> {
+export default class RingBufferExplainer extends Scene {
+  override state: RingState = ringStart(SLOTS);
+
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
@@ -79,8 +81,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // The queue the ring replaces: an array whose pop moves every value left.
     await readerFrames(s, { kind: 'short' });
     // The reading path keeps the ring and its order together. The implementation below is optional.
-    const overviewStart = ringStart(SLOTS), overviewStory = ringStory(which);
-    this.state = overviewStart;
+    const overviewStart = this.state, overviewStory = ringStory(which);
     await this.step('slots', {
       title: 'Keep the slots still; move head and tail',
       line: 'H is the next slot to read; T is the next slot to write.',
@@ -88,7 +89,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       predict: { prompt: 'After five pushes, where will head and tail point?', options: ['Both at slot 0', 'Head at slot 0, tail at slot 4'], answer: 'Both at slot 0' },
     });
     await s.clear();
-    const overview = view(this, st => drawOverview(st, s), { place: false });
+    const overview = view(this, (st, _shown, drawing) => drawOverview(st, drawing), { drawing: s.drawing, place: false });
     await s.enter(overview, { describe: () => sayOverview(this.state) });
     const overviewMachine = new Machine<RingState, RingEvent>(this, {
       start: overviewStart, events: ['push', 'pop'], next: ringNext, views: [overview], runTime: 0.4,
@@ -144,10 +145,10 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // The buffer's own fields, rebuilt from this.state at every sync.
     const readout = (this.readout = view(
       this,
-      (st) => card(s, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
+      (st, _shown, drawing) => card(drawing, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
         size: 0.24, at: [C[0], C[1] + 0.1], width: 1.9, panel: false, key: 'readout',
       }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     ));
     // The fields card describes itself.
     s.keep(readout);
@@ -157,7 +158,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // the state too: its Result row is lit while push is refused with Full.
     const blankCard = (lit: string | null) =>
       card(
-        s,
+        s.drawing,
         [
           ['Operation', '–'],
           ['Result', '–'],
@@ -209,7 +210,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     const litOf = (st: RingState): CodeBlockOptions['lit'] =>
       st.error != null ? { lines: 1 } : st.operation === 'pop' ? { lines: [8, 12] } : st.operation != null ? { lines: [2, 4] } : null;
     const codeAt = regionBox('full', { left: -0.25, top: resultCard.box()![1] - 0.25 });
-    const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { place: false }));
+    const codePanel = (this.code = view(this, (st, _shown, drawing) => code(drawing, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { drawing: s.drawing, place: false }));
     await s.enter(codePanel, { runTime: 0.4 });
 
     // The reader could press push or pop; each press is one model step, its motion authored below.

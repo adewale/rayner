@@ -6,14 +6,14 @@
 // blocks; its sunrise direction is the idealised day's path reached at the opposite hour angle.
 import { Group, Circle, Dot, Line, Arrow, VMobject, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { Henge } from './model.ts';
 import { INK, SUN, SUMMER, MUTED } from './sky.ts';
 
 const rad = Math.PI / 180;
 /** Words at (x, y) on stage `s`, in INK at the picture's size unless told otherwise. */
-const writer = (s: Stage) => (text: string, x: number, y: number, color = INK, size = 0.58) => label(s, text, { at: [x, y], color, size });
+const writer = (s: DrawContext) => (text: string, x: number, y: number, color = INK, size = 0.58) => label(s, text, { at: [x, y], color, size });
 const line = (a: Vec, b: Vec, color = MUTED, width = 0.035) => new Line(a, b, { stroke: color, strokeWidth: width });
 function path(points: Vec[], color: string, width = 0.07) {
   const p = new VMobject({ stroke: color, strokeWidth: width, fill: 'none' });
@@ -28,7 +28,7 @@ export const offEast = (az: number) => Math.abs(az - 90) < 0.05 ? 'due east' : `
 /** The chart's state: the street, each evening's half-Sun azimuth through 2026, and the alignment evenings. */
 export interface AnnualState { bearing: number; street: string; year: { date: string; azimuth: number }[]; crossings: { date: string; name: string }[] }
 /** The year's half-Sun directions against the street, each evening of 2026, with the evenings the curve crosses it. */
-export function annual(st: AnnualState, s: Stage): Group {
+export function annual(st: AnnualState, s: DrawContext): Group {
   const words = writer(s);
   const day = (date: string) => st.year.findIndex((d) => d.date === date);
   const x = (i: number) => -6 + (i / (st.year.length - 1)) * 12;
@@ -56,7 +56,7 @@ export function annual(st: AnnualState, s: Stage): Group {
 
 /** Overhead, north up: a schematic grid turned to the street's bearing, and the Sun's direction at sunset and sunrise
  *  on the first alignment day. East is +x, north is +y; an azimuth points along (sin az, cos az). */
-export function overhead({ bearing, alignment }: { bearing: number; alignment: Henge['alignment'] }, s: Stage): Group {
+export function overhead({ bearing, alignment }: { bearing: number; alignment: Henge['alignment'] }, s: DrawContext): Group {
   const words = writer(s);
   const dir = (az: number): Vec => [Math.sin(az * rad), Math.cos(az * rad)];
   const o: Vec = [0, -0.5];

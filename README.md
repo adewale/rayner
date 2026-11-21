@@ -158,16 +158,16 @@ import type { ExplainerMeta } from 'rayner/explain';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
 import { drawTower, sayTower } from './picture.ts';
 
-export default class Hanoi extends Scene<Tower, {}> {
+export default class Hanoi extends Scene {
   static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] } satisfies ExplainerMeta;
   static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }] as const;
-  override state = start(Number(settingsOf(this, Hanoi).disks));
+  override state: Tower = start(Number(settingsOf(this, Hanoi).disks));
 
   override async construct() {
     const n = Number(settingsOf(this, Hanoi).disks), moves = solve(n), few = (moves.length - 1) / 2;
     const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`, first = moves[0]!.at(-1);
     const s = stage(this, { headingSize: 0.54 });
-    const tower = view(this, (t) => drawTower(t, n, s.look));
+    const tower = view(this, (t, _shown, drawing) => drawTower(t, n, drawing.look), { drawing: s.drawing });
     // Once the tower is on C the story ends, so the reader's own moves start again from A.
     const machine = new Machine<Tower, Move>(this, { start: start(n), events: MOVES, next, views: [tower],
       end: (t) => (finished(t, n) ? 'the tower is on C' : undefined) });

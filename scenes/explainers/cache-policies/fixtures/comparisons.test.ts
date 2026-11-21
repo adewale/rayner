@@ -77,7 +77,7 @@ export function assertPictures(pictures: Record<'lru' | 'mru' | 'stream', Mobjec
   }
   assert.equal(wordsAt(pictures.stream, 'cache:requests'), `Requests: ${expected.history.join(' ')}`);
 }
-export function assertCurrent(scene: Pick<Scene<object, object>, 'state' | 'familyMembers'>, expected: Comparison): void {
+export function assertCurrent(scene: Pick<Scene, 'state' | 'familyMembers'>, expected: Comparison): void {
   assert.deepEqual(scene.state, expected);
   const views = namedViews(scene);
   assertPictures({ lru: views.lru.current, mru: views.mru.current, stream: views.stream.current }, expected);

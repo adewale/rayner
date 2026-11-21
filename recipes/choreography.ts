@@ -3,7 +3,7 @@ import { GrowFromEdge, PulseAlongPath } from 'rayner/extras';
 import { view, stage } from 'rayner/explain';
 import { card } from 'rayner/drawing';
 
-export default class ChoreographyScene extends Scene<{count: number}, {}> {
+export default class ChoreographyScene extends Scene {
   override state = { count: 0 };
 
   override async construct() {
@@ -11,7 +11,7 @@ export default class ChoreographyScene extends Scene<{count: number}, {}> {
     const route = new Line([0, 0], [4, 0]);
     const token = new Dot().moveTo([0, 0]);
     const s = stage(this, { style: 'github-dark', heading: false });
-    const readout = view(this, (st) => card(s, [['count', st.count]], { at: [1.6, -2], panel: false, key: 'readout' }), { place: false });
+    const readout = view(this, (st, _shown, drawing) => card(drawing, [['count', st.count]], { at: [1.6, -2], panel: false, key: 'readout' }), { drawing: s.drawing, place: false });
     this.add(route, readout);
     await this.step('grow-and-travel');
     await this.play(new GrowFromEdge(bar, [0, -1]), new PulseAlongPath(token, route), { runTime: 1 });

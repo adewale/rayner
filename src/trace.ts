@@ -15,7 +15,7 @@ const evidenceCopy = (records: readonly Evidence[]): Evidence[] => records.map(r
 
 /**
  * One step of a trace: what traceScene() returns per step. `S` and `Sh` are the types of the model
- * and of what is shown as the trace records them: `Jsonified` of the scene's own (`Scene<S, Sh>`),
+ * and of what is shown as the trace records them: `Jsonified` of the scene's initialized fields,
  * which TraceOf gives. Untyped, both are JSON records.
  */
 export interface StepRecord<S extends object = SceneState, Sh extends object = SceneState> {
@@ -52,10 +52,13 @@ export interface Trace<S extends object = SceneState, Sh extends object = SceneS
   evidence?: Evidence[];
 }
 
+/** An uncustomized object field records an empty object. Distribute across chapter unions. */
+type Recorded<T extends object> = T extends unknown ? keyof T extends never ? {} : Jsonified<T> : never;
+
 /** The trace of a constructor or scene, with exactly its JSON model and presentation shapes. */
 export type TraceOf<C> = 0 extends 1 & C ? Trace
-  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ?
-    [SceneClass, keyof S | keyof Sh] extends [C, never] ? Trace : Trace<Jsonified<S>, Jsonified<Sh>>
+  : (C extends abstract new (...args: never) => infer I ? I : C) extends (infer I extends Scene) ?
+    [SceneClass, keyof I['state'] | keyof I['shown']] extends [C, never] ? Trace : Trace<Recorded<I['state']>, Recorded<I['shown']>>
   : Trace;
 
 /**
@@ -113,7 +116,7 @@ export class TraceSink implements Sink {
   /** One entry per step that ended, with its begin and end state. */
   steps(): StepRecord[] { return this.#records; }
   /** @internal Facts preceding all named steps (or all facts of a run without named steps). */
-  prelude(scene: Scene<object, object>): Evidence[] { return this.#started ? this.#prelude : evidenceCopy(scene.evidence); }
+  prelude(scene: Scene): Evidence[] { return this.#started ? this.#prelude : evidenceCopy(scene.evidence); }
 }
 
 const round = (x: number): number => Math.round(x * 1000) / 1000;
@@ -131,7 +134,7 @@ export async function traceScene<C extends SceneClass>(SceneClass: C, opts: Scen
  * with `atRest`, each step's resting picture from the same run. `skipUntil: 0` draws every frame,
  * which `rayner check` compares with the skipped trace.
  */
-export async function traceRun<S extends Scene<object, object>>(SceneClass: SceneClass<S>, { skipUntil, ...opts }: SceneOptions & Pick<TraceSinkOptions, 'skipUntil'> = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: S }> {
+export async function traceRun<S extends Scene>(SceneClass: SceneClass<S>, { skipUntil, ...opts }: SceneOptions & Pick<TraceSinkOptions, 'skipUntil'> = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: S }> {
   const sink = new TraceSink({ skipUntil, atRest });
   const scene = new SceneClass(sink, opts);
   await scene.run();

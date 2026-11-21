@@ -1,6 +1,6 @@
 import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Text, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, RADIUS, STROKE, TONE, TYPE, barrier, padlock, seal, sheet, label } from '../lib/poppy-kit.ts';
 import { GATES, GATE_NAME, SERVERS, fetchDocument, parseUrl, progress } from './model.ts';
@@ -191,7 +191,7 @@ function signpost(): Group {
 
 /** The issuer's register, closed: a bound book standing face on, its spine on the left, its page edges showing. */
 const BOOK = { x: REG_X, y: 0.25, w: 3.3, h: 2.3 } as const;
-function closedRegister(s: Stage): Group {
+function closedRegister(s: DrawContext): Group {
   const { x, y, w, h } = BOOK, l = x - w / 2;
   return new Group(
     new Rectangle({ width: w, height: h, fill: TONE.paperLine, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo([x + 0.1, y - 0.1]),
@@ -234,14 +234,14 @@ function underlines(t: Text, indices: readonly number[], colour: string): Group 
 }
 
 /** A label set on a line, signage fashion: the words on an opaque plate of the ground's colour. Adds both. */
-function onLine(parts: ReturnType<typeof keyedParts>, s: Stage, key: string, value: string, at: Vec, pad = 0.36): Text {
+function onLine(parts: ReturnType<typeof keyedParts>, s: DrawContext, key: string, value: string, at: Vec, pad = 0.36): Text {
   const words = label(s, value, { at });
   parts.add(new Rectangle({ width: words.width() + pad, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo(at), `${key}:plate`);
   return parts.add(words, `${key}:label`);
 }
 
 /** The state as its picture. */
-export function drawWorld(w: World, s: Stage): Group {
+export function drawWorld(w: World, s: DrawContext): Group {
   const parts = keyedParts(), sc = sceneOf(w), v = sc.verdict;
   const stoppedAt = v && !v.accepted ? v.gate : null;
   const passed = (g: Gate) => !!resultOf(sc, g)?.ok;

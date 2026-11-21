@@ -58,8 +58,9 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `match` | How the views morph without an authored transition (default `{ by: 'key', text: 'whole' }`, a [`Match`](MATCHING.md): keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
 | `limit` | A positive finite integer: the most states exploration visits from one origin (default 256) |
+| `observe(state)` | Optional pure JSON observation the picture must distinguish. Defaults to the full model; equal observations may share a description, while different observations must have distinguishable accessible descriptions. It never changes exploration or which events and transitions are checked |
 
-The machine's state is the scene's model: `new Machine(this, spec)` on a `Scene<S, Sh>`, its `spec` a `MachineSpec<S, E>` for events `E`, types
+The scene's initialized model field gives `new Machine(this, spec)` its state type `S`. Its `MachineSpec<S, E>` for events `E` types
 `start`, `next`, `bound`, `end`, the transitions and the views by `S`. A scene whose machine drives
 one chapter of a state that changes shape ([typed state](REFERENCE.md#typed-state-and-shown)) narrows in
 `next` and in its transitions: `next: (st, e) => roundNext(having(st, 'pick'), e)`.
@@ -221,8 +222,9 @@ picture, and fails if it
   at 0.54 or more with the camera at home always reads; see [Phone at live steps](REFERENCE.md#checks)),
 - has no description,
 - does not show its state (the fidelity check `assertViewFollowsState` makes), or
-- is described exactly as another reachable state is, so neither a reader nor a screen
-  reader could tell them apart.
+- is described exactly as a reachable state with a different declared observation. Without
+  `observe`, that means a different full model; an explicit observation can deliberately hide
+  model differences while controls and exploration still keep them distinct.
 
 From every state it reaches, exploration plays every authored transition as a reader's event
 plays it: the state moves to the one the event reaches, then the transition plays in a play of its
@@ -332,7 +334,7 @@ reader can send there: "Try it yourself: press push, pop.", or "Try it yourself:
 where the step leaves its machine finished.
 
 **How it is checked.** `test/browser/explain-live.test.ts` builds eleven pages and checks an
-independent list of fifteen live steps in their default scenarios. Ring buffer, statecharts,
+independent list of sixteen live steps in their default scenarios. Ring buffer, statecharts,
 latest-search and python-dict each supply two steps. The test presses available events in real
 time, two events deep and up to six states per step. At every state it checks that each button's kind, `aria-disabled`,
 reason and name agree with `outcome`, that the URL holds the events, that a press changed the
@@ -421,7 +423,7 @@ Eleven explainers outside the Poppy series use machines.
 | `state-machine` | `send`, `closed` | `SocketState`: a WebSocket's readyState, the last event and what it did, the branch of `send()` it ran, the messages the server got, the links travelled | `send()`, `close()`, `server accepts`, `server answers close()`; the server's two answers are refused outside CONNECTING and CLOSING, `close()` before open and a third message are past the story's bound, and a `send()` that throws or sends nothing is an answer the picture shows | The diagram with its trail (`Diagram.picture`), the ring, `send()`'s branch boxed in Node's own code; the card | 23 states from a new socket, 14 from an open one; every transition played |
 | `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `g.follow`, then a token leaves for its box or a 429 ring appears |
 | `monty-hall` | `choice` | `Round`: what the reader knows (the pick, the door opened and what it showed, stay or switch, where the car was shown) | `pick X`, `open X: goat` or `car`, `stay`, `switch`, `car behind X`; the rules refuse a second pick, the host opening your door or opening twice, the informed host opening the car, and a decision after the car is shown | The three doors | 46 rounds with the informed host, 52 with the random one; every round is a cell of the strip, with its winner |
-| `latest-search` | `overwrite`, `reader-guard` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
+| `latest-search` | `overwrite`, `reader-guard`, `page-only` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
 | `oauth-pkce` | `any-order` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |
 | `just-bash` | `lesson` | `ShellSession`: the shells the caller holds and what `cat` printed on each | The script's lines: the pipeline on the newest shell, `cat` on the newest or on s0, `ls` (refused, as `exec` refuses it); a second write is past the script's bound | s0 and s1, the write's arrow, each cat's output, the kept shell outlined | 6 states; s0 stays the empty shell through every transition |
 | `bloom-filter` | `try` | `Row`: the bits, the names that set each one (the fills), the names taken and cleared, and the last check with the filter's answer | `take eel`, `take owl`, `check wolf`, `check owl`, `check cat`, `clear dog` (through the model's `take`, `check` and `clearBits`); taking a name twice and clearing dog twice are refused | The row with each name's fill, the legend of names taken, the check's bits outlined (a 0 in red) and its answer beside the truth: a false positive, or after clearing dog at 16 bits a false negative | 52 rows per scenario, from cat and dog taken |
@@ -499,3 +501,23 @@ the stage and keeps the stage describing it.
 - **Building a transition when its schedule is built.** In a replay, the second event's
   transition held the first picture, which the first event's finish had replaced. It is built
   when its turn comes.
+
+
+### Observations and hidden model state
+
+A picture can intentionally show only part of a model. Declare `observe: state => state.page`
+for a view of the published result while requests continue in flight. Latest Search's
+`page-only` detail uses the same tested reducer as its complete timelines: ten full states
+have three published-page values. Starting A leaves the page blank but makes its response
+possible; starting B before A lands leaves it blank again but suppresses A's older response.
+The full states must remain distinct for controls, replay and checking.
+
+`check` and `describe` report visited full states, distinct observations, and completeness or
+sampling separately. Counts describe the states actually visited. A singleton observation
+is valid, including for a complete graph. The selector receives a detached model and must
+return finite acyclic JSON without mutating the input; inconsistent repeated results reject.
+This is a description-discrimination contract, not proof that an arbitrary caption correctly
+explains the selected value. Keep the model's oracle tests and owned picture assertions.
+Fresh redraw, motion, bounds, refusal, transition endpoint and invariant checks still run.
+Synthetic inputs that throw supply no observation contrast; explicitly observed machines
+are checked on their actual reachable full models.

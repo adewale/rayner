@@ -4,11 +4,12 @@
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle } from '../src/index.ts';
-import type { Text } from '../src/index.ts';
+import { Group, Scene, Rectangle, Text } from '../src/index.ts';
 import { NullSink } from '../src/timeline.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
+import { view, isView } from '../explain/view.ts';
+import { label } from '../explain/drawing.ts';
 import { paletteOf, paperOf } from '../explain/stage.ts';
 import { sceneIdOf } from '../explain/project.ts';
 import { REGIONS } from '../explain/look.ts';
@@ -62,6 +63,7 @@ function fixture(): DiagramSnapshot {
 
 test('diagram traversal evidence survives model replacement without reserving domain keys; hidden parts stay off stage', async () => {
   class Demo extends Scene {
+    override state: { answer?: number } = {};
     override async construct() {
       const s = stage(this);
       await this.step('frame');
@@ -95,6 +97,7 @@ test('diagram traversal evidence survives model replacement without reserving do
   assert.equal(ownTrace.steps[0]!.after.walks, 'mine');
   assert.equal(ownTrace.steps[0]!.evidence!.filter(e => e.kind === 'diagram-walk').length, 1);
   class Later extends Scene {
+    override state: { walks?: string } = {};
     override async construct() {
       const s = stage(this);
       await this.step('frame');
@@ -116,6 +119,7 @@ test('a stage with no style adopts only its first diagram’s palette: a second 
     palette: { paper: '#fafafa', ink: '#111111', accent: '#0000ff', muted: '#bbbbbb' },
   });
   class Two extends Scene {
+    override state = { done: false };
     override async construct() {
       const s = stage(this);
       await this.step('one', { title: 'Two diagrams' });
@@ -133,11 +137,44 @@ test('a stage with no style adopts only its first diagram’s palette: a second 
   await new (bindSnapshots(Two, { [diagramKey(spec)]: fixture(), [diagramKey(other)]: second }))(new NullSink()).run();
 });
 
+test('persistent views and local specimens replay their captured colours after the stage adopts a diagram palette', async () => {
+  class Adopting extends Scene {
+    override state = { count: 3 };
+    override async construct() {
+      const s = stage(this), initial = s.drawing;
+      const persistent = view(this, (state, _shown, ctx) =>
+        new Group(label(ctx, state.count), new Text('native default')), { drawing: initial });
+      await s.steps([{ id: 'sample', title: 'Sample', line: 'One sample.', caption: 'The sample holds seven.',
+        state: { count: 7 }, draw: (state, ctx) => new Group(label(ctx, state.count), new Text('native default')) }]);
+      const local = this.familyMembers().find(isView)!;
+      assert.ok(local);
+      const first = initial.palette.ink;
+      await this.step('diagram');
+      await s.show(spec);
+      const adopted = s.drawing;
+      assert.notEqual(adopted, initial);
+      assert.equal(adopted.palette.ink, fixture().palette.ink);
+      assert.notEqual(adopted.palette.ink, first);
+      for (const [v, count] of [[local, 7], [persistent, 3]] as const) {
+        const replayed = v.rebuild().current;
+        assert.deepEqual(replayed.children.map(part => part.children[0]!.style.fill), [first, first]);
+        const labels = replayed.children.map(part => (part as Text).text);
+        assert.deepEqual(labels, [String(count), 'native default']);
+      }
+      assert.equal(label(adopted, 'new').children[0]!.style.fill, adopted.look.ink);
+      const native = view(this, () => new Text('drawn with the current scene colours'));
+      assert.equal(native.current.children[0]!.style.fill, adopted.look.ink);
+    }
+  }
+  await new (bindSnapshots(Adopting, { [diagramKey(spec)]: fixture() }))(new NullSink()).run();
+});
+
 test('a diagram’s presentation is one value, the view a live diagram replaced included: diagramView, liveDiagram, hide and clear set it, and a viewed diagram refuses a reveal, enlargement or morph', async () => {
   const next = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
   const after = fixedSnapshot(next, fixture().parts.filter((p) => p.id !== '__frame'), { palette: fixture().palette });
   const refused = (api: string) => new RegExp(`^Error: ${api.replace(/[.()]/g, '\\$&')}: the diagram is shown by a view`);
   class Presented extends Scene {
+    override state = { done: false };
     override async construct() {
       const s = stage(this);
       await this.step('one');
@@ -227,6 +264,7 @@ test('a diagram\'s presentation changes only through its calls: a root taken off
 
 test('stage() runs once per scene: a second call is refused', async () => {
   class Twice extends Scene {
+    override state = { done: false };
     override async construct() {
       stage(this);
       // A second stage would add a second backdrop, heading and step listeners.
@@ -275,10 +313,10 @@ test('a card or code panel refuses a size or width that is not a finite size abo
   const { card, code } = await import('../explain/drawing.ts');
   const s = stage(new Scene(new NullSink()), { heading: false });
   for (const bad of [0, -1, NaN, Infinity]) {
-    assert.throws(() => card(s, [['a', 1]], { size: bad }), new RegExp(`^RangeError: card\\(\\): size is ${bad}`));
-    assert.throws(() => card(s, [['a', 1]], { width: bad }), new RegExp(`^RangeError: card\\(\\): width is ${bad}`));
-    assert.throws(() => code(s, ['x'], { size: bad }), new RegExp(`^RangeError: code\\(\\): size is ${bad}`));
-    assert.throws(() => code(s, ['x'], { width: bad }), new RegExp(`^RangeError: code\\(\\): width is ${bad}`));
+    assert.throws(() => card(s.drawing, [['a', 1]], { size: bad }), new RegExp(`^RangeError: card\\(\\): size is ${bad}`));
+    assert.throws(() => card(s.drawing, [['a', 1]], { width: bad }), new RegExp(`^RangeError: card\\(\\): width is ${bad}`));
+    assert.throws(() => code(s.drawing, ['x'], { size: bad }), new RegExp(`^RangeError: code\\(\\): size is ${bad}`));
+    assert.throws(() => code(s.drawing, ['x'], { width: bad }), new RegExp(`^RangeError: code\\(\\): width is ${bad}`));
   }
 });
 

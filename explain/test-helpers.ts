@@ -78,7 +78,7 @@ export async function assertViewFollowsState(
   const checks: ({ mismatch: string | null } | null)[] = [];
   const sink = new TraceSink({ atRest: (scene) => {
     const v = pick(scene);
-    checks.push(v ? { mismatch: viewMismatch(v, v[viewInput](scene.state), { shown: scene.shown, draw: draw ?? v.draw }) } : null);
+    checks.push(v ? { mismatch: viewMismatch(v, v[viewInput](scene.state), { shown: scene.shownJson(), draw: draw ?? v.draw }) } : null);
   } });
   await new Explainer(sink).run();
   let checked = 0;

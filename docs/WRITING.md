@@ -52,7 +52,7 @@ Before any file, test the subject against four questions. If it fails one, pick 
 
 **Is there something real to check the model against?** The model is your account of the system, and it can be wrong in the same way your understanding is. An oracle catches that. For `sort()` the oracle is Node itself, which is already installed because Rayner runs on it. If you cannot name anything real, you can still write the explainer, but its page will say that nothing outside its own tests checked it, and a reader should trust it less. Section 4 covers the choice.
 
-`sort()` passes all four, and its answer is small enough that the whole explainer is 187 lines ([What it costs](#what-it-costs)).
+`sort()` passes all four, and its answer is small enough that the whole explainer is 186 lines ([What it costs](#what-it-costs)).
 
 ## 2. Start from a blank explainer
 
@@ -332,14 +332,14 @@ The blank scene draws its state inline, as one line of text. This picture is lon
 Four facts make the code below readable:
 
 - Positions are in stage units. The stage is 16 wide and 9 high, the origin is its centre, and y goes up. `at: [0, 1.5]` is the middle of the stage, 1.5 units above centre.
-- The shapes come from the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`. `label` draws a line of words and `tile` draws a labelled box (`raised` gives it a filled body). `tones(s)` gives the stage's colours by role, such as `soft` for secondary words. `SPACE` holds the kit's spacings.
+- The shapes come from the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`. `label` draws a line of words and `tile` draws a labelled box (`raised` gives it a filled body). The picture receives a `DrawContext` as `s`. `tones(s)` reads its colours by role, such as `soft` for secondary words. `SPACE` holds the kit's spacings.
 - The kit's smallest type size is `TYPE.small`, which a phone can read, and `label` refuses anything smaller. Draw words with `label`, or with `tile` and `plate`, which use it, and this is decided for you; a card or code panel takes the size you give it.
 - Every part has a **key**, a name that says what the part is. `keyedParts()` collects parts under their keys, and `parts.group()` returns them as one group. Here each box is keyed by its number: `array:10`, `sorted:10`. When the state changes, Rayner matches parts by key, so a box whose number is still there slides to its new place. Without keys it would fade out and a copy would fade in somewhere else, and the reader could not follow which number went where.
 
 <!-- sort-as-text/picture.ts -->
 ```ts
 import { Group } from 'rayner';
-import type { Stage } from 'rayner/explain';
+import type { DrawContext } from 'rayner/explain';
 import { SPACE, TYPE, keyedParts, tile, tones, label } from 'rayner/drawing';
 import { sorted, type State } from './model.ts';
 
@@ -348,14 +348,14 @@ const WIDTH = 1.9;
 const row = (count: number) => (i: number) => (i - (count - 1) / 2) * (WIDTH + SPACE.s);
 
 /** One number as a raised box: one group, its two parts keyed `<key>:box` and `<key>:label`. */
-const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
+const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 
 /**
  * The array as written, and under it what sort() makes of it once the state says it is sorted. With
  * no compare function the sorted row shows each number as the string sort() compares, in quotes.
  * Every box is keyed by its number, so when a number joins, the boxes it passes slide aside.
  */
-export function drawSort(s: Stage, st: State): Group {
+export function drawSort(s: DrawContext, st: State): Group {
   const parts = keyedParts(), t = tones(s);
   const across = row(st.values.length);
   parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
@@ -402,7 +402,7 @@ import { drawSort } from './picture.ts';
 
 const PLACES = ['First', 'Between 1 and 9', 'Last'];
 
-export default class SortAsText extends Scene<State, {}> {
+export default class SortAsText extends Scene {
   static meta = {
     sources: ['https://tc39.es/ecma262/2025/#sec-sortcompare'],
   } satisfies ExplainerMeta;
@@ -410,14 +410,13 @@ export default class SortAsText extends Scene<State, {}> {
     { id: 'compare', label: 'Compare function', default: 'none', options: [{ value: 'none', label: 'none' }, { value: 'numbers', label: '(a, b) => a - b' }] },
   ] as const satisfies readonly Setting[];
 
-  override state = start('none');
+  override state: State = start(settingsOf(this, SortAsText).compare);
 
   override async construct() {
     const s = stage(this);
     const compare = settingsOf(this, SortAsText).compare;
     const asText = compare === 'none';
-    this.state = start(compare);
-    const picture = view(this, (st) => drawSort(s, st));
+    const picture = view(this, (st, _shown, drawing) => drawSort(drawing, st), { drawing: s.drawing });
     // The reader's buttons: each puts a number on the end of the array. Its sorted box flies down
     // from just under where the number joins the array, along the gap between the rows and down into
     // its place, over no other number, after the boxes it passes have made room.
@@ -469,9 +468,9 @@ export default class SortAsText extends Scene<State, {}> {
 
 Read it from the top.
 
-**Sources and the setting.** `static meta` names the sources, which the page lists. `static settings` declares the changed condition as a setting with two options. `as const` keeps their literal names, and `settingsOf(this, SortAsText).compare` is typed as `'none' | 'numbers'`, with no cast or repeated union. Each option is a scenario: the reader switches between them, and `check` and `review` visit both. Inside `construct`, `asText` is the flag every caption branches on.
+**Sources and the setting.** `static meta` names the sources, which the page lists. `static settings` declares the changed condition as a setting with two options. `as const` keeps their literal names, and `settingsOf(this, SortAsText).compare` is typed as `'none' | 'numbers'`, with no cast or repeated union. The `state` field calls `start` with that setting, so each scenario begins with its selected comparison even at frame zero. The reader can switch between them, and `check` and `review` visit both. Inside `construct`, `asText` selects the captions for that comparison.
 
-**The stage and the view.** `stage(this)` draws the paper and a heading that follows each step's title and line. `view(this, (st) => drawSort(s, st))` makes the picture a view of `this.state`: when a step changes the state, `picture.sync()` moves the picture to match. `check` redraws every view from every step's state and fails one that differs, so the picture cannot drift from the state.
+**The stage and the view.** `stage(this)` draws the paper and a heading that follows each step's title and line. The view binds `{ drawing: s.drawing }` to capture the stage’s drawing context. Its draw passes that context and the current model to `drawSort(drawing, st)`. When a step changes the model, `picture.sync()` moves the picture to match. `check` redraws every view from every step's state and fails one that differs, so the picture cannot drift from the state.
 
 **The machine.** A `Machine` is what makes the last step live. It takes the model's `EVENTS`, `next` and `bound`, the state it starts in (the model's start, with the sorted row showing), and the views to redraw. Its `transition` is the motion for one press: the new number's sorted box flies down from where the number joined the array, along the gap between the rows, after the boxes it passes have made room. `beats` and `flight` are the kit's functions for that. `runTime: 2.2` is the transition's length in seconds, and section 8 shows what happens without it.
 
@@ -525,8 +524,8 @@ Suppose you copy the blank scene's `new Text(...)` and shrink it so that six num
 -import { Group, Text, keyed } from 'rayner';
 +import { Group } from 'rayner';
 @@
--const numberBox = (s: Stage, text: string, at: [number, number], key: string) => new Group(keyed(new Text(text, { fontSize: 0.3, color: s.look.ink }).moveTo(at), `${key}:label`));
-+const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
+-const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => new Group(keyed(new Text(text, { fontSize: 0.3, color: s.look.ink, shaping: s.shaping }).moveTo(at), `${key}:label`));
++const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 ```
 
 <!-- check: phone -->
@@ -635,7 +634,8 @@ With every fix in, `check` passes. It prints its report as JSON and saves it in 
         "add 25",
         "add 100"
       ],
-      "states": 16
+      "states": 16,
+      "observations": 16
     }
   ]
 }
@@ -646,7 +646,7 @@ Compare each part with what you meant to write:
 - `model` is the oracle test's run: three tests, three passed.
 - `script.answer` is the first step that states the Answer, and its position. It should be the step you planned to say it in.
 - `predictions` is the prediction, its answer in this scenario, and the step that reveals it.
-- `machines` is the live step's events and the number of states they reach. 16 is the number the model's second test counted.
+- `machines` lists the live step’s events. They reach 16 states, the count from the model’s second test. This machine uses the full model as its observation, so the report counts 16 observations as well.
 
 In the full report, `legibility.labelsUnder12PxAt390` is the number of labels a phone reader sees under 12 px. Keep it at 0.
 
@@ -701,7 +701,7 @@ These are this repository's own numbers, from its Git history and pull requests.
 
 | Explainer | Grounding | script.md | model.ts | model.test.ts | scene.ts | picture.ts | Whole folder |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| sort-as-text (this guide) | live | 18 | 40 | 28 | 72 | 29 | 187 |
+| sort-as-text (this guide) | live | 18 | 40 | 28 | 71 | 29 | 186 |
 | galton-board | live | 30 | 115 | 140 | 175 | 140 | 765 |
 | float-sum | live | 30 | 177 | 175 | 181 | 58 | 794 |
 | unified-diff | live | 28 | 152 | 196 | 191 | 46 | 745 |

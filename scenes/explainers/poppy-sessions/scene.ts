@@ -18,8 +18,9 @@ import type { Shown } from './picture.ts';
 // punches it check by check, in the order 5.2 and 5.3 give: down the chain, then down the claims,
 // until one check breaks. The answer appears only after the punching. Each tamper is an authored
 // transition, so the reader's own presses move as the story's do.
-export default class Sessions extends Scene<SealWorld, Shown> {
+export default class Sessions extends Scene {
   static meta = {
+    watch: [{source:'model',key:'sent',label:'Request sent'}, {source:'shown',key:'links',label:'Links on the ticket'}] as const,
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc9449',
@@ -41,7 +42,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       ],
     },
   ] as const satisfies readonly Setting[];
-  override state = start('remembers');
+  override state: SealWorld = start(settingsOf(this, Sessions).company);
   override shown: Shown = { links: 0 };
 
   override async construct() {
@@ -55,10 +56,8 @@ export default class Sessions extends Scene<SealWorld, Shown> {
     const verdict = (t: Tamper): Verdict => after[STORY.indexOf(t) + 1]!.last!.verdict;
     const sent = verdict('send'), url = verdict('url'), replay = verdict('replay'), leaked = verdict('other-user');
 
-    this.state = start(policy);
-    this.shown = { links: 0 };
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, shown) => drawWorld(w, shown, s), { place: false });
+    const world = view(this, (w, shown, drawing) => drawWorld(w, shown, drawing), { drawing: s.drawing, place: false });
 
     /**
      * A tamper. If the seal was pressed by another hand than last time, that hand moves first: the

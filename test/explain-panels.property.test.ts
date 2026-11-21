@@ -1,6 +1,7 @@
 // Property tests for explain/panels.ts: CodeBlock and Card, drawn from state and synced by a view.
 // Scenes use a NullSink and skip every frame, so a play costs its begin and
 // finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
+import { drawContext } from '../explain/drawing.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, VMobject, Transform } from '../src/index.ts';
@@ -50,7 +51,7 @@ const placed = fc.oneof(region, box.filter((b) => b[2] - b[0] > 0.7));
 /** A code block, unless refused for want of room: then that must be the documented refusal, and true. */
 function code(colors: Of<typeof palette>, text: string[], opts: Record<string, unknown>): CodeBlock {
   try {
-    return new CodeBlock(scene(), colors, text, opts);
+    return new CodeBlock(drawContext({ palette: colors }), text, opts);
   } catch (error) {
     assert.match((error as Error).message, /no room for code/);
     const at = opts.at as Box;
@@ -80,7 +81,7 @@ test('a code block refuses a box too narrow for code', () => {
   fc.assert(
     fc.property(palette, lines(1), box, fc.double({ min: 0.08, max: 0.5, noNaN: true }), (colors, code, at, fontSize) => {
       fc.pre(at[2] - at[0] - 0.7 < fontSize);
-      assert.throws(() => new CodeBlock(scene(), colors, code, { at, size: fontSize }), /no room for code/);
+      assert.throws(() => new CodeBlock(drawContext({ palette: colors }), code, { at, size: fontSize }), /no room for code/);
     }),
     params(),
   );
@@ -89,7 +90,7 @@ test('a code block refuses a box too narrow for code', () => {
 test('a code block refuses empty code', () => {
   fc.assert(
     fc.property(palette, fc.option(placed, { nil: undefined }), (colors, at) => {
-      assert.throws(() => new CodeBlock(scene(), colors, [], at ? { at } : {}), /at least one line|no room for code/);
+      assert.throws(() => new CodeBlock(drawContext({ palette: colors }), [], at ? { at } : {}), /at least one line|no room for code/);
     }),
     params(),
   );
@@ -135,7 +136,7 @@ test('lit refuses any line that is not an index into the code, with the document
       (colors, code, bad) => {
         const [a, b] = typeof bad === 'number' ? [bad, bad] : bad;
         fc.pre(!(Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b < code.length && a <= b));
-        assert.throws(() => new CodeBlock(scene(), colors, code, { lit: { lines: bad as number } }), /^RangeError: code\(\): lit names lines .* which are not lines of this panel/);
+        assert.throws(() => new CodeBlock(drawContext({ palette: colors }), code, { lit: { lines: bad as number } }), /^RangeError: code\(\): lit names lines .* which are not lines of this panel/);
       },
     ),
     params(),
@@ -195,7 +196,7 @@ async function synced({ colors, before, after, at, focus, knobs: k }: Of<typeof 
   code(colors, after, opts);
   const sc = scene();
   let state: { lines: string[]; focus: number | null } = { lines: before, focus: null };
-  const v = view(sc, () => new CodeBlock(sc, colors, state.lines, { ...opts, lit: state.focus == null ? null : { lines: state.focus }, key: 'code' }), { place: false });
+  const v = view(sc, () => new CodeBlock(drawContext({ palette: colors }), state.lines, { ...opts, lit: state.focus == null ? null : { lines: state.focus }, key: 'code' }), { place: false });
   sc.add(v);
   const old = v.current, drawn = new Set(old.code.lines.filter(draws));
   state = { lines: after, focus: focus == null ? null : focus % after.length };
@@ -263,7 +264,7 @@ test('scale probe: a keyed sync of 600 lines of code pairs its repeated lines qu
   const colors = { paper: '#000000', ink: '#ffffff', accent: '#ff8800', muted: '#888888' };
   const sc = scene();
   let now = a;
-  const v = view(sc, () => new CodeBlock(sc, colors, now, { key: 'code' }), { place: false });
+  const v = view(sc, () => new CodeBlock(drawContext({ palette: colors }), now, { key: 'code' }), { place: false });
   sc.add(v);
   const old = v.current;
   const t = performance.now();
@@ -292,7 +293,7 @@ test('a titled block keeps its title inside the panel and above the code', () =>
 test('diff marks one bar per +/- line, green for added and red for removed', () => {
   fc.assert(
     fc.property(palette, fc.array(fc.oneof(line, line.map((l) => '+ ' + l), line.map((l) => '- ' + l)), { minLength: 1, maxLength: 10 }), (colors, code) => {
-      const block = new CodeBlock(scene(), colors, code, { diff: true });
+      const block = new CodeBlock(drawContext({ palette: colors }), code, { diff: true });
       const marked = code.filter((l) => /^[+-] /.test(l));
       assert.deepEqual(block.marks.map((m) => m.kind), marked.map((l) => (l[0] === '+' ? 'added' : 'removed')));
       // A solid gutter edge marks the line by shape, not only by its tint.
@@ -313,7 +314,7 @@ test('a block drawn with added lines bars exactly those, in the added colour, an
     fc.asyncProperty(palette, lines(1).chain((code) => fc.tuple(fc.constant(code), fc.subarray(code.map((_, i) => i), { minLength: 1 }))), async (colors, [code, added]) => {
       const sc = scene();
       let state: number[] = added;
-      const v = view(sc, () => new CodeBlock(sc, colors, code, { added: state, key: 'code' }), { place: false });
+      const v = view(sc, () => new CodeBlock(drawContext({ palette: colors }), code, { added: state, key: 'code' }), { place: false });
       sc.add(v);
       const block = v.current;
       assert.deepEqual(block.marks.map((m) => [m.line, m.kind]).sort(), added.map((i) => [i, 'added']).sort());
@@ -350,7 +351,7 @@ const cardCase = fc.record({
 });
 const card = (c: Of<typeof cardCase>) => {
   const s = scene();
-  const k = new Card(s, c.colors, c.rows, { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { size: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align });
+  const k = new Card(drawContext({ palette: c.colors }), c.rows, { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { size: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align });
   s.add(k);
   return { s, k };
 };
@@ -454,12 +455,11 @@ test('a repeated row label draws every row, but lit refuses it as ambiguous', ()
     fc.property(palette, rows, fc.nat(), value, (colors, r, k, v) => {
       const label = r[k % r.length]![0];
       const dup = [...r, [label, v] as const];
-      const s = scene();
-      const card = new Card(s, colors, dup, { width: 12 });
+      const card = new Card(drawContext({ palette: colors }), dup, { width: 12 });
       assert.equal(card.family().filter((m) => m instanceof Text && m.parent === card).length, 2 * dup.length);
-      assert.throws(() => new Card(s, colors, dup, { width: 12, lit: { row: label } }), /not unique/);
+      assert.throws(() => new Card(drawContext({ palette: colors }), dup, { width: 12, lit: { row: label } }), /not unique/);
       // Keyed, every row's label takes its own row's key: none is left unkeyed and none keyed twice.
-      const keyed = new Card(s, colors, dup, { width: 12, key: 'c' });
+      const keyed = new Card(drawContext({ palette: colors }), dup, { width: 12, key: 'c' });
       const labelKeys = keyed.family().filter((m) => m.key?.match(/^c:row:\d+$/)).map((m) => m.key);
       assert.deepEqual(labelKeys, dup.map((_, i) => `c:row:${i}`));
     }),
@@ -476,7 +476,7 @@ async function syncedCard(c: Of<typeof cardCase>, changes: Record<string, unknow
   const sc = made.s;
   sc.remove(made.k);
   let now: readonly CardRow[] = c.rows;
-  const v = view(sc, () => new Card(sc, c.colors, now, opts), { place: false });
+  const v = view(sc, () => new Card(drawContext({ palette: c.colors }), now, opts), { place: false });
   sc.add(v);
   const old = v.current, drawn = new Set([...old.values.values()].filter(draws));
   now = c.rows.map(([l, v]) => [l, Object.hasOwn(changes, l) ? changes[l] : v] as const);
@@ -526,7 +526,7 @@ test('a card drawn lit, synced from row to row, lights each row; drawn unlit, it
       const sc = made.s;
       sc.remove(made.k);
       let row: string | null = null;
-      const v = view(sc, () => new Card(sc, c.colors, c.rows, { ...opts, lit: row == null ? null : { row } }), { place: false });
+      const v = view(sc, () => new Card(drawContext({ palette: c.colors }), c.rows, { ...opts, lit: row == null ? null : { row } }), { place: false });
       sc.add(v);
       for (const l of lit) {
         row = l;
@@ -562,7 +562,7 @@ const columnCase = fc
     })),
   );
 const columned = (c: Of<typeof columnCase>) =>
-  new Card(scene(), c.colors, c.rows, { columns: c.columns, direction: c.direction, ...(c.width != null ? { width: c.width } : {}) });
+  new Card(drawContext({ palette: c.colors }), c.rows, { columns: c.columns, direction: c.direction, ...(c.width != null ? { width: c.width } : {}) });
 
 test('uncapped columned cards keep headings at their authored size with single-value rows', () => {
   fc.assert(
@@ -573,7 +573,7 @@ test('uncapped columned cards keep headings at their authored size with single-v
       fc.double({ min: 0.08, max: 0.5, noNaN: true }),
       (colors, columns, direction, fontSize) => {
         // One column also has one value per row; neither shape may discard its heading's width.
-        const k = new Card(scene(), colors, [['Requests', 'A B C']], { columns, direction, size: fontSize });
+        const k = new Card(drawContext({ palette: colors }), [['Requests', 'A B C']], { columns, direction, size: fontSize });
         const data = new Set([...k.labels.values(), ...[...k.cells.values()].flat()]);
         const headings = k.children.filter((m): m is Text => m instanceof Text && !data.has(m));
         assert.deepEqual(headings.map((h) => h.text), columns);
@@ -633,7 +633,7 @@ test('a columned card is described by row and column, and a keyed sync changes o
       const sc = scene();
       const options = { columns: c.columns, direction: c.direction, ...(c.width != null ? { width: c.width } : {}), key: 'card' };
       let now = c.rows;
-      const view_ = view(sc, () => new Card(sc, c.colors, now, options), { place: false });
+      const view_ = view(sc, () => new Card(drawContext({ palette: c.colors }), now, options), { place: false });
       sc.add(view_);
       const old = view_.current, drawn = new Set(old.cells.get(l)!.filter(draws));
       const next = c.columns.map((_, j) => (j === 0 ? v : row[j + 1]));
@@ -656,9 +656,9 @@ test('a columned card is described by row and column, and a keyed sync changes o
 });
 
 test('a row whose value count matches neither one nor the columns is refused', () => {
-  assert.throws(() => new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Hits', 1, 2]]), /pass columns/);
-  assert.throws(() => new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Hits', 1, 2]], { columns: ['A', 'B', 'C'] }), /2 values for 3 columns/);
-  const spanning = new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Requests', 'A B C'], ['Hits', 0, 3]], { columns: ['LRU', 'MRU'] });
+  assert.throws(() => new Card(drawContext({ palette: { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' } }), [['Hits', 1, 2]]), /pass columns/);
+  assert.throws(() => new Card(drawContext({ palette: { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' } }), [['Hits', 1, 2]], { columns: ['A', 'B', 'C'] }), /2 values for 3 columns/);
+  const spanning = new Card(drawContext({ palette: { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' } }), [['Requests', 'A B C'], ['Hits', 0, 3]], { columns: ['LRU', 'MRU'] });
   assert.deepEqual(spanning.describe().parts.map((p) => p.name), ['Requests: A B C', 'Hits (LRU): 0', 'Hits (MRU): 3']);
 });
 
@@ -671,12 +671,12 @@ test('the stage’s card and code panel are the kit’s card and code, entered: 
   const rows: CardRow[] = [['Requests', 'A B C'], ['Hits', 0, 3]];
   const options = { columns: ['LRU', 'MRU'], width: 6, title: 'Cache', lit: { row: 'Hits' } };
   const entered = await s.card(rows, { ...options, at: 'right' });
-  const built = kit.card(s, rows, { ...options, at: 'right' });
+  const built = kit.card(s.drawing, rows, { ...options, at: 'right' });
   assert.equal(pictureFingerprint(entered), pictureFingerprint(built));
   assert.deepEqual(entered.describe(), built.describe());
   const lines = ['const a = 1;', 'return a;'];
   const code = await s.code(lines, { at: 'left', title: 'f', lit: { lines: 1 } });
-  const made = kit.code(s, lines, { at: 'left', title: 'f', lit: { lines: 1 } });
+  const made = kit.code(s.drawing, lines, { at: 'left', title: 'f', lit: { lines: 1 } });
   assert.equal(pictureFingerprint(code), pictureFingerprint(made));
   assert.deepEqual(code.describe(), made.describe());
   assert.ok(sc.familyMembers().includes(entered) && sc.familyMembers().includes(code), 'and entered: on the stage');

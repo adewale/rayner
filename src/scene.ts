@@ -83,10 +83,10 @@ export function setStepState(step: Step, state: JsonObject): void { stepStates.s
 export function stepStateOf(step: Step): JsonObject | undefined { return stepStates.get(step); }
 
 type StepCheck = (step: Step | null) => void;
-const stepChecks = new WeakMap<Scene<any, any>, StepCheck[]>();
+const stepChecks = new WeakMap<Scene, StepCheck[]>();
 
 /** @internal Validate before the first named step (null) and after each named step's listeners and hold. */
-export function addStepCheck(scene: Scene<any, any>, check: StepCheck): void {
+export function addStepCheck(scene: Scene, check: StepCheck): void {
   const checks = stepChecks.get(scene);
   if (checks) checks.push(check);
   else stepChecks.set(scene, [check]);
@@ -103,7 +103,7 @@ export type Evidence = { kind: string } & Record<string, unknown>;
  * drawn. An invariant that never holds on any frame of a run was never tested, so rayner check
  * fails it: a misspelt key finds nothing and cannot pass for an invariant that held.
  */
-export type Invariant = (scene: Scene<any, any>) => string | boolean | null | undefined | void;
+export type Invariant = (scene: Scene) => string | boolean | null | undefined | void;
 
 /**
  * What a scene renders into: called once per frame (dt = 0 for the first),
@@ -178,7 +178,7 @@ function captionWords(caption: string): number {
 }
 
 /** A scene constructor. By default its model and shown keys are unknown. Read their JSON with stateJson() and shownJson(). */
-export type SceneClass<S extends Scene<object, object> = Scene<object, object>> = new (sink: Sink, opts?: SceneOptions) => S;
+export type SceneClass<S extends Scene = Scene> = new (sink: Sink, opts?: SceneOptions) => S;
 
 /**
  * Two animations in one play() must not drive the same mobject (or one
@@ -278,7 +278,7 @@ function deepFreeze<T extends object>(value: T): T {
  * @internal Make `mobjects`, as it is, the drawn list of `scene`: for a picture drawn without
  * some of what is on stage (the stage's heading), put back once it is drawn.
  */
-export let setDrawn: (scene: Scene<any, any>, mobjects: readonly Mobject[]) => void;
+export let setDrawn: (scene: Scene, mobjects: readonly Mobject[]) => void;
 /**
  * @internal Stop `scene`'s run as the step `path` ends: after its end listeners and its caption hold,
  * once the sink has heard the end, with the step still current. The scene is then as the trace
@@ -292,7 +292,7 @@ export let setDrawn: (scene: Scene<any, any>, mobjects: readonly Mobject[]) => v
  * another sink than the scene's own. The live player runs a scene to a step this way, and plays
  * and draws the reader's events in `at`; check explores a machine from the same point.
  */
-export let stopAt: <T extends Scene<any, any>>(scene: T, path: string, at: (scene: T, draw: (sink: Sink) => Promise<void>) => unknown) => void;
+export let stopAt: <T extends Scene>(scene: T, path: string, at: (scene: T, draw: (sink: Sink) => Promise<void>) => unknown) => void;
 /**
  * @internal Keep `mobs` drawn last in `scene`, over anything added after them, in the order given (one
  * kept already moves last among them). Whenever one is on stage, as a root or inside one, the root
@@ -303,18 +303,18 @@ export let stopAt: <T extends Scene<any, any>>(scene: T, path: string, at: (scen
  * Keeping does not add it. Returns a function that stops keeping them. The stage keeps its heading,
  * band, step number and line on top this way.
  */
-export let keepOnTop: (scene: Scene<any, any>, ...mobs: Mobject[]) => () => void;
+export let keepOnTop: (scene: Scene, ...mobs: Mobject[]) => () => void;
 /**
  * @internal Hand `sink` the picture of `scene` as it is now, as one frame at dt 0, outside play() and
  * wait(): what is kept on top is raised first, as before every frame the scene hands its own sink.
  * For a frame drawn after a run (renderFrame past the end), and the draw stopAt() hands its callback.
  */
-export let drawFrame: (scene: Scene<any, any>, sink: Sink) => Promise<void>;
+export let drawFrame: (scene: Scene, sink: Sink) => Promise<void>;
 /**
  * @internal How many play() calls the scene has begun: a sink reads it to tell one play's frames
  * from the next one's (the keyed motion check judges each play as one transition).
  */
-export let playsBegun: (scene: Scene<any, any>) => number;
+export let playsBegun: (scene: Scene) => number;
 /**
  * @internal Run `begin` once what `anims` read is ready (see the whenReady hook), in turn order: now
  * when nothing waits and nothing begun or made earlier in this frame of `scene`'s running play waits;
@@ -325,12 +325,12 @@ export let playsBegun: (scene: Scene<any, any>) => number;
  * waited for everything it was given. `call` is what a refusal names: the call they belong to,
  * 's.card()', 'machine.send("UP")' or an action's own.
  */
-export let beginWhenReady: (scene: Scene<any, any>, anims: readonly ScheduledAnimation[], call: string, begin: () => void) => void;
+export let beginWhenReady: (scene: Scene, anims: readonly ScheduledAnimation[], call: string, begin: () => void) => void;
 /**
  * @internal Run `then` in `scene`'s running play once everything held in it so far has begun (see
  * beginWhenReady): a Succession, which `call` names, carrying on after a member that waits.
  */
-export let afterHeld: (scene: Scene<any, any>, call: string, then: () => void) => void;
+export let afterHeld: (scene: Scene, call: string, then: () => void) => void;
 /**
  * @internal Begin animations in `scene` as play() does: successions bound, copies taken, then each
  * begun. Begun later in a running play (a Succession's member at its turn, or what an action's beat
@@ -339,7 +339,7 @@ export let afterHeld: (scene: Scene<any, any>, call: string, then: () => void) =
  * begins, those it began before land (see landBegun) before the error goes on, wherever the list
  * is begun: as a play begins, or at a turn inside it.
  */
-export let beginAnimations: (scene: Scene<any, any>, anims: readonly ScheduledAnimation[], call?: string) => void;
+export let beginAnimations: (scene: Scene, anims: readonly ScheduledAnimation[], call?: string) => void;
 /**
  * @internal Do `seen`, what an animation does in sight as it begins (record its evidence, join the
  * stage), in turn order: now, unless something begun or made earlier in this frame of `scene`'s
@@ -347,22 +347,16 @@ export let beginAnimations: (scene: Scene<any, any>, anims: readonly ScheduledAn
  * before its next frame. So whatever begins beside one that waits, listed after it in a play, a
  * group or a Succession's member, is drawn and recorded after it, as it would be if nothing waited.
  */
-export let inTurn: (scene: Scene<any, any>, seen: () => void) => void;
+export let inTurn: (scene: Scene, seen: () => void) => void;
 
-declare const sceneTypes: unique symbol;
-/**
- * A state type as a scene holds it: `S`'s own properties (an interface's too, which can then go
- * wherever a JSON record can), or anything for `Scene<any>`.
- */
-type Held<S> = unknown extends S ? any : { [K in keyof S]: S[K] };
+/** A running scene whose author has initialized concrete model and presentation fields. */
+export type SceneInputs<Model extends object, Shown extends object = object> = Scene & {
+  state: Model;
+  shown: Shown;
+};
 
-/**
- * A scene with typed state: `S` is the model's type (what `state` holds) and `Sh` the type of what
- * is shown of it (`shown`). An explainer declares both, `class X extends Scene<Model, Shown>`, and
- * every view, staged step and machine on it is typed from them. Untyped, both are JSON
- * records (SceneState).
- */
-export class Scene<S extends object = SceneState, Sh extends object = SceneState> {
+/** A scene with an ordered list of mobjects, a clock, and independently authored model and presentation. */
+export class Scene {
   /** Where frames and step boundaries go (the constructor's sink). */
   #sink: Sink;
   readonly fps: number;
@@ -391,7 +385,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   #frameCount = 0;
   static {
     setDrawn = (scene, mobjects) => { scene.#mobjects = mobjects as Mobject[]; };
-    stopAt = (scene, path, at) => scene.#stopAt(path, at as (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown);
+    stopAt = (scene, path, at) => scene.#stopAt(path, at as (scene: Scene, draw: (sink: Sink) => Promise<void>) => unknown);
     keepOnTop = (scene, ...mobs) => scene.#keepOnTop(mobs);
     playsBegun = (scene) => scene.#plays;
     drawFrame = (scene, sink) => scene.#drawFrame(sink);
@@ -403,18 +397,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   readonly steps: Step[];
   #current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
-  state: NoInfer<Held<S>>;
+  state: object = {};
   /**
    * What is shown of it, apart from the model: which picture a phase shows, say. JSON. A view's
    * draw may read it; a machine never changes it. Kept apart so the model holds only the domain.
    */
-  shown: NoInfer<Held<Sh>>;
-  /**
-   * Type-only, never set: the model and shown types, which views, steps and machines on the scene
-   * infer theirs from. Each is joined with any JSON record, so a typed scene goes wherever a
-   * `Scene` does; its `state` and `shown` still hold it to its own types.
-   */
-  declare readonly [sceneTypes]?: { state: S | Record<string, any>; shown: Sh | Record<string, any> };
+  shown: object = {};
   /** Every Scene.record() so far, in order, across steps. */
   readonly evidence: Evidence[];
   /**
@@ -447,7 +435,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** Mobjects kept last in drawing order while on stage (see keepOnTop), in the order kept. */
   #onTop: Mobject[] = [];
   /** Where the run stops early (see stopAt), or null. */
-  #stop: { path: string; at: (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown; reached: boolean } | null = null;
+  #stop: { path: string; at: (scene: Scene, draw: (sink: Sink) => Promise<void>) => unknown; reached: boolean } | null = null;
   // One entry per registration, so each remover removes exactly its own.
   #stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   #stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
@@ -476,9 +464,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // Named steps: the addressable unit for deep links, traces and tests
     this.steps = [];
     this.#current = null;
-    // The explanation's own state, and what is shown of it; stateJson() and shownJson() copy them for traces
-    this.state = {} as S;
-    this.shown = {} as Sh;
     this.evidence = [];
     this.frame = new Frame();
     this.#phase = 'idle';
@@ -564,7 +549,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /** See stopAt. */
-  #stopAt(path: string, at: (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown): void {
+  #stopAt(path: string, at: (scene: Scene, draw: (sink: Sink) => Promise<void>) => unknown): void {
     if (this.#ran) throw new Error('stopAt(): the scene has begun its run; say where it stops before run()');
     this.#stop = { path, at, reached: false };
   }
@@ -623,6 +608,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     this.#ran = true;
     return withTextContext(this.constructor, async () => {
       try {
+        cloneJson(this.state, 'this.state', 'this.state');
+        cloneJson(this.shown, 'this.shown', 'this.shown');
         await loadFonts();
         await this.#toSink(() => this.#sink.frame(this, 0));
         await this.construct();

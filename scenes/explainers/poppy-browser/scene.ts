@@ -1,7 +1,7 @@
 import { AnimationGroup, Group, Rectangle, Scene } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
-import type { ExplainerMeta, Setting, Stage, Transition } from '../../../explain/index.ts';
+import type { ExplainerMeta, Setting, DrawContext, Transition } from '../../../explain/index.ts';
 import { TONE, beats, codeSlip, cookie, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
@@ -26,7 +26,7 @@ const together = (...lists: Beat[][]): Beat[] =>
   Array.from({ length: Math.max(...lists.map((l) => l.length)) }, (_, i) => new AnimationGroup(lists.map((l) => l[i]).filter((b): b is Beat => !!b)));
 
 /** A request from the browser: a plain slip of paper, with no seal, since a browser cannot carry the agent's header; with its cookie, when it sends one. */
-const browserRequest = (s?: Stage, withCookie = false) => new Group(
+const browserRequest = (s?: DrawContext, withCookie = false) => new Group(
   new Rectangle({ width: 0.9, height: 0.52, fill: TONE.paper, stroke: 'none', cornerRadius: 0.06 }),
   new Rectangle({ width: 0.55, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([-0.05, 0.08]),
   new Rectangle({ width: 0.35, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([-0.15, -0.1]),
@@ -47,7 +47,7 @@ const FRESH = ['answer:', 'ticket', 'barrier', 'message', 'rack:none'];
 // together and the half seats against the Company's stub; the Session's cookie comes back to the
 // shelf. The attacker's stub comes from its own browser through yours; its cookie half comes from its
 // own shelf; its message stops beside your agent and goes no further.
-export default class PoppyBrowser extends Scene<World, Shown> {
+export default class PoppyBrowser extends Scene {
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -77,25 +77,23 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       ],
     },
   ] as const satisfies readonly Setting[];
-  override state = start('signed in');
-  override shown: Shown = SHOWN_START;
+  override state: World = start(SIGN_INS[settingsOf(this, PoppyBrowser).signin]!);
+  override shown: Shown = { ...SHOWN_START };
 
   override async construct() {
-    const signIn = SIGN_INS[settingsOf(this, PoppyBrowser).signin]!, story = storyOf(signIn);
+    const signIn = this.state.signIn, story = storyOf(signIn);
     // The world after each event of the story, from the model, so the words say what it computed.
     const after = story.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);
       if (isRefusal(world)) throw new Error(`the story's ${event} is refused: ${world.reason}`);
       return [...worlds, world];
-    }, [start(signIn)]);
+    }, [this.state]);
     const browsed = after.find((w) => w.last?.event === 'browse')!.last;
     if (browsed?.event !== 'browse') throw new Error('the story has no browse');
     const signedIn = browsed.visit.via === 'session';
 
-    this.state = start(signIn);
-    this.shown = SHOWN_START;
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, sh) => drawWorld(w, s, sh), { place: false });
+    const world = view(this, (w, sh, drawing) => drawWorld(w, drawing, sh), { drawing: s.drawing, place: false });
 
     const codeOf = (t: Transition<World, JoinEvent>) => {
       const last = t.after.last;
@@ -137,7 +135,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         // pressed on the Company's stub only once the ticket lands, and covers the ring.
         authorize: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
-          const read = codeSlip(s, { code: shortCode(t.after.page ?? '') });
+          const read = codeSlip(s.drawing, { code: shortCode(t.after.page ?? '') });
           return beats(c, () => [
             ...pass(c, 'read', read, [[WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
             ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM], { appear: 0.2, move: 0.9, leave: 0.2 })(),
@@ -161,13 +159,13 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         // The browser opens a page: a slip with its cookie goes to the counter; the page changes once the answer is back.
         browse: (t) => {
           const c = t.choreograph(world);
-          return beats(c, () => pass(c, 'request', browserRequest(s, true), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.55, leave: 0.25 }), { fresh: FRESH, lead: BROWSER_ROAD });
+          return beats(c, () => pass(c, 'request', browserRequest(s.drawing, true), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.55, leave: 0.25 }), { fresh: FRESH, lead: BROWSER_ROAD });
         },
         // The attacker's stamped stub comes from its own browser, into yours, and is handed in at the counter alone:
         // then the Company's stub shows the empty outline where the cookie half should be, and a barrier.
         forge: (t) => {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE);
-          const token = codeSlip(s, { code: shortCode(ATTACK_CODE) });
+          const token = codeSlip(s.drawing, { code: shortCode(ATTACK_CODE) });
           return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_SIDE_X, 0.95], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, [COUNTER_X - 0.75, ROAD_B]], { appear: 0.25, move: 1.3, leave: 0.2 }),
             { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
@@ -237,7 +235,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
     });
     // The map fades out whole, then the table fades in whole: no part shrinks, since the two pictures share nothing.
     await this.play(s.clear({ runTime: 0.6 }));
-    await this.play(s.enter(drawLogins(s), { describe: sayLogins(), runTime: 0.7 }));
+    await this.play(s.enter(drawLogins(s.drawing), { describe: sayLogins(), runTime: 0.7 }));
 
     await this.step('forge', {
       title: 'A stamped code without its cookie',

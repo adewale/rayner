@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { bareRuntime } from '../tools/lib/explain-check.ts';
 import { shippedScenario } from '../tools/lib/scene-entry.ts';
-import { playerChanges, playerTrace, type PlayerStep } from '../app/embed-trace.ts';
+import { playerTrace, type PlayerStep } from '../app/embed-trace.ts';
 import type { Trace } from '../src/trace.ts';
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-player-trace-'));
@@ -19,7 +19,7 @@ async function watchingProject() {
   const dir = join(folder, 'watching');
   await mkdir(dir);
   await writeFile(join(dir, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage,settingsOf}from'rayner/explain';
-export default class Watching extends Scene{static meta={watch:{count:'Count'}};
+export default class Watching extends Scene{static meta={watch:[{source:'model',key:'count',label:'Count'}]};
 static settings=[{id:'size',label:'Size',default:'small',options:[{value:'small',label:'Small'},{value:'large',label:'Large'}]}];
 async construct(){const s=stage(this);const size=settingsOf(this).size;this.state.count=0;this.state.points=[[0,0],[1,1]];
 await this.step('one',{caption:'A label.'});this.state.count=1;this.record('note',{size});
@@ -28,7 +28,7 @@ await this.step('two',{caption:'Another.'});this.state.count=size==='large'?3:2;
   return collectProject(dir, { write: false });
 }
 
-const PLAYER_KEYS = new Set(['step', 't0', 'frame0', 't1', 'frame1', 'hold', 'holdFrame', 'meta', 'derived', 'before', 'after']);
+const PLAYER_KEYS = new Set(['step', 't0', 'frame0', 't1', 'frame1', 'hold', 'holdFrame', 'meta', 'derived', 'watched']);
 
 test('the shipped scenario and a scenario the page runs give the player one trace shape: watched state only, no evidence', async () => {
   const project = await watchingProject();
@@ -45,21 +45,23 @@ test('the shipped scenario and a scenario the page runs give the player one trac
     assert.deepEqual(JSON.parse(JSON.stringify(page)), JSON.parse(JSON.stringify(shipped)), JSON.stringify(v.values));
     for (const step of shipped.steps) {
       assert.deepEqual(Object.keys(step).filter((k) => !PLAYER_KEYS.has(k)), [], `${step.step}: only the player's keys`);
-      for (const state of [step.before, step.after]) assert.deepEqual(Object.keys(state ?? {}), ['count'], `${step.step}: only the watched key`);
+      assert.ok(!Object.hasOwn(step, 'before') && !Object.hasOwn(step, 'after'));
+      assert.ok((step.watched ?? []).every(row => row.label === 'Count'));
     }
-    assert.deepEqual(shipped.steps.map((s) => playerChanges(s, watch)), [[{ label: 'Count', before: '0', after: '1' }], [{ label: 'Count', before: '1', after: v.values.size === 'large' ? '3' : '2' }]]);
+    assert.deepEqual(shipped.steps.map((s) => (s.watched ?? [])), [[{ kind: 'change', label: 'Count', before: '0', after: '1' }], [{ kind: 'change', label: 'Count', before: '1', after: v.values.size === 'large' ? '3' : '2' }]]);
   }
 });
 
 test('a scene that watches nothing gives the player no state at all', () => {
   const trace: Trace = { fps: 30, duration: 1, frames: 30, steps: [{ step: 'a', t0: 0, frame0: 0, t1: 1, frame1: 30, meta: {}, before: { x: 1 }, after: { x: 2 }, evidence: [{ kind: 'k' }] }] };
-  assert.deepEqual(playerTrace(trace, undefined), { fps: 30, duration: 1, frames: 30, steps: [{ step: 'a', t0: 0, frame0: 0, t1: 1, frame1: 30, meta: {}, before: {}, after: {} }] });
+  assert.deepEqual(playerTrace(trace, undefined), { fps: 30, duration: 1, frames: 30, steps: [{ step: 'a', t0: 0, frame0: 0, t1: 1, frame1: 30, meta: {} }] });
 });
 
 test('the player cannot read a step\'s state except through its watched changes', () => {
-  const step = playerTrace({ fps: 30, duration: 0, frames: 0, steps: [{ step: 'a', t0: 0, frame0: 0, t1: 0, frame1: 0, meta: {}, before: { x: 1 }, after: { x: 1 } }] }, { x: 'X' }).steps[0]! satisfies PlayerStep;
-  // @ts-expect-error the watched state is opaque: a key is read through playerChanges, never directly
-  assert.equal(step.before.x, 1);
+  const step = playerTrace({ fps: 30, duration: 0, frames: 0, steps: [{ step: 'a', t0: 0, frame0: 0, t1: 0, frame1: 0, meta: {}, before: { x: 1 }, after: { x: 1 } }] }, [{source:'model',key:'x',label:'X'}]).steps[0]! satisfies PlayerStep;
+  // @ts-expect-error raw model boundaries never enter the player payload
+  void step.before;
+  assert.deepEqual(step.watched, []);
 });
 
 test('the player watches persistent model values across staged specimens without inventing removals', () => {
@@ -69,15 +71,15 @@ test('the player watches persistent model values across staged specimens without
     { ...base, step: 'two', state: { count: 2, points: [[1, 1]] } },
     { ...base, step: 'model', after: { model: 8 } },
   ] };
-  const watch = { count: 'Count', model: 'Model' }, player = playerTrace(trace, watch);
+  const watch = [{ source: 'model', key: "count", label: 'Count' }, { source: 'model', key: "model", label: 'Model' }] as const, player = playerTrace(trace, watch);
   assert.equal(player.steps.length, 3);
-  assert.deepEqual(player.steps.map((s) => playerChanges(s, watch)), [
+  assert.deepEqual(player.steps.map((s) => (s.watched ?? [])), [
     [],
     [],
-    [{ label: 'Model', before: '7', after: '8' }],
+    [{ kind: 'change', label: 'Model', before: '7', after: '8' }],
   ]);
   for (const step of player.steps) {
     assert.ok(!('state' in step));
-    assert.ok(!('points' in step.before) && !('points' in step.after));
+    assert.ok(!('before' in step) && !('after' in step));
   }
 });

@@ -22,10 +22,10 @@ type Lamp = { level: number };
 type Press = 'UP' | 'DOWN' | 'OFF';
 const LEVELS = ['off', 'dim', 'bright'] as const;
 /** A lamp of three levels. UP past bright is refused, with a reason; DOWN from off is refused, without one; OFF from off is past the story. */
-function lampScene({ after = (_scene: Scene<Lamp>) => {} } = {}) {
-  return class LampScene extends Scene<Lamp> {
+function lampScene({ after = (_scene: Scene & { state: Lamp }) => {} } = {}) {
+  return class LampScene extends Scene {
     machine!: Machine<Lamp, Press>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
@@ -67,8 +67,8 @@ test('a machine is live at the step it last played in, and nowhere before it pla
 });
 
 test('an offer wins over a guided send, refuses competing offers and must recur at the same step on replay', async () => {
-  const source = (owner: 'first' | 'second' | 'both' | 'none') => class Switches extends Scene<Lamp> {
-    override state = { level: 0 };
+  const source = (owner: 'first' | 'second' | 'both' | 'none') => class Switches extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const spec = { start: { level: 0 }, events: ['UP'] as const, next: (st: Lamp) => ({ level: st.level + 1 }), views: [] };
       const first = new Machine(this, spec), second = new Machine(this, spec);
@@ -97,8 +97,8 @@ test('an offer wins over a guided send, refuses competing offers and must recur 
 });
 
 test('an inferred machine still owns its earlier step when a later-made machine played there and then moved on', async () => {
-  class TwoSteps extends Scene<Lamp> {
-    override state = { level: 0 };
+  class TwoSteps extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const spec = { start: { level: 0 }, events: ['UP'] as const, next: (st: Lamp) => ({ level: st.level + 1 }), views: [] };
       const first = new Machine(this, spec), second = new Machine(this, spec);
@@ -133,7 +133,7 @@ test('buttons say what outcome says: the label, and a refusalâ€™s or the storyâ€
 
 test('buttons for prototype-named events use only their own labels', () => {
   const names = ['constructor', 'valueOf', '__proto__'];
-  const scene = new Scene<object>(new NullSink());
+  const scene = new Scene(new NullSink());
   const machine = new Machine<object, string>(scene, {
     start: {}, events: names, labels: { ['__proto__']: 'Advance' }, next: s => s, views: [],
   });
@@ -401,8 +401,8 @@ test('a live run drives the same machine it was given: same events in the same o
   // A scene whose machine's events swap order on every run: the same index names another machine.
   // Before, the player took whatever machine the index named.
   let runs = 0;
-  class Swapping extends Scene<Lamp> {
-    override state = { level: 0 };
+  class Swapping extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const picture = view(this, (st: Lamp) => keyed(new Group(keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word')), 'lamp'));
       this.add(picture);
@@ -419,7 +419,7 @@ test('a live run drives the same machine it was given: same events in the same o
   // The next run makes the first order again: the same machine, which plays.
   assert.deepEqual((await runLive(Swapping, press, at, ['UP'])).rest, { level: 1 });
   // Identity reads events in order, the start and the views' keys.
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = Object.assign(new Scene(new NullSink()), { state: { level: 0 } });
   const spec = { start: { level: 0 }, next: (s: Lamp) => s, views: [] };
   const id = (o: object) => new Machine(scene, { ...spec, events: ['UP', 'DOWN'], ...o }).identity;
   assert.equal(id({}), id({}));

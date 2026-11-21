@@ -72,7 +72,7 @@ test('parameter recipe seeks to played SVGs and traces agree with full playback'
   for (const frame of [0, 3, 15, 27, 30]) {
     const scene = await renderFrame(ContinuousScene, frame);
     assert.equal(toSvgString(scene), full.frames[frame]);
-    assert.ok(Math.abs((scene.state.angle as number) - (frame / 30) * Math.PI) < 1e-12);
+    assert.ok(Math.abs(scene.state.angle - (frame / 30) * Math.PI) < 1e-12);
   }
   const fullTrace = new TraceSink({ skipUntil: 0 }); await new ContinuousScene(fullTrace).run();
   assert.deepEqual((await traceScene(ContinuousScene)).steps, fullTrace.steps());
@@ -80,6 +80,7 @@ test('parameter recipe seeks to played SVGs and traces agree with full playback'
 
 test('parameter animations capture starts in succession and reject another writer to a dependent object', async () => {
   class RoundTrip extends Scene {
+    override state = { angle: 0 };
     override async construct() {
       const rig = makeOrbit();
       const publish = (sample: ReturnType<typeof orbit>) => { this.state = { angle: sample.angle }; };
@@ -90,7 +91,7 @@ test('parameter animations capture starts in succession and reject another write
     }
   }
   const scene = await renderFrame(RoundTrip, 45, { skipUntil: Infinity, async frame() {} }, { fps: 60 });
-  assert.ok(Math.abs((scene.state.angle as number) - Math.PI / 2) < 1e-12);
+  assert.ok(Math.abs(scene.state.angle - Math.PI / 2) < 1e-12);
   class Conflicting extends Scene {
     override async construct() {
       const rig = makeOrbit();
@@ -116,7 +117,7 @@ test('one shared orbit sample keeps both mounted views consistent on every frame
   await new SharedOrbit({ async frame(scene) {
     await full.frame(scene);
     if (!scene.find('orbit:point') || !scene.find('orbit:radius')) return;
-    const angle = scene.state.angle as number;
+    const angle = scene.stateJson().angle as number;
     const point = scene.find('orbit:point')!.children[0] as { center(): number[] };
     const radius = scene.find('orbit:radius')!.children[0] as unknown as { end(): number[] };
     const expected = [3 * Math.cos(angle), 3 * Math.sin(angle)];
@@ -150,8 +151,8 @@ test('a claim that reads a misspelt key finds nothing on every frame: it is repo
   const { Scene, Dot, linear } = await import('rayner');
   const { view } = await import('rayner/explain');
   class Misspelt extends Scene {
+    override state = { angle: 0 };
     override async construct() {
-      this.state = { angle: 0 };
       const dot = view(this, (st) => keyed(new Dot().moveTo([2 * Math.cos(st.angle as number), 2 * Math.sin(st.angle as number)]), 'orbit:dot'), { place: false });
       this.add(dot);
       this.addInvariant('the dot stays on its circle', (scene) => {

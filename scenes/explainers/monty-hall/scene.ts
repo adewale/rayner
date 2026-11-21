@@ -35,7 +35,10 @@ type MontyFacts = {
 /** The round a reader plays (the machine's), then the facts the strips are drawn from. */
 type MontyState = Round | MontyFacts;
 
-export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> {
+export default class MontyHall extends Scene {
+  override state: MontyState = roundStart(settingsOf(this, MontyHall).host);
+  override shown: { chapter?: Chapter } = {};
+
   static meta = {
     sources: ['https://mathigon.org/course/probability/monty-hall', 'https://doi.org/10.1080/00031305.1975.10479121'],
     // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
@@ -144,8 +147,8 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
       words = [roundWords(r)];
       return new Group(
         ...[0, 1, 2].flatMap((i) => [
-          keyed(label(s, door(i), { at: [DOOR_X(i), 2.7], color: s.look.soft, size: 0.64 }), `monty-letter-${i}`),
-          tile(s, i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', {
+          keyed(label(s.drawing, door(i), { at: [DOOR_X(i), 2.7], color: s.look.soft, size: 0.64 }), `monty-letter-${i}`),
+          tile(s.drawing, i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', {
             at: [DOOR_X(i), DOOR_Y],
             width: 3.5,
             height: 2.5,
@@ -155,10 +158,10 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
             key: `door-${i}`,
           }),
         ]),
-        keyed(label(s, said, { at: [0, -1.25], size: 0.62 }), 'monty-said'),
+        keyed(label(s.drawing, said, { at: [0, -1.25], size: 0.62 }), 'monty-said'),
         // The size of the lines around it: a phone's close-up is set by the line that changes, the result.
-        keyed(label(s, rule, { at: [0, -2.45], color: s.look.soft, size: 0.62 }), 'monty-rule'),
-        keyed(label(s, outcome, { at: [0, -3.65], size: 0.62 }), 'monty-result'),
+        keyed(label(s.drawing, rule, { at: [0, -2.45], color: s.look.soft, size: 0.62 }), 'monty-rule'),
+        keyed(label(s.drawing, outcome, { at: [0, -3.65], size: 0.62 }), 'monty-result'),
       );
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
@@ -168,7 +171,7 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
       `${HOST[h]}: ` +
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
-    const cellKey = (y: number) => keyed(label(s, KEY, { at: [0, y], color: s.look.soft, size: F }), 'monty-key');
+    const cellKey = (y: number) => keyed(label(s.drawing, KEY, { at: [0, y], color: s.look.soft, size: F }), 'monty-key');
 
     /**
      * The picture for a chapter: the round (the model) while the doors show, else a function of what is
@@ -187,14 +190,14 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
             ruled = chapter === 'odds' ? dim : undefined;
           words = [describeStrip(host, cells[host], ruled), KEY];
           return new Group(
-            heads(s, HEADS + dy),
+            heads(s.drawing, HEADS + dy),
             titleOf(host, y + NAME),
-            strip(s, cells[host], y, host, ruled),
+            strip(s.drawing, cells[host], y, host, ruled),
             cellKey(y - NAME),
             ...(chapter === 'odds'
               ? [
-                  stat(s, 'Stay', percent(seen[host].stayChance), { at: [-3.25, -2.85], key: 'monty-stay' }),
-                  stat(s, 'Switch', percent(seen[host].switchChance), { at: [3.25, -2.85], key: 'monty-switch' }),
+                  stat(s.drawing, 'Stay', percent(seen[host].stayChance), { at: [-3.25, -2.85], key: 'monty-stay' }),
+                  stat(s.drawing, 'Switch', percent(seen[host].switchChance), { at: [3.25, -2.85], key: 'monty-switch' }),
                 ]
               : []),
           );
@@ -205,11 +208,11 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
           const list = (h: Host) => (chapter === 'copy' && h === other ? cells[host] : cells[h]);
           words = [...HOSTS.map((h) => describeStrip(h, list(h), dim)), KEY];
           return new Group(
-            heads(s, HEADS),
+            heads(s.drawing, HEADS),
             ...HOSTS.flatMap((h) => [
               titleOf(h, SLOT[h] + NAME),
               ...(chapter === 'worlds' ? [readout(SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
-              strip(s, list(h), SLOT[h], h, dim),
+              strip(s.drawing, list(h), SLOT[h], h, dim),
             ]),
             cellKey(SLOT.random - NAME),
           );

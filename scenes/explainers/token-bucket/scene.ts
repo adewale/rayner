@@ -62,7 +62,9 @@ const formatState = (v: unknown) =>
         : v.toFixed(1)
       : String(v);
 
-export default class TokenBucketExplainer extends Scene<BucketState, {}> {
+export default class TokenBucketExplainer extends Scene {
+  override state: BucketState = bucketStart(Number(settingsOf(this, TokenBucketExplainer).rate), CAPACITY);
+
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts',
@@ -71,7 +73,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
       'https://www.rfc-editor.org/rfc/rfc6585#section-4',
     ],
     // The readout's own words, which the captions use too.
-    watch: { tokens: 'Tokens left', allowed: 'Accepted', rejected: 'Rejected' },
+    watch: [{ source: 'model', key: "tokens", label: 'Tokens left' }, { source: 'model', key: "allowed", label: 'Accepted' }, { source: 'model', key: "rejected", label: 'Rejected' }] as const,
     claims: [
       { says: 'A burst can spend only the tokens saved up, and only elapsed time adds more', test: 'model.test.ts: a burst can spend only the tokens saved up' },
       { says: 'R6 is refused at every rate', test: 'model.test.ts: R6 is refused at every refill rate' },
@@ -181,13 +183,12 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
         'A server limits each client: a request it serves gets 200, OK; one it refuses gets 429, Too Many Requests, telling the client to slow down. A short burst should still get through, so the server keeps the client a balance of at most five tokens: the bucket. Each accepted request spends one token; one that finds less than one, under the 1 token line, gets 429. Ten requests arrive at the times above their boxes.',
     });
     await s.clear();
-    const start = bucketStart(rate, CAPACITY);
-    this.state = start;
+    const start = this.state;
     const gauge = view(this, gaugePicture, { place: false });
     const chart = view(this, chartPicture, { place: false });
     const chips = view(this, chipsPicture, { place: false });
     // The balance card describes itself, its values as the readout writes them.
-    const readout = view(this, (state) => drawReadout(s, state, formatState), { place: false });
+    const readout = view(this, (state, _shown, drawing) => drawReadout(drawing, state, formatState), { drawing: s.drawing, place: false });
     this.readout = readout;
     s.keep(readout);
     await s.enter(shell, gauge, bucketLabel, { describe: gaugeSays });
@@ -207,8 +208,8 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
     };
     const codeView = view(
       this,
-      (st) => {
-        const panel = code(s, CODE, {
+      (st, _shown, drawing) => {
+        const panel = code(drawing, CODE, {
           at: [2.15, -2.25, 7.75, 1.55],
           title: `bucket.allow(now), rate = ${rate}`,
           size: 0.22,
@@ -220,7 +221,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
         keyed(panel.code.lines[1]!, 'balance:cap');
         return panel;
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(codeView, { runTime: 0.4 });
     await this.play(new FadeIn(readout));

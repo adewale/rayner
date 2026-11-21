@@ -178,7 +178,7 @@ export class KeyedMotionSink implements Sink {
   frames = 0;
   #segment: string | null = null;
   #current: Frame[] = [];
-  readonly #segmentOf: (scene: Scene<object, object>) => string | null;
+  readonly #segmentOf: (scene: Scene) => string | null;
   readonly #options: KeyedMotionOptions;
   #dt = 1 / 30;
   /** Plays begun in the step running, for naming a play by its place in its step, and the machine events sent in the play running. */
@@ -191,7 +191,7 @@ export class KeyedMotionSink implements Sink {
    * machine event a play sends (`step "fill", play 2, event 3`), since a replay sends several in one
    * play; a wait's frames belong to the play before them. `options` lets it judge words by size.
    */
-  constructor(segmentOf?: (scene: Scene<object, object>) => string | null, options: KeyedMotionOptions = {}) {
+  constructor(segmentOf?: (scene: Scene) => string | null, options: KeyedMotionOptions = {}) {
     this.#options = options;
     this.#segmentOf = segmentOf ?? ((scene) => {
       const path = scene.currentStep?.path ?? null, n = playsBegun(scene);
@@ -202,7 +202,7 @@ export class KeyedMotionSink implements Sink {
       return path === null ? null : `step "${path}", play ${this.#step.plays}${this.#step.events ? `, event ${this.#step.events}` : ''}`;
     });
   }
-  async frame(scene: Scene<object, object>, _dt = 0): Promise<void> {
+  async frame(scene: Scene, _dt = 0): Promise<void> {
     const segment = this.#segmentOf(scene);
     if (segment !== this.#segment) {
       this.#close();

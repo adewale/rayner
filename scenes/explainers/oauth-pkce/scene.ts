@@ -55,7 +55,10 @@ function messageIds(messages: Message[]): string[] {
     return `message:${pair}#${n}`;
   });
 }
-export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
+export default class OAuthExplainer extends Scene {
+  override state: OAuthState = signInStart();
+  override shown: OAuthShown = {};
+
   static meta = {
     sources: ['https://www.rfc-editor.org/rfc/rfc7636', 'https://www.rfc-editor.org/rfc/rfc6749'],
     claims: [
@@ -136,10 +139,10 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     });
     const values = view(
       this,
-      (_st, sh) => {
+      (_st, sh, drawing) => {
         const { lit } = having(sh, 'derive').derive;
         return card(
-          s,
+          drawing,
           [
             ['code_verifier', VERIFIER],
             ['SHA-256 (hex)', hex(digest)],
@@ -148,7 +151,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
           { at: regionBox('full', { bottom: -3.9, top: -0.4 }), size: 0.27, lit: lit == null ? null : { row: lit }, key: 'values' },
         );
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(values, { runTime: 0.35, shift: [0, -0.08] });
     const hops: [string, string][] = [
@@ -262,7 +265,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     this.state.lanes = map;
     this.state.readable = Object.keys(held);
     await s.clear();
-    await s.enter(...channelMap(map, s), {
+    await s.enter(...channelMap(map, s.drawing), {
       runTime: 0.5,
       describe: `Two lanes between the client on the left and the auth server on the right. The red, dashed lane is the browser and the redirect, which another app can read: ${laneWords(map.browser)}. The green lane is the client’s own TLS connection to the token endpoint: ${laneWords(map.tls)}. Another app can read ${listed(Object.keys(held))}, and not the code_verifier.`,
     });
@@ -288,12 +291,13 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     this.shown = {};
     /** The sign-in the machine plays: the state from here on. */
     const signIn = (st: OAuthState) => having(st, 'requested');
-    const sheet = view(this, (st) => signInPicture(signIn(st), s), { place: false });
+    const sheet = view(this, (st, _shown, drawing) => signInPicture(signIn(st), drawing), { drawing: s.drawing, place: false });
     s.keep(sheet, { describe: () => signInWords(signIn(this.state)) });
     // Checked on every frame, and through every transition from every state rayner check reaches: a code bound to a
     // challenge never gives the malicious app a token, in the model or in the picture.
     this.addInvariant('a code bound to a challenge gives the malicious app no token', (scene) => {
-      const st: OAuthState = scene.state;
+      if (!(scene instanceof OAuthExplainer)) return false;
+      const st = scene.state;
       if (!('requested' in st) || typeof st.requested !== 'boolean') return false;
       const said = sheet.current.find('sign-in:label:app-answer')?.family().some((m) => m instanceof Text && m.text === 'Access token') ?? false;
       if (st.challenge !== null && (st.app.answer === 'Access token' || said)) return 'the malicious app holds a token for a code bound to a challenge';
@@ -328,7 +332,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
             const after = signIn(t.after), c = t.choreograph(sheet);
             // Each message travels from its sender to its receiver as a dot in the colour of what it carries, drawing
             // its arrow; then its label comes in, and the notes under the parties follow.
-            const moves = SENDS[event].flatMap((id) => travel(c, id, tokenColor(id, after, s)));
+            const moves = SENDS[event].flatMap((id) => travel(c, id, tokenColor(id, after, s.drawing)));
             return new Succession([...moves, c.rest({ runTime: 0.4 })]);
           },
         ]),

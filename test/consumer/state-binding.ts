@@ -4,10 +4,11 @@ import { traceScene, loadProject } from 'rayner/testing';
 import type { TraceOf } from 'rayner/testing';
 import type { SceneClass } from 'rayner';
 
-class TypedState extends Scene<{ count: number }, { label: string }> {
+class TypedState extends Scene {
+  override state = { count: 1 };
+  override shown = { label: 'one' };
+
   override async construct() {
-    this.state = { count: 1 };
-    this.shown = { label: 'one' };
     const bar = view(this, (st) => new Rectangle({ width: st.count }));
     const square = view(this, (st) => new Rectangle({ width: st.count, height: st.count }));
     await tweenState(this, (t) => ({ count: t }), { views: [bar, square] });
@@ -15,7 +16,8 @@ class TypedState extends Scene<{ count: number }, { label: string }> {
     tweenState(this, (t) => ({ other: t }), { views: [bar] });
     // @ts-expect-error a sampled picture has no independent parts to stagger
     tweenState(this, (t) => ({ count: t }), { views: [bar], lagRatio: 0.5 });
-    const incompatible = new Scene<{ word: string }>({ async frame() {} });
+    class Words extends Scene { override state = { word: 'one' }; }
+    const incompatible = new Words({ async frame() {} });
     const word = view(incompatible, (st) => new Rectangle({ width: st.word.length }));
     // @ts-expect-error every selected view must draw this model type
     tweenState(this, (t) => ({ count: t }), { views: [word] });
@@ -46,8 +48,8 @@ void [persistent, specimen, unsound];
 interface Counter { count: number }
 interface Labels { label: string }
 const initial = (): Counter => ({ count: 7 });
-class InterfaceState extends Scene<Counter, Labels> {
-  override state = initial();
+class InterfaceState extends Scene {
+  override state: Counter = initial();
   override shown: Labels = { label: 'seven' };
 }
 const accepted: SceneClass = InterfaceState;
@@ -66,3 +68,24 @@ const counted: Promise<number> = traceScene(InterfaceState).then((t) => t.steps[
 const framed: Promise<number> = renderFrame(InterfaceState, 0).then((scene) => scene.state.count);
 loadProject(InterfaceState, '.');
 void [accepted, counted, framed];
+
+// A typed field must be initialized, and its initial value must satisfy every required key.
+class MissingState extends Scene {
+  // @ts-expect-error an interface annotation alone cannot initialize a model
+  override state: Counter;
+}
+class IncompleteShown extends Scene {
+  // @ts-expect-error the authored presentation requires its label at frame zero
+  override shown: Labels = {};
+}
+// @ts-expect-error a subclass cannot claim initial model and shown types independently of a value
+class Uninitialized extends Scene<Counter, Labels> {}
+class Dictionary extends Scene {
+  override state: Record<string, unknown> = {};
+}
+const dictionary = new Dictionary({ async frame() {} });
+dictionary.state.optional = 'value';
+const raw = new Scene({ async frame() {} });
+// @ts-expect-error a raw scene has no declared domain key
+raw.state.count;
+void [MissingState, IncompleteShown, Uninitialized, dictionary, raw];

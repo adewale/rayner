@@ -105,10 +105,14 @@ type FlowShown = { current: string[]; walked: [string, string][]; dim: string[] 
 /** The pipeline, each chart's marked bars, and which year's thresholds file is shown. */
 type QfShown = { flow?: FlowShown; barsMarked?: string[]; capMarked?: string[]; bareme?: 2024 | 2025 };
 
-export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
+export default class QuotientFamilialExplainer extends Scene {
+  private readonly settings = settingsOf(this, QuotientFamilialExplainer);
+  override state: QfState = { rni: Number(this.settings.revenu), enfants: Number(this.settings.enfants) };
+  override shown: QfShown = {};
+
   static meta = {
     lang: 'fr',
-    watch: { rni: 'Revenu net imposable', parts: 'Parts', quotient: 'Quotient', impot: 'Impôt' },
+    watch: [{ source: 'model', key: "rni", label: 'Revenu net imposable' }, { source: 'model', key: "parts", label: 'Parts' }, { source: 'model', key: "quotient", label: 'Quotient' }, { source: 'model', key: "impot", label: 'Impôt' }] as const,
     sources: [
       OF + 'parameters/impot_revenu/bareme_ir_depuis_1945/bareme.yaml',
       OF + 'parameters/impot_revenu/calcul_impot_revenu/plaf_qf/plafond_avantages_procures_par_demi_part/general.yaml',
@@ -154,9 +158,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     },
   ] as const;
   override async construct() {
-    const values = settingsOf(this, QuotientFamilialExplainer),
-      enfants = Number(values.enfants),
-      rni = Number(values.revenu);
+    const { enfants, rni } = this.state;
     const r: Impot = impot(rni, enfants),
       tous = [0, 1, 2, 3].map((n) => impot(rni, n)),
       r25 = impot(rni, enfants, 2025);
@@ -187,13 +189,13 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     const enterCard = async ({ rows, opts }: ReturnType<typeof cardOf>, mark?: string, as?: string) => {
       const v: View<Card> = view(
         this,
-        (st) => {
-          return card(s, rows(st).map(([label, value]) => [label, mono(String(value))] as const), {
+        (st, _shown, drawing) => {
+          return card(drawing, rows(st).map(([label, value]) => [label, mono(String(value))] as const), {
             ...(typeof opts === 'function' ? opts(st) : opts),
             ...(mark ? { lit: { row: mark, ...(as ? { as } : {}) } } : {}),
           });
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
     };
@@ -223,9 +225,8 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     const sous = (id: string, texte: (st: QfState) => string) => {
       const b = flow.get(id).box()!,
         bas = flow.get('REF').box()![1] - 0.4;
-      return calloutOf((st) => callout(s, b, texte(st), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.look.emphasis }));
+      return calloutOf((st) => callout(s.drawing, b, texte(st), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.look.emphasis }));
     };
-    this.state = { rni, enfants };
     const flowOf = (sh: QfShown) => having(sh, 'flow').flow;
     this.shown.flow = { current: [], walked: [], dim: null } satisfies FlowShown;
     const flowView = s.diagramView(flow, (_st, sh) => {
@@ -359,7 +360,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     // Each tranche the quotient reaches says its tax over its own bar.
     for (const [i, x] of b.slices.entries())
       if (x.base > 0)
-        await calloutOf((st) => callout(s, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(having(st, 'quotient').quotient).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
+        await calloutOf((st) => callout(s.drawing, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(having(st, 'quotient').quotient).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
     // The quotient's top tranche, not the household's taux marginal: when the plafond binds, OpenFisca's
     // ir_taux_marginal is the two-part calculation's, which can be higher. The default couple's quotient is
     // in the 11 % tranche while its taux marginal is 30 % (model.test.ts holds both).
@@ -390,14 +391,14 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     // Both rulers are one view of the tranches, the income, its parts and its quotient.
     const regles = view(
       this,
-      (state) => {
+      (state, _shown, drawing) => {
         const st = having(state, 'tranches', 'parts', 'quotient');
         return new Group(
-          drawRegle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5, s.look),
-          drawRegle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95, s.look),
+          drawRegle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5, drawing.look),
+          drawRegle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95, drawing.look),
         );
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     const ligne = (cle: 'entier' | 'parts') =>
       st('tranches')
@@ -619,18 +620,18 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     this.shown.bareme = 2024;
     const baremeView = view(
       this,
-      (_st, sh) => {
+      (_st, sh, drawing) => {
         const year = having(sh, 'bareme').bareme,
           lines = yaml(year);
-        const panel = code(s, lines, {
+        const panel = code(drawing, lines, {
           ...yamlOpts,
-          width: code(s, yaml(2024), yamlOpts).panel.width(),
+          width: code(drawing, yaml(2024), yamlOpts).panel.width(),
           added: year === 2025 ? lines.flatMap((l, i) => (l === '    2025-01-01:' ? [i, i + 1] : [])) : [],
           key: 'bareme',
         });
         return panel;
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(baremeView, { runTime: 0.4 });
     this.shown.bareme = 2025;

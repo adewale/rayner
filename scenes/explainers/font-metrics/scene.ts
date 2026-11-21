@@ -1,6 +1,7 @@
 import { Scene, Text } from '../../../src/index.ts';
-import { stage, settingsOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, having, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
+import { drawContext, label } from '../../../explain/drawing.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
 import type { CutsState, Pen } from './picture.ts';
 
@@ -13,7 +14,9 @@ const DIAGRAM = 'graph LR\nA["Ink"] --> B["Paper"]';
 /** The cuts' advances, and each diagram word's stretch once the layout is measured. */
 type FontState = CutsState & { stretch?: Record<string, number> };
 
-export default class FontMetrics extends Scene<FontState, {}> {
+export default class FontMetrics extends Scene {
+  override state: FontState | { phase: 'unmeasured' } = { phase: 'unmeasured' };
+
   static meta = {
     sources: ['https://github.com/googlefonts/ebgaramond'],
     textContext: 'explicit' as const,
@@ -42,18 +45,21 @@ export default class FontMetrics extends Scene<FontState, {}> {
   override async construct() {
     const widths = settingsOf(this, FontMetrics).widths;
     const s = stage(this, { headingSize: 0.6, style: 'pen-and-ink' });
-    const color = s.look.ink;
+    const drawing = s.drawing, color = drawing.look.ink;
     /** The phrase in EB Garamond at the rows' size, drawn afresh for each picture. */
-    const phrase = () => new Text(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping });
+    const phrase = () => new Text(SAMPLE, { fontSize: 0.9, color, shaping: drawing.shaping });
     const run = phrase().shapeRun(SAMPLE, 0.9);
     const spaces = run.glyphs.filter((g) => SAMPLE[g.cluster] === ' ');
-    const monoRun = new Text(SAMPLE, { font: 'mono', fontSize: 0.9, shaping: this.textShaping }).shapeRun(SAMPLE, 0.9);
+    // Measure the reference in embedded JetBrains Mono, independently of the page's Garamond lettering.
+    const reference = drawContext({ palette: drawing.palette });
+    const mono = label(reference, SAMPLE, { mono: true, size: 0.9 });
+    const monoRun = mono.shapeRun(SAMPLE, 0.9);
     const stopsOf = (r: typeof run) => [...r.glyphs.map((g) => g.x), r.glyphs.at(-1)!.x + r.glyphs.at(-1)!.ax];
 
     // Each step's picture is drawn from the measurements its state records, and check redraws it from them.
     // 1. The failure: the marker goes where the measured width ends, and the wrong face is measured.
     const layout = {
-      layout: { wrong: new Text(SAMPLE, { font: 'mono', fontSize: 0.9, shaping: this.textShaping }).advance(), actual: new Text(SAMPLE, { fontSize: 0.9, shaping: this.textShaping }).advance() },
+      layout: { wrong: mono.advance(), actual: phrase().advance() },
     };
     // 2. The answer: a phrase's width is the sum of its glyphs' advances, which belong to the face. The
     // lower row of the opening again, at its size: the ruler's total is the 4.41 the marker used. `pen`:
@@ -78,7 +84,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
     const { wrong, actual } = layout.layout;
     const measuredEnd = rulers.rulers.measured.at(-1)!,
       drawnEnd = rulers.rulers.drawn.at(-1)!;
-    const pen: Pen = { stage: s, text: (value, opts) => new Text(value, { ...opts, shaping: this.textShaping }), phrase, color };
+    const pen: Pen = { drawing, text: (value, opts) => new Text(value, { ...opts, shaping: drawing.shaping }), phrase, color };
     await s.steps([
       {
         id: 'layout',
@@ -116,8 +122,8 @@ export default class FontMetrics extends Scene<FontState, {}> {
     const CUTS = ['Regular', 'Bold', 'Italic'] as const;
     const word = (cut: (typeof CUTS)[number]) =>
       cut === 'Italic'
-        ? new Text(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping, italic: true })
-        : new Text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal', shaping: this.textShaping });
+        ? new Text(SAMPLE, { fontSize: 0.9, color, shaping: drawing.shaping, italic: true })
+        : new Text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal', shaping: drawing.shaping });
     await this.step('cuts', {
       title: 'Bold and italic are faces of their own, with their own advances',
       line: 'Same text, size 0.9: three cuts, three widths.',
@@ -125,8 +131,8 @@ export default class FontMetrics extends Scene<FontState, {}> {
     });
     await s.clear();
     this.state = { ...rulers, advances: Object.fromEntries(CUTS.map((cut) => [cut, word(cut).advance()])) };
-    const advances = () => this.state.advances;
-    const rows = view(this, (st) => drawCuts(st, CUTS, word, pen), { place: false });
+    const advances = () => having(this.state, 'advances').advances;
+    const rows = view(this, (st) => drawCuts(having(st, 'advances'), CUTS, word, pen), { place: false });
     s.opening(rows);
     await s.enter(rows, {
       describe: () =>
@@ -157,7 +163,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
       ['B', 'Paper'],
     ] as const;
     const dv = s.diagramView(d, (st) => {
-      const stretch = st.stretch ?? {};
+      const stretch = having(st, 'advances').stretch ?? {};
       return {
         notes: WORDS.filter(([, text]) => text in stretch).map(([id, text]) => ({
           id,
@@ -171,7 +177,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
     this.state.stretch = Object.fromEntries(
       WORDS.map(([, text]) => {
         const run = d.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === text)!.textRun!;
-        const natural = new Text(text, { fontSize: run.size, shaping: this.textShaping }).advance();
+        const natural = new Text(text, { fontSize: run.size, shaping: drawing.shaping }).advance();
         return [text, (run.width ?? natural) / natural];
       }),
     );

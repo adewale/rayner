@@ -33,7 +33,7 @@ const together = (lists: readonly Beat[][]): Beat[] => {
 // back out of the box into the model. A note or a skill card is torn into strips in the model: the
 // strips the agent follows stay on its side, the rest go over to the shop's side of the counter,
 // and only then does a ticket leave the station, sealed and keyed. Paper never becomes the ticket.
-export default class Coverage extends Scene<World, {}> {
+export default class Coverage extends Scene {
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -55,7 +55,7 @@ export default class Coverage extends Scene<World, {}> {
       ],
     },
   ] as const satisfies readonly Setting[];
-  override state = start('hostile');
+  override state: World = start(settingsOf(this, Coverage).company);
 
   override async construct() {
     const company = settingsOf(this, Coverage).company, hostile = company === 'hostile';
@@ -75,9 +75,8 @@ export default class Coverage extends Scene<World, {}> {
     const strips = stripKeys(after[5]!), count = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
     const followed = strips.filter((x) => x.key.startsWith('strip:used:')).length, aside = strips.filter((x) => x.key.startsWith('strip:aside:')).length;
 
-    this.state = start(company);
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w) => drawWorld(w, s), { place: false });
+    const world = view(this, (w, _shown, drawing) => drawWorld(w, drawing), { drawing: s.drawing, place: false });
 
     /** A beat's timing: short, since each tear or flight is one idea. */
     const T = { appear: 0.2, move: 0.4, leave: 0.2 };
@@ -90,7 +89,7 @@ export default class Coverage extends Scene<World, {}> {
      */
     const sort = (c: Choreography, w: World, card: boolean) => () => {
       // The card itself is taken down to the desk to be read (so it is never shown twice), and goes back up as the ticket lands.
-      const carried = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
+      const carried = card ? pass(c, 'skill:read', cardToken(s.drawing), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
       const laid = carried.length ? [new AnimationGroup([c.leave('skill:card', { runTime: 0.2 }), carried[0] as Animation]), ...carried.slice(1)] : [];
       const torn = stripKeys(w), group = (keep: (x: (typeof torn)[number]) => boolean) => together(torn.filter(keep).map((x) => flight(c, x.key, [noteLineAt(x.line)], T)()));
       const kept = group((x) => x.key.startsWith('strip:used:'));
@@ -112,16 +111,16 @@ export default class Coverage extends Scene<World, {}> {
       switch (kindOf(t.event, t.after)) {
         case 'probe':
           // The User asks first; then a blank probe goes down each lane, and each stops where a barrier then stands.
-          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s).scale(0.45), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
+          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s.drawing).scale(0.45), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
             { fresh: FRESH, then: LANES.map((name) => `barrier:${name}`) });
         case 'read':
           // The list comes down from the shop's board and crosses the counter under the rule into the agent's model, over no label.
-          return beats(c, () => pass(c, 'list', noteToken(s), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
+          return beats(c, () => pass(c, 'list', noteToken(s.drawing), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
         case 'report':
           // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
           return beats(c, () => [
-            ...pass(c, 'report:sent', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
-            ...pass(c, 'report:reply', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),
+            ...pass(c, 'report:sent', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
+            ...pass(c, 'report:reply', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),
           ], { fresh: FRESH });
         case 'sort':
           // A note lying on the desk is torn into strips where it lies; the skill card is laid there first.

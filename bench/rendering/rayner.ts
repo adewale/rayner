@@ -7,9 +7,9 @@ const copy = (state: Model): Model => JSON.parse(JSON.stringify(state)) as Model
 
 export function sceneFor(topic: number) {
   const packet = PACKETS[topic]!;
-  return class Comparison extends Scene<{ model: Model }> {
+  return class Comparison extends Scene {
     static settings = [{ id: 'case', label: 'Case', default: packet.cases[0]!.id, options: packet.cases.map((c) => ({ value: c.id, label: c.label })) }];
-    override state = { model: copy(packet.cases[0]!.steps[0]!.state) };
+    override state: { model: Model } = { model: copy(packet.cases[0]!.steps[0]!.state) };
     override async construct() {
       const selected = packet.cases.find((c) => c.id === settingsOf(this).case)!;
       const s = stage(this, { heading: false, palette: { paper: '#ffffff', ink: '#172033', accent: '#2563eb', muted: '#64748b' } });

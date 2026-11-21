@@ -143,7 +143,10 @@ type TablesFocus = { lines: number | [number, number]; as: string } | null;
 /** The ER diagram's marks, and the calendar tables' focus. */
 type GtfsShown = { er?: ErMarks; tablesFocus?: TablesFocus };
 
-export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
+export default class GtfsExplainer extends Scene {
+  override state: GtfsState = {};
+  override shown: GtfsShown = {};
+
   static meta = {
     sources: [
       TRANSIT + 'reference.md#L120-L121',
@@ -194,7 +197,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
 
     /** The right column as a view of the step's state: check compares its words with the state at each step's end. */
     const column = async (rows: (st: GtfsState) => readonly (string | { head: string })[]) => {
-      await s.enter(view(this, (st) => drawColumn(rows(st), s.look), { place: false }));
+      await s.enter(view(this, (st, _shown, drawing) => drawColumn(rows(st), drawing.look), { drawing: s.drawing, place: false }));
     };
 
     const drawEr = (d: Diagram) => (_st: GtfsState, sh: GtfsShown) => {
@@ -227,10 +230,10 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
       }. Change the date without changing the route list: what will happen to the active trips?`,
     });
     this.state.dayBefore = { date: before, running: was.map((t) => t.trip_id!) };
-    await s.enter(view(this, st => {
+    await s.enter(view(this, (st, _shown, drawing) => {
       const day = having(st, 'dayBefore').dayBefore;
-      return drawDaySummary(day.date, FEED.routes.length, day.running.length, FEED.trips.length, s);
-    }, { place: false }));
+      return drawDaySummary(day.date, FEED.routes.length, day.running.length, FEED.trips.length, drawing);
+    }, { drawing: s.drawing, place: false }));
 
     // ------------------------------------------------------------------ day
     const edits = ganttEdits(FEED, before, date);
@@ -256,10 +259,10 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
     });
     await s.clear();
     this.state.day = { date, running: tripsToday.map((t) => t.trip_id!), edits: edits.length };
-    await s.enter(view(this, st => {
+    await s.enter(view(this, (st, _shown, drawing) => {
       const day = having(st, 'day').day;
-      return drawDaySummary(day.date, FEED.routes.length, day.running.length, FEED.trips.length, s);
-    }, { place: false }));
+      return drawDaySummary(day.date, FEED.routes.length, day.running.length, FEED.trips.length, drawing);
+    }, { drawing: s.drawing, place: false }));
 
     // The complete timetable is available in Details, after the main comparison has been read whole.
     await this.step('day-chart-before', { kind: 'detail', title: `Trip times on ${longDate(before)}`, caption: 'One bar per trip, grouped by service_id. A repeating trip spans the hours vehicles leave its first stop; a one-off trip spans its first departure to last arrival. A bar marked no service does not run on this date.' });
@@ -364,16 +367,16 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
     this.shown.tablesFocus = null satisfies TablesFocus;
     const tables = view(
       this,
-      (_st, sh) => {
+      (_st, sh, drawing) => {
         const focus = having(sh, 'tablesFocus').tablesFocus;
-        return code(s, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
+        return code(drawing, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
           at: [-7.55, -0.6, 7.55, 3.1],
           size: 0.2,
           lit: focus,
           key: 'tables',
         });
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(tables, { runTime: 0.4 });
     const exceptionLine = 1 + calendar.length + 1 + exceptions.findIndex((l) => l.split(',')[1] === date);
@@ -386,10 +389,10 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
     // Each service's verdict for the date, and the trips that run: the date and trips are the day step's, still in the state.
     const verdicts = view(
       this,
-      (st) => {
+      (st, _shown, drawing) => {
         const { date: on, running: trips } = having(st, 'day').day;
         return card(
-          s,
+          drawing,
           [
             ...having(st, 'today').today.map((x) => [x.serviceId, verdict(x, on)] as [string, string]),
             ['Trips that run', `${trips.length} of ${FEED.trips.length}`],
@@ -397,7 +400,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
           { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, size: 0.28 },
         );
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(verdicts, { runTime: 0.35, shift: [0, -0.08] });
 

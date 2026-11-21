@@ -14,6 +14,30 @@ npm run demos:review      # review that exact catalog as served
 npm run pack:smoke        # fresh installed-package checks
 ```
 
+The domain API is accepted against four independent boundaries:
+
+- Initialized model and shown fields must be valid before any frame callback, including seek
+  and empty runs. Source and installed-package consumers must preserve exact named-interface
+  and union inference and reject uninitialized fields, wrong reducer/tween values and erased
+  key access. Real scenario tests compare selected domain starts at frame zero.
+- A detached drawing context must reproduce palette, localized descriptions, RTL layout and
+  shaping without a Stage. Historical redraws must retain the context used for their picture.
+  Interleaved contexts and an explicitly unshaped draw under a foreign ambient service exercise
+  the hidden-global failure case.
+- Watch tests independently supply conflicting same-key values in all four channels, with
+  absent specimens, literal/prototype-sensitive keys, locale and a single display cap. The
+  same readings must reach describe, transcript, check report and the pruned player payload.
+  Served-reader tests cover the actual ticket-link and request-state distinction.
+- Observation tests count full model states and actual checked continuations independently of
+  displayed values. The guarded search's ten-state/nine-edge inventory has three published
+  values; equal blank-page observations still accept different future events. Duplicate words
+  for different observations, bad transition endpoints and invalid/impure selector values must
+  reject. Singleton observations and separately sampled model exploration must remain valid.
+
+Every repaired boundary includes a deliberate defect control. Type checking, the standard
+suite, installed-package checks, real browser interaction and the strict catalogue then cover
+integration; none of those substitutes for the independent domain oracles.
+
 Property tests (fast-check, with `fc` and `params` from `test/lib/pbt.ts`, or `scenes/explainers/lib/pbt.ts` in an explainer's folder) draw their cases from the seed committed in `scenes/explainers/lib/pbt.ts`, so a run and its re-run draw the same cases. CI's gate, the `check` job, runs them from that seed with `FULL=1`, ten times as many cases, so a pull request's gate draws the cases the gate before it drew, unless the pull request changes the tests themselves. The scheduled `properties` workflow (nightly, or run by hand with a seed) runs the same tests with `FULL=1` from a fresh random seed, which it prints first, to find the cases the committed seed misses; what it finds blocks no pull request. A failed property prints its seed and counterexample path, and `tools/repo/ci-tests.ts` prints the command that replays it, `FC_SEED=<seed> FC_PATH=<path> node --test --test-name-pattern='^<test name>$' <file>` (add the lane's other settings, such as `EXPLAIN_BROWSER=1`). `FC_SEED` alone draws from another seed, and `FC_RUNS=<n>` sets every property's count.
 
 Use Node 24 or later. Every browser check launches Chromium through `tools/lib/browser.ts`, which uses Playwright's pinned build if it is installed and otherwise another installed Playwright build or a system Chrome or Chromium that launches and renders within four major versions of it ([Finding Chromium](REFERENCE.md#finding-chromium)); run `npx playwright-core install chromium` only if none is found, or set `CHROMIUM_EXECUTABLE_PATH` to choose one. A test or tool never calls Playwright's `chromium.launch()` itself. `test/chromium-discovery.test.ts` checks the search order and the fall-through with a fake filesystem and launcher. Optional lettering capture checks need the fonts and Python requirements in [LETTERING.md](LETTERING.md). A skipped check supplies no pass evidence.
