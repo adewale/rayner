@@ -229,8 +229,9 @@ motion: ({ event, after }) =>
 ```
 
 The callback receives the event, its `before` and `after` states and
-`target(view)`. Return an empty array for a branch where the relationship does
-not apply. Each rule names a view of that machine and one exact travel key.
+`target(view)`. It returns an array of `MotionRule` declarations, or an empty
+array for a branch where the relationship does not apply. Each rule names a
+view of that machine and one exact travel key.
 `pass`, `carry` and `c.travel` use their supplied id. `flight` appends
 `:flight` to its destination key. The validator subscribes to the actual
 movement as the event builds, so the declaration remains independent of the
@@ -238,16 +239,20 @@ transition that produces it.
 
 `present` and `absent` list exact keys in the specified view. Each subject
 must resolve uniquely in at least one endpoint picture and at most once in
-each. During the move, the checker tests its isolated drawing on the 800 × 450
-stage, including the camera, strokes, fill and inherited clips. A visible
+each. On every sampled frame of the move, the checker tests each subject's
+isolated drawing on the 800 × 450 stage, including the camera, strokes, fill
+and inherited clips. This continues when the traveller goes offstage. A visible
 pixel establishes presence. A complete absence of painted pixels establishes
 absence. The separate occlusion checks judge foreground objects that cover
 words. Use a subject key for each part that matters when a panel contains
 several independently required labels.
 
 Both authored replays and explored reader events run the checks. Each declared
-trip needs a sampled, visibly moving frame. Repeated trips with the same key
-are checked individually. Concurrent trips need distinct keys. Takeoff and
+traveller must move and paint at two distinct screen positions. To locate its
+visible ink, the checker renders the whole stage with and without that
+traveller and measures the centre of the pixel differences. This accounts
+for foreground objects from any view. Repeated trips with the same key are
+checked individually. Concurrent trips need distinct keys. Takeoff and
 arrival fades can hand the ink between co-located drawings. For example, a
 ring can fade off its hook as its travel copy appears, and the hook can
 display a separately keyed empty outline during the trip.

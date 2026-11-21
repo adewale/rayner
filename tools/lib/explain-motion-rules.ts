@@ -2,17 +2,16 @@
 // arranging the beats. A declaration cannot make its own source disappear or its prerequisite paint.
 import { motionObservers, type ObserveMotion } from '../../explain/internal.ts';
 import type { MotionRule } from '../../explain/index.ts';
-import { clipPathOf, intersect, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
-import type { Animation, Box, Mobject, Scene, Sink } from '../../src/index.ts';
+import { clipPathOf, intersect, isHex, mobjectId, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
+import type { Animation, Box, Mobject, Scene, Sink, Vec } from '../../src/index.ts';
 import { rasterize } from './explain-raster.ts';
 
-type Trip = { move: Animation; last: readonly number[]; seen: boolean };
+type Trip = { move: Animation; first?: { world: Vec; screen: Vec }; worldMoved: boolean; screenMoved: boolean };
 type Check = { rule: MotionRule; trips: Trip[]; issues: Set<string>; where: string; start: number };
 type Painted = { svg: string; visible: boolean };
 
 /** Isolated native paint, including the camera, inherited/descendant clips, real fills and strokes.
- * A foreground occluder belongs to the separate occlusion checks. Keep the last result per subject:
- * context left alone during travel usually contributes identical SVG on every sampled frame. */
+ * Keep the last result per subject: unchanged context usually has identical SVG across a trip. */
 async function paintsOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject, Painted>): Promise<boolean> {
   const camera = scene.frame.box()!;
   let clip: Box = camera, top = part;
@@ -54,6 +53,50 @@ async function paintsOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject
   return visible;
 }
 
+/** Locate the family in the composited picture. Every other paint record, including later views,
+ * keeps its place when the traveller alone is omitted. A mask, the background, or an equal-colour
+ * copy may therefore leave no visible contribution. Measure the centre of the actual RGB change. */
+async function visiblePosition(scene: Scene, part: Mobject): Promise<Vec | null> {
+  const ids = new Set(part.family().map(mobjectId));
+  const width = 800, height = 450;
+  const records = renderElements(scene, {width, cull: true});
+  if (!records.some(record => ids.has(record.id))) return null;
+  const [left, top, right, bottom] = userBox(scene.frame.box()!);
+  const rect = [left, top, right - left, bottom - top].map(Math.round);
+  const clips = new Map<string, string>();
+  const all: string[] = [], without: string[] = [];
+  for (const record of records) {
+    if (record.clipBox) {
+      const clip = clipPathOf(record.clipBox);
+      clips.set(clip.id, clip.svg);
+    }
+    const svg = record.svg ??= serializeElement(record);
+    all.push(svg);
+    if (!ids.has(record.id)) without.push(svg);
+  }
+  const paper = scene.colors.paper;
+  if (!isHex(paper)) throw new TypeError('Scene paper must be a #rgb or #rrggbb colour');
+  const start = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${rect.join(' ')}"><rect x="${rect[0]}" y="${rect[1]}" width="${rect[2]}" height="${rect[3]}" fill="${paper}"/><defs>${[...clips.values()].join('')}</defs>`;
+  const render = (paths: string[]) => rasterize(start + paths.join('') + '</svg>');
+  const [drawn, omitted] = await Promise.all([render(all), render(without)]);
+  const a = drawn.pixels, b = omitted.pixels;
+  let weight = 0, x = 0, y = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    const delta = Math.max(Math.abs(a[i]! - b[i]!), Math.abs(a[i + 1]! - b[i + 1]!), Math.abs(a[i + 2]! - b[i + 2]!));
+    if (delta) {
+      const pixel = i / 4;
+      weight += delta;
+      x += delta * (pixel % width);
+      y += delta * Math.floor(pixel / width);
+    }
+  }
+  return weight ? [x / weight, y / weight] : null;
+}
+
+function displaced(first: Vec, now: Vec): boolean {
+  return first[0] !== now[0] || first[1] !== now[1];
+}
+
 export class MachineMotionCheck implements Sink {
   readonly findings: string[] = [];
   readonly #active = new Map<object, Check[]>();
@@ -85,7 +128,7 @@ export class MachineMotionCheck implements Sink {
       this.#active.set(machine, checks);
       return (view, key, move) => {
         for (const check of checks) if (check.rule.view === view && check.rule.during === key)
-          check.trips.push({move, last: move.mobject.center(), seen: false});
+          check.trips.push({move, worldMoved: false, screenMoved: false});
       };
     };
     motionObservers.set(scene, observe);
@@ -98,24 +141,32 @@ export class MachineMotionCheck implements Sink {
   }
 
   async frame(scene: Scene): Promise<void> {
+    const positions = new Map<Mobject, Vec | null>();
     for (const checks of this.#active.values()) for (const check of checks) {
       const {rule, trips, issues} = check;
       const active = trips.filter(({move}) => move.phase === 'begun');
+      if (!active.length) continue;
       if (active.length > 1) issues.add('more than one trip with this key is active');
       for (const trip of active) {
-        const part = trip.move.mobject, at = part.center();
-        if (at[0] === trip.last[0] && at[1] === trip.last[1]) continue;
-        trip.last = at;
-        if (!await paintsOnStage(scene, part, this.#paint)) continue;
-        trip.seen = true;
-        for (const [subjects, required] of [[rule.present ?? [], true], [rule.absent ?? [], false]] as const) {
-          for (const key of subjects) {
-            const matches = rule.view.current.findAll(key);
-            const painted = (await Promise.all(matches.map(m => paintsOnStage(scene, m, this.#paint)))).filter(Boolean).length;
-            const issue = painted > 1 ? `subject "${key}" paints in more than one place`
-              : Boolean(painted) !== required ? `subject "${key}" must be ${required ? 'present' : 'absent'}` : null;
-            if (issue && ![...issues].some(s => s.startsWith(issue))) issues.add(`${issue} at +${(scene.time - check.start).toFixed(3)} s`);
-          }
+        if (trip.worldMoved && trip.screenMoved) continue;
+        const part = trip.move.mobject;
+        if (!positions.has(part)) positions.set(part, await visiblePosition(scene, part));
+        const screen = positions.get(part);
+        if (screen) {
+          const world = part.center();
+          trip.first ??= {world, screen};
+          trip.worldMoved ||= displaced(trip.first.world, world);
+          trip.screenMoved ||= displaced(trip.first.screen, screen);
+        }
+      }
+      // Context belongs to the whole begun move, even while its traveller is hidden or offstage.
+      for (const [subjects, required] of [[rule.present ?? [], true], [rule.absent ?? [], false]] as const) {
+        for (const key of subjects) {
+          const matches = rule.view.current.findAll(key);
+          const painted = (await Promise.all(matches.map(m => paintsOnStage(scene, m, this.#paint)))).filter(Boolean).length;
+          const issue = painted > 1 ? `subject "${key}" paints in more than one place`
+            : Boolean(painted) !== required ? `subject "${key}" must be ${required ? 'present' : 'absent'}` : null;
+          if (issue && ![...issues].some(s => s.startsWith(issue))) issues.add(`${issue} at +${(scene.time - check.start).toFixed(3)} s`);
         }
       }
     }
@@ -124,7 +175,7 @@ export class MachineMotionCheck implements Sink {
   #close(machine: object): void {
     for (const {rule, trips, issues, where} of this.#active.get(machine) ?? []) {
       if (!trips.length) issues.add('the declared travel was never constructed');
-      else if (trips.some(t => !t.seen)) issues.add('a declared travel had no sampled, visibly moving frame');
+      else if (trips.some(t => !t.worldMoved || !t.screenMoved)) issues.add('a declared travel did not paint at two distinct screen positions during its move');
       for (const issue of issues) this.findings.push(`${where}: motion contract: during "${rule.during}", ${issue}`);
     }
     this.#active.delete(machine);

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AnimationGroup, Circle, Group, Scene, Succession, keyed, renderFrame, toSvgString } from '../src/index.ts';
+import { Animation, AnimationGroup, Circle, Group, Rectangle, Scene, Succession, keyed, renderFrame, toSvgString } from '../src/index.ts';
 import { Machine, view } from '../explain/index.ts';
 import { carry, pass } from '../explain/drawing.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { MachineMotionCheck } from '../tools/lib/explain-motion-rules.ts';
+import { rasterize } from '../tools/lib/explain-raster.ts';
 
 type Fault = 'none' | 'source retained' | 'context gone' | 'early arrival' | 'missing travel' | 'missing transition'
   | 'wrong subject' | 'clipped context' | 'invisible travel' | 'ambiguous subject' | 'repeated' | 'simultaneous';
@@ -92,7 +93,7 @@ test('the declared moving interval distinguishes stable context, early arrival, 
     ['ambiguous subject', /subject "ledger" must identify one part/],
     ['missing travel', /declared travel was never constructed/],
     ['missing transition', /declared travel was never constructed/],
-    ['invisible travel', /no sampled, visibly moving frame/],
+    ['invisible travel', /did not paint at two distinct screen positions/],
     ['simultaneous', /more than one trip with this key is active/],
   ];
   for (const [fault, expected] of examples) {
@@ -100,6 +101,96 @@ test('the declared moving interval distinguishes stable context, early arrival, 
     assert.ok(check.findings.some(s => expected.test(s)), `${fault}: ${check.findings.join('\n')}`);
   }
   assert.deepEqual((await observed('repeated')).check.findings, []);
+});
+
+test('a trip needs two composited paint positions and keeps its declared context throughout an offstage excursion', async () => {
+  type Trial = 'flash' | 'two glints' | 'fixed aperture' | 'opaque screen' | 'clear screen' | 'offstage' | 'offstage context lost' | 'offstage receipt early';
+  const square = (size: number, color: string) => new Rectangle({width: size, height: size, fill: color, stroke: 'none'});
+  async function replay(trial: Trial) {
+    const offstage = trial.startsWith('offstage');
+    let trip: Animation;
+    class Shipment extends Scene<{sent: boolean}> {
+      override state = {sent: false};
+      override async construct() {
+        const world = view(this, () => new Group(
+          keyed(square(0.28, '#00cc00').moveTo([-3, 2]), 'caption'),
+          keyed(square(0.28, '#0000ff').moveTo([3, 2]).setOpacity(0), 'receipt'),
+        ), {place: false});
+        const foreground = view(this, () => new Group(new Rectangle({
+          width: 6, height: 1, fill: '#444444', stroke: 'none', opacity: trial === 'opaque screen' ? 1 : 0,
+        })), {place: false});
+        const machine = new Machine(this, {
+          events: ['ship'] as const, views: [world, foreground], start: this.state, next: () => ({sent: true}), runTime: 1.6,
+          motion: () => [{view: world, during: 'parcel', present: ['caption'], absent: ['receipt']}],
+          transition: {ship: t => {
+            const c = t.choreograph(world);
+            const token = trial === 'fixed aperture'
+              ? new Rectangle({width: 10, height: 0.35, fill: '#ff0000', stroke: 'none'})
+              : square(trial === 'flash' || trial === 'two glints' ? 0.06 : 0.35, '#ff0000');
+            if (trial === 'flash') token.clipBox = [-0.025, -0.025, 0.025, 0.025];
+            if (trial === 'two glints' || trial === 'fixed aperture') token.clipBox = [-0.075, -0.075, 0.075, 0.075];
+            const beats = pass(c, 'parcel', token, offstage ? [[-2,0], [11,0], [2,0]] : [[-2,0], [2,0]], {appear: 0.1, move: 0.8, leave: 0.1});
+            assert.ok(beats[1] instanceof Animation);
+            trip = beats[1];
+            return new Succession([...beats, c.rest({runTime: 0.1})]);
+          }},
+        });
+        const controller = new Group();
+        controller.addUpdater(() => {
+          const outside = trip?.phase === 'begun' && trip.mobject.center()[0] > 8.3;
+          if (trial === 'offstage context lost') world.current.find('caption')!.setOpacity(outside ? 0 : 1);
+          if (trial === 'offstage receipt early') world.current.find('receipt')!.setOpacity(outside ? 1 : 0);
+        });
+        this.add(world, foreground, controller);
+        await this.step('shipment');
+        await this.play(machine.send('ship'));
+      }
+    }
+    const check = new MachineMotionCheck(), red: (number | null)[] = [];
+    let missingCaption = 0, earlyReceipt = 0;
+    const scene = new Shipment({async frame(s) {
+      await check.frame(s);
+      if (trip?.phase !== 'begun') return;
+      const {pixels} = await rasterize(toSvgString(s, {width: 800}));
+      let sum = 0, count = 0, caption = false, receipt = false;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i]!, g = pixels[i + 1]!, b = pixels[i + 2]!;
+        // White paper and a gray screen have equal channels. Count even antialiased red at the aperture.
+        if (r > g && g === b) { sum += i / 4 % 800; count++; }
+        if (g > 140 && r < 80 && b < 80) caption = true;
+        if (b > 140 && r < 80 && g < 80) receipt = true;
+      }
+      red.push(count ? sum / count : null);
+      if (!count && !caption) missingCaption++;
+      if (!count && receipt) earlyReceipt++;
+    }});
+    await check.during(scene, () => scene.run());
+    return {findings: check.findings, drawn: red.filter(x => x !== null), hidden: red.includes(null), missingCaption, earlyReceipt};
+  }
+  for (const trial of ['flash', 'fixed aperture', 'opaque screen'] as const) {
+    const {findings, drawn} = await replay(trial);
+    assert.equal(findings.length, 1, trial);
+    assert.match(findings[0]!, /did not paint at two distinct screen positions/);
+    if (trial === 'flash') assert.equal(drawn.length, 1);
+    if (trial === 'opaque screen') assert.equal(drawn.length, 0);
+    if (trial === 'fixed aperture') {
+      assert.ok(drawn.length > 2);
+      assert.equal(new Set(drawn).size, 1);
+    }
+  }
+  for (const trial of ['clear screen', 'offstage', 'two glints'] as const) {
+    const {findings, drawn, hidden} = await replay(trial);
+    assert.deepEqual(findings, [], trial);
+    assert.ok(new Set(drawn).size > 1);
+    assert.equal(hidden, trial !== 'clear screen');
+    if (trial === 'two glints') assert.equal(drawn.length, 2);
+  }
+  const lost = await replay('offstage context lost'), early = await replay('offstage receipt early');
+  assert.ok(lost.missingCaption > 0 && early.earlyReceipt > 0);
+  assert.equal(lost.findings.length, 1);
+  assert.match(lost.findings[0]!, /"caption" must be present/);
+  assert.equal(early.findings.length, 1);
+  assert.match(early.findings[0]!, /"receipt" must be absent/);
 });
 
 test('observing transfer phases preserves the exact seeked pictures inside and after each transfer', async () => {
