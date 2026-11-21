@@ -48,7 +48,7 @@ function straight(scene: Scene): true | string | undefined {
 }
 
 export default class GreatCircle extends Scene {
-  override state: GlobeState & { turn: { from: number; via: number; to: number } } = { viewpoint: { ...HELD }, route: structuredClone(L), turn: { from: HELD.pitch, via: PAST.pitch, to: EDGE_ON.pitch } };
+  override state: GlobeState & { turn: { from: number; via: number; to: number } } = { viewpoint: { ...HELD }, route: london(), turn: { from: HELD.pitch, via: PAST.pitch, to: EDGE_ON.pitch } };
 
   static meta = {
     sources: [
