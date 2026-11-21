@@ -115,9 +115,14 @@ export default class Coverage extends Scene<World, {}> {
           // Take the previous request away before its replacement occupies the same speech-card slot.
           return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s).scale(0.45), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
             { fresh: [...FRESH, 'user:'], then: LANES.map((name) => `barrier:${name}`) });
-        case 'read':
-          // The list comes down from the shop's board and crosses the counter under the rule into the agent's model, over no label.
-          return beats(c, () => pass(c, 'list', noteToken(s), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
+        case 'read': {
+          // Lower the whole sheet beside the desk heading before turning across the counter.
+          const list = noteToken(s);
+          const dropX = Math.max(BOARD_AT[0], c.from('desk:head').box()![2] + list.width() / 2 + 0.08);
+          const acrossY = Math.min(c.from('desk:head').box()![1], c.from('trayname').box()![1]) - list.height() / 2 - 0.08;
+          const trayEdge = c.from('rule:agent').box()![2];
+          return beats(c, () => pass(c, 'list', list, [[dropX, 2.0], [dropX, acrossY], [trayEdge, acrossY]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
+        }
         case 'report':
           // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
           return beats(c, () => [

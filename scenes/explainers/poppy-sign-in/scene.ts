@@ -136,11 +136,17 @@ export default class SignIn extends Scene<World, Shown> {
         // agent's signature, to the desk. Device: a poll runs to the desk. If tokens come back, the page
         // closes and the layout cross-fades (an old key and tag fade with it: they are replaced), then the
         // key comes from the desk to the agent's ring, and the tag after it.
-        const low = (p: Pt): Pt[] => [p, [p[0] + 0.9, p[1]], [DESK[0] - 0.4, p[1]], DESK];
+        const token = device ? request() : code();
+        const low = (p: Pt): Pt[] => {
+          // The display card reaches the near side of the counter. Keep the entire
+          // poll slip below it until the slip can dock at the exposed far edge.
+          const dockX = c.from('card').box()![2] + token.width() / 2 + 0.08;
+          return [p, [dockX, p[1]], [dockX, DESK[1]]];
+        };
         const poll = (p: Pt) => (c.has('card', 'from') ? low(p) : toDesk(p));
         const route: Pt[] = device ? poll(seal) : [[-2.4, -0.62], [-3.9, LANE], [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
         return beats(c, () => {
-          const run = pass(c, device ? 'poll' : 'code', device ? request() : code(), route, { appear: 0.25, move: device ? 0.6 : 0.9, leave: 0.25 });
+          const run = pass(c, device ? 'poll' : 'code', token, route, { appear: 0.25, move: device ? 0.6 : 0.9, leave: 0.25 });
           if (!got) return [...run, ...pass(c, 'poll:back', request(), [...poll(seal)].reverse(), { appear: 0.25, move: 0.5, leave: 0.25 })];
           const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
           const moved = relaid(c, ['agent:key', 'tag']);
@@ -173,8 +179,13 @@ export default class SignIn extends Scene<World, Shown> {
     const approve = (t: Transition<World, SignInEvent>) => {
       const c = t.choreograph(world), from = centre(c, 'you:password', 'from'), to = centre(c, 'page:password', 'to');
       return beats(c, () => {
-        // Round the page's lines, not over them: out to the right of the window, up, and into the field.
-        const side = device ? [from, to] as Pt[] : [from, [-1.7, from[1]], [-1.7, to[1]], to] as Pt[];
+        // Rise beside the scope rows before entering the field. The person's
+        // card approaches the phone on its left and the browser rows on their right.
+        const halfCard = c.from('you:password').width() / 2 + 0.05;
+        const passX = device
+          ? c.to('page:orders:read:box').box()![0] - halfCard
+          : Math.max(c.from('page:orders:read:line').box()![2], c.from('page:orders:write:line').box()![2]) + halfCard;
+        const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];
         const card = pass(c, 'password:travel', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
         return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];
       }, { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });

@@ -40,7 +40,7 @@
 
 import { VMobject } from './vmobject.ts';
 import type { Box, Mobject } from './mobject.ts';
-import { mergeLeaves, mobjectId, paintsFill, paintsStroke } from './mobject.ts';
+import { matchingAncestors, mergeLeaves, mobjectId, paintsFill, paintsStroke } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { playsBegun } from './scene.ts';
 import { FRAME } from './units.ts';
@@ -254,7 +254,9 @@ function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefine
     seen.add(m);
     const from = leaves.length;
     const clip = m.clipBox ? clipped(inherited, screen(m.clipBox)) : inherited;
-    const here = m.key !== undefined ? (path ? `${path}/${m.key}` : m.key) : path;
+    const owners = m[matchingAncestors] ?? [];
+    const address = [...(path ? [path] : []), ...owners, ...(m.key === undefined ? [] : [m.key])];
+    const here = address.join('/');
     // A merged run (Text) is one visual thing whose glyphs are rebuilt when its words change, so it is one leaf, as MotionSink takes it.
     const unit = !!m[mergeLeaves] && m.children.length > 0;
     const text = textOf(m);
@@ -471,6 +473,7 @@ const named = (path: string) => path.split('/').at(-1)!;
  */
 export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt: number, legible?: number): KeyedMotionFinding[] {
   const L = KEYED_MOTION_LIMITS, out: KeyedMotionFinding[] = [];
+  const reportedCovers: { mask: string; victim: string; text: string; first: number; last: number }[] = [];
   if (frames.length < 2) return out;
   const t0 = frames[0]!.t;
   const paths = new Set<string>();
@@ -711,8 +714,8 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       const own = new Set<string>();
       let small: { j: number; em: number; text: string } | undefined;
       // Label leaf id -> the frames in a row it has been covered, and the most of it covered; and the longest such run.
-      const covered = new Map<number, { n: number; first: number; most: number; text: string; key: string }>();
-      let longest: { n: number; first: number; most: number; text: string; key: string } | undefined;
+      const covered = new Map<number, { n: number; first: number; most: number; text: string; key: string; path: string }>();
+      let longest: { n: number; first: number; most: number; text: string; key: string; path: string } | undefined;
       const close = (c: NonNullable<typeof longest>) => { if (c.n >= run && (!longest || c.n > longest.n)) longest = { ...c }; };
       for (let j = tr.start; j <= tr.end; j++) {
         const f = frames[j]!, T = f.parts.get(tr.p);
@@ -738,7 +741,8 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
             }
             if (most < L.cover) continue;
             now.add(l.id);
-            const c = covered.get(l.id) ?? { n: 0, first: j, most: 0, text: l.text, key: named(owner(f, q) ?? l.text) };
+            const victim = l.path ?? owner(f, q) ?? l.text;
+            const c = covered.get(l.id) ?? { n: 0, first: j, most: 0, text: l.text, key: named(victim), path: victim };
             c.n++;
             c.most = Math.max(c.most, most);
             covered.set(l.id, c);
@@ -749,6 +753,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       for (const c of covered.values()) close(c);
       if (longest) {
         const { n, first, most, text, key } = longest, twin = own.has(text), words = text.length > 40 ? text.slice(0, 39) + '…' : text;
+        reportedCovers.push({ mask: tr.p, victim: longest.path, text, first, last: first + n - 1 });
         out.push({ kind: 'covers', segment, key: named(tr.p), path: tr.p, t: ms(frames[first]!.t - t0), value: +fmt(n * dt, 3),
           detail: twin
             ? `travels over “${words}” (part “${key}”), the same words as its own, for ${fmt(n * dt)} s: two copies at once, one over the other`
@@ -769,7 +774,6 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   // copy of these same words in this transition. Permanent background replacement is not a blink.
   type HiddenRun = { first: number; last: number; glyphs: number; text: string; path: string; by: string };
   const obscured = new Map<string, { clear: boolean; active?: HiddenRun; longest?: HiddenRun }>();
-  const alreadyCovered = new Set(out.filter(f => f.kind === 'covers').map(f => f.path));
   const closeHidden = (record: { active?: HiddenRun; longest?: HiddenRun }) => {
     const run = record.active;
     if (run && frames[run.last]!.t - frames[run.first]!.t >= L.covering - 1e-8 &&
@@ -795,8 +799,10 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
         const mask = f.leaves[r]!;
         if (mask.text !== undefined || !mask.poly || (mask.fillAlpha ?? 0) < 0.95 || !intersect(mask.box, label.box)) continue;
         const maskPath = mask.path;
-        // The travelling-token rule already reports this obstruction with its route and remedy.
-        if (maskPath && [...alreadyCovered].some(p => maskPath === p || maskPath.startsWith(`${p}/`))) continue;
+        // Deduplicate only this victim and this interval. One traveller's longest
+        // covers finding must not silence another label it hides later.
+        if (maskPath && reportedCovers.some(c => c.victim === path && c.text === label.text && j >= c.first && j <= c.last &&
+          (maskPath === c.mask || maskPath.startsWith(`${c.mask}/`)))) continue;
         let covered = 0;
         for (const glyph of label.glyphs) {
           const inset = (1 - Math.sqrt(L.glyphCover)) / 2;
@@ -835,8 +841,10 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       detail: `“${text.length > 40 ? text.slice(0, 39) + '…' : text}” stays readable by opacity but “${by}”, an opaque foreground shape, covers at least ${100 * L.glyphCover}% of ${glyphs} glyph ${glyphs === 1 ? 'box' : 'boxes'} for ${fmt(duration)} s`,
       fix: 'draw the words above their paper, route the foreground shape round them, or take the old words away before covering them' });
   }
-  // A part inside one that has the same defect at the same moment moves, blinks or arrives with it: name the outer one.
-  return out.filter((f) => !out.some((g) => g !== f && g.kind === f.kind && f.path.startsWith(`${g.path}/`) && Math.abs(g.t - f.t) <= 2 * dt + 1e-9));
+  // A part inside one that moves, blinks or arrives with it shares that defect.
+  // Occlusion is already attributed to an individual text leaf: two nested
+  // owners may hold different words hidden by entirely independent masks.
+  return out.filter((f) => f.kind === 'occluded words' || !out.some((g) => g !== f && g.kind === f.kind && f.path.startsWith(`${g.path}/`) && Math.abs(g.t - f.t) <= 2 * dt + 1e-9));
 }
 
 /** A finding as one line: its kind, the part, the time, what was measured, and the fix. */

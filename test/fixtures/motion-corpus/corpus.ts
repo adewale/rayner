@@ -120,17 +120,17 @@ export const CORPUS: readonly CorpusEntry[] = [
     ],
   },
   {
-    id: 'refusals-mcp-key-over-label', chapter: 'poppy-refusals', kind: 'passes over', commit: '0a887ad4', method: 'reverted', events: ['answer'],
+    id: 'refusals-mcp-key-over-label', chapter: 'poppy-refusals', kind: 'passes over', commit: '0a887ad4', method: 'adapted', events: ['answer'],
     what: 'The MCP key came down 1.2 units right of its hook, over the words “for MCP”; the fix brings it down 2.6 units right, past them.',
     edits: [
-      { file: 'poppy-refusals/scene.ts', find: '[MCP_KEY_AT[0] + 2.6, y], [MCP_KEY_AT[0] + 2.6, MCP_KEY_AT[1]]', replace: '[MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]' },
+      { file: 'poppy-refusals/scene.ts', find: '[clearX, y], [clearX, MCP_KEY_AT[1]]', replace: '[MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]' },
     ],
   },
   {
-    id: 'refusals-key-over-lane-name', chapter: 'poppy-refusals', kind: 'passes over', commit: 'd99c9195', method: 'reverted', events: ['answer'],
+    id: 'refusals-key-over-lane-name', chapter: 'poppy-refusals', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['answer'],
     what: 'A refreshed key came back along the lane over the lane’s name; the fix routes it under the name.',
     edits: [
-      { file: 'poppy-refusals/picture.ts', find: 'export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [NAME_X + 1.3, y], [NAME_X + 1.0, y - 0.55], [STATION[0] + STATION_R + 0.4, y - 0.55], KEY_AT];', replace: 'export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];' },
+      { file: 'poppy-refusals/picture.ts', find: 'export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {\n  const [left, bottom, right] = name.box()!;\n  const halfWidth = key.width() / 2 + 0.08, below = bottom - key.height() / 2 - 0.08;\n  return [[STOP_X, y], [right + halfWidth, y], [right + halfWidth, below], [left - halfWidth, below], KEY_AT];\n}', replace: 'export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {\n  return [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];\n}' },
     ],
   },
   // -------------------------------------------------------------------------------------- sessions
@@ -263,7 +263,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-password-hand-and-flight', chapter: 'poppy-sign-in', kind: 'two copies', commit: 'd99c9195', method: 'adapted', events: ['approve-all', 'approve-read'],
     what: 'Your password card flew into the page while it was still in your hand, and across the page’s lines; the fix takes it from your hand as it sets off, round the page.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '        const side = device ? [from, to] as Pt[] : [from, [-1.7, from[1]], [-1.7, to[1]], to] as Pt[];\n        const card = pass(c, \'password:travel\', c.from(\'you:password\').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'you:password\', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter(\'page:password\', {}, { runTime: 0.25 })])];', replace: '        return flight(c, \'page:password\', [from], { move: 0.8 })();' },
+      { file: 'poppy-sign-in/scene.ts', find: '        const halfCard = c.from(\'you:password\').width() / 2 + 0.05;\n        const passX = device\n          ? c.to(\'page:orders:read:box\').box()![0] - halfCard\n          : Math.max(c.from(\'page:orders:read:line\').box()![2], c.from(\'page:orders:write:line\').box()![2]) + halfCard;\n        const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];\n        const card = pass(c, \'password:travel\', c.from(\'you:password\').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'you:password\', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter(\'page:password\', {}, { runTime: 0.25 })])];', replace: '        return flight(c, \'page:password\', [from], { move: 0.8 })();' },
     ],
   },
   {
@@ -275,10 +275,10 @@ export const CORPUS: readonly CorpusEntry[] = [
     ],
   },
   {
-    id: 'sign-in-password-route', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'reverted', events: ['approve-all', 'approve-read'],
+    id: 'sign-in-password-route', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'adapted', events: ['approve-all', 'approve-read'],
     what: 'The password card’s way round the page ran at x −2.05, over the page’s edge; the fix moves it to −1.7.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '[from, [-1.7, from[1]], [-1.7, to[1]], to]', replace: '[from, [-2.05, from[1]], [-2.05, to[1]], to]' },
+      { file: 'poppy-sign-in/scene.ts', find: 'Math.max(c.from(\'page:orders:read:line\').box()![2], c.from(\'page:orders:write:line\').box()![2]) + halfCard', replace: '-2.05' },
     ],
   },
   {
@@ -499,7 +499,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'coverage-list-over-labels', chapter: 'poppy-coverage', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['read tasks'],
     what: 'The shop’s list crossed straight from the board to the agent’s tray, over the counter’s labels; the fix brings it down and under the rule.',
     edits: [
-      { file: 'poppy-coverage/scene.ts', find: '[[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]]', replace: '[BOARD_AT, [-3.4, -2.0]]' },
+      { file: 'poppy-coverage/scene.ts', find: '[[dropX, 2.0], [dropX, acrossY], [trayEdge, acrossY]]', replace: '[BOARD_AT, [-3.4, -2.0]]' },
     ],
   },
   // ------------------------------------------------------------------------------------- discovery

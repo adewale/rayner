@@ -76,14 +76,17 @@ export default class Refusals extends Scene<World, Shown> {
     const answer = (t: Transition<World, RefusalEvent>) => {
       const c = t.choreograph(world), last = t.after.last!, { route, y } = laneOfWorld(t.after);
       const sendAgain = flight(c, 'ticket', [launchAt(y)], { move: 0.8 });
+      const apiKey = () => flight(c, 'agent:key', keyRoute(y, c.to('lane:api:name'), c.to('agent:key')).slice(0, -1), { move: 0.9 })();
       const product = (): Beat[] => {
         switch (last.fix) {
-          case 'refresh':
-            return last.trouble === 'mcp'
-              ? flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [MCP_KEY_AT[0] + 2.6, y], [MCP_KEY_AT[0] + 2.6, MCP_KEY_AT[1]]], { move: 0.9 })()
-              : flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
+          case 'refresh': {
+            if (last.trouble !== 'mcp') return apiKey();
+            const key = c.to('agent:mcp-key');
+            const clearX = c.to('lane:mcp-mcp:name').box()![2] + key.width() / 2 + 0.08;
+            return flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [clearX, y], [clearX, MCP_KEY_AT[1]]], { move: 0.9 })();
+          }
           case 'sign-in':
-            return flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
+            return apiKey();
           case 'fix':
             return pass(c, 'delegation', delegationToken(s), DELEGATION_ROUTE, { move: 0.7 });
           case 'new-session':

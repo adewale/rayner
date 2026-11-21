@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Resvg } from '@resvg/resvg-js';
-import { FadeIn, FadeOut, Group, Polygon, Rectangle, Scene, Succession, Text, Transform, VMobject, keyed, toSvgString } from '../src/index.ts';
+import { FadeIn, FadeOut, Group, Polygon, Rectangle, Scene, Succession, Text, Transform, VMobject, keyed, renderFrame, toSvgString } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
 import { KeyedMotionSink } from '../src/internal.ts';
 import { loadFonts } from '../explain/testing.ts';
@@ -58,6 +58,47 @@ test('a stationary panel hides letters for a measurable interval even with no tr
       assert.ok(findings[0]!.value >= 0.1);
     }
   }
+});
+
+test('one traveller covering two labels retains the second victim after reporting its longest crossing', async () => {
+  const motion = new KeyedMotionSink(() => 'two labels');
+  const witnessed = new Set<string>();
+  class TwoLabels extends Scene {
+    override async construct() {
+      const a = label('ABCD').moveTo([-2, 0]);
+      const b = keyed(new Text('EFGH', { fontSize: 0.7, color: '#ff0000' }).moveTo([2, 0]), 'second');
+      const mask = keyed(new Rectangle({ width: 2.8, height: 1.2, fill: '#224466', stroke: 'none' }).moveTo([-2, 0]), 'traveller');
+      mask.setOpacity(0);
+      this.add(a, b, mask);
+      await this.wait(0.1);
+      await this.play(mask.animate.setOpacity(1), { runTime: 0.2 });
+      await this.wait(0.6);
+      await this.play(mask.animate.shift([4, 0]), { runTime: 0.4 });
+      await this.wait(0.3);
+      await this.play(new FadeOut(mask), { runTime: 0.2 });
+      await this.wait(0.1);
+    }
+  }
+  await new TwoLabels({ async frame(s, dt) {
+    const mask = s.find('traveller');
+    if (mask?.style.opacity === 1 && Math.abs(mask.center()[0]!) > 1.99) {
+      const before = ink(s);
+      mask.setOpacity(0);
+      const exposed = ink(s);
+      mask.setOpacity(1);
+      if (exposed - before > 100) witnessed.add(mask.center()[0]! < 0 ? 'first' : 'second');
+    }
+    await motion.frame(s, dt);
+  } }).run();
+  assert.deepEqual([...witnessed].sort(), ['first', 'second'], 'native knockout restores ink at both crossings');
+  const findings = motion.finish();
+  const covers = findings.filter(f => f.kind === 'covers');
+  assert.equal(covers.length, 1, JSON.stringify(covers));
+  assert.match(covers[0]!.detail, /ABCD/);
+  const second = findings.filter(f => f.kind === 'occluded words');
+  assert.equal(second.length, 1, JSON.stringify(second));
+  assert.equal(second[0]!.path, 'second');
+  assert.match(second[0]!.detail, /EFGH/);
 });
 
 test('paint order, translucency, a concave outline and a clipped foreground preserve the visible glyphs', async () => {
@@ -243,5 +284,61 @@ test('a stroke-only word remains readable around a plate that covers just its ce
       else assert.ok(after > before * 0.5, 'most of the painted strokes remain visible outside the bare glyph boxes');
     });
     assert.equal(findings.length, extendPastStroke ? 1 : 0);
+  }
+});
+
+test('nested owners report each independently hidden word, including repeated text and seeked frames', async () => {
+  const redOnEachSide = (svg: string) => {
+    const { pixels, width } = new Resvg(svg, { font: { loadSystemFonts: false } }).render();
+    const counts = [0, 0];
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i]! > 160 && pixels[i + 1]! < 90 && pixels[i + 2]! < 90) {
+        const side = (i / 4) % width < width / 2 ? 0 : 1;
+        counts[side] = counts[side]! + 1;
+      }
+    }
+    return counts;
+  };
+  for (const second of ['BETA', 'ALPHA']) for (const clipped of [false, true]) {
+    class NestedOwners extends Scene {
+      override async construct() {
+        await this.step('two readouts');
+        const word = (text: string, x: number) => new Text(text, { fontSize: 0.7, color: '#ff0000' }).moveTo([x, 0]);
+        const detail = keyed(new Group(word(second, 2.7)), 'detail');
+        const readouts = keyed(new Group(word('ALPHA', -2.7), detail), 'overview');
+        const left = keyed(plate().moveTo([-2.7, 0]), 'left cover');
+        const right = keyed(plate().moveTo([2.7, 0]), 'right cover');
+        if (clipped) right.clipBox = [4.2, -0.5, 4.5, 0.5];
+        const covers = new Group(left, right).setOpacity(0);
+        this.add(readouts, covers);
+        await this.wait(0.2);
+        await this.play(covers.animate.setOpacity(1), { runTime: 0.2 });
+        await this.wait(0.6);
+        await this.play(new FadeOut(covers), { runTime: 0.2 });
+        await this.wait(0.2);
+      }
+    }
+    const detector = () => new KeyedMotionSink(() => 'two readouts');
+    const replay = detector(), pictures = new Map<number, string>();
+    await new NestedOwners({ async frame(scene, dt) {
+      if ([2, 18, 40].includes(scene.frameCount)) pictures.set(scene.frameCount, toSvgString(scene, { width: 480 }));
+      await replay.frame(scene, dt);
+    } }).run();
+    assert.equal(pictures.size, 3);
+    const initial = redOnEachSide(pictures.get(2)!);
+    assert.ok(initial[0]! > 100 && initial[1]! > 100, 'each word paints its own visible strokes');
+    assert.deepEqual(redOnEachSide(pictures.get(18)!), [0, clipped ? initial[1] : 0]);
+    assert.deepEqual(redOnEachSide(pictures.get(40)!), initial);
+    const paths = (sink: KeyedMotionSink) => sink.finish().filter(finding => finding.kind === 'occluded words').map(finding => finding.path).sort();
+    const wanted = clipped ? ['overview'] : ['overview', 'overview/detail'];
+    assert.deepEqual(paths(replay), wanted);
+    const sought = detector();
+    for (let frame = 0; frame <= 40; frame++) {
+      await renderFrame(NestedOwners, frame, { async frame(scene, dt) {
+        if (pictures.has(frame)) assert.equal(toSvgString(scene, { width: 480 }), pictures.get(frame));
+        await sought.frame(scene, dt);
+      } });
+    }
+    assert.deepEqual(paths(sought), wanted);
   }
 });

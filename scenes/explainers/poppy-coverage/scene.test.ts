@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Text } from '../../../src/index.ts';
 import { loadFonts, loadProject } from '../../../explain/testing.ts';
+import { routeInkCheck } from '../lib/route-ink.ts';
 import Coverage from './scene.ts';
 
 await loadFonts();
@@ -32,4 +33,22 @@ test('the gift-card search replaces the prior user command before the new reques
     checked.push(String(scenario.values.company));
   }
   assert.deepEqual(checked.sort(), ['honest', 'hostile']);
+});
+
+test('the tasks list passes the desk headings while the shop and agent readouts stay legible', async () => {
+  const project = await loadProject(Coverage, import.meta.dirname);
+  assert.deepEqual(project.scenarios.map(scenario => scenario.values.company).sort(), ['honest', 'hostile']);
+  for (const scenario of project.scenarios) {
+    const list = routeInkCheck();
+    await new scenario.Scene({
+      async frame(scene) {
+        if (scene.currentStep?.path !== 'board') return;
+        const words = scene.familyMembers().filter(object => object.key === 'feedback:name' || object.key === 'trayname' ||
+          object.key?.startsWith('desk:') || object.key?.startsWith('user:'))
+          .flatMap(object => object.family().filter((word): word is Text => word instanceof Text));
+        list.frame(scene, 'list', words);
+      },
+    }).run();
+    list.assertClear(`${scenario.values.company} shop task list`, ['feedback', 'what its model reads', 'the shop sees', 'Close my account']);
+  }
 });
