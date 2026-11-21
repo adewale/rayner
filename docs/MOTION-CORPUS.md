@@ -20,9 +20,36 @@ node tools/repo/motion-corpus.ts --full         # every event's transitions, as 
 node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 ```
 
-`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs six sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. A separate FULL-only native pixel proof establishes the credited poll's visible defect independently of the detector. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
+`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs seven sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. A separate FULL-only native pixel proof establishes the credited poll's visible defect independently of the detector. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
-## Latest measurement and visual review: 21 November 2026
+## Latest measurement: ten Sol 6.1 High investigations, 21 November 2026
+
+After pulling the motion branch and integrating main at `2bab6486`, ten Sol 6.1 High agents investigated the eight chapters and two shared framework boundaries. The complete run rejects **41 of 59** reconstructed mutations, up from 37 immediately before this investigation and 30 originally. All 37 preceding rejection IDs remain caught.
+
+| Mutation kind | Cases | Previous | Current |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 19 | 20 |
+| result before cause | 5 | 4 | 4 |
+| layout motion | 8 | 1 | 2 |
+| two copies | 4 | 3 | 4 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 1 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 4 | 4 |
+| **all** | **59** | **37** | **41** |
+
+Three new gains diagnose exact authored relationships: `refusals-lanes-gone-in-flight`, `sign-in-pages-overlap`, and `sign-in-password-hand-and-flight`. The fourth, `sessions-too-long`, is a declared sequence-specific pacing refusal before paint. Eight rejections are now guard-only. Nine exact semantic diagnoses require the expected scenario, event, traveller, subject and present/absent requirement; unrelated warnings cannot substitute.
+
+All 59 variants completed without errors, all eight every-event Poppy baselines are clean, and all 45 other catalog chapters are clean. The edit inventory is 42 adapted and 17 reverted entries. The default seven-case sample passes, both FULL-only native proof owners pass, and the full gate retains all 41 measured rejection IDs individually. The original enlarged-poll prevention keeper remains separate from the rejection score.
+
+The repairs address incoming transient reader results lost through model-state deduplication, clipped/transparent fill geometry, changing occlusion masks, physical source ownership, stale or unchanged value lifetimes, and routes derived from actual painted footprints. Scene-owned native keepers and deliberate poisons cover supported reader histories. The complete catalog additionally exposed and repaired actual Ring-buffer duplicate ownership and Periodic-groups painter-order defects. Native rendering uses the supported asynchronous Resvg API, with byte-identical output on 320 real inputs and bounded resource use.
+
+The source receipts preserve the complete capture and its amendments: one wrapped duration refusal was rerun after typed cause classification was repaired; the other 58 successful observations were retained. Three attribution metadata additions preserve the captured mutation edits and events. The later Ring repair has no dependency in the eight Poppy scenes and received its own complete replay. The frozen Astra visual audit and its qualifications remain unchanged. The 18 generic misses are not a count of remaining production bugs: that set includes editorial, obsolete, unreproduced and scene-owned cases.
+
+[Ten-agent report, 59-case index, measurements and validation](https://github.com/adewale/rayner/blob/fa72a8fc63995fb94c9b9ecf4448e71ecd377906/docs/evidence/motion-sol61-2026-11-21/README.md).
+
+## Previous measurement and visual review: 21 November 2026
 
 The final baseline-subtracted run rejects **37 of 59** mutations, compared with 30 on November 19 and 32 on November 20. Six new gains diagnose exact authored relationships. The sole previous rejection no longer caught, `sign-in-tokens-over-labels`, now has a prevention keeper: normal and enlarged polls preserve all five independently painted words on the legal held-device route, in both directions. Its old warning is not required after that word hazard is removed. Other direct-route graphic crossings are outside that prevention claim. The intermediate 38/59 run, before this final baseline repair, is retained separately.
 
