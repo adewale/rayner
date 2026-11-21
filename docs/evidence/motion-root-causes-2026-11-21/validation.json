@@ -1,0 +1,50 @@
+{
+  "fullRepository": {
+    "passed": 2031,
+    "skipped": 187,
+    "failed": 0,
+    "scope": "Complete repository run before final localized SignIn and test-support amendments; later changes receive scoped rechecks."
+  },
+  "sharedMotionControls": {
+    "passed": 27,
+    "failed": 0
+  },
+  "layerAndImportGuards": {
+    "passed": 16,
+    "failed": 0
+  },
+  "finalSceneAndClearanceOwners": {
+    "passed": 14,
+    "failed": 0,
+    "readerFidelity": "SignIn actual legal reader histories passed with final composited-displacement helper"
+  },
+  "defaultCorpusGate": {
+    "passed": 3,
+    "skipped": 3,
+    "failed": 0,
+    "variants": 6
+  },
+  "fullOnlyNativeProofOwners": {
+    "passed": 2,
+    "failed": 0
+  },
+  "all59Measurement": {
+    "cases": 59,
+    "rejected": 37,
+    "errors": 0,
+    "cleanFullEventBaselines": 8,
+    "cleanOtherCatalogChapters": 44
+  },
+  "typeScriptAndPublicConsumer": {
+    "exit": 0
+  },
+  "installedPackageSmoke": {
+    "exit": 0,
+    "scope": "Final packed declarations, every authored scene/test/recipe, native author and actual executable bin"
+  },
+  "writingGuidePinnedChromium": {
+    "passed": 1,
+    "failed": 0
+  },
+  "frozenRound3Benchmark": "Unchanged"
+}

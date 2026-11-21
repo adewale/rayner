@@ -1,0 +1,1122 @@
+{
+  "sourceCommit": "5742c2e1a8a8e542f9e18ecda281de4933e22b6e",
+  "scope": "Seven current reconstructions. Records describe this tree before the follow-up held-tag clearance correction. Native evidence is bounded to the listed routes.",
+  "presentation": "Resvg 800 x 450 at 30 fps. Pinned Chromium native SVG at 800 x 450, device scale 1. Relative f0 is the matched picture just before the event.",
+  "cases": [
+    {
+      "id": "refusals-lanes-slide",
+      "intendedClaim": "When the MCP lane came or went, the API lane slid to its new height: motion for the layout; the fix keys the lanes apart in the two layouts and cross-fades them.",
+      "verdict": "Editorial choice, movement reproduced",
+      "observed": "The reconstructed API label rises through y64, 54, 28 and 18 on frames 0, 3, 6 and 9. The two baseline labels fade at stationary y64 and y18–19. The following answer painted identically for all 103 frames.",
+      "proof": "lane-slide.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "one-door",
+            "event": "mcp"
+          },
+          "settings": {},
+          "historyBefore": [
+            "expire",
+            "answer",
+            "read-only",
+            "answer",
+            "delegation",
+            "answer",
+            "end",
+            "answer",
+            "old-copy",
+            "answer"
+          ],
+          "stateBefore": {
+            "cart": false,
+            "mcpKey": false,
+            "last": {
+              "trouble": "old-copy",
+              "reply": {
+                "status": 400,
+                "error": "version_unsupported"
+              },
+              "fix": "reread",
+              "again": {
+                "status": 200
+              }
+            }
+          },
+          "stateAfter": {
+            "cart": false,
+            "mcpKey": false,
+            "last": {
+              "trouble": "mcp",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token",
+                "resourceMetadata": "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+              },
+              "fix": null,
+              "again": null
+            }
+          },
+          "pairedFrames": 87,
+          "relativeInterval": [
+            0,
+            86
+          ],
+          "identicalAtMatchedOffsets": 68,
+          "absoluteInterval": [
+            4997,
+            5083
+          ],
+          "baselineBundle": "e82c072dcef15c838e09a58b2aab9ca59b8196b86d0458bb98f6bf6d0be8b68b",
+          "variantBundle": "787de6bf2faf5a37b1114decc4394676c32f0da9c23ab48adcd7cb1e0a60eb10",
+          "rawDirectory": "out/motion-all59-audit/refusals-lanes-slide--post-rebase"
+        },
+        {
+          "name": "mcp-answer",
+          "route": {
+            "step": "one-door",
+            "event": "answer"
+          },
+          "settings": {},
+          "historyBefore": [
+            "expire",
+            "answer",
+            "read-only",
+            "answer",
+            "delegation",
+            "answer",
+            "end",
+            "answer",
+            "old-copy",
+            "answer",
+            "mcp"
+          ],
+          "stateBefore": {
+            "cart": false,
+            "mcpKey": false,
+            "last": {
+              "trouble": "mcp",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token",
+                "resourceMetadata": "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+              },
+              "fix": null,
+              "again": null
+            }
+          },
+          "stateAfter": {
+            "cart": false,
+            "mcpKey": true,
+            "last": {
+              "trouble": "mcp",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token",
+                "resourceMetadata": "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+              },
+              "fix": "refresh",
+              "again": {
+                "status": 200
+              }
+            }
+          },
+          "pairedFrames": 103,
+          "relativeInterval": [
+            0,
+            102
+          ],
+          "identicalAtMatchedOffsets": 103,
+          "absoluteInterval": [
+            5083,
+            5185
+          ],
+          "baselineBundle": "e82c072dcef15c838e09a58b2aab9ca59b8196b86d0458bb98f6bf6d0be8b68b",
+          "variantBundle": "787de6bf2faf5a37b1114decc4394676c32f0da9c23ab48adcd7cb1e0a60eb10",
+          "rawDirectory": "out/motion-all59-audit/refusals-lanes-slide--post-rebase-mcp-answer"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-refusals/picture.ts",
+          "find": "id: mcpShown ? `mcp-${id}` : id, name:",
+          "replace": "id, name:"
+        },
+        {
+          "file": "poppy-refusals/scene.ts",
+          "find": "const LANE_PARTS = ['api', 'mcp-api', 'mcp-mcp']",
+          "replace": "const LANE_PARTS = ['api', 'mcp']"
+        },
+        {
+          "file": "poppy-refusals/scene.ts",
+          "find": "c.to('lane:mcp-mcp:name')",
+          "replace": "c.to('lane:mcp:name')"
+        }
+      ]
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "intendedClaim": "The MCP key came down 1.2 units right of its hook, over the words “for MCP”; the fix brings it down 2.6 units right, past them.",
+      "verdict": "Different labels obstructed",
+      "observed": "The hook caption “for MCP” has no ink during the descent and becomes readable near frame 92. The mutation covers “MCP” at frame 35 and “your agent” at frame 39. The baseline leaves both words clear.",
+      "proof": "mcp-key.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "one-door",
+            "event": "answer"
+          },
+          "settings": {},
+          "historyBefore": [
+            "expire",
+            "answer",
+            "read-only",
+            "answer",
+            "delegation",
+            "answer",
+            "end",
+            "answer",
+            "old-copy",
+            "answer",
+            "mcp"
+          ],
+          "stateBefore": {
+            "cart": false,
+            "mcpKey": false,
+            "last": {
+              "trouble": "mcp",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token",
+                "resourceMetadata": "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+              },
+              "fix": null,
+              "again": null
+            }
+          },
+          "stateAfter": {
+            "cart": false,
+            "mcpKey": true,
+            "last": {
+              "trouble": "mcp",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token",
+                "resourceMetadata": "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+              },
+              "fix": "refresh",
+              "again": {
+                "status": 200
+              }
+            }
+          },
+          "pairedFrames": 103,
+          "relativeInterval": [
+            0,
+            102
+          ],
+          "identicalAtMatchedOffsets": 93,
+          "absoluteInterval": [
+            5083,
+            5185
+          ],
+          "baselineBundle": "e82c072dcef15c838e09a58b2aab9ca59b8196b86d0458bb98f6bf6d0be8b68b",
+          "variantBundle": "431d641cd55bcf666aa8e05e56da7c86c477ace2f19cc3dd46d8a9711381b4fd",
+          "rawDirectory": "out/motion-all59-audit/refusals-mcp-key-over-label--post-rebase"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-refusals/scene.ts",
+          "find": "[clearX, y], [clearX, MCP_KEY_AT[1]]",
+          "replace": "[MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]"
+        }
+      ]
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "intendedClaim": "A refreshed key came back along the lane over the lane’s name; the fix routes it under the name.",
+      "verdict": "Intended obstruction confirmed",
+      "observed": "The reconstructed key crosses the painted API name on frames 36–41. The baseline turns under it and no letters are restored.",
+      "proof": "api-key.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "slip",
+            "event": "answer"
+          },
+          "settings": {},
+          "historyBefore": [
+            "expire"
+          ],
+          "stateBefore": {
+            "cart": true,
+            "mcpKey": false,
+            "last": {
+              "trouble": "expire",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token"
+              },
+              "fix": null,
+              "again": null
+            }
+          },
+          "stateAfter": {
+            "cart": true,
+            "mcpKey": false,
+            "last": {
+              "trouble": "expire",
+              "reply": {
+                "status": 401,
+                "error": "invalid_token"
+              },
+              "fix": "refresh",
+              "again": {
+                "status": 200
+              }
+            }
+          },
+          "pairedFrames": 103,
+          "relativeInterval": [
+            0,
+            102
+          ],
+          "identicalAtMatchedOffsets": 75,
+          "absoluteInterval": [
+            664,
+            766
+          ],
+          "baselineBundle": "e82c072dcef15c838e09a58b2aab9ca59b8196b86d0458bb98f6bf6d0be8b68b",
+          "variantBundle": "08efd8a2a0825c70c9ec8c1b809cde051cc345a2481cdcacd22466b5ee094f97",
+          "rawDirectory": "out/motion-all59-audit/refusals-key-over-lane-name--post-rebase"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-refusals/picture.ts",
+          "find": "export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {\n  const [left, bottom, right] = name.box()!;\n  const halfWidth = key.width() / 2 + 0.08, below = bottom - key.height() / 2 - 0.08;\n  return [[STOP_X, y], [right + halfWidth, y], [right + halfWidth, below], [left - halfWidth, below], KEY_AT];\n}",
+          "replace": "export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {\n  return [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];\n}"
+        }
+      ]
+    },
+    {
+      "id": "sign-in-password-route",
+      "intendedClaim": "The password card’s way round the page ran at x −2.05, over the page’s edge; the fix moves it to −1.7.",
+      "verdict": "Scope words obstructed, border crossed by both",
+      "observed": "The direct reconstruction cuts the ends of “Exchange items” at frame 25 and “See your orders” at frame 27. The baseline clears both lines. Each route crosses the lower window outline as the card enters, so the literal edge crossing has no clean baseline. The device branch paints identically on all 72 frames.",
+      "proof": "password-route.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "approve",
+            "event": "approve-read"
+          },
+          "settings": {
+            "flow": "direct"
+          },
+          "historyBefore": [
+            "ask"
+          ],
+          "stateBefore": {
+            "flow": "direct",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ]
+            }
+          },
+          "stateAfter": {
+            "flow": "direct",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": [
+                "orders:read"
+              ]
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "approve",
+              "approved": [
+                "orders:read"
+              ]
+            }
+          },
+          "pairedFrames": 72,
+          "relativeInterval": [
+            0,
+            71
+          ],
+          "identicalAtMatchedOffsets": 45,
+          "absoluteInterval": [
+            1711,
+            1782
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "fd3a09396d249f7b94535fa15e0ad5937a2132a896127c2b9512bac017416556",
+          "rawDirectory": "out/motion-all59-audit/sign-in-password-route--post-rebase"
+        },
+        {
+          "name": "device-approve",
+          "route": {
+            "step": "approve",
+            "event": "approve-read",
+            "settings": {
+              "flow": "device"
+            }
+          },
+          "settings": {
+            "flow": "device"
+          },
+          "historyBefore": [
+            "ask",
+            "collect"
+          ],
+          "stateBefore": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "pending"
+            }
+          },
+          "stateAfter": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": [
+                "orders:read"
+              ]
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "approve",
+              "approved": [
+                "orders:read"
+              ]
+            }
+          },
+          "pairedFrames": 72,
+          "relativeInterval": [
+            0,
+            71
+          ],
+          "identicalAtMatchedOffsets": 72,
+          "absoluteInterval": [
+            1599,
+            1670
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "fd3a09396d249f7b94535fa15e0ad5937a2132a896127c2b9512bac017416556",
+          "rawDirectory": "out/motion-all59-audit/sign-in-password-route--post-rebase-device-approve"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-sign-in/scene.ts",
+          "find": "Math.max(c.from('page:orders:read:line').box()![2], c.from('page:orders:write:line').box()![2]) + halfCard",
+          "replace": "-2.05"
+        }
+      ]
+    },
+    {
+      "id": "sign-in-password-hand-and-flight",
+      "intendedClaim": "Your password card flew into the page while it was still in your hand, and across the page’s lines; the fix takes it from your hand as it sets off, round the page.",
+      "verdict": "Intended duplication and text crossing confirmed",
+      "observed": "Both pictures start with 3,654 painted source-card pixels. Only the reconstruction keeps that card in the hand while six separate dots cross the page and obscure scope lettering. The baseline moves the entire card and clears the lines.",
+      "proof": "password-in-hand.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "approve",
+            "event": "approve-read"
+          },
+          "settings": {
+            "flow": "direct"
+          },
+          "historyBefore": [
+            "ask"
+          ],
+          "stateBefore": {
+            "flow": "direct",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ]
+            }
+          },
+          "stateAfter": {
+            "flow": "direct",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": [
+                "orders:read"
+              ]
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "approve",
+              "approved": [
+                "orders:read"
+              ]
+            }
+          },
+          "pairedFrames": 72,
+          "relativeInterval": [
+            0,
+            71
+          ],
+          "identicalAtMatchedOffsets": 3,
+          "absoluteInterval": [
+            1711,
+            1782
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "a407d540c6bd0cdb2f990355a9a445e6096d42b899b7941a9c4c9aff260093b6",
+          "rawDirectory": "out/motion-all59-audit/sign-in-password-hand-and-flight--post-rebase"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-sign-in/scene.ts",
+          "find": "        const halfCard = c.from('you:password').width() / 2 + 0.05;\n        const passX = device\n          ? c.to('page:orders:read:box').box()![0] - halfCard\n          : Math.max(c.from('page:orders:read:line').box()![2], c.from('page:orders:write:line').box()![2]) + halfCard;\n        const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];\n        const card = pass(c, 'password:travel', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });\n        return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];",
+          "replace": "        return flight(c, 'page:password', [from], { move: 0.8 })();"
+        }
+      ]
+    },
+    {
+      "id": "coverage-list-over-labels",
+      "intendedClaim": "The shop’s list crossed straight from the board to the agent’s tray, over the counter’s labels; the fix brings it down and under the rule.",
+      "verdict": "Intended obstruction confirmed",
+      "observed": "On both Company settings the reconstructed list crosses “feedback” and “the shop sees”. The current baseline keeps both legible throughout.",
+      "proof": "list.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "board",
+            "event": "read tasks"
+          },
+          "settings": {
+            "company": "hostile"
+          },
+          "historyBefore": [
+            "close account"
+          ],
+          "stateBefore": {
+            "company": "hostile",
+            "approves": [
+              "orders:read",
+              "orders:write"
+            ],
+            "board": false,
+            "close": "searched",
+            "gift": "no",
+            "skill": false,
+            "last": {
+              "kind": "searched",
+              "task": "close",
+              "tried": [
+                "api",
+                "web",
+                "chat"
+              ]
+            }
+          },
+          "stateAfter": {
+            "company": "hostile",
+            "approves": [
+              "orders:read",
+              "orders:write"
+            ],
+            "board": true,
+            "close": "searched",
+            "gift": "no",
+            "skill": false,
+            "last": {
+              "kind": "board",
+              "excluded": [
+                "Close an account"
+              ],
+              "skills": [
+                "exchange-items"
+              ],
+              "feedback": true,
+              "explains": [
+                "close"
+              ]
+            }
+          },
+          "pairedFrames": 67,
+          "relativeInterval": [
+            0,
+            66
+          ],
+          "identicalAtMatchedOffsets": 24,
+          "absoluteInterval": [
+            653,
+            719
+          ],
+          "baselineBundle": "086584734e19f09e315ee0bf98c07c8e6a7f9159c2a8fb94da2d2ece45c3fd39",
+          "variantBundle": "8c8ea2f550870e687446cb8fd66326a9fd73bbc7a56015839f443a8e2ceaf8f8",
+          "rawDirectory": "out/motion-all59-audit/coverage-list-over-labels--post-rebase"
+        },
+        {
+          "name": "other-company",
+          "route": {
+            "step": "board",
+            "event": "read tasks",
+            "settings": {
+              "company": "honest"
+            }
+          },
+          "settings": {
+            "company": "honest"
+          },
+          "historyBefore": [
+            "close account"
+          ],
+          "stateBefore": {
+            "company": "honest",
+            "approves": [
+              "orders:read",
+              "orders:write"
+            ],
+            "board": false,
+            "close": "searched",
+            "gift": "no",
+            "skill": false,
+            "last": {
+              "kind": "searched",
+              "task": "close",
+              "tried": [
+                "api",
+                "web",
+                "chat"
+              ]
+            }
+          },
+          "stateAfter": {
+            "company": "honest",
+            "approves": [
+              "orders:read",
+              "orders:write"
+            ],
+            "board": true,
+            "close": "searched",
+            "gift": "no",
+            "skill": false,
+            "last": {
+              "kind": "board",
+              "excluded": [
+                "Close an account"
+              ],
+              "skills": [
+                "exchange-items"
+              ],
+              "feedback": true,
+              "explains": [
+                "close"
+              ]
+            }
+          },
+          "pairedFrames": 67,
+          "relativeInterval": [
+            0,
+            66
+          ],
+          "identicalAtMatchedOffsets": 24,
+          "absoluteInterval": [
+            653,
+            719
+          ],
+          "baselineBundle": "086584734e19f09e315ee0bf98c07c8e6a7f9159c2a8fb94da2d2ece45c3fd39",
+          "variantBundle": "8c8ea2f550870e687446cb8fd66326a9fd73bbc7a56015839f443a8e2ceaf8f8",
+          "rawDirectory": "out/motion-all59-audit/coverage-list-over-labels--post-rebase-other-company"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-coverage/scene.ts",
+          "find": "[[dropX, 2.0], [dropX, acrossY], [trayEdge, acrossY]]",
+          "replace": "[BOARD_AT, [-3.4, -2.0]]"
+        }
+      ]
+    },
+    {
+      "id": "sign-in-tokens-over-labels",
+      "intendedClaim": "The request and the poll went straight from the seal to the desk or the address bar, full size, over the labels of the agent’s side; the fix routes small tokens along the gap between the strip and the keyring.",
+      "verdict": "Intended words affected on a shared baseline",
+      "observed": "The direct re-ask crosses the key/password graphics without covering text. Both pending poll sizes clear the company name. After a legal second device ask, both cross the held refresh-token lettering, and the enlarged card covers substantially more of it for longer.",
+      "proof": "refresh-token.webp",
+      "routes": [
+        {
+          "name": "primary",
+          "route": {
+            "step": "reask",
+            "event": "ask"
+          },
+          "settings": {
+            "flow": "direct"
+          },
+          "historyBefore": [
+            "ask",
+            "approve-read",
+            "trick",
+            "collect"
+          ],
+          "stateBefore": {
+            "flow": "direct",
+            "sign": null,
+            "holds": {
+              "scopes": [
+                "orders:read"
+              ],
+              "card": 0
+            },
+            "ended": false,
+            "last": {
+              "kind": "tokens",
+              "granted": [
+                "orders:read"
+              ],
+              "saysScope": true,
+              "replaced": false
+            }
+          },
+          "stateAfter": {
+            "flow": "direct",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": {
+              "scopes": [
+                "orders:read"
+              ],
+              "card": 0
+            },
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ]
+            }
+          },
+          "pairedFrames": 124,
+          "relativeInterval": [
+            0,
+            123
+          ],
+          "identicalAtMatchedOffsets": 68,
+          "absoluteInterval": [
+            3905,
+            4028
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "0b3b6f9fd3de481c38b912f5dab5d9db81a6ec0cf06687fa23d286fcd42c4ce7",
+          "rawDirectory": "out/motion-all59-audit/sign-in-tokens-over-labels--post-rebase"
+        },
+        {
+          "name": "device-ask-collect",
+          "route": {
+            "step": "ask",
+            "event": "collect",
+            "settings": {
+              "flow": "device"
+            }
+          },
+          "settings": {
+            "flow": "device"
+          },
+          "historyBefore": [
+            "ask"
+          ],
+          "stateBefore": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ],
+              "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+            }
+          },
+          "stateAfter": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "pending"
+            }
+          },
+          "pairedFrames": 85,
+          "relativeInterval": [
+            0,
+            84
+          ],
+          "identicalAtMatchedOffsets": 22,
+          "absoluteInterval": [
+            946,
+            1030
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "0b3b6f9fd3de481c38b912f5dab5d9db81a6ec0cf06687fa23d286fcd42c4ce7",
+          "rawDirectory": "out/motion-all59-audit/sign-in-tokens-over-labels--post-rebase-device-ask-collect"
+        },
+        {
+          "name": "device-ask-ask",
+          "route": {
+            "step": "ask",
+            "event": "ask",
+            "settings": {
+              "flow": "device"
+            }
+          },
+          "settings": {
+            "flow": "device"
+          },
+          "historyBefore": [],
+          "stateBefore": {
+            "flow": "device",
+            "sign": null,
+            "holds": null,
+            "ended": false,
+            "last": null
+          },
+          "stateAfter": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ],
+              "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+            }
+          },
+          "pairedFrames": 124,
+          "relativeInterval": [
+            0,
+            123
+          ],
+          "identicalAtMatchedOffsets": 91,
+          "absoluteInterval": [
+            822,
+            945
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "0b3b6f9fd3de481c38b912f5dab5d9db81a6ec0cf06687fa23d286fcd42c4ce7",
+          "rawDirectory": "out/motion-all59-audit/sign-in-tokens-over-labels--post-rebase-device-ask-ask"
+        },
+        {
+          "name": "direct-ask-ask",
+          "route": {
+            "step": "ask",
+            "event": "ask",
+            "settings": {
+              "flow": "direct"
+            }
+          },
+          "settings": {
+            "flow": "direct"
+          },
+          "historyBefore": [],
+          "stateBefore": {
+            "flow": "direct",
+            "sign": null,
+            "holds": null,
+            "ended": false,
+            "last": null
+          },
+          "stateAfter": {
+            "flow": "direct",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ]
+            }
+          },
+          "pairedFrames": 124,
+          "relativeInterval": [
+            0,
+            123
+          ],
+          "identicalAtMatchedOffsets": 54,
+          "absoluteInterval": [
+            822,
+            945
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "0b3b6f9fd3de481c38b912f5dab5d9db81a6ec0cf06687fa23d286fcd42c4ce7",
+          "rawDirectory": "out/motion-all59-audit/sign-in-tokens-over-labels--post-rebase-direct-ask-ask"
+        },
+        {
+          "name": "device-approved-collect",
+          "route": {
+            "step": "key",
+            "event": "collect",
+            "settings": {
+              "flow": "device"
+            }
+          },
+          "settings": {
+            "flow": "device"
+          },
+          "historyBefore": [
+            "ask",
+            "collect",
+            "approve-read"
+          ],
+          "stateBefore": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": [
+                "orders:read"
+              ]
+            },
+            "holds": null,
+            "ended": false,
+            "last": {
+              "kind": "approve",
+              "approved": [
+                "orders:read"
+              ]
+            }
+          },
+          "stateAfter": {
+            "flow": "device",
+            "sign": null,
+            "holds": {
+              "scopes": [
+                "orders:read"
+              ],
+              "card": 0
+            },
+            "ended": false,
+            "last": {
+              "kind": "tokens",
+              "granted": [
+                "orders:read"
+              ],
+              "saysScope": true,
+              "replaced": false
+            }
+          },
+          "pairedFrames": 135,
+          "relativeInterval": [
+            0,
+            134
+          ],
+          "identicalAtMatchedOffsets": 101,
+          "absoluteInterval": [
+            2387,
+            2521
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "0b3b6f9fd3de481c38b912f5dab5d9db81a6ec0cf06687fa23d286fcd42c4ce7",
+          "rawDirectory": "out/motion-all59-audit/sign-in-tokens-over-labels--post-rebase-device-approved-collect"
+        },
+        {
+          "name": "device-pending-with-tag",
+          "route": {
+            "step": "sign-out",
+            "event": "collect",
+            "settings": {
+              "flow": "device"
+            },
+            "log": [
+              "ask",
+              "approve-read",
+              "collect",
+              "ask",
+              "collect"
+            ]
+          },
+          "settings": {
+            "flow": "device"
+          },
+          "historyBefore": [
+            "ask",
+            "approve-read",
+            "collect",
+            "ask"
+          ],
+          "stateBefore": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": {
+              "scopes": [
+                "orders:read"
+              ],
+              "card": 0
+            },
+            "ended": false,
+            "last": {
+              "kind": "ask",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ],
+              "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+            }
+          },
+          "stateAfter": {
+            "flow": "device",
+            "sign": {
+              "lists": [
+                "orders:read",
+                "orders:write"
+              ],
+              "approved": null
+            },
+            "holds": {
+              "scopes": [
+                "orders:read"
+              ],
+              "card": 0
+            },
+            "ended": false,
+            "last": {
+              "kind": "pending"
+            }
+          },
+          "pairedFrames": 86,
+          "relativeInterval": [
+            0,
+            85
+          ],
+          "identicalAtMatchedOffsets": 23,
+          "absoluteInterval": [
+            6928,
+            7013
+          ],
+          "baselineBundle": "44de6d1dfd002e50fa2985bff8b6a1d704f91691b5f57e9bfbc1438cad51a478",
+          "variantBundle": "0b3b6f9fd3de481c38b912f5dab5d9db81a6ec0cf06687fa23d286fcd42c4ce7",
+          "rawDirectory": "out/motion-all59-audit/sign-in-tokens-over-labels--post-rebase-device-pending-with-tag"
+        }
+      ],
+      "mutation": [
+        {
+          "file": "poppy-sign-in/scene.ts",
+          "find": "const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];",
+          "replace": "const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 1.2, DESK[1]], DESK];"
+        },
+        {
+          "file": "poppy-sign-in/scene.ts",
+          "find": "const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];",
+          "replace": "const toAddress = (seal: Pt): Pt[] => [seal, [-4.6, seal[1] + 0.6], [-4.6, ADDRESS_AT[1]], ADDRESS_AT];"
+        },
+        {
+          "file": "poppy-sign-in/scene.ts",
+          "find": "const request = () => requestToken(s).scale(0.55);",
+          "replace": "const request = () => requestToken(s);"
+        }
+      ]
+    }
+  ],
+  "inventory": {
+    "uniqueCases": 7,
+    "pairedRoutes": 15,
+    "pairedFrameCount": 1424,
+    "chromiumDocuments": 158
+  }
+}

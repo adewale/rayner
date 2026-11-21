@@ -1,0 +1,37 @@
+{
+  "entry": "sign-in-tokens-over-labels",
+  "history": [
+    "ask",
+    "approve-read",
+    "collect",
+    "ask",
+    "collect"
+  ],
+  "renderer": "native Resvg, 800px, four-paint subject/mover knockout",
+  "observations": [
+    {
+      "mutated": false,
+      "frames": 87,
+      "required": [
+        "your agent",
+        "refresh token",
+        "pat_8Hk2",
+        "Example Company",
+        "WDJB-MJHT"
+      ],
+      "restoredLetterPixels": 0
+    },
+    {
+      "mutated": true,
+      "frames": 87,
+      "required": [
+        "your agent",
+        "refresh token",
+        "pat_8Hk2",
+        "Example Company",
+        "WDJB-MJHT"
+      ],
+      "restoredLetterPixels": 0
+    }
+  ]
+}

@@ -21,7 +21,8 @@ import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 import { ROOT } from '../tools/lib/roots.ts';
 import { analyzeKeyedMotion } from '../src/keyed-motion.ts';
 
-/** Keep all 30 November 19 rejections and both independently painted occlusion gains. */
+/** Retain measured rejections, including six exact authored-motion diagnoses.
+ * The held-token keeper below owns the old enlarged-poll hazard now prevented by its dock. */
 const CAUGHT: readonly string[] = [
   'poppy-ticket-over-lane-names',
   'refusals-ticket-over-station',
@@ -30,7 +31,6 @@ const CAUGHT: readonly string[] = [
   'sessions-ticket-from-under-stamp',
   'sessions-squeezed',
   'sign-in-ask-people-slide',
-  'sign-in-tokens-over-labels',
   'sign-in-ask-squeezed',
   'sign-in-poll-over-card',
   'sign-in-code-tiny-words',
@@ -55,11 +55,17 @@ const CAUGHT: readonly string[] = [
   'coverage-list-over-labels',
   'discovery-arm-over-register',
   'discovery-fetch-squeezed',
+  'poppy-last-object-lingers',
+  'sessions-key-to-wax-after-check',
+  'sessions-key-in-two-places',
+  'browser-message-lingers',
+  'browser-record-after-halves',
+  'conversations-table-block-blinks',
 ];
 /**
- * The default run: covers, small words, flicker and both attributed occlusion gains.
+ * The default run: covers, small words, flicker, attributed occlusion and authored context.
  */
-const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades', 'sign-in-poll-over-card', 'sign-in-ask-people-slide'];
+const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades', 'sign-in-poll-over-card', 'sign-in-ask-people-slide', 'conversations-table-block-blinks'];
 
 test('the credited poll mutation removes actual letter pixels and its fixed route preserves them', {
   skip: !process.env.FULL && 'set FULL=1: independently rasterizes the credited poll and fixed route',
@@ -76,10 +82,26 @@ test('the credited poll mutation removes actual letter pixels and its fixed rout
   }
 });
 
+// Keeper for sign-in-tokens-over-labels: route prevention removes its old rejection.
+// Generic independently painted covers controls remain in motion-occlusion-adversarial.test.ts.
+test('the held-token dock preserves each printed word with normal and enlarged historical polls', {
+  skip: !process.env.FULL && 'set FULL=1: independently rasterizes both held-token routes',
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-held-proof-'));
+  try {
+    await promisify(execFile)(process.execPath, [join(ROOT, 'tools/repo/motion-held-token-proof.ts'), '--out', directory]);
+    const proof = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
+    assert.equal(proof.entry, 'sign-in-tokens-over-labels');
+    assert.equal(proof.observations.length, 2);
+    assert.deepEqual(proof.observations.map((r: {mutated: boolean})=>r.mutated), [false, true]);
+    for (const row of proof.observations) assert.equal(row.restoredLetterPixels, 0);
+  } finally { await rm(directory, {recursive:true, force:true}); }
+});
+
 // Keeper for the original poppy-last-object-lingers mechanical assertion. Current
 // whole-word rest no longer reproduces its incidental size jump. These are actual
 // old frame measurements, not an expected image keyed to current source bytes.
-// The unchanged-result semantic mutation stays in CORPUS and is reported as missed.
+// The unchanged-result mutation stays in CORPUS; its new semantic finding is a separate assertion.
 test('the recorded exhibit size jump remains rejected after current rest stops reproducing it', async () => {
   const capture = JSON.parse(await readFile(join(ROOT, 'test/fixtures/motion-corpus/historical-exhibit-jump.json'), 'utf8'));
   const frames = capture.frames.map((frame: {t: number; part: unknown; leaves: unknown[]}) => ({
@@ -109,11 +131,11 @@ test('every corpus entry still applies to the current Poppy scenes, and names it
   for (const id of [...CAUGHT, ...SAMPLE]) assert.ok(CORPUS.some((e) => e.id === id), `${id} is a corpus entry`);
 });
 
-test('a sample of the corpus: covers, small words, flicker and attributed occlusion are caught', async () => {
+test('a sample of the corpus: geometry, occlusion and authored context are caught', async () => {
   const entries = CORPUS.filter((e) => SAMPLE.includes(e.id));
   assert.equal(entries.length, SAMPLE.length);
   // The catalog's gate keeps the scenes as they are free of findings, so no baseline is run here.
-  const { results } = await runCorpus(entries, { bases: false });
+  const { results } = await runCorpus(entries, { bases: false, jobs: 2 });
   assert.equal(results.length, SAMPLE.length);
   for (const r of results) {
     assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
@@ -122,7 +144,7 @@ test('a sample of the corpus: covers, small words, flicker and attributed occlus
 });
 
 test('the whole corpus: every defect caught when recall was measured is still caught', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it replays all 59 reconstructed mutations' }, async () => {
-  const { results } = await runCorpus(CORPUS, { bases: false });
+  const { results } = await runCorpus(CORPUS, { bases: false, jobs: 2 });
   for (const r of results) assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
   const caught = results.filter((r) => r.caught).map((r) => r.id);
   assert.deepEqual(CAUGHT.filter((id) => !caught.includes(id)), [], 'entries no longer caught');

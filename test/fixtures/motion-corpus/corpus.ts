@@ -1,4 +1,4 @@
-// The motion defect corpus: motion defects that filming the eight Poppy chapters at 200 ms found after
+// The motion defect corpus: historical motion-defect reconstructions that filming the eight Poppy chapters at 200 ms found after
 // `rayner check` and `rayner review` had passed them (issue #101, item 14; the glyph dissolve of item
 // 12), each brought back as a few text edits to the current Poppy scenes (scenes/explainers/poppy*).
 //
@@ -10,6 +10,8 @@
 // the commit whose hunk made the fix. `kind` is #101's kind for it, from the fix's own comment.
 // tools/repo/motion-corpus.ts builds each variant in a copy of the Poppy folders under out/ and runs
 // the keyed motion check on it; test/motion-corpus.test.ts holds the recall measured there.
+// The all-59 visual audit in docs/evidence/motion-all59-2026-11-21 distinguishes
+// confirmed, secondary, editorial, blocked and stale reconstructions. Rejection is not accuracy.
 
 /** One text edit to a file of a Poppy folder: `find` (the current scene's text, exactly once) becomes `replace`. */
 export interface Edit { file: string; find: string; replace: string }
@@ -251,18 +253,18 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-card-from-desk', chapter: 'poppy-sign-in', kind: 'layout motion', commit: 'd99c9195', method: 'adapted', events: ['ask'],
     what: 'The device card came from the Company’s desk, where it does not come from; the fix brings it from the agent’s seal.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '...fly(c, \'card\', [seal]), ...frame()', replace: '...flight(c, \'card\', [DESK], { appear: 0.25, move: 0.5, leave: 0.25 })(), ...frame()' },
+      { file: 'poppy-sign-in/scene.ts', find: "...fly(c, 'card', [present]), ...frame()", replace: '...flight(c, \'card\', [DESK], { appear: 0.25, move: 0.5, leave: 0.25 })(), ...frame()' },
     ],
   },
   {
-    id: 'sign-in-poll-over-card', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'd99c9195', method: 'reverted', events: ['collect'],
+    id: 'sign-in-poll-over-card', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['collect'],
     what: 'With the device card on the stage, the poll ran over it to the desk; the fix sends it along a lower line.',
     expectedFinding: {
       scenario: '{"flow":"device"}', transition: /^(?:step "ask", play 1, event 2|after .+, collect)$/,
       kind: 'occluded words', path: 'card', subjects: ['Example Company', 'poll'],
     },
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: 'const poll = (p: Pt) => (c.has(\'card\', \'from\') ? low(p) : toDesk(p));', replace: 'const poll = (p: Pt) => toDesk(p);' },
+      { file: 'poppy-sign-in/scene.ts', find: 'const poll = (p: Pt): Pt[] => {\n          // Leave the key slot clear, then turn up into the accessible edge of the counter.\n          const acrossY = Math.min(p[1], c.from(\'agent:key:slot\').box()![1] - token.height() / 2 - 0.06);\n          const dockX = c.has(\'card\', \'from\') ? c.from(\'card\').box()![2] + token.width() / 2 + 0.08 : DESK[0];\n          return [p, [p[0], acrossY], [dockX, acrossY], [dockX, DESK[1]]];\n        };', replace: 'const poll = (p: Pt) => toDesk(p);' },
     ],
   },
   {
@@ -291,7 +293,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-tag-over-scopes', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'adapted', events: ['sign-out', 'disconnect'],
     what: 'At sign-out the tag went back onto the desk over the scopes, and the key and cord stayed until it had gone; the fix stops it at the counter’s edge and fades them as it sets off.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [to[0], from[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];', replace: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];' },
+      { file: 'poppy-sign-in/scene.ts', find: "const back = pass(c, 'tag:return', token, via, { appear: 0.25, move: 0.7, leave: 0.25 });\n        // The agent returns to its empty-key layout as the detached tag crosses.\n        const shift = moved.length ? [new Succession([new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))])] : [];\n        return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]),\n          new AnimationGroup([back[1]!, ...shift]), back[2]!];", replace: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];' },
     ],
   },
   // --------------------------------------------------------------------------------------- browser

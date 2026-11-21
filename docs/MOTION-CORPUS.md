@@ -20,9 +20,38 @@ node tools/repo/motion-corpus.ts --full         # every event's transitions, as 
 node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 ```
 
-`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs five sample entries by default (covers, small words, flicker and both attributed occlusion gains), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the 32 retained rejection IDs individually. A separate FULL-only native pixel proof establishes the credited poll's visible defect independently of the detector. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
+`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs six sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. A separate FULL-only native pixel proof establishes the credited poll's visible defect independently of the detector. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
-## Latest measurement: 20 November 2026
+## Latest measurement and visual review: 21 November 2026
+
+The final baseline-subtracted run rejects **37 of 59** mutations, compared with 30 on November 19 and 32 on November 20. Six new gains diagnose exact authored relationships. The sole previous rejection no longer caught, `sign-in-tokens-over-labels`, now has a prevention keeper: normal and enlarged polls preserve all five independently painted words on the legal held-device route, in both directions. Its old warning is not required after that word hazard is removed. Other direct-route graphic crossings are outside that prevention claim. The intermediate 38/59 run, before this final baseline repair, is retained separately.
+
+| Mutation kind | Cases | November 20 | November 21 |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 20 | 19 |
+| result before cause | 5 | 0 | 4 |
+| layout motion | 8 | 1 | 1 |
+| two copies | 4 | 2 | 3 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 3 | 4 |
+| **all** | **59** | **32** | **37** |
+
+All eight every-event Poppy baselines are clean, all 59 variants completed without an error, and the other 44 catalog chapters have no findings. After the last two SignIn source files changed, its full baseline and all thirteen reconstructions were measured afresh; the other 46 cases and seven baselines retain byte-identical runtime dependencies. Nine reconstruction find contexts were mechanically rebased with their historical faulty replacements retained. The final edit inventory is 39 adapted and 20 reversed, compared with the frozen audit's 35/24. The default six-case test and both FULL-only native proof tests pass; the future full-corpus gate retains each of the 37 rejection IDs individually.
+
+Seven of the 37 remain duration-guard refusals, not direct diagnoses of the historical effect. The visual confirmation count below describes a different set of cases. Neither count is a general accuracy estimate. [All 59 final results, attribution and provenance](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-root-causes-2026-11-21/corpus.json).
+
+Two sequential, independent Astra 6.2 Max reviews examined all 59 reconstructions before implementation. The first reviewed 59 paired 30 fps recordings, native Chromium frames and 23 supplemental routes. It confirmed the intended effect in 37 cases; seven require editorial judgment, six show only a secondary effect, five stop before the intended effect paints, three were unreproduced and one historical comparison is inconclusive. A confirmed verdict can cover only part of a compound claim. These frozen observations describe the recorded settings and reader histories, not every possible interaction. [All 59 verdicts and visual proofs](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-all59-2026-11-21/audit.md).
+
+The second reviewer traced every entry to its repair history and grouped causes: route and footprint errors (26), context lifetime and causal order (11), unique-object handoffs (4), layout and text atomicity (9), duration and pacing (6), and travel lettering size (3). The implementation follows those groups: actual-extent corridors, explicit authored context rules, source-retiring `carry`, scene-owned URL and journey invariants, and retained duration and small-word checks. Matching now retains logical diagnostic ownership and inherited paint clips, and occlusion reports retain independent victims. [59-row causal analysis](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-all59-2026-11-21/root-causes.md) · [Implementation and adversarial controls](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-root-causes-2026-11-21/README.md).
+
+The six new semantic diagnoses require the exact scenario, transition, travel key, subject and present/absent requirement: stale Poppy result, Sessions key before wax, Sessions source surviving transfer, stale Browser message, Browser record after its receipt, and Conversations ledger disappearing during a turn. An unrelated rejection, missing anchor or guard cannot earn one of these gains. These rules run on the authored story and reachable reader events; they verify declared relationships rather than infer narrative intent from geometry.
+
+Causal declarations remain optional and require author knowledge. They check isolated subject ink with actual camera and clips; composited subject readability has separate occlusion and native trajectory checks. A declared traveller must itself contribute composited pixels at two distinct positions. Editorial movement and pacing still require visual review. A universally lower time or displacement threshold would also reject deliberate explanatory motion.
+
+## Previous measurement: 20 November 2026
 
 The complete focused run rejects **32 of 59** reconstructed mutations, up from
 30. All thirty previous rejection IDs remain caught. All eight full-event Poppy
