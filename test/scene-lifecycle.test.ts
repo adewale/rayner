@@ -547,9 +547,10 @@ test('what is kept on top stays on top inside a group added later, before anythi
 
 test('a run told where to stop stops for good as that step ends: after its end listeners, its caption hold and the code after its last play', async () => {
   let after = 0;
-  class Story extends Scene<{ x: number }> {
+  class Story extends Scene {
+    override state = { x: 0 };
+
     override async construct() {
-      this.state = { x: 0 };
       // An end listener that plays: its motion is part of the step, so the stop comes after it.
       this.onStepEnd(async (s) => { if (s.name === 'two') await this.play(new FadeIn(new Rectangle({ width: 0.5 })), { runTime: 0.5 }); });
       await this.step('one');

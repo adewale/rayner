@@ -20,6 +20,8 @@ function contextOf(source: object) {
 }
 let defaultContext: TextShaping | undefined;
 export function setDefaultTextContext(context: TextShaping | undefined) { defaultContext = context; }
+/** The installed project faces, independent of the scene currently holding the ambient text lease. */
+export const installedTextContext = (): TextShaping | undefined => defaultContext;
 let legacy = false, leased = false, ambient: TextShaping | undefined;
 let pending: Promise<unknown> = Promise.resolve();
 const plainRuns = new Set<Promise<unknown>>(), nested = new Set<Promise<unknown>>();

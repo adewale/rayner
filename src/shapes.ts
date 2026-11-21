@@ -350,7 +350,7 @@ export class Brace extends VMobject {
 }
 
 export interface BraceLabelOptions {
-  shaping?: TextShaping; fontSize?: number; color?: string; buff?: number; labelBuff?: number }
+  shaping?: TextShaping | null; fontSize?: number; color?: string; buff?: number; labelBuff?: number }
 
 /**
  * A brace and a text label beyond its tip: "this span is n bytes". Children:

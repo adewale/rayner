@@ -315,14 +315,14 @@ function scaleArtwork(mob: Mobject, k: number, at: Vec = [0, 0]): void {
   for (const m of mob.family()) scaleStyle(m.style, k);
 }
 /** How many diagrams each scene has made, by the scene. */
-const made = new WeakMap<Scene<any, any>, number>();
+const made = new WeakMap<Scene, number>();
 /**
  * @internal How many diagrams have been made on `scene`: the command reads it on each scene a
  * project ran (and each one exploration ran) to know whether its page needs diagram code, wherever
  * the diagrams' snapshots came from. Kept per scene, so runs of other projects in the same process
  * never count.
  */
-export const diagramsOn = (scene: Scene<any, any>): number => made.get(scene) ?? 0;
+export const diagramsOn = (scene: Scene): number => made.get(scene) ?? 0;
 
 /** A copy of `m` scaled by k about `from`, then moved so `from` lands on `to`: one move of the diagram's own view. */
 function moved(m: Group, k: number, from: Vec, to: Vec): Group {

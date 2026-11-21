@@ -228,7 +228,13 @@ export async function writeSnapshots(base: string, store: SnapshotStore): Promis
 }
 export async function collectProject(
   input: string,
-  { refresh = false, write = true, captureLettering = refresh }: { refresh?: boolean; write?: boolean; captureLettering?: boolean } = {},
+  { refresh = false, capture = true, write = capture, captureLettering = refresh }: {
+    refresh?: boolean;
+    write?: boolean;
+    /** False consumes pinned diagram and lettering assets without starting a capture tool. */
+    capture?: boolean;
+    captureLettering?: boolean;
+  } = {},
 ): Promise<Project> {
   const loaded = await loadScene(input);
   const { file } = loaded;
@@ -241,7 +247,7 @@ export async function collectProject(
   // scene that asks for lettering.
   const letteringTools = outlineRequested ? await import('./lettering.ts') : undefined;
   const outline = outlineRequested
-    ? await letteringTools!.prepareLettering(loaded.Scene, file, captureLettering, write) : undefined;
+    ? await letteringTools!.prepareLettering(loaded.Scene, file, capture && captureLettering, write) : undefined;
   const Source = outline?.Scene ?? loaded.Scene;
   const request = outlineRequested ? undefined : letteringRequest(Source);
   const subsetMetrics = request ? hash(JSON.stringify([(await import('./lettering.ts')).canonicalRequest(request), ...(await Promise.all(
@@ -277,7 +283,7 @@ export async function collectProject(
       if (previous[key] && metricOptions) {
           const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/measurement.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
-            if (captureLettering) delete previous[key];
+            if (capture && captureLettering) delete previous[key];
             else throw new Error(`scene.snapshots: the natural diagram font metrics are stale; run rayner snapshots ${file}`);
           }
       }
@@ -285,6 +291,8 @@ export async function collectProject(
         store[key] = previous[key];
         return inspect(previous[key]);
       }
+      if (!capture)
+        throw new Error(`scene.snapshots: no current snapshot for ${diagramName(spec.source)}; run rayner snapshots ${file}`);
       const active = await builders.get(spec.lettering === 'natural', async () => {
         const { snapshotBuilder } = await diagramAddOn(`${file}: capturing the diagram ${diagramName(spec.source)}, which scene.snapshots/ does not hold,`,
           () => import('../../integrations/agentic-mermaid/index.ts'));
@@ -317,7 +325,7 @@ export async function collectProject(
           edits = counted;
           takeLetteringMissing();
         },
-        { write },
+        { write, capture, file },
       );
       // Diagrams captured on that run are pinned for this one
       for (const key of Object.keys(store))
@@ -362,7 +370,7 @@ export async function collectProject(
     if (undrawable.length)
       throw new Error(`new Text(): the embedded fonts cannot draw these characters; ask for their script in meta.lettering, or write others:\n${[...new Set(undrawable)].join('\n')}`);
     // The state readers follow must be state the scene keeps, in some step of some scenario.
-    checkWatch(Source.meta?.watch, scenarios.flatMap((v) => v.trace.steps));
+    checkWatch(Source.meta?.watch, scenarios.map((v) => v.trace.steps));
     // The script's answer and reader questions must be usable before any scenario is checked against them.
     checkScriptMeta(Source.meta);
     checkClaimsMeta(Source.meta);

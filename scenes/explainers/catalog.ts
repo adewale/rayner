@@ -83,6 +83,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'state-machine', step: 'answer', group: 'topic', tier: 'gallery' },
   { id: 'statecharts', step: 'regions', group: 'topic', tier: 'showcase' },
   { id: 'ring-buffer', step: 'result', group: 'topic', tier: 'gallery' },
+  { id: 'cache-policies', step: 'try', group: 'topic', tier: 'gallery' },
   { id: '2password', step: 'reader-boundary', group: 'topic', tier: 'gallery' },
   { id: 'just-bash', step: 'reader-values', group: 'topic', tier: 'coverage' },
   { id: 'cert-renewal', step: 'year', group: 'topic', tier: 'gallery' },

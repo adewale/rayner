@@ -34,8 +34,9 @@ type Scenario = Project['scenarios'][number];
  * there are few (two to five here); breadth first keeps each further state's link the shortest
  * that reaches it, so a failure names the fewest events; and the farthest state is where a story's
  * machine ends up (a full ring, the tenth request, every response landed), the picture most
- * likely to crowd. `rayner check` has already drawn every reachable state at 1280 px in Node; this
- * is the served page's evidence for a bounded sample, at the two widths readers use.
+ * likely to crowd. `rayner check` has drawn its bounded exploration in Node; this is the served
+ * page's evidence for a sample of the same walk, at the two widths readers use. These visits do
+ * not establish completeness when that walk was truncated.
  */
 export function liveVisits(machine: AnyMachine, start: object): string[][] {
   const key = (state: object) => JSON.stringify(state);

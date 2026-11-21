@@ -3,7 +3,7 @@ import type { Viewpoint } from '../../../explain/geo.ts';
 import { depthOrder, seenPictures, latLon, toLatLon, between } from '../../../explain/geo.ts';
 import type { Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { greatCircle, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from './model.ts';
 import { MERCATOR, TROPICS, mercator, stretched, globe, westward, gnomonic, onEquator, turnWords } from './picture.ts';
 import type { MapState, GlobeState, Pair } from './picture.ts';
@@ -47,7 +47,9 @@ function straight(scene: Scene): true | string | undefined {
   return checked;
 }
 
-export default class GreatCircle extends Scene<GlobeState & { turn: { from: number; via: number; to: number } }, {}> {
+export default class GreatCircle extends Scene {
+  override state: GlobeState & { turn: { from: number; via: number; to: number } } = { viewpoint: { ...HELD }, route: london(), turn: { from: HELD.pitch, via: PAST.pitch, to: EDGE_ON.pitch } };
+
   static meta = {
     sources: [
       'https://doi.org/10.1007/s00190-012-0578-z',
@@ -72,12 +74,12 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
 
   static settings = [{ id: 'second', label: 'Second route', default: 'madrid', options: [
     { value: 'madrid', label: 'Madrid to New York' }, { value: 'equator', label: 'Two cities on the equator' },
-  ] }];
+  ] }] as const;
 
   override async construct() {
     const answer = answerOf(this);
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    const second = settingsOf(this).second as 'madrid' | 'equator';
+    const second = settingsOf(this, GreatCircle).second;
     const westKm = rhumb(M.from, M.to).km;
     const pairs: Pair[] = [
       [{ code: 'A', city: 'A', lat: 0, lon: -75 }, { code: 'B', city: 'B', lat: 0, lon: -15 }],
@@ -86,23 +88,23 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
     const before = [
       { id: 'question', title: 'Why does a flight from London to Los Angeles pass over Greenland?', line: 'Predict: which line is shorter, the bent one or the ruler’s?',
         caption: 'Open the seat-back map on a flight from London to Los Angeles. The line it draws leaves Heathrow heading north-west, climbs past the southern tip of Greenland, crosses Hudson Bay and only then turns south toward California. Los Angeles is far to the south of London, yet the plane goes north. Lay a ruler across the same map from Heathrow to LAX and you get a tidy line heading west-south-west across the Atlantic. Which route is shorter?',
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, false), opening: ['map'],
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: DrawContext) => mercator(st, s, false), opening: ['map'],
         // The shorter route by the model's distances: the great circle's against the rhumb line's.
         predict: { options: ['The bent one', 'The ruler’s line'], answer: L.km < L.rhumbKm ? 'The bent one' : 'The ruler’s line' } },
       { id: 'shorter', title: `Answer: the bent line, by ${tens(L.extraKm)} km`, line: 'Red: the plane’s route. Blue dashed: the ruler’s line.',
         caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${answer}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, true) },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: DrawContext) => mercator(st, s, true) },
       { id: 'stretch', title: 'Mercator’s map stretches the north sideways', line: 'Each bar is 1,000 km of the same parallel.',
         caption: `This kind of map, Mercator’s, stretches every place sideways so that compass directions stay true, and the farther from the equator, the more it stretches: about ${L.stretch.from.toFixed(1)} times at London’s latitude, about twice where the route crosses Greenland. The Earth is narrower up there, so a route north takes a shortcut, which the map, drawing that part widest, shows as a detour. The ruler’s line keeps one compass heading: easy to steer, longer to fly.`,
         state: { viewpoint: MERCATOR, route: L, km: 1000, stretch: L.stretch }, draw: stretched },
       { id: 'globe', title: 'On a globe, a tight string swings north', line: 'The pale sheet passes through both cities and the Earth’s centre.',
         caption: 'Now hold a globe, pin London and Los Angeles, and pull a string tight between them. A tight string takes the shortest path along the surface, and it swings north of both pins. Every point on the string lies on one flat sheet through London, Los Angeles and the centre of the globe. That sheet cuts the largest circle the sphere can hold, a great circle, and the shortest route between two places always runs along one.',
-        state: { viewpoint: HELD, route: L }, draw: (st: GlobeState, s: Stage) => globe(st, s), opening: ['globe:seen'] },
+        state: { viewpoint: HELD, route: L }, draw: (st: GlobeState, s: DrawContext) => globe(st, s), opening: ['globe:seen'] },
     ];
     const after = [
       { id: 'north', title: `The sheet tips north, so the route peaks at ${Math.round(L.top.lat)}° N`, line: 'Grey: the equator, the one line of latitude that is a great circle.',
         caption: `That also explains the northward swing. Both cities lie north of the equator, so the sheet through them and the Earth’s centre tips toward the North Pole, and the great circle rises to its highest point between them: ${Math.round(L.top.lat)} degrees north, over southern Greenland. Lines of latitude are not great circles. Every line of latitude except the equator is a smaller circle, centred on the Earth’s axis rather than its middle, so following one wastes distance.`,
-        state: { viewpoint: TILTED, route: L }, draw: (st: GlobeState, s: Stage) => globe(st, s, { sheet: true, top: true, equatorLine: true }) },
+        state: { viewpoint: TILTED, route: L }, draw: (st: GlobeState, s: DrawContext) => globe(st, s, { sheet: true, top: true, equatorLine: true }) },
       second === 'madrid'
         ? { id: 'another', title: `Madrid to New York: due west is ${tens(westKm - M.km)} km longer`, line: 'Blue: Madrid’s line of latitude, a smaller circle. Red: the great circle.',
           caption: `Madrid and New York lie almost on the same line of latitude. Heading due west from Madrid covers ${tens(westKm)} kilometres; the great circle starts out west-north-west, reaches ${Math.round(M.top.lat)} degrees north and arrives after ${tens(M.km)}. The saving is smaller because the cities are closer together and farther from the pole. Only on the equator, or on a route running due north or south, do the ruler and the string agree: set the second route to the equator to see it.`,
@@ -115,7 +117,7 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
         state: { viewpoint: GNOMONIC, routes: [L, M] }, draw: gnomonic, opening: ['gnomonic:seen'] },
       { id: 'limits', title: 'The shortcut over Greenland is the shortest way on a round Earth', line: `${tens(L.km)} km on a sphere of radius ${grouped(RADIUS_KM)} km.`,
         caption: 'The plane flies the great circle because on a round Earth it is the shortest way, and the map draws it bent because a flat map has to stretch a round world. Real flights leave the great circle to ride or avoid the jet stream, to stay within reach of airports and out of closed airspace, and the Earth’s slightly flattened shape changes these distances by a fraction of a per cent. The shortcut over Greenland survives all of them.',
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, true) },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: DrawContext) => mercator(st, s, true) },
     ];
 
     // Held on every frame by rayner check, the turn included: nothing behind the globe is drawn in
@@ -141,9 +143,7 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
       caption: 'So why does the string look curved? Turn the globe slowly. The route’s arc flattens, then bends the other way. At one angle your eye lies in the sheet itself, and the route becomes a straight line through the middle of the globe. The route did not change as the globe turned; only where you stood did. The flat map is one more viewpoint, and one you cannot turn.',
     });
     await s.clear({ runTime: 0.18 });
-    // The step's model starts where the last picture was seen from and ends edge-on.
-    this.state = { viewpoint: HELD, route: L, turn: { from: HELD.pitch, via: PAST.pitch, to: EDGE_ON.pitch } };
-    const picture = view(this, (st) => globe(st, s), { place: false });
+    const picture = view(this, (st, _shown, drawing) => globe(st, drawing), { drawing: s.drawing, place: false });
     s.opening(picture);
     await s.enter(picture, { runTime: 0.24, describe: () => turnWords(this.state.viewpoint, L) });
     const base = { ...this.state };

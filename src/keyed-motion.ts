@@ -225,7 +225,7 @@ export class KeyedMotionSink implements Sink {
 }
 
 /** One frame's keyed parts, by address (the keys of the keyed parts around a part, then its own), and its drawn leaves. */
-function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefined): Frame {
+function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSize?: (m: Mobject) => number | undefined): Frame {
   const [fx0, fy0, fx1, fy1] = scene.frame.box()!, k = FRAME.w / (fx1 - fx0), cx = (fx0 + fx1) / 2, cy = (fy0 + fy1) / 2;
   const parts = new Map<string, PartSample>(), leaves: Leaf[] = [];
   const seen = new Set<Mobject>();

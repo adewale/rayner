@@ -11,7 +11,7 @@ import { hunkHeader } from './diff.ts';
 import type { Hunk } from './diff.ts';
 import type { VecLike } from './vec.ts';
 
-export function renderText(scene: Scene, { cols = 96, rows = 27 }: { cols?: number; rows?: number } = {}): string {
+export function renderText(scene: Pick<Scene, 'frame' | 'mobjects' | 'currentStep'>, { cols = 96, rows = 27 }: { cols?: number; rows?: number } = {}): string {
   const grid = Array.from({ length: rows }, () => new Array<string>(cols).fill(' '));
   // Camera: the grid shows the frame's box, so a zoomed frame reads larger
   const [fx0, fy0, fx1, fy1] = scene.frame.box()!;

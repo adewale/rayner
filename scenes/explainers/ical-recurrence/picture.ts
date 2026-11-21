@@ -1,5 +1,5 @@
 import { Group, Rectangle, Text, keyed } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { DTSTART, GUEST, MOVED_FROM, MASTER, counts, expand, occurrences, parseRule, short } from './model.ts';
 import type { Change, VEvent, Week } from './model.ts';
 import { counted } from '../lib/format.ts';
@@ -42,7 +42,7 @@ export const day = (t: string) => short(t).split(', ')[0]!.split(' ').slice(1).j
  * Alice's and Bob's stored objects and their weeks, drawn from the step's state alone: each column lists a copy's
  * VEVENTs, and each strip its weeks of Alice's rule (weeks() in the model), dated from the copy's own meetings.
  */
-export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
+export const copiesPicture = (st: { copies: CopiesState }, s: DrawContext) => {
   const { change: edit, alice, bob } = st.copies;
   const TOP = 0.3,
     WEEK = 0.33;

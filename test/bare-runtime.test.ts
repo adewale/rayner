@@ -7,9 +7,22 @@ import { join } from 'node:path';
 import type { Plugin } from 'esbuild';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { bareRuntime } from '../tools/lib/explain-check.ts';
+import { NullSink } from '../src/timeline.ts';
+import { toSvgString } from '../src/svg.ts';
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-bare-'));
 after(() => rm(folder, { recursive: true, force: true }));
+
+test('both great-circle routes reproduce the Node trace and final drawing in the bare runtime', async () => {
+  const project = await collectProject('scenes/explainers/great-circle', { capture: false, write: false });
+  assert.deepEqual(project.scenarios.map(scenario => scenario.values.second).sort(), ['equator', 'madrid']);
+  const run = await bareRuntime(project);
+  for (const { Scene, values, trace } of project.scenarios) {
+    const bare = await run(values);
+    assert.deepEqual(bare.trace, JSON.parse(JSON.stringify(trace)), values.second);
+    assert.equal(bare.svg, toSvgString(await new Scene(new NullSink()).run()), values.second);
+  }
+});
 
 test('one bundle runs every scenario, each in a context of its own, and reproduces its trace', async () => {
   const dir = join(folder, 'counter');

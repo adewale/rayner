@@ -18,7 +18,7 @@
 import { AnimationGroup, Group, Rectangle, Scene, Succession, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, Machine, view } from '../../../explain/index.ts';
-import type { Stage, Transition } from '../../../explain/index.ts';
+import type { DrawContext, Transition } from '../../../explain/index.ts';
 import { TYPE, beats, flight, tile, label } from '../../../explain/drawing.ts';
 
 type Post = { sent: number };
@@ -29,7 +29,7 @@ const CLIENT: Vec = [-5, 1.2], SERVER: Vec = [5, 1.2];
 const markerAt = (n: number): Vec => [-3 + 1.5 * n, -2.6];
 
 /** The client and the server, the ticket and the answer after a send, and the marker on its track. */
-function drawPost(st: Post, s: Stage): Group {
+function drawPost(st: Post, s: DrawContext): Group {
   // A ground the size of the stage, so the picture keeps its place as the ticket and the answer come and go.
   const ground = keyed(new Rectangle({ width: 15.5, height: 8.5, fill: s.look.paper, stroke: 'none' }), 'ground');
   const box = (name: string, at: Vec) => tile(s, name, { at, key: name, raised: true, size: TYPE.small }).children;
@@ -51,12 +51,12 @@ function drawPost(st: Post, s: Stage): Group {
 
 /** The scene, with its transition choreographed well (`'none'`) or with one defect brought back. */
 export function motionFixture(defect: Defect) {
-  return class MotionFixture extends Scene<Post, {}> {
+  return class MotionFixture extends Scene {
     static meta = { id: 'motion', title: 'A request and its answer' };
     override state: Post = { sent: 0 };
     override async construct() {
       const s = stage(this, { heading: false });
-      const post = view(this, (st: Post) => drawPost(st, s));
+      const post = view(this, (st: Post, _shown, drawing) => drawPost(st, drawing), { drawing: s.drawing });
       const send = (t: Transition<Post, Send>) => {
         const c = t.choreograph(post);
         // It sets off just under the client, not over the client's name.

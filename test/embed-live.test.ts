@@ -22,10 +22,10 @@ type Lamp = { level: number };
 type Press = 'UP' | 'DOWN' | 'OFF';
 const LEVELS = ['off', 'dim', 'bright'] as const;
 /** A lamp of three levels. UP past bright is refused, with a reason; DOWN from off is refused, without one; OFF from off is past the story. */
-function lampScene({ after = (_scene: Scene<Lamp>) => {} } = {}) {
-  return class LampScene extends Scene<Lamp> {
+function lampScene({ after = (_scene: Scene & { state: Lamp }) => {} } = {}) {
+  return class LampScene extends Scene {
     machine!: Machine<Lamp, Press>;
-    override state = { level: 0 };
+    override state: Lamp = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
@@ -48,7 +48,7 @@ function lampScene({ after = (_scene: Scene<Lamp>) => {} } = {}) {
       await this.step('intro', { caption: 'A lamp.' });
       await this.wait(0.2);
       await this.step('press', { caption: 'Press the switch.' });
-      await this.play(this.machine.replay(['UP']));
+      await this.play(this.machine.sendSequence(['UP']));
       after(this);
       await this.step('later', { caption: 'The end.' });
       await s.clear();
@@ -66,6 +66,56 @@ test('a machine is live at the step it last played in, and nowhere before it pla
   assert.deepEqual([...liveSteps(new Scene(new NullSink())).keys()], []);
 });
 
+test('an offer wins over a guided send, refuses competing offers and must recur at the same step on replay', async () => {
+  const source = (owner: 'first' | 'second' | 'both' | 'none') => class Switches extends Scene {
+    override state: Lamp = { level: 0 };
+    override async construct() {
+      const spec = { start: { level: 0 }, events: ['UP'] as const, next: (st: Lamp) => ({ level: st.level + 1 }), views: [] };
+      const first = new Machine(this, spec), second = new Machine(this, spec);
+      assert.throws(() => first.offer(), /machine\.offer\(\): begin the step/);
+      await this.step('press');
+      if (owner === 'first' || owner === 'both') first.offer();
+      if (owner === 'second' || owner === 'both') second.offer();
+      await second.send('UP');
+    }
+  };
+  const First = source('first'), places = liveSteps(await new First(new NullSink()).run());
+  assert.equal(places.size, 1);
+  const at = places.get('press')!;
+  assert.equal(at.index, 0, 'the first machine offered, although the second machine played');
+  const run = await runLive(First, 'press', at, ['UP']);
+  assert.deepEqual(run.rest, { level: 1 });
+  assert.deepEqual(run.scene.state, { level: 2 });
+  await assert.rejects(new (source('both'))(new NullSink()).run(), /another machine already offers controls at step "press"/);
+  for (const owner of ['second', 'none'] as const)
+    await assert.rejects(runLive(source(owner), 'press', at, []), /did not offer the same machine at step "press"/);
+  const Inferred = source('none');
+  const guided = liveSteps(await new Inferred(new NullSink()).run()).get('press')!;
+  assert.equal(guided.index, 1);
+  for (const owner of ['first', 'second'] as const)
+    await assert.rejects(runLive(source(owner), 'press', guided, ['UP']), /step "press" no longer has the same inferred controls/);
+});
+
+test('an inferred machine still owns its earlier step when a later-made machine played there and then moved on', async () => {
+  class TwoSteps extends Scene {
+    override state: Lamp = { level: 0 };
+    override async construct() {
+      const spec = { start: { level: 0 }, events: ['UP'] as const, next: (st: Lamp) => ({ level: st.level + 1 }), views: [] };
+      const first = new Machine(this, spec), second = new Machine(this, spec);
+      await this.step('both');
+      await first.send('UP');
+      await second.send('UP');
+      await this.step('later');
+      await second.send('UP');
+    }
+  }
+  const places = liveSteps(await new TwoSteps(new NullSink()).run());
+  assert.deepEqual([...places].map(([step, place]) => [step, place.index]), [['both', 0], ['later', 1]]);
+  const replay = await runLive(TwoSteps, 'both', places.get('both')!, ['UP']);
+  assert.deepEqual(replay.rest, { level: 2 });
+  assert.deepEqual(replay.scene.state, { level: 3 });
+});
+
 test('buttons say what outcome says: the label, and a refusal’s or the story’s reason', () => {
   const ran = new (lampScene())(new NullSink());
   const machine = new Machine<Lamp, Press>(ran, { start: { level: 0 }, events: ['UP', 'DOWN', 'OFF'], labels: { UP: 'Brighter' }, next: (st, e) => (e === 'UP' && st.level < 2 ? { level: st.level + 1 } : e === 'DOWN' && st.level > 0 ? { level: st.level - 1 } : e === 'OFF' ? { level: 0 } : e === 'UP' ? refuse('Too bright') : undefined), bound: (st, e) => (e === 'OFF' && st.level === 0 ? 'Already off' : undefined), views: [] });
@@ -79,6 +129,15 @@ test('buttons say what outcome says: the label, and a refusal’s or the story�
   assert.deepEqual(outcomes(machine as never, { level: 0 })[1], { event: 'DOWN', label: 'DOWN', kind: 'refused', reason: null });
   // A label must be words.
   assert.throws(() => new Machine(ran, { start: {}, events: ['A'], labels: { A: ' ' }, next: () => ({}), views: [] }), /must be words/);
+});
+
+test('buttons for prototype-named events use only their own labels', () => {
+  const names = ['constructor', 'valueOf', '__proto__'];
+  const scene = new Scene(new NullSink());
+  const machine = new Machine<object, string>(scene, {
+    start: {}, events: names, labels: { ['__proto__']: 'Advance' }, next: s => s, views: [],
+  });
+  assert.deepEqual(outcomes(machine, {}).map(o => o.label), ['constructor', 'valueOf', 'Advance']);
 });
 
 test('a link’s log keeps its longest prefix the machine takes, and says where and why it stopped', async () => {
@@ -148,7 +207,7 @@ test('a live run stops as the step ends, plays the log there, and is a function 
   await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { sink: b });
   assert.deepEqual(one.scene.state, { level: 2 });
   assert.equal(svgOf(a), svgOf(b), 'the same log draws the same picture');
-  assert.match(JSON.stringify(one.shown), /lamp bright/);
+  assert.match(JSON.stringify(one.derived), /lamp bright/);
   // Animated, the last event plays frame by frame from the picture before it, and lands on the same picture.
   const frames: string[] = [];
   let started = 0;
@@ -197,7 +256,7 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   assert.equal(started, 1);
   assert.equal(animated.frames[0], svgOf(a), 'the animation starts from the picture the session held');
   assert.deepEqual(animated.frames, freshAnimated.frames, 'every frame is the fresh run’s');
-  assert.match(JSON.stringify(up.shown), /lamp bright/);
+  assert.match(JSON.stringify(up.derived), /lamp bright/);
   assert.equal(up.scene.currentStep?.name, 'press', 'a kept run stays in the step');
   // A refused event fails the send and closes the session; so does close().
   await assert.rejects(session.send('UP'), /refused/);
@@ -342,15 +401,15 @@ test('a live run drives the same machine it was given: same events in the same o
   // A scene whose machine's events swap order on every run: the same index names another machine.
   // Before, the player took whatever machine the index named.
   let runs = 0;
-  class Swapping extends Scene<Lamp> {
-    override state = { level: 0 };
+  class Swapping extends Scene {
+    override state: Lamp = { level: 0 };
     override async construct() {
       const picture = view(this, (st: Lamp) => keyed(new Group(keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word')), 'lamp'));
       this.add(picture);
       const events: Press[] = runs++ % 2 ? ['DOWN', 'UP'] : ['UP', 'DOWN'];
       const machine = new Machine<Lamp, Press>(this, { start: { level: 0 }, events, views: [picture], runTime: 0.2, next: (st, e) => ({ level: e === 'UP' ? Math.min(2, st.level + 1) : Math.max(0, st.level - 1) }) });
       await this.step('press', { caption: 'Press.' });
-      await this.play(machine.replay(['UP']));
+      await this.play(machine.sendSequence(['UP']));
     }
   }
   const press = 'press';
@@ -360,7 +419,7 @@ test('a live run drives the same machine it was given: same events in the same o
   // The next run makes the first order again: the same machine, which plays.
   assert.deepEqual((await runLive(Swapping, press, at, ['UP'])).rest, { level: 1 });
   // Identity reads events in order, the start and the views' keys.
-  const scene = new Scene<Lamp>(new NullSink());
+  const scene = Object.assign(new Scene(new NullSink()), { state: { level: 0 } });
   const spec = { start: { level: 0 }, next: (s: Lamp) => s, views: [] };
   const id = (o: object) => new Machine(scene, { ...spec, events: ['UP', 'DOWN'], ...o }).identity;
   assert.equal(id({}), id({}));

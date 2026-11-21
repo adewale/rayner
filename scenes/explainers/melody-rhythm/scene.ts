@@ -1,9 +1,8 @@
 import { Scene } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { musicStory, NOTE_NAMES } from './model.ts';
-import type { Timing } from './model.ts';
 import { scorePicture } from './picture.ts';
 import type { Look } from './picture.ts';
 
@@ -15,7 +14,7 @@ interface Music { clips: AudioClip[]; movedStarts: number }
  */
 const BPM = 96;
 
-export default class MelodyRhythm extends Scene<{}, {}> {
+export default class MelodyRhythm extends Scene {
   static meta = {
     sources: [
       'https://learningmusic.ableton.com/make-beats/make-beats.html',
@@ -61,10 +60,10 @@ export default class MelodyRhythm extends Scene<{}, {}> {
         { value: 'straight', label: 'Keep the same timing as A' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const v = settingsOf(this),
-      m = musicStory(v.timing as Timing, BPM),
+    const v = settingsOf(this, MelodyRhythm),
+      m = musicStory(v.timing, BPM),
       different = m.movedStarts > 0;
     // B's notes that start on bar 2's 1, by index: none when G holds across the bar line.
     const onTheOne = (clip: AudioClip) => clip.notes.flatMap((n, i) => (n.at === 4 ? [`${clip.id}-${i}`] : []));
@@ -134,7 +133,7 @@ export default class MelodyRhythm extends Scene<{}, {}> {
         },
         audio: { clips },
         // The score from the step's own clips; what it outlines and says, from them and whether B moved any start.
-        draw: (st: Music, s: Stage) => scorePicture(s, st.clips, look(st)),
+        draw: (st: Music, s: DrawContext) => scorePicture(s, st.clips, look(st)),
       })),
     );
   }

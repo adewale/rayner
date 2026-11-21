@@ -17,7 +17,10 @@ type Chapter = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions'
 type Model = Driven | { current: string[] | null };
 type Shown = { chapter: Chapter };
 
-export default class Statecharts extends Scene<Model, Shown> {
+export default class Statecharts extends Scene {
+  override state: Model = { current: null };
+  override shown: Shown = { chapter: 'machine' };
+
   static meta = {
     sources: [
       'https://x.com/DavidKPiano/status/2116523008323981315',
@@ -25,7 +28,7 @@ export default class Statecharts extends Scene<Model, Shown> {
       'https://www.w3.org/TR/2015/REC-scxml-20150901/',
       'https://www.npmjs.com/package/xstate/v/5.33.3',
     ],
-    watch: { current: 'Current states' },
+    watch: [{ source: 'model', key: "current", label: 'Current states' }] as const,
     // Sentences that reach past the charts on screen, and the test that holds each against the model and XState.
     claims: [
       { says: 'is always in exactly one of four boxes', test: 'model.test.ts: the coffee machine is always in exactly one state' },
@@ -62,23 +65,23 @@ export default class Statecharts extends Scene<Model, Shown> {
     const picture = (st: Model, { chapter }: Shown): Drawn => {
       switch (chapter) {
         case 'machine':
-          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'plain', { follow: [], lit: [] });
+          return coffeePicture(s.drawing, big(coffeeLayout('flat').bounds), 'plain', { follow: [], lit: [] });
         case 'copies':
-          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'flat', { follow: [], lit: Object.keys(COFFEE.ys).map((id) => `c:arrow:${id}:POWER_OFF:off`) });
+          return coffeePicture(s.drawing, big(coffeeLayout('flat').bounds), 'flat', { follow: [], lit: Object.keys(COFFEE.ys).map((id) => `c:arrow:${id}:POWER_OFF:off`) });
         case 'parent':
-          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
+          return coffeePicture(s.drawing, big(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
         case 'multiply':
-          return flatPicture(s, playerChart, big(FLAT.bounds), { follow: [], lit: [] });
+          return flatPicture(s.drawing, playerChart, big(FLAT.bounds), { follow: [], lit: [] });
         case 'grid':
-          return chartPicture(s, playerChart, 'boxed', big(CHART.bounds), { follow: [followCell], lit: [] }, false);
+          return chartPicture(s.drawing, playerChart, 'boxed', big(CHART.bounds), { follow: [followCell], lit: [] }, false);
         case 'regions':
-          return chartPicture(s, playerChart, 'regions', big(CHART.bounds), { follow: ACTIVE, lit: ['r:arrow:0,0:PLAY:1,0', 'r:arrow:1,0:PAUSE:0,0', 'r:arrow:0,0:MUTE:0,1', 'r:arrow:0,1:UNMUTE:0,0'] });
+          return chartPicture(s.drawing, playerChart, 'regions', big(CHART.bounds), { follow: ACTIVE, lit: ['r:arrow:0,0:PLAY:1,0', 'r:arrow:1,0:PAUSE:0,0', 'r:arrow:0,0:MUTE:0,1', 'r:arrow:0,1:UNMUTE:0,0'] });
         case 'flatten':
-          return tracePicture(s, big(TRACE));
+          return tracePicture(s.drawing, big(TRACE));
         case 'question':
-          return coffeePicture(s, big(coffeeLayout('question').bounds), 'question', { follow: [], lit: [] });
+          return coffeePicture(s.drawing, big(coffeeLayout('question').bounds), 'question', { follow: [], lit: [] });
         case 'frother':
-          return coffeePicture(s, big(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
+          return coffeePicture(s.drawing, big(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
       }
     };
     this.state = { current: null } satisfies Model;
@@ -154,7 +157,7 @@ export default class Statecharts extends Scene<Model, Shown> {
       show(chapter);
       this.state = machine.spec.start;
       await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
-      await this.play(machine.replay(events));
+      await this.play(machine.sendSequence(events));
     };
 
     // 1. A concrete machine, and the change that will hurt it.

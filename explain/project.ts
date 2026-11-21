@@ -10,32 +10,46 @@ import { withLettering } from '../src/lettering.ts';
 import type { LetteringFaces } from '../src/lettering.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Trace, TraceOf } from '../src/trace.ts';
-import { adoptIntent, parseIntent } from './intent.ts';
-import { bindSnapshots, checkExplainerMeta, identifierRule, isIdentifier, resolveSettings, scenariosOf, withSettings } from './settings.ts';
-import type { ExplainerClass, Settings } from './settings.ts';
+import { adoptIntent, declaredMetaOf, parseIntent } from './intent.ts';
+import { bindSnapshots, captureProjectSettings, checkExplainerMeta, identifierRule, isIdentifier, resolveSettings, scenariosOf, withSettings } from './settings.ts';
+import type { ExplainerClass, ExplainerMeta, Settings } from './settings.ts';
+
+/** The author's instance and static members. The loaded script can supply metadata the class narrowed or omitted. */
+type LoadedClass<C extends SceneClass> = (new (...args: ConstructorParameters<C>) => InstanceType<C>)
+  & Omit<C, 'meta'> & Pick<ExplainerClass, 'meta' | 'settings'>;
 
 /**
  * One scenario of a loaded explainer: its setting values, the scene bound to them and its
  * snapshots, and its trace, whose states are typed `S` and `Sh` as Trace's are.
  */
-export interface LoadedScenario<S extends object = SceneState, Sh extends object = SceneState> {
+export interface LoadedScenario<S extends object = SceneState, Sh extends object = SceneState, C extends SceneClass = ExplainerClass> {
   values: Settings;
-  Scene: ExplainerClass;
+  Scene: LoadedClass<C>;
   trace: Trace<S, Sh>;
 }
 /** An explainer as `loadProject` loads it, its traces typed `S` and `Sh` as Trace's are. */
-export interface LoadedProject<S extends object = SceneState, Sh extends object = SceneState> {
-  /** The scene class, with the intent of the script beside it adopted. */
-  Scene: ExplainerClass;
+export interface LoadedProject<S extends object = SceneState, Sh extends object = SceneState, C extends SceneClass = ExplainerClass> {
+  /** A subclass with this load's metadata and settings declarations. */
+  Scene: LoadedClass<C>;
   /** The pinned diagram snapshots from `scene.snapshots/` (empty for a scene with no diagrams). */
   snapshots: SnapshotStore;
   /** Every scenario of the scene's settings, in `scenariosOf` order. */
-  scenarios: LoadedScenario<S, Sh>[];
+  scenarios: LoadedScenario<S, Sh, C>[];
   /** The scenario these values choose, every other setting at its default, as a page link chooses one. */
-  scenario(values?: Settings): LoadedScenario<S, Sh>;
+  scenario(values?: Settings): LoadedScenario<S, Sh, C>;
 }
-/** The project loadProject loads for scene class `C`, typed from the `Scene<S, Sh>` it extends. */
-type ProjectOf<C> = TraceOf<C> extends Trace<infer S, infer Sh> ? LoadedProject<S, Sh> : never;
+/** The project loadProject loads for scene class `C`, typed from its initialized model and presentation. */
+type ProjectOf<C extends SceneClass> = 0 extends 1 & C ? LoadedProject
+  : TraceOf<C> extends Trace<infer S, infer Sh> ? LoadedProject<S, Sh, C> : never;
+
+/** Freeze a load's private copy, including nested options, source lists and reader questions. */
+function freezeDeclarations<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const item of Object.values(value)) freezeDeclarations(item);
+  }
+  return value;
+}
 
 /**
  * The pinned diagram snapshots of the scene at `where`: a scene file, or a folder holding
@@ -62,12 +76,21 @@ export async function loadSnapshots(where: string): Promise<SnapshotStore> {
  *     for (const { values, trace } of project.scenarios) check(trace, values);
  */
 export async function loadProject<C extends SceneClass>(Explainer: C, where: string): Promise<ProjectOf<C>> {
-  const Scene = Explainer as ExplainerClass,
-    read = nodeReader(),
-    file = sceneFile(where);
-  adoptExplainer(Scene, file, await read(scriptOf(file)), `loadProject(): ${file}`);
+  const Source: ExplainerClass = Explainer;
+  const read = nodeReader(), file = sceneFile(where);
+  const declaredMeta = declaredMetaOf(Source) as ExplainerMeta | undefined;
+  checkProjectMeta(declaredMeta, `loadProject(): ${file}`);
+  // A scene module can be shared by projects or reloaded after its script changes. Capture this
+  // load's declarations before reading the files. All scenario subclasses inherit from here.
+  class ProjectScene extends Source {
+    static override meta = structuredClone(declaredMeta);
+    static override settings = freezeDeclarations(structuredClone(Source.settings));
+  }
+  captureProjectSettings(ProjectScene, Source);
+  adoptScript(ProjectScene, file, await read(scriptOf(file)));
+  freezeDeclarations(ProjectScene.meta);
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
-  const { Lettered, faces } = await pinnedLettering(Scene, file, read);
+  const { Lettered, faces } = await pinnedLettering(ProjectScene, file, read);
   // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only, and
   // a scene with none traces with the embedded faces alone. Either way the runs take their turn
   // (withLettering): another loadProject or lettered run overlapping this one waits, so each traces
@@ -78,7 +101,7 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
     snapshots,
     scenarios,
     scenario(values = {}) {
-      const want = resolveSettings(Scene, values);
+      const want = resolveSettings(ProjectScene, values);
       const found = scenarios.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]));
       if (!found) throw new RangeError(`project.scenario(): no scenario has ${JSON.stringify(want)}`);
       return found;
@@ -99,9 +122,17 @@ export const scriptOf = (file: string) => file.replace(/[^/\\]*$/, '') + 'script
  * the prefix of what it throws: `loadProject(): <file>`, or the scene's file for the command.
  */
 export function adoptExplainer(Scene: ExplainerClass, file: string, script: string | null, api: string): ReturnType<typeof adoptIntent> {
-  try { checkExplainerMeta(Scene.meta); } catch (e) {
+  checkProjectMeta(Scene.meta, api);
+  return adoptScript(Scene, file, script);
+}
+
+function checkProjectMeta(meta: unknown, api: string): void {
+  try { checkExplainerMeta(meta); } catch (e) {
     throw e instanceof RangeError ? new RangeError(`${api}: ${e.message}`) : new TypeError(`${api}: ${(e as Error).message}`);
   }
+}
+
+function adoptScript(Scene: ExplainerClass, file: string, script: string | null): ReturnType<typeof adoptIntent> {
   const intent = adoptIntent(Scene as { meta?: Record<string, unknown> }, script === null ? null : parseIntent(script, scriptOf(file)), scriptOf(file));
   if (Scene.meta?.id === undefined) Scene.meta = { ...Scene.meta, id: sceneIdOf(file) };
   return intent;

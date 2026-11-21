@@ -1,8 +1,9 @@
+import type { SceneInputs } from '../src/scene.ts';
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, keyed } from '../src/index.ts';
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
-import { setDrawn, keepOnTop } from '../src/scene.ts';
+import { setDrawn, keepOnTop, setStepState } from '../src/scene.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
@@ -22,13 +23,15 @@ import { resolverOf } from './diagram-snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from './diagram-snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, partsSeen, REGIONS, checkPalette, checkSize } from './look.ts';
+import { soft, emphasis, bad, regionBox, opening, partsSeen, REGIONS, checkPalette, checkSize } from './look.ts';
 import type { Region, Look } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Description } from './trace.ts';
 import { physicalAt } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
+import { drawContext, type DrawContext } from './draw-context.ts';
+import { installedTextContext } from '../src/text-context.ts';
 
 /** Physical regions retain their coordinates; start/end follow the stage's direction. */
 export type StageRegion = Region | 'start' | 'end';
@@ -68,10 +71,10 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
   title: string;
   line: string;
   caption: string;
-  /** The step's model (JSON): it becomes the scene's state, and the trace records it. */
+  /** The step's local input (JSON), drawn here and recorded in StepRecord.state. */
   state: S;
-  /** The step's picture, from its state alone; the stage gives its palette and helpers. */
-  draw: (state: S, stage: StageApi) => Mobject;
+  /** The step's picture, from its specimen and a detached snapshot of the drawing context. */
+  draw: (state: S, context: DrawContext) => Mobject;
   audio?: StepAudio;
   /** Which path this step is on, when not the list's (see StagedStepsOptions). */
   kind?: StepKind;
@@ -96,8 +99,6 @@ export function pictureFingerprint(m: Mobject): string {
   const round = (v: number) => Math.round(v * 1000) / 1000;
   return JSON.stringify(m.family().map((x) => [x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null]));
 }
-// The stage, for a step's draw; declared structurally so StagedStep can name it inside stage().
-type StageApi = Stage;
 
 /**
  * Part of the stage's heading: its title (role `'heading'`), or its number, line or band
@@ -116,7 +117,7 @@ export function isHeading(m: Mobject): boolean {
  * the heading that names the step this way. The scene must not change its list meanwhile: a sink
  * draws while the scene waits for it.
  */
-export function withoutHeading<T>(scene: Scene<any, any>, draw: () => T): T {
+export function withoutHeading<T>(scene: Scene, draw: () => T): T {
   const all = scene.mobjects;
   setDrawn(scene, all.filter((m) => !isHeading(m)));
   const back = () => { setDrawn(scene, all); };
@@ -136,15 +137,15 @@ export function isFurniture(m: Mobject, { frame = false }: { frame?: boolean } =
   return isHeading(m);
 }
 /** The stage's backdrop (role `'backdrop'`), or undefined for a scene drawn without a stage. */
-export const backdropOf = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'backdrop');
+export const backdropOf = (scene: Pick<Scene, 'mobjects'>): Mobject | undefined => scene.mobjects.find((m) => m.role === 'backdrop');
 /**
  * The colour of the stage's paper (its look's `paper`, the backdrop's fill) as `scene` has it, or
  * undefined for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => backdropOf(scene)?.style.fill;
+export const paperOf = (scene: Pick<Scene, 'mobjects'>): string | undefined => backdropOf(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The scenes that have a stage: stage() runs once per scene. */
-const staged = new WeakSet<Scene<any, any>>();
+const staged = new WeakSet<Scene>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
@@ -169,10 +170,10 @@ export interface DiagramPicture {
 }
 /**
  * The stage on `scene`: its palette, heading, regions, diagrams and panels, and the helpers that
- * enter, keep and clear what it shows. Typed from the scene (`Scene<S, Sh>`), so the draws it takes
+ * enter, keep and clear what it shows. Typed from the scene (`SceneInputs<S, Sh>`), so the draws it takes
  * (`diagramView`'s) read the scene's model and shown types.
  */
-export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, options: StageOptions = {}) {
+export function stage<S extends object, Sh extends object>(scene: SceneInputs<S, Sh>, options: StageOptions = {}) {
   // A second stage would add a second backdrop, heading and step listeners over the first.
   if (staged.has(scene)) throw new Error('stage(): the scene has a stage already; call stage(this) once and keep what it returns');
   // The options are checked, and the backdrop and first heading made, before the stage touches the
@@ -183,7 +184,10 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   checkSize('stage()', 'headingSize', options.headingSize);
   // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
   let adopt = !options.palette && !options.style;
-  let colors = options.palette ?? palette(options.style ?? 'nord');
+  const shaping = scene.textShaping ?? installedTextContext();
+  const contextFor = (colors: Palette) => drawContext({ palette: colors, direction, lang: langOf(scene), shaping });
+  let drawing = contextFor(options.palette ?? palette(options.style ?? 'nord'));
+  let colors = drawing.palette;
   const mode = options.heading ?? 'step';
   const backdrop = new Rectangle({ width: FRAME.w, height: FRAME.h, fill: colors.paper, stroke: 'none' });
   backdrop.role = 'backdrop';
@@ -195,14 +199,14 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * heading they belong to the stage, not the picture a step leaves.
    */
   const makeChrome = (text: string, line: string, number: number | null, step: string) => {
-    const t = new Text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold', shaping: scene.textShaping });
+    const t = new Text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold', shaping: drawing.shaping });
     t.role = 'heading';
     const y = line ? HEADING_Y_WITH_LINE : HEADING_Y;
     const parts: Mobject[] = [];
     let badge: Group | null = null;
     if (number != null && text) {
       const r = headingSize * 0.62;
-      const digit = new Text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold', shaping: scene.textShaping });
+      const digit = new Text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold', shaping: drawing.shaping });
       badge = new Group(
         new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }),
         digit,
@@ -218,7 +222,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       parts.push(badge);
     }
     if (line) {
-      const l = new Text(line, { fontSize: LINE_SIZE, color: soft(colors), shaping: scene.textShaping });
+      const l = new Text(line, { fontSize: LINE_SIZE, color: soft(colors), shaping: drawing.shaping });
       if (l.width() > CHROME_WIDTH)
         throw new Error(
           `this.step(): the line of step ${JSON.stringify(step)} is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
@@ -240,9 +244,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
   stagePalettes.set(scene, () => ({ ...colors }));
-  /** The look of the palette as it is now: computed again only when a colour of it changes. */
-  const paletteKey = (p: Palette) => `${p.paper} ${p.ink} ${p.accent} ${p.muted}`;
-  let looked = { from: paletteKey(colors), look: lookOf(colors) };
   // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
   scene.colors = sceneColors(colors);
   scene.add(backdrop);
@@ -377,7 +378,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   scene.onStep(() => {
     before = shownNames(look());
   });
-  scene.addJson(() => ({ picture: picture(look(), before, langOf(scene)) }), 'shown');
+  scene.addJson(() => ({ picture: picture(look(), before, langOf(scene)) }));
   const keepAll = (mobs: Mobject[], { describe }: Describe) => {
     const say = typeof describe === 'string' ? () => describe : describe;
     for (const m of mobs) overlays.set(m, say);
@@ -437,6 +438,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
 
   const api = {
     scene,
+    /** The stage's current detached drawing context. An adopted palette creates a new snapshot. */
+    get drawing(): DrawContext { return drawing; },
     get heading() {
       return heading;
     },
@@ -445,8 +448,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      * good, bad, raised, rule and muted (see Look). The stage's helpers colour from the same look.
      */
     get look(): Look {
-      if (looked.from !== paletteKey(colors)) looked = { from: paletteKey(colors), look: lookOf(colors) };
-      return looked.look;
+      return drawing.look;
     },
     /**
      * Draw a diagram and build it in. It reads the diagram's layout first, so the diagram (its
@@ -462,7 +464,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         const read = snapshot!;
         if (adopt) {
           adopt = false;
-          colors = read.palette;
+          drawing = contextFor(read.palette);
+          colors = drawing.palette;
           scene.colors = sceneColors(colors);
           backdrop.setFill(colors.paper);
           heading.setFill(colors.ink);
@@ -531,7 +534,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     },
     /** Labelled values, entered: the kit's `card(s, rows, opts)`, faded in and kept. */
     card(rows: readonly CardRow[], opts: CardOptions = {}): Action<Card> {
-      return act('s.card()', () => enterPanel(card(this as StageApi, rows, { ...opts, api: 's.card()' } as CardOptions), { runTime: 0.35, shift: [0, -0.08] }));
+      return act('s.card()', () => enterPanel(card(drawing, rows, { ...opts, api: 's.card()' } as CardOptions), { runTime: 0.35, shift: [0, -0.08] }));
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step().
@@ -547,12 +550,12 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
     code(lines: readonly string[], opts: CodeBlockOptions = {}): Action<CodeBlock> {
-      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeBlockOptions), { runTime: 0.4 }));
+      return act('s.code()', () => enterPanel(code(drawing, lines, { ...opts, api: 's.code()' } as CodeBlockOptions), { runTime: 0.4 }));
     },
     /** A plain line of supporting text in the stage's secondary colour. */
     note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Action<Text> {
       return act('s.note()', () => {
-        const t = new Text(text, { fontSize: size, color: soft(colors), shaping: scene.textShaping }).moveTo(at);
+        const t = new Text(text, { fontSize: size, color: soft(colors), shaping: drawing.shaping }).moveTo(at);
         if (t.width() > 15) t.setWidth(15);
         return enterPanel(t, { runTime: 0.3 });
       });
@@ -692,30 +695,29 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       });
     },
     /**
-     * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in
-     * its picture, a view of that state: `rayner check` holds it to its draw as it holds every view.
+     * Present steps in turn: each clears the stage and fades in a view of its own local state;
+     * `rayner check` holds it to its draw as it holds every view. The scene's model is unchanged.
      * `kind: 'short'` marks the steps as the reader's short path before the main one; each step's
      * own `kind` overrides the list's. Each step is typed by its own state, so one list can hold
      * steps whose states differ: its draw and describe read that step's state. The steps' states
-     * are theirs, not the scene's model type; a scene that reads `this.state` after them sets it first.
+     * are theirs, not the scene's model type; the trace records each as `StepRecord.state`.
      */
     async steps<T extends readonly object[] | []>(list: { readonly [K in keyof T]: StepOf<T[K]> }, { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
       for (const step of list as readonly StagedStep<object>[]) {
         const kind = step.kind ?? listKind;
-        await scene.step(step.id, {
+        const begun = await scene.step(step.id, {
           title: step.title, line: step.line, caption: step.caption,
           ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}), ...(step.predict ? { predict: step.predict } : {}),
         });
         await this.clear({ runTime: 0.18 });
-        const state = cloneJson(step.state, 's.steps()', 'state', ` (step ${JSON.stringify(step.id)})`) as object;
-        // The step's state is the scene's while the step shows: a view of it, which check redraws.
-        const host = scene as unknown as Scene<object, Sh>;
-        host.state = { ...state };
-        const picture = new View(host, (st) => {
-          const drawn = step.draw(st, this as StageApi);
+        const state = cloneJson(step.state, 's.steps()', 'state', ` (step ${JSON.stringify(step.id)})`);
+        setStepState(begun, state);
+        const context = this.drawing;
+        const picture = new View(scene, (st: object) => {
+          const drawn = step.draw(st, context);
           if (kind === 'short') keyed(drawn, 'reader-picture');
           return drawn;
-        }, { place: false });
+        }, { place: false, drawing: context }, state);
         const drawing = picture.current;
         // What the step is about, when that is less than the whole drawing: a phone opens on it.
         const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];
@@ -727,8 +729,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       }
     },
   };
-  bindStagePalette(api, () => colors);
   return api;
 }
-/** The stage on a `Scene<S, Sh>`; a bare `Stage` is the stage on any scene, as kit functions take it. */
+/** The stage that presents a scene with model S and presentation Sh. */
 export type Stage<S extends object = any, Sh extends object = any> = ReturnType<typeof stage<S, Sh>>;

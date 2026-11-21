@@ -1,7 +1,7 @@
-// PNG output (rayner shots, contact sheets and gallery tiles)
+// PNG output (rayner contact-sheet, contact sheets and gallery tiles)
 // rasterises with resvg 2.6.2, which aborts the whole process (a Rust panic, exit 134)
 // on a translucent element the camera has left outside its view. Every path culls what
-// the camera cannot show first. The shots path runs in a child process: an abort would
+// the camera cannot show first. The contact-sheet path runs in a child process: an abort would
 // take the test runner down with it.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,13 +41,13 @@ await this.step('two',{caption:'Zoom on one; the other dims.'});
 await this.play(this.frame.animate.fit([-2,-1.125,2,1.125],{margin:0}),far.animate.setOpacity(0.3));
 }}`;
 
-test('rayner shots draws a zoomed frame with a translucent label outside the view', { skip }, async () => {
+test('rayner contact-sheet draws a zoomed frame with a translucent label outside the view', { skip }, async () => {
   const dir = join(folder, 'dim');
   await mkdir(dir);
   await writeFile(join(dir, 'scene.ts'), DIM);
   const out = join(dir, 'sheet.png');
-  const run = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'shots', dir, '--out', out], { encoding: 'utf8' });
-  assert.equal(run.status, 0, `rayner shots exited ${run.status} (signal ${run.signal}):\n${run.stderr.slice(-2000)}`);
+  const run = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'contact-sheet', dir, '--out', out], { encoding: 'utf8' });
+  assert.equal(run.status, 0, `rayner contact-sheet exited ${run.status} (signal ${run.signal}):\n${run.stderr.slice(-2000)}`);
   assert.deepEqual((await readFile(out)).subarray(0, 8), PNG);
   assert.match(await readFile(join(dir, 'sheet.svg'), 'utf8'), /^<svg /);
 });

@@ -248,60 +248,40 @@ const own = (o: object) => JSON.parse(JSON.stringify(o));
 /** A JSON value with its keys sorted, to compare two values whatever their key order. */
 const sorted = (v: unknown): unknown => Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object'
   ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted((v as Record<string, unknown>)[k])])) : v;
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-test('stateJson is the state merged, left to right, with each live addJson part, every key kept; a key written twice with two values throws', () => {
-  fc.assert(
-    fc.property(json, fc.array(fc.tuple(json, fc.boolean()), { maxLength: 4 }), (state, parts) => {
-      const scene = new Scene(new NullSink());
-      scene.state = own(state);
-      const offs = parts.map(([d]) => scene.addJson(() => own(d)));
-      parts.forEach(([, drop], i) => drop && offs[i]!());
-      const expected: Record<string, unknown> = {};
-      let clash: { key: string; part: boolean } | null = null;
-      const put = (o: Record<string, unknown>, part: boolean) => {
-        for (const [k, v] of Object.entries(o)) {
-          if (Object.hasOwn(expected, k) && JSON.stringify(sorted(expected[k])) !== JSON.stringify(sorted(v))) clash ??= { key: k, part: parts.length > 0 && part && fromPart.has(k) };
-          if (part) fromPart.add(k);
-          Object.defineProperty(expected, k, { value: v, enumerable: true, writable: true, configurable: true });
-        }
-      };
-      const fromPart = new Set<string>();
-      put(own(state), false);
-      for (const [d, drop] of parts) if (!drop) put(own(d), true);
-      if (clash) {
-        const { key: k, part } = clash;
-        assert.throws(() => scene.stateJson(), part
-          ? new RegExp(`^Error: this\\.addJson\\(\\): two parts write the key ${escape(JSON.stringify(k))} into this\\.state with different values`)
-          : new RegExp(`^Error: this\\.state: the key ${escape(JSON.stringify(k))} is also written by a helper`));
-        return;
-      }
-      const got = scene.stateJson();
+test('computed JSON merges live providers without changing model or presentation, rejecting conflicting derived values', () => {
+  fc.assert(fc.property(json, json, fc.array(fc.tuple(json, fc.boolean()), { maxLength: 4 }), (model, shown, parts) => {
+    const scene = new Scene(new NullSink());
+    scene.state = own(model); scene.shown = own(shown);
+    const offs = parts.map(([data]) => scene.addJson(() => own(data)));
+    parts.forEach(([, drop], i) => { if (drop) offs[i]!(); });
+    const expected: Record<string, unknown> = {};
+    let clash: string | undefined;
+    for (const [data, drop] of parts) if (!drop) for (const [key, value] of Object.entries(own(data))) {
+      if (Object.hasOwn(expected, key) && JSON.stringify(sorted(expected[key])) !== JSON.stringify(sorted(value))) clash ??= key;
+      Object.defineProperty(expected, key, { value, enumerable: true, writable: true, configurable: true });
+    }
+    assert.deepEqual(scene.stateJson(), own(model));
+    assert.deepEqual(scene.shownJson(), own(shown));
+    if (clash !== undefined) assert.throws(() => scene.derivedJson(), /this\.addJson\(\): two parts write the key/);
+    else {
+      const got = scene.derivedJson();
       assert.deepEqual(Object.entries(got), Object.entries(expected));
       assert.equal(Object.getPrototypeOf(got), Object.prototype);
-    }),
-    params(),
-  );
+    }
+  }), params());
 });
 
-test('a helper\'s key refused in the scene\'s own state: an author\'s walks is never replaced by recorded walks', () => {
+test('domain keys are independent of derived keys, including walks, picture and prototype names', () => {
   const scene = new Scene(new NullSink());
-  // The helper restates its own key with the same value: allowed.
-  scene.state = { walks: [1] };
-  const off = scene.addJson(() => ({ walks: [1] }));
-  assert.deepEqual(scene.stateJson(), { walks: [1] });
-  off();
-  // Another value under the same key is the author's key colliding with the helper's.
-  scene.addJson(() => ({ walks: [2] }));
-  assert.throws(() => scene.stateJson(), /^Error: this\.state: the key "walks" is also written by a helper/);
-  scene.state = {};
+  scene.state = { walks: ['a domain walk'] };
+  scene.shown = { picture: 'an authored presentation choice' };
+  scene.addJson(() => ({ walks: [2], picture: { entries: [] } }));
+  assert.deepEqual(scene.stateJson(), { walks: ['a domain walk'] });
+  assert.deepEqual(scene.shownJson(), { picture: 'an authored presentation choice' });
+  assert.deepEqual(scene.derivedJson(), { walks: [2], picture: { entries: [] } });
   scene.addJson(() => ({ walks: [3] }));
-  assert.throws(() => scene.stateJson(), /^Error: this\.addJson\(\): two parts write the key "walks" into this\.state with different values/);
-  // Into what is shown, the same rule.
-  const shown = new Scene(new NullSink());
-  shown.shown = { picture: 'mine' };
-  shown.addJson(() => ({ picture: { entries: [] } }), 'shown');
-  assert.throws(() => shown.shownJson(), /^Error: this\.shown: the key "picture" is also written by a helper/);
+  assert.throws(() => scene.derivedJson(), /two parts write the key "walks" with different values/);
 });
 
 test('stateJson returns a copy: changing it leaves the state alone', () => {
@@ -325,7 +305,7 @@ test('registering the same addJson part twice and removing one leaves the other'
       const f = () => own(d);
       const offs = [scene.addJson(f), scene.addJson(f)];
       offs[which]!();
-      assert.deepEqual(Object.entries(scene.stateJson()), Object.entries(own(d)));
+      assert.deepEqual(Object.entries(scene.derivedJson()), Object.entries(own(d)));
     }),
     params(),
   );
@@ -336,7 +316,7 @@ test('an addJson part that does not return an object is refused with a clear err
     fc.property(fc.oneof(fc.constantFrom(undefined, null), fc.integer(), fc.string(), fc.array(fc.integer())), (bad) => {
       const scene = new Scene(new NullSink());
       scene.addJson(() => bad as never);
-      assert.throws(() => scene.stateJson(), /must return a JSON object/);
+      assert.throws(() => scene.derivedJson(), /must be a JSON object/);
     }),
     params(),
   );

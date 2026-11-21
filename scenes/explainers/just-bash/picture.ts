@@ -3,7 +3,7 @@ import type { Mobject } from '../../../src/index.ts';
 import { exec } from './model.ts';
 import type { Shell, ShellSession } from './model.ts';
 import { flow, keyedParts, label, table, emphasised } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
+import type { Stage, DrawContext, StagedStepsOptions } from '../../../explain/index.ts';
 
 export const FILE = 'shout.txt';
 export const files = (sh: Shell) => Object.keys(sh.fs).join(', ') || 'none';
@@ -73,7 +73,7 @@ const SHELL_X = [-4.5, 3.1],
  * the accent), an arrow from s0 to the shell the write returned, and under each shell cat has read, an arrow to what it
  * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
  */
-export function shellsPicture(st: ShellSession, s: Stage): Group {
+export function shellsPicture(st: ShellSession, s: DrawContext): Group {
   const ink = s.look.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
   st.shells.forEach((sh, i) => {
     const x = SHELL_X[i]!, kept = i === newest;

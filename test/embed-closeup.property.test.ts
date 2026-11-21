@@ -378,22 +378,21 @@ test('after the first close-up, every close-up that shows where an emphasised th
 
 test('a step records what it emphasised with the helpers, and only that step', async () => {
   class Marks extends Scene {
+    override state = { first: 1 };
+    override shown: { lit: string | null; focus: number | null } = { lit: null, focus: null };
     override async construct() {
       const s = stage(this, { heading: false });
       // The card's values are the model; the lit row and the lit line are how the step shows it.
-      this.state.first = 1;
-      this.shown.lit = null;
-      this.shown.focus = null;
       const sync = (v: View) => this.play(v.sync());
       await this.step('card');
       this.shown.lit = 'third';
       const card = view(this, (st, sh) =>
-        cardPicture(s, [['first', st.first], ['second', 2], ['third', 3]], { at: [4, -2], lit: sh.lit == null ? null : { row: sh.lit as string }, key: 'card' }), { place: false });
+        cardPicture(s.drawing, [['first', st.first], ['second', 2], ['third', 3]], { at: [4, -2], lit: sh.lit == null ? null : { row: sh.lit as string }, key: 'card' }), { place: false });
       await s.enter(card);
       await this.step('code');
       this.shown.focus = 1;
       const code = view(this, (_st, sh) =>
-        codePicture(s, ['let a = 1;', 'let b = 2;'], { at: [-4, 2], lit: sh.focus == null ? null : { lines: sh.focus as number }, key: 'code' }), { place: false });
+        codePicture(s.drawing, ['let a = 1;', 'let b = 2;'], { at: [-4, 2], lit: sh.focus == null ? null : { lines: sh.focus as number }, key: 'code' }), { place: false });
       await s.enter(code);
       await this.step('quiet');
       this.state.first = 10;

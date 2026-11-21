@@ -1,6 +1,6 @@
 import { Group, Code, Rectangle, Line, Circle, Arrow, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { runSearch, raceLifetimes, racePage, raceReplay } from './model.ts';
 import type { CompletionOrder, Lifetime, Query, PageSpan, RaceState, RaceEvent, SearchSnapshot } from './model.ts';
 import { label, tile, emphasised } from '../../../explain/drawing.ts';
@@ -47,7 +47,7 @@ export interface Track { name: string; page: readonly Span[]; key: string }
  * landing to the tracks, where the page changes or, under the guard, may not. Every part is keyed,
  * so a machine's transition can move each.
  */
-export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly Track[], now: number): Group {
+export function timeline(s: DrawContext, lifetimes: readonly Life[], tracks: readonly Track[], now: number): Group {
   const rowLabel = (text: string, y: number, color = s.look.ink) => label(s, text, { color, size: 0.62 }).moveTo([ROW_LABEL_X, y], [-1, 0]);
   const parts: Mobject[] = [];
   for (const { query, start, land } of lifetimes) {
@@ -115,7 +115,7 @@ export function raceTracks(st: RaceState): Track[] {
     : [{ name: 'No guard', page: racePage(st), key: 'timeline-page-off' }];
 }
 /** The race's timeline, drawn from its state alone. */
-export const raceTimeline = (s: Stage, st: RaceState) => {
+export const raceTimeline = (s: DrawContext, st: RaceState) => {
   const picture = keyed(timeline(s, raceLifetimes(st), raceTracks(st), st.log.length - 1), 'reader-picture');
   // What the timeline marks, as emphasis the phone's close-ups visit first and review holds to the
   // caption: each page span outlined in red, a stale result on the page.

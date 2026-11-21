@@ -1,6 +1,6 @@
 import { Circle, Group, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE, addAll, barrier, counter, instructionCard, lane, laneRoute, sheet, speech, station, stationExit, stationHolds, ticket, label } from '../lib/poppy-kit.ts';
 import { asksOf, keyOf, TASKS } from './model.ts';
@@ -135,7 +135,7 @@ export function sayWorld(w: World): string {
 // Objects this chapter adds to the kit
 
 /** A torn strip of paper: one thing a note asks for, its two ends ragged. One unkeyed Group. */
-export function strip(s: Stage, text: string, { at, mono = false }: { at: Vec; mono?: boolean }): Group {
+export function strip(s: DrawContext, text: string, { at, mono = false }: { at: Vec; mono?: boolean }): Group {
   const words = label(s, text, { mono, color: TONE.print, align: 'start' });
   const w = words.width() + 0.56, h = 0.7, [x0, y] = at, l = x0, r = x0 + w, t = y + h / 2, b = y - h / 2;
   const tear = (xe: number, dir: number): Vec[] => Array.from({ length: 7 }, (_, i): Vec => [xe + dir * (i % 2 ? 0.07 : 0), t - (i * h) / 6]);
@@ -148,10 +148,10 @@ export function strip(s: Stage, text: string, { at, mono = false }: { at: Vec; m
 }
 
 /** A strip's width, for placing what follows it. */
-const stripWidth = (s: Stage, text: string, mono: boolean) => label(s, text, { mono, align: 'start' }).width() + 0.56;
+const stripWidth = (s: DrawContext, text: string, mono: boolean) => label(s, text, { mono, align: 'start' }).width() + 0.56;
 
 /** The notice board: a board with a sheet pinned to it, its heading printed, its lines readable once the agent has read it. */
-function board(s: Stage, read: boolean, marked: boolean): Mobject[] {
+function board(s: DrawContext, read: boolean, marked: boolean): Mobject[] {
   const { left, right, top, bottom } = BOARD, w = right - left, h = top - bottom, cx = left + w / 2, cy = bottom + h / 2;
   const back = new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: RADIUS.panel }).moveTo([cx, cy]);
   const pw = w - 0.36, ph = h - 0.28, pl = cx - pw / 2, pt = cy + ph / 2;
@@ -185,11 +185,11 @@ function feedbackSlot(holds: boolean): Mobject[] {
 }
 
 /** The paper a report is written on, and a note travelling, for the transitions. */
-export const slipToken = (s: Stage): Mobject => sheet(s, { width: 0.8, height: 1.0, lines: 2 });
-export const noteToken = (s: Stage): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
-export const probeToken = (s: Stage): Mobject => sheet(s, { width: 0.5, height: 0.62, lines: 2 });
+export const slipToken = (s: DrawContext): Mobject => sheet(s, { width: 0.8, height: 1.0, lines: 2 });
+export const noteToken = (s: DrawContext): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
+export const probeToken = (s: DrawContext): Mobject => sheet(s, { width: 0.5, height: 0.62, lines: 2 });
 
-export const requestToken = (s: Stage): Mobject => ticket(s, {});
+export const requestToken = (s: DrawContext): Mobject => ticket(s, {});
 
 
 // ---------------------------------------------------------------------------------------------
@@ -198,7 +198,7 @@ export const requestToken = (s: Stage): Mobject => ticket(s, {});
 /** The middle of line `i` of the shop's note as it lies on the desk: where that line's strip is torn from. */
 export const noteLineAt = (i: number): Vec => [ASIDE_X + 2.6, -0.3 - 0.2 - 0.34 - i * 0.68];
 /** The skill card, travelling from where the shop keeps it to the desk, to be read. */
-export const cardToken = (s: Stage): Mobject => instructionCard(s, { title: 'skill', lines: 2, width: SKILL_W });
+export const cardToken = (s: DrawContext): Mobject => instructionCard(s, { title: 'skill', lines: 2, width: SKILL_W });
 
 /** The strips of the last `used` exchange, keyed as drawn, each with its line on the paper it was torn from. */
 export function stripKeys(w: World): { key: string; line: number; reveal: boolean }[] {
@@ -210,7 +210,7 @@ export function stripKeys(w: World): { key: string; line: number; reveal: boolea
   return [...kept, ...left];
 }
 
-export function drawWorld(w: World, s: Stage): Group {
+export function drawWorld(w: World, s: DrawContext): Group {
   const parts = keyedParts(), last = w.last;
   const used = last?.kind === 'used' ? last : null;
 

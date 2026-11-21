@@ -2,7 +2,7 @@ import { Scene, Group, Text, Brace, DecimalNumber, Create, FadeIn, FadeOut, Tran
 import { PulseAlongPath, GrowFromEdge } from '../../../extras/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, answerOf, having } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { bars } from '../../../explain/drawing.ts';
 import { FIRST, ROWS, binOf, boardStory, routes } from './model.ts';
 import type { BoardState, Turn } from './model.ts';
@@ -12,7 +12,9 @@ import { percent } from '../lib/format.ts';
 /** The three routes to the middle bin the page draws: rights first, lefts first, and alternating. */
 const MIDDLE_ROUTES: Turn[][] = [[...'RRRLLL'] as Turn[], [...'LLLRRR'] as Turn[], [...'RLRLRL'] as Turn[]];
 
-export default class GaltonBoard extends Scene<BoardState, {}> {
+export default class GaltonBoard extends Scene {
+  override state: BoardState = { rows: ROWS, dropped: 0, counts: Array<number>(ROWS + 1).fill(0), routes: [] };
+
   static meta = {
     sources: [
       'https://galton.org/books/natural-inheritance/pdf/galton-nat-inh-1up-clean.pdf',
@@ -45,9 +47,9 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
       caption: `A Galton board is a triangle of pegs over a row of bins. A ball dropped at the top hits a peg and falls to its left or its right, as likely one way as the other, then meets another peg. After six pegs it drops into one of seven bins. This ball went right ${binOf(FIRST)} times and left ${rows - binOf(FIRST)} times, so it ends in the middle bin: a bin is the number of rights.`,
     });
     this.state = { rows, dropped: 1, counts: none.map((_, k) => (k === binOf(FIRST) ? 1 : 0)), routes: [[...FIRST]] };
-    const board = drawBoard(s, rows);
-    const first = keyed(ball(s), 'ball');
-    const said = sideWords(s, [
+    const board = drawBoard(s.drawing, rows);
+    const first = keyed(ball(s.drawing), 'ball');
+    const said = sideWords(s.drawing, [
       { text: 'This ball’s turns', soft: true },
       { text: FIRST.join(' '), size: 0.8, bold: true, mono: true },
       { text: `${binOf(FIRST)} rights: the middle bin` },
@@ -74,8 +76,8 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
       },
     });
     this.state = { rows, dropped: 0, counts: none, routes: [] };
-    const lattice = drawLattice(s, rows);
-    const asked = sideWords(s, [{ text: `${m.total} routes,` }, { text: 'one ball down each.' }, { text: 'Which bin fills', size: 0.64, bold: true, gap: 0.16 }, { text: 'highest?', size: 0.64, bold: true }]);
+    const lattice = drawLattice(s.drawing, rows);
+    const asked = sideWords(s.drawing, [{ text: `${m.total} routes,` }, { text: 'one ball down each.' }, { text: 'Which bin fills', size: 0.64, bold: true, gap: 0.16 }, { text: 'highest?', size: 0.64, bold: true }]);
     await this.play(...fadeOut(first, trail, ...said));
     s.keep(lattice, { describe: 'An arc for every hop a ball could make: two from each peg' });
     await this.play(new Create(lattice, { runTime: 1.2, lagRatio: 0.02 }));
@@ -91,19 +93,19 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
     await this.play(...fadeOut(...asked));
     const number = (n: number) => new DecimalNumber(n, { fontSize: 1.6, color: ink, anchor: 'start', shaping: this.textShaping }).moveTo([0.75, 1.5], [-1, 0]);
     const count = keyed(number(0), 'dropped');
-    const counted = sideWords(s, [{ text: 'balls dropped,' }, { text: 'one down every route' }], 0.45);
+    const counted = sideWords(s.drawing, [{ text: 'balls dropped,' }, { text: 'one down every route' }], 0.45);
     await s.enter(count, ...counted, { describe: () => `${count.text} balls dropped, one down every route` });
-    const axes = binAxes(s, rows);
-    const pile = drawPile(s, axes, m.counts);
+    const axes = binAxes(s.drawing, rows);
+    const pile = drawPile(s.drawing, axes, m.counts);
     s.keep(pile, { describe: `Bins filled to ${m.counts.join(', ')} balls, left to right` });
     // PulseAlongPath moves evenly by default; smooth lets each ball leave the top slowly and settle into its bin.
-    const stream = new LaggedStart(all.map((route) => new PulseAlongPath(ball(s), routePath(route), { runTime: 1.5, rateFunc: smooth })), { lagRatio: 0.045 });
+    const stream = new LaggedStart(all.map((route) => new PulseAlongPath(ball(s.drawing), routePath(route), { runTime: 1.5, rateFunc: smooth })), { lagRatio: 0.045 });
     await this.play(
       stream,
       new LaggedStart(pile.children.map((bar) => new GrowFromEdge(bar, [0, -1], { runTime: stream.runTime * 0.7 })), { lagRatio: 0.03, runTime: stream.runTime }),
       new Transform(count, number(m.total), { runTime: stream.runTime, rateFunc: linear }),
     );
-    const counts = drawCounts(s, rows, m.counts);
+    const counts = drawCounts(s.drawing, rows, m.counts);
     await s.enter(counts, { runTime: 0.4 });
 
     // 4. Why: a bin is a number of rights, and a route is one order for them.
@@ -118,7 +120,7 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
     const drawn = (route: Turn[], key: string, stroke: string, strokeWidth: number) => keyed(routePath(route, { stroke, strokeWidth }), key);
     const edgeRoute = drawn(edge, 'route:edge', ink, 0.08);
     const middleRoutes = MIDDLE_ROUTES.map((route) => drawn(route, `route:${route.join('')}`, accent, 0.05));
-    const listed = sideWords(s, [
+    const listed = sideWords(s.drawing, [
       { text: `Left edge bin: ${m.counts[0]} route`, gap: 0.14 },
       { text: edge.join(''), size: 0.64, mono: true, gap: 0.5 },
       { text: `Middle bin: ${m.counts[m.most]} routes`, gap: 0.14 },
@@ -137,12 +139,12 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
     });
     this.state = { rows, dropped: m.total, counts: m.counts, routes: [], span: { lo: m.lo, hi: m.hi, middle: m.middle, exact: m.exact, curve: m.curve } };
     await this.play(...fadeOut(edgeRoute, ...middleRoutes, ...listed));
-    const { curve, area } = drawBell(s, axes, rows, m.total, m.lo, m.hi);
+    const { curve, area } = drawBell(s.drawing, axes, rows, m.total, m.lo, m.hi);
     const span: Box = [binX(rows, m.lo) - W / 2, FLOOR - 0.72, binX(rows, m.hi) + W / 2, FLOOR];
     const brace = keyed(new Brace(span, [0, -1], { stroke: ink, strokeWidth: 0.04 }), 'brace');
     const held = new Text(`${m.middle} of ${m.total} balls`, { fontSize: SIZE, color: ink, shaping: this.textShaping });
     brace.putAtTip(held, 0.12);
-    const shares = sideWords(s, [
+    const shares = sideWords(s.drawing, [
       { text: 'Counted in the bins', soft: true, gap: 0.14 },
       { text: pct(m.exact), size: 0.8, bold: true, gap: 0.55 },
       { text: 'Under the curve', soft: true, gap: 0.14 },
@@ -161,7 +163,7 @@ export default class GaltonBoard extends Scene<BoardState, {}> {
         line: 'The board ends at its last bin; the curve runs on past it.',
         caption: `The curve is an approximation, and the edges show it. One route in ${m.total} reaches the left edge bin, ${pct(m.edgeExact, 2)} of the balls; the curve gives that bin ${pct(m.edgeCurve, 2)}. The curve also keeps going past the last bin, putting ${pct(m.beyond, 2)} of its area on each side where the board has no bins at all. Use the curve for the middle of a pile like this, and count routes at its edges.`,
         state: { rows, dropped: m.total, counts: m.counts, routes: [], tails: { beyond: m.beyond, edgeCurve: m.edgeCurve, edgeExact: m.edgeExact } } as BoardState,
-        draw: (st: BoardState, s: Stage) => {
+        draw: (st: BoardState, s: DrawContext) => {
           const t = having(st, 'tails').tails, total = 2 ** st.rows;
           const rows = [
             { label: `Left edge bin: ${st.counts[0]} route in ${total}`, value: t.edgeExact * 100, display: pct(t.edgeExact, 2) },

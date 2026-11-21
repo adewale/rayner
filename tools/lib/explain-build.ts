@@ -9,8 +9,8 @@ import { pageSize } from './page-budget.ts';
 import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { renderFrame } from '../../src/index.ts';
-import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
-import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery, groundingDetails, groundingSentence, predictionsOf } from '../../explain/internal.ts';
+import { chromeFor, scenarioNameIn, watchSummary, descriptionLang } from '../../app/embed-strings.ts';
+import { pictureHtml, htmlEscape, stepWords, watchedReadings, wordsHtml, stepAudio, liveBase, stepQuery, groundingDetails, groundingSentence, predictionsOf } from '../../explain/internal.ts';
 import type { Grounding } from '../../explain/internal.ts';
 import { RTL_SCRIPTS, SnapshotSink } from '../../src/internal.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
@@ -126,9 +126,9 @@ export async function buildExplainer(
         predictions = predictionsOf(trace.steps).predictions;
       const steps = trace.steps.map((s, i) => {
         const href = `?${stepQuery(values, s.step)}`,
-          shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
+          shows = pictureHtml(s.derived, trace.steps[i - 1]?.derived),
           words = stepWords(s),
-          changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
+          changes = watchedReadings(s, project.Scene.meta?.watch, lang);
         const entry = `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
         const live = liveLines[n]!.get(s.step);
         // A prediction's question and options on the step that asks it, its answer only on the step that reveals it.
@@ -136,7 +136,7 @@ export async function buildExplainer(
             .map((p) => `<p class="predict-answer">${p.prompt ? `<strong>${htmlEscape(p.prompt)}</strong> ` : ''}${htmlEscape(t.predictRevealed(undefined, p.options[p.answer]!))}</p>`).join(''),
           asked = predictions.find((p) => p.at === i),
           ask = asked ? `<div class="predict-question"><p><strong>${htmlEscape(asked.prompt ?? t.predictHeading)}</strong></p><ul>${asked.options.map((o) => `<li>${htmlEscape(o)}</li>`).join('')}</ul></div>` : '';
-        return `<li>${entry}${wordsHtml(words)}${revealed}${ask}${changes.length ? `<p>${htmlEscape(t.changes(...changes))}</p>` : ''}${live ? `<p class="live-events">${htmlEscape(live)}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
+        return `<li>${entry}${wordsHtml(words)}${revealed}${ask}${changes.length ? `<p>${htmlEscape(watchSummary(t, changes))}</p>` : ''}${live ? `<p class="live-events">${htmlEscape(live)}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
       });
       return `<section data-scenario="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
     })

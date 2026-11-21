@@ -52,6 +52,71 @@ test('every scenario traced at once sees its own settings, an unbound scene its 
   assert.equal(scenarioName(Example, { case: 'b', rate: '2' }), 'Case: B · Rate: Two');
   assert.equal(scenarioName(Scene, {}), '');
 });
+
+test('typed settings read the same defaults and bound URL values, and refuse an unrelated class', () => {
+  class Literal extends Scene {
+    static settings = [{ id: 'bits', label: 'Bits', default: '16', options: [{ value: '16', label: '16' }, { value: '32', label: '32' }] }] as const;
+  }
+  const plain = new Literal(new NullSink());
+  assert.deepEqual({ ...settingsOf(plain, Literal) }, { bits: '16' });
+  assert.ok(Object.isFrozen(settingsOf(plain, Literal)));
+  const selected = Object.fromEntries(new URLSearchParams('bits=32'));
+  const Bound = withSettings(Literal, selected);
+  const bound = new Bound(new NullSink());
+  assert.deepEqual(settingsOf(bound, Literal), settingsOf(bound));
+  assert.deepEqual({ ...resolveSettings(Literal, selected) }, { bits: '32' });
+  assert.throws(() => withSettings(Literal, { bits: '64' }), /not an option/);
+  assert.throws(() => withSettings(Literal, { bitts: '16' }), /no setting/);
+  assert.throws(() => settingsOf(new Example(new NullSink()), Literal), /supplied class/);
+
+  // JavaScript can override a literal definition on a subclass; do not return the base's narrow
+  // type if the actual scene is running a value outside that definition.
+  class Changed extends Literal {}
+  Object.defineProperty(Changed, 'settings', { value: [{ id: 'bits', label: 'Bits', default: '64', options: [{ value: '64', label: '64' }] }] });
+  assert.deepEqual({ ...settingsOf(new Changed(new NullSink())) }, { bits: '64' });
+  assert.throws(() => settingsOf(new Changed(new NullSink()), Literal), /not an option/);
+  class Removed extends Literal {}
+  Object.defineProperty(Removed, 'settings', { value: [] });
+  assert.deepEqual({ ...settingsOf(new Removed(new NullSink())) }, {});
+  assert.throws(() => settingsOf(new Removed(new NullSink()), Literal), /setting this scene does not have/);
+});
+
+test('a base-class settings accessor projects its keys and retains a derived scenario\'s selected values', () => {
+  class Base extends Scene {
+    static settings: readonly Setting[] = [
+      { id: 'mode', label: 'Mode', default: 'one', options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] },
+    ];
+  }
+  class Derived extends Base {
+    static override settings = [
+      ...Base.settings,
+      { id: 'extra', label: 'Extra', default: 'two', options: [{ value: 'two', label: 'Two' }, { value: 'three', label: 'Three' }] },
+    ];
+  }
+  const defaults = new Derived(new NullSink());
+  assert.deepEqual({ ...settingsOf(defaults, Base) }, { mode: 'one' });
+  assert.deepEqual({ ...settingsOf(defaults, Derived) }, { mode: 'one', extra: 'two' });
+
+  const Bound = withSettings(Derived, Object.fromEntries(new URLSearchParams('mode=two&extra=three')));
+  const chosen = new Bound(new NullSink());
+  const base = settingsOf(chosen, Base);
+  assert.deepEqual({ ...base }, { mode: 'two' });
+  assert.ok(Object.isFrozen(base));
+  assert.deepEqual({ ...settingsOf(chosen) }, { mode: 'two', extra: 'three' });
+  assert.deepEqual(settingsOf(chosen, Derived), settingsOf(chosen));
+});
+
+test('an abstract settings base reads defaults and bound values through its concrete subclass', () => {
+  abstract class Base extends Scene {
+    static settings = [{ id: 'mode', label: 'Mode', default: 'one', options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] }] as const;
+    mode(): 'one' | 'two' { return settingsOf(this, Base).mode; }
+  }
+  class Concrete extends Base {}
+  assert.equal(new Concrete(new NullSink()).mode(), 'one');
+  const Bound = withSettings(Concrete, { mode: 'two' });
+  assert.equal(new Bound(new NullSink()).mode(), 'two');
+  assert.throws(() => settingsOf(new Example(new NullSink()), Base), /supplied class/);
+});
 // ---- properties ------------------------------------------------------------------
 const RESERVED = ['step', 'sent', 'parentOrigin', 'theme'];
 /** Ids from the documented pattern, including every inherited Object.prototype name that matches it. */
@@ -200,7 +265,7 @@ test('the innermost withSettings binding wins, and two bindings never share stat
 test('static meta takes the keys ExplainerMeta names, and refuses any other, naming it and the keys it takes', () => {
   const full: ExplainerMeta = {
     id: 'a', title: 'A', lang: 'en', sources: [], lettering: { scripts: ['Grek'] }, textContext: 'explicit',
-    player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: { n: 'N' },
+    player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: [{ source: 'model', key: "n", label: 'N' }] as const,
     answer: 'Yes', questions: [{ question: 'Q?', answer: 'A' }], checkedAgainst: 'model.test.ts', claims: [{ says: 'x', shown: true }],
   };
   checkExplainerMeta(full);

@@ -129,7 +129,7 @@ export function placeholdersIn(text: string): { header: string[]; evidence: stri
  * an earlier adoption put in and returns undefined.
  */
 export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: Intent | null, where: string): ReturnType<typeof intentMeta> | undefined {
-  if (!declared.has(Scene)) declared.set(Scene, Scene.meta);
+  if (!declared.has(Scene)) declared.set(Scene, declaredMetaOf(Scene) as typeof Scene.meta);
   const own = declared.get(Scene);
   if (!intent) {
     if (Scene.meta !== own) Scene.meta = own;
@@ -144,6 +144,14 @@ export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: I
 /** Each scene's metadata as the scene itself declares it, recorded at its first adoption: the one record adoptIntent starts from. */
 const declared = new WeakMap<object, Record<string, unknown> | undefined>();
 
+/** The metadata a class declares or inherits, excluding an intent previously adopted on its owner. */
+export function declaredMetaOf(source: { meta?: object }): object | undefined {
+  for (let owner: typeof source | null = source; owner; owner = Object.getPrototypeOf(owner)) {
+    if (declared.has(owner)) return declared.get(owner);
+    if (Object.hasOwn(owner, 'meta')) return source.meta;
+  }
+  return undefined;
+}
 
 /**
  * A scene class that a test runs directly, with its script's intent adopted as the tools adopt it, so

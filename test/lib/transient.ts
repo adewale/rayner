@@ -5,7 +5,7 @@ import { Animation, Transform, linear } from '../../src/index.ts';
 import { thereAndBack } from '../../extras/index.ts';
 import type { AnimationOptions, Mobject, TransformOptions } from '../../src/index.ts';
 
-export interface IndicateOptions extends TransformOptions { scaleFactor?: number; color?: string }
+export type IndicateOptions = TransformOptions & { scaleFactor?: number; color?: string };
 
 /** Scale up and recolor, there and back. */
 export class Indicate extends Transform {

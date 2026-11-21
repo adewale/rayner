@@ -10,7 +10,7 @@ import { Line, Dot } from 'rayner';
 import { GrowFromEdge, PulseAlongPath, rushInto, rushFrom, thereAndBack, ArcBetweenPoints } from 'rayner/extras';
 import type { GrowFromEdgeOptions } from 'rayner/extras';
 
-export function choreography(scene: Scene<{count: number}>) {
+export function choreography(scene: Scene & { state: { count: number } }) {
   const opts: GrowFromEdgeOptions = { initialScale: 0.01, runTime: 0.5 };
   const grow = new GrowFromEdge(new Rectangle(), [1, 0], opts);
   const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
@@ -41,10 +41,10 @@ const requestedLettering: LetteringRequest = { scripts: ['Arab'], styles: ['bold
 const sameRequest: import('rayner').LetteringRequest = requestedLettering;
 
 export class Demo extends Scene {
+  override state = { ok: false };
   // Lettering on request: the build reads it; the type checks it
   static meta = { id: 'demo', lettering: { scripts: ['Grek', 'Cyrl'] } satisfies LetteringRequest };
   override async construct() {
-    this.state = { ok: false };
     await this.step('one', { caption: 'hello' });
     const opts: TextOptions = { fontSize: 0.3, font: 'mono' };
     const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: '#5cd0b3' }), new Text('box', opts));
@@ -91,14 +91,14 @@ export function diffDriven(): number {
 
 // The camera, views, graphs, emphasis, code spans, the state-restoring animations and step hooks
 export class Tour extends Scene {
+  override state = { n: 1 };
   override async construct() {
-    this.state = { n: 1 };
     const fit = { margin: 0.4 };
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
     const frame = this.frame;
     const s = stage(this, { style: 'github-dark', heading: false });
-    const readout: View<Card> = view(this, (st) => card(s, [['n', st.n]], { panel: false, key: 'n' }), { place: false });
+    const readout: View<Card> = view(this, (st, _shown, drawing) => card(drawing, [['n', st.n]], { panel: false, key: 'n' }), { drawing: s.drawing, place: false });
     const sync: SyncOptions = { runTime: 0.5 };
     this.state = { n: 2 };
     const syncing: Action = readout.sync(sync);
@@ -116,7 +116,11 @@ export class Tour extends Scene {
     code.saveState();
     await this.play(new Succession([new Transform(code, new Code(['n = 2;']).shift([0, -1]), { fromCopy: true }), new Transform(code, 'saved')]));
     this.onStep((s: Step) => s.name);
-    this.addJson(() => ({ frame: frame.width() }));
+    interface FrameObservation { frame: number }
+    const measured: FrameObservation = { frame: frame.width() };
+    this.addJson(() => measured);
+    const observed: unknown = this.derivedJson().frame;
+    void observed;
   }
 }
 
@@ -147,8 +151,10 @@ export async function authorLayout(scene: Scene): Promise<void> {
 // Author contracts are checked through the installed public declarations.
 function authorContracts() {
   interface CounterState {count: number}
-  class Counter extends Scene<CounterState, { lit?: boolean }> {
-    override state = {count: 0};
+  class Counter extends Scene {
+    override shown: { lit?: boolean } = {};
+
+    override state: CounterState = {count: 0};
     override async construct() {
       this.state.count++;
       // @ts-expect-error a count cannot become prose
@@ -173,9 +179,15 @@ function authorContracts() {
 
 // The drawing kit, as an author imports it.
 import { label, tile, table, flow, bars, stat } from 'rayner/drawing';
-import type { TableColumns, Card, CodeBlock, CodeBlockOptions, CardOptions, CardRow } from 'rayner/drawing';
+import type { DrawContext, TableColumns, Card, CodeBlock, CodeBlockOptions, CardOptions, CardRow } from 'rayner/drawing';
 export function drawingKit(scene: Scene) {
-  const s = stage(scene);
+  const s = stage(scene).drawing;
+  // @ts-expect-error pictures cannot change the scene through their drawing context
+  void s.scene;
+  // @ts-expect-error stage actions belong to the scene constructing the lesson
+  void s.enter;
+  // @ts-expect-error a captured palette is read-only
+  s.palette.accent = '#fff';
   const spread: TableColumns = { left: -6, right: 6 };
   const parts = [
     keyed(label(s, 'hit', { at: [0, 1], color: s.look.ink }), 'hit'), tile(s, 'D1', { width: 2, height: 1, active: true, key: 'db' }),
@@ -195,15 +207,16 @@ export function drawingKit(scene: Scene) {
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Diagram } from 'rayner/explain';
 import type { Look } from 'rayner/explain';
-import { emphasised, card, code } from 'rayner/drawing';
+import { described, emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
-export async function publicCollection(scene: Scene): Promise<void> {
+export async function publicCollection(scene: Scene & { state: { status?: string } }): Promise<void> {
   const s = stage(scene);
-  s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
+  const slot: Text = described(new Text('full'), (self) => ({ what: 'Slot', parts: [{ name: self.text }] }));
+  s.keep(slot, emphasised(new SurroundingRectangle(slot), 'outlined: the full slot'));
   const panel = new Rectangle({ fill: s.look.raised, stroke: s.look.rule }).setFill(lerpColor(s.look.paper, s.look.emphasis, 0.36));
-  view(scene, (state) => card(s, [['State', String(state.status ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
+  view(scene, (state, _shown, drawing) => card(drawing, [['State', String(state.status ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { drawing: s.drawing, place: false });
   const lit: CodeBlockOptions['lit'] = { lines: [0, 1], as: 'run' };
-  const listing: View<CodeBlock> = view(scene, () => code(s, ['let a = 1;', 'a += 1;'], { at: 'end', lit }), { place: false });
+  const listing: View<CodeBlock> = view(scene, (_state, _shown, drawing) => code(drawing, ['let a = 1;', 'a += 1;'], { at: 'end', lit }), { drawing: s.drawing, place: false });
   const direction: LayoutDirection = s.direction;
   // The panels are built by the kit, never constructed: Card and CodeBlock are types only.
   // @ts-expect-error Card is exported as a type, so a scene cannot construct one
@@ -251,10 +264,10 @@ export const badKind = (scene: Scene) => scene.step('aside', { kind: 'details' }
 // What a card's, code panel's or diagram's describe() returns.
 export const words = (d: Description) => d.parts.map((p) => `${p.name}${p.mark ? ` (${p.mark})` : ''}`).join(', ') || d.what;
 
-export class Collection extends Scene<CollectionModel> {
+export class Collection extends Scene {
   static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.', player: { corners: 'square' } } satisfies ExplainerMeta;
   static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }] satisfies readonly Setting[];
-  override state = { door: 'open' as 'open' | 'closed', status: 'start', count: 0 };
+  override state: CollectionModel = { door: 'open' as 'open' | 'closed', status: 'start', count: 0 };
   override async construct() {
     const s: Stage = stage(this);
     const values = settingsOf(this);
@@ -289,10 +302,10 @@ export class Collection extends Scene<CollectionModel> {
     const square = new Rectangle({ width: 1, height: 1 });
     await s.enter(
       square,
-      callout(s, square, 'a unit square', { side: 'right', key: 'note' }),
-      dimension(s, [-0.5, -0.8], [0.5, -0.8], '1', { key: 'width' }),
-      pin(s, [0, 0], { label: 'centre', key: 'centre' }),
-      legend(s, [{ label: 'square', fill: s.look.ink }], { at: [3, 2], stack: 'row', key: 'legend' }),
+      callout(s.drawing, square, 'a unit square', { side: 'right', key: 'note' }),
+      dimension(s.drawing, [-0.5, -0.8], [0.5, -0.8], '1', { key: 'width' }),
+      pin(s.drawing, [0, 0], { label: 'centre', key: 'centre' }),
+      legend(s.drawing, [{ label: 'square', fill: s.look.ink }], { at: [3, 2], stack: 'row', key: 'legend' }),
     );
     await s.focus(square, { margin: 0.6 });
     await s.focus('all');
@@ -305,15 +318,18 @@ export class Collection extends Scene<CollectionModel> {
       transition: { close: (t: Transition<CollectionModel, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
     });
     await s.enter(door);
+    machine.offer();
     await this.play(machine.send('close'));
-    await this.play(machine.replay(['open', 'close']));
+    await this.play(machine.sendSequence(['open', 'close']));
+    // @ts-expect-error only the canonical sequence method is public
+    void machine.replay;
     const refused = doorNext({ door: 'closed' }, 'close');
     this.state.status = isRefusal(refused) ? refused.reason : 'moved';
 
     await this.step('code', { title: 'Code', caption: 'A code panel and a card, drawn from the state.' });
     const panel: CodeBlock = await s.code(['let n = 0;', 'n += 1;'], { lit: { lines: 1 } });
     const rows: CardRow[] = [['Count', 0]], opts: CardOptions = { width: 3 };
-    const count = view(this, (st) => card(s, [['Count', st.count]], opts), { place: false });
+    const count = view(this, (st, _shown, drawing) => card(drawing, [['Count', st.count]], opts), { drawing: s.drawing, place: false });
     await s.enter(count);
     this.state.count = rows.length;
     await this.play(count.sync(), new Transform(new Text('n'), new Text('n + 1'), { match: 'shapes', runTime: 0.5 }));
@@ -361,7 +377,7 @@ export async function hostPage(Explainer: SceneClass): Promise<string> {
   const key: MatchKey = (part) => part.key;
   const match: Match = { by: 'key', text: 'whole', fallback: key };
   void new Transform(scene.mobjects[0]!, scene.mobjects[0]!.copy(), { match });
-  const state: SceneState = scene.state;
+  const state: SceneState = scene.stateJson();
   const font: FontName = 'mono';
   return `${frame} ${toSvgString(scene).length} ${scene.invariants.size} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
 }
@@ -393,8 +409,8 @@ export class Composed extends Scene {
     const entry: Action<Card> = s.card([['count', 1]], { at: 'end' });
     const card: Card = entry.value;
     await this.play(s.focus(d.get('A')), entry, new FadeIn(new Rectangle({ width: 1, height: 1 }), { runTime: 0.9 }));
-    await this.play(new Succession([d.walk([['A', 'B']]), new Create(s.keep(callout(s, card, 'one')), { runTime: 0.6 }), s.focus('all')]));
-    const panel: CodeBlock = code(s, ['x = 1']);
+    await this.play(new Succession([d.walk([['A', 'B']]), new Create(s.keep(callout(s.drawing, card, 'one')), { runTime: 0.6 }), s.focus('all')]));
+    const panel: CodeBlock = code(s.drawing, ['x = 1']);
     const walked: Action = d.walk([['A', 'B']]);
     await this.play(new AnimationGroup([walked, s.enter(panel)]));
   }
@@ -404,7 +420,7 @@ import { TYPE, SPACE, addAll, beats, connector, flight, plate, tones } from 'ray
 import type { Tones, LabelOptions, Beat, Parts } from 'rayner/drawing';
 
 /** A picture drawn with the drawing kit's measures and parts, and a transition between two of them in beats. */
-export function kitPicture(s: Stage, used: string) {
+export function kitPicture(s: DrawContext, used: string) {
   const t: Tones = tones(s), parts: Parts = keyedParts();
   const options: LabelOptions = { size: TYPE.title, bold: true, color: t.soft };
   parts.add(label(s, used, { align: 'start', ...options }), 'used');

@@ -82,7 +82,10 @@ type ForkState = Partial<SentenceState> & {
 /** The Worker's mark on Lantern's diagram, and how the flow diagram is shown. */
 type ForkShown = { lanternMarked?: boolean; flow?: FlowShown };
 
-export default class ForkExplainer extends Scene<ForkState, ForkShown> {
+export default class ForkExplainer extends Scene {
+  override state: ForkState = {};
+  override shown: ForkShown = {};
+
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/README.md',
@@ -306,13 +309,13 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
     // and says what it emphasises.
     const familiesNote = view(
       this,
-      (st) =>
+      (st, _shown, drawing) =>
         flow.notePicture('Capture', `${having(st, 'families').families} diagram families, Chromium at build`, {
           side: 'below',
-          color: s.look.emphasis,
+          color: drawing.look.emphasis,
           key: 'fork-families-note',
         }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     s.keep(familiesNote);
     this.shown.flow = { ...having(this.shown, 'flow').flow, walked: path, notes: [{ id: 'Page', text: 'no diagram renderer', side: 'above' }] };

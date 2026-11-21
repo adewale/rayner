@@ -156,18 +156,21 @@ const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 /** What the card shows after some requests: the requests so far, and each policy's cache, evictions and hits. */
 type CardState = { Requests: string; 'Newest first': [string, string]; Evicted: [string, string]; Hits: [string, string] };
 
-export default class LruMru extends Scene<CardState, { lit: string | null }> {
+export default class LruMru extends Scene {
   static meta = {
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
     ],
   } satisfies ExplainerMeta;
-  static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
+  static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }] as const;
+
+  override state: CardState = { Requests: '', 'Newest first': ['', ''], Evicted: ['none', 'none'], Hits: ['0', '0'] };
+  override shown: { lit: string | null } = { lit: null };
 
   override async construct() {
     const s = stage(this, { style: 'nord', headingSize: 0.54 });
-    const next = settingsOf(this).next as keyof typeof NEXT;
+    const next = settingsOf(this, LruMru).next;
     const requests = [...('ABCD' + NEXT[next])];
     const trace = { lru: run('lru', SIZE, requests), mru: run('mru', SIZE, requests) };
 
@@ -192,15 +195,15 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
     this.state = shown(3);
     this.shown = { lit: null };
-    const cache = view(this, (st, sh) => {
-      return card(s, [
+    const cache = view(this, (st, sh, drawing) => {
+      return card(drawing, [
         ['Requests', st.Requests],
         ['Slots', SIZE],
         ['Newest first', ...st['Newest first']],
         ['Evicted', ...st.Evicted],
         ['Hits', ...st.Hits],
       ], { columns: ['LRU', 'MRU'], width: 6.8, size: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
-    }, { place: false });
+    }, { drawing: s.drawing, place: false });
     await s.enter(cache, { runTime: 0.35 });
 
     const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];
@@ -232,7 +235,7 @@ Read it from the top:
 - `static meta` holds the sources the model was checked against. `satisfies ExplainerMeta` types it, so a misspelt key does not compile, and collection refuses a key `ExplainerMeta` does not name. The id, which names the output files, is the folder's name, and the title, answer and reader questions come from the script's header (the questions from its `## Check yourself` list).
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
-- `Scene<CardState, { lit: string | null }>` declares the scene's two types: its model, what the card shows, and what is shown of it, the row the card lights. `this.state`, `this.shown` and the draw's `st` and `sh` are typed from them ([typed state](REFERENCE.md#typed-state-and-shown)).
+- The initialized `state: CardState` field holds the model the card displays. The initialized `shown` field identifies the row it lights. The draw's `st` and `sh` take their types from those fields ([typed state](REFERENCE.md#typed-state-and-shown)).
 - The card is a view of the state: `view(this, draw)` builds it with the drawing kit's `card(s, rows, options)` from `this.state` whenever the state changes, its `lit: { row }` from `this.shown`, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `cache.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
 - The card has an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
@@ -248,11 +251,11 @@ The card is a ready-made picture. When the picture should look like the thing it
 
 <!-- kit example, run by test/drawing.test.ts -->
 ```ts
-import type { Stage } from 'rayner/explain';
+import type { DrawContext } from 'rayner/drawing';
 import { MARGIN, SPACE, TYPE, addAll, connector, keyedParts, label, tile, tones } from 'rayner/drawing';
 
 /** One policy's cache, newest first: a box per slot, keyed by its item, the newest in use. */
-export function drawSlots(s: Stage, policy: string, cache: readonly string[], y: number) {
+export function drawSlots(s: DrawContext, policy: string, cache: readonly string[], y: number) {
   const parts = keyedParts(), t = tones(s);
   parts.add(label(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true, align: 'start' }), `${policy}:name`);
   cache.forEach((item, i) =>
@@ -267,7 +270,7 @@ export function drawSlots(s: Stage, policy: string, cache: readonly string[], y:
 - `tile` with `raised: true` draws a slot as a structure's body, in use when `active`. Given a `key`, it keys its two parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
 - `connector` draws a line through points, with rounded corners when there are any. It is a `Line`, so `rayner check` fails one that crosses a label.
 
-In the scene, `view(this, (st) => new Group(drawSlots(s, 'LRU', st.lru, 1), drawSlots(s, 'MRU', st.mru, -1)))` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([transitions in beats](REFERENCE.md#transitions-in-beats)).
+In the scene, `view(this, (st, _shown, drawing) => new Group(drawSlots(drawing, 'LRU', st.lru, 1), drawSlots(drawing, 'MRU', st.mru, -1)), { drawing: s.drawing })` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([transitions in beats](REFERENCE.md#transitions-in-beats)).
 
 ## 6. Preview it
 
@@ -328,7 +331,7 @@ Changed: nothing in scene.state
 
 The marked row says LRU hit four times and MRU never did, so in this scenario the caption is false: it was written from the loop scenario alone. Undo the change: the scene's own ending takes its title and counts from each scenario's outcome.
 
-Read every step of every scenario this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner shots lru-mru/scene.ts --scenario next=reuse` makes a contact sheet of one scenario. At each step, ask:
+Read every step of every scenario this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner contact-sheet lru-mru/scene.ts --scenario next=reuse` makes a contact sheet of one scenario. At each step, ask:
 
 - Does the caption name a value, item or comparison that the picture does not show?
 - Could a reader work out the cause from the resting pictures alone, without watching the motion?

@@ -13,6 +13,6 @@ Build the best educational explainer you can of {TOPIC} with Rayner, as the scen
 
 **Requirements.** Make it teach as well as you can, in whatever way you judge best. It must be correct, and readable and usable on a 390 px phone as well as a desktop.
 
-**Evidence for the comparison.** `npm run rayner -- review scenes/explainers/{ID}/scene.ts` must pass. Build the page with `npm run rayner -- build`, make a contact sheet with `npm run rayner -- shots`, and look at it.
+**Evidence for the comparison.** `npm run rayner -- review scenes/explainers/{ID}/scene.ts` must pass. Build the page with `npm run rayner -- build`, make a contact sheet with `npm run rayner -- contact-sheet`, and look at it.
 
 **Report back (under 500 words):** the scene path and built page; the step list, one line each; what the reader does besides pressing Next; what you think is strongest and weakest; where Rayner helped or got in the way.

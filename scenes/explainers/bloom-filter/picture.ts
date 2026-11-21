@@ -1,5 +1,5 @@
 import { Group, Rectangle, Text, lerpColor, keyed } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { label, table, stat, legend } from '../../../explain/drawing.ts';
 import { locations } from './model.ts';
 import type { Row } from './model.ts';
@@ -17,7 +17,7 @@ const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
  * it set. The legend says each fill's colour too ("purple fill, cat (1, 6, 15)"), the word the captions use.
  * `stored`: the names in the filter; `full`: the full row, where the later names share one grey entry.
  */
-export function takenLabel(s: Stage, size: number, full: boolean, stored: readonly string[], { positions = true, cleared = [] as readonly string[] } = {}): Group {
+export function takenLabel(s: DrawContext, size: number, full: boolean, stored: readonly string[], { positions = true, cleared = [] as readonly string[] } = {}): Group {
   const SIZE = 0.66;
   // The live row names who left and had their bits cleared; its names alone fit four in a row.
   const lead = new Text(stored.length ? (cleared.length ? `Taken (${listed(cleared)} cleared):` : 'Taken:') : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.look.ink });
@@ -45,7 +45,7 @@ export function takenLabel(s: Stage, size: number, full: boolean, stored: readon
  * `active` bits are outlined in the emphasis colour, and `bad` ones (a lookup's 0) in red.
  */
 export function drawBits(
-  s: Stage,
+  s: DrawContext,
   bits: readonly number[],
   owners: readonly (readonly string[])[],
   active: readonly number[],
@@ -99,7 +99,7 @@ interface Lookup { word: string; maybe: boolean; stored: boolean }
  * answer, and bloom-sample:bits-16:Pass the 16-bit row's count, wherever the row sits.
  */
 export function drawPipeline(
-  s: Stage,
+  s: DrawContext,
   st: { queries: readonly Lookup[]; exactLookups: number; sampleSize: number; sizes: readonly { size: number; setBits: number; sampleFalsePositives: number }[] },
 ): Group {
   const lookups = {
@@ -133,7 +133,7 @@ export function drawPipeline(
  * outlined, a 0 among them in red, and the filter's answer beside the truth: a maybe for an untaken name is a
  * false positive, and a "definitely not" for a taken one, which only clearing bits can cause, a false negative.
  */
-export function drawRow(s: Stage, row: Row): Group {
+export function drawRow(s: DrawContext, row: Row): Group {
   const c = row.check;
   const grid = drawBits(s, row.bits, row.owners, c?.locations ?? [], (j) => !!c && c.locations.includes(j) && !row.bits[j]);
   const query = c

@@ -5,7 +5,7 @@ import type { ExplainerMeta, Setting, Transition } from '../../../explain/index.
 import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { OTHER_USER, STORY, TAMPERS, next, start } from './model.ts';
-import type { Policy, SealWorld, Tamper, Verdict } from './model.ts';
+import type { SealWorld, Tamper, Verdict } from './model.ts';
 import { ALL_SHOWN, PALETTE, SOURCE, drawWorld, punchOrder, sayWorld, sourceOf } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -18,8 +18,9 @@ import type { Shown } from './picture.ts';
 // punches it check by check, in the order 5.2 and 5.3 give: down the chain, then down the claims,
 // until one check breaks. The answer appears only after the punching. Each tamper is an authored
 // transition, so the reader's own presses move as the story's do.
-export default class Sessions extends Scene<SealWorld, Shown> {
+export default class Sessions extends Scene {
   static meta = {
+    watch: [{source:'model',key:'sent',label:'Request sent'}, {source:'shown',key:'links',label:'Links on the ticket'}] as const,
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc9449',
@@ -40,12 +41,12 @@ export default class Sessions extends Scene<SealWorld, Shown> {
         { value: 'required', label: 'nothing optional' },
       ],
     },
-  ] satisfies readonly Setting[];
-  override state = start('remembers');
+  ] as const satisfies readonly Setting[];
+  override state: SealWorld = start(settingsOf(this, Sessions).company);
   override shown: Shown = { links: 0 };
 
   override async construct() {
-    const policy = settingsOf(this).company as Policy, remembers = policy === 'remembers';
+    const policy = settingsOf(this, Sessions).company, remembers = policy === 'remembers';
     // The world after each tamper of the story, from the model, so the words say what it computed.
     const after = STORY.reduce<SealWorld[]>((worlds, t) => {
       const world = next(worlds.at(-1)!, t);
@@ -55,10 +56,8 @@ export default class Sessions extends Scene<SealWorld, Shown> {
     const verdict = (t: Tamper): Verdict => after[STORY.indexOf(t) + 1]!.last!.verdict;
     const sent = verdict('send'), url = verdict('url'), replay = verdict('replay'), leaked = verdict('other-user');
 
-    this.state = start(policy);
-    this.shown = { links: 0 };
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, shown) => drawWorld(w, shown, s), { place: false });
+    const world = view(this, (w, shown, drawing) => drawWorld(w, shown, drawing), { drawing: s.drawing, place: false });
 
     /**
      * A tamper. If the seal was pressed by another hand than last time, that hand moves first: the
@@ -149,14 +148,14 @@ export default class Sessions extends Scene<SealWorld, Shown> {
         remembers ? 'Then two optional checks: a jti it has not seen, and a key that has signed for no other User.' : 'This shop skips the two optional checks, so the once and who rows stay unpunched.'
       } ${sent.answer.status}. Some agents also sign for the network edge with Web Bot Auth; that replaces none of this.`,
     });
-    await this.play(machine.replay(STORY.slice(0, 1)));
+    await this.play(machine.sendSequence(STORY.slice(0, 1)));
 
     await this.step('moved', {
       title: 'Copied to another address',
       line: 'Another URL, or another shop: refused.',
       caption: `A thief copies the whole request, seal and token, to read the order instead: the seal says POST /exchanges, so ${url.answer.status} ${url.answer.error}. Next, shoes.example. Its own poppy.json named example.com’s cart URL, which nobody checks, so the agent signed for that URL with aud shoes.example. Replayed here, every signature is genuine, and aud refuses it. Look at who: you are usr_m4Tz9P there, under another key.`,
     });
-    await this.play(machine.replay(STORY.slice(1, 3)));
+    await this.play(machine.sendSequence(STORY.slice(1, 3)));
 
     await this.step('signer', {
       title: 'The wrong hand on the seal',
@@ -164,7 +163,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       caption:
         'A thief copies your access token and seals it with its own valid chain. The chain holds, as thief.example’s, but the token was issued to agent.example, so the token check refuses it. Then an agent seals with its published key directly. There is no delegation, so it is refused: a shop that took it would let the published key sign things that name you and a shop.',
     });
-    await this.play(machine.replay(STORY.slice(3, 5)));
+    await this.play(machine.sendSequence(STORY.slice(3, 5)));
 
     await this.step('clock', {
       title: 'Copies go stale',
@@ -173,7 +172,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
         ? 'Ten seconds later an exact copy arrives. This shop remembers jtis, an optional check, so it refuses the copy; a shop that does not would answer 200 inside the 60-second window. Two minutes later, iat refuses a copy anywhere. At 07:00 a thief signs a fresh request with your leaked key, and the delegation that expired at 06:00 refuses it.'
         : `Ten seconds later an exact copy arrives, and this shop answers ${replay.answer.status}: it skips the optional jti check, and inside the 60-second window an exact copy can repeat the same request. Two minutes later, iat refuses a copy anywhere. At 07:00 a thief signs a fresh request with your leaked key, and the delegation that expired at 06:00 refuses it.`,
     });
-    await this.play(machine.replay(STORY.slice(5, 7)));
+    await this.play(machine.sendSequence(STORY.slice(5, 7)));
 
     await this.step('one-user', {
       title: 'One key, one User',
@@ -182,7 +181,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
         ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press the tampers and predict each check. The detail after this shows the leaked key used first.'
         : `The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User. This shop skips the optional check, so it accepts the header as that User, signed out: ${leaked.answer.status}, naming ${leaked.answer.needs}. No account opens. Press the tampers and predict each check.`,
     });
-    await this.play(machine.replay(STORY.slice(7, 8)));
+    await this.play(machine.sendSequence(STORY.slice(7, 8)));
 
     // A detail, where the shop remembers: the other history, in which the leaked key is used before
     // the agent sends. The picture is the model's state after those two tampers, from the start.

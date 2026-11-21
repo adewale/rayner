@@ -19,7 +19,7 @@ import type { Shown } from './picture.ts';
 // the right edge; the invitation crosses the table from the Company's end to your agent, not to you;
 // and when the Direct Conversation opens, you move from the big table to the small one, and back
 // when it closes. Words that change are replaced, never morphed.
-export default class Conversations extends Scene<World, Shown> {
+export default class Conversations extends Scene {
   static meta = {
     sources: ['https://personalagentprotocol.org/docs/1.0/spec'],
     claims: [
@@ -31,7 +31,7 @@ export default class Conversations extends Scene<World, Shown> {
       { says: 'Only your agent can open it', test: 'model.test.ts: 8.10: the Company can only ask for the User' },
     ],
   } satisfies ExplainerMeta;
-  override state = start();
+  override state: World = start();
   override shown: Shown = {};
 
   override async construct() {
@@ -42,9 +42,8 @@ export default class Conversations extends Scene<World, Shown> {
       return after;
     }, start());
 
-    this.state = start();
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, sh) => drawWorld(w, s, sh), { place: false });
+    const world = view(this, (w, sh, drawing) => drawWorld(w, drawing, sh), { drawing: s.drawing, place: false });
 
     /**
      * What a turn brings with it: the turn, and the two fields under "On the table" that say who wrote
@@ -135,14 +134,14 @@ export default class Conversations extends Scene<World, Shown> {
         'Your agent wants to exchange the jacket from order 1042, so it talks with example.com’s own agent: JSON over HTTPS, signed with its Session header as chapter 1 showed. Its first message starts the conversation. The answer is 201 with a Conversation ID, cnv_8f3Kd2, and no reply: the Company has accepted the message, not answered it, so working is true. Where will the reply come from?',
     });
     await s.enter(world, { describe: () => sayWorld(this.state, this.shown) });
-    await this.play(machine.replay(STORY.slice(0, 1)));
+    await this.play(machine.sendSequence(STORY.slice(0, 1)));
 
     await this.step('read', {
       title: 'Replies are read, not returned',
       line: 'Read until working is false.',
       caption: `The agent reads the conversation’s events from where it last stopped, or holds the read open, or streams it. The reply is an event, and it says who wrote it: here an AI. ${answerOf(this)}. A request lost on the way is safe to send again with the same request ID: the Company acts on it once.`,
     });
-    await this.play(machine.replay(STORY.slice(1, 2)));
+    await this.play(machine.sendSequence(STORY.slice(1, 2)));
 
     await this.step('person', {
       title: 'A person takes the empty seat',
@@ -150,7 +149,7 @@ export default class Conversations extends Scene<World, Shown> {
       caption:
         'The agent asks for a person. Handoff turns pending while the Company looks, and its agent keeps answering meanwhile, so responder stays agent. When Alex joins, handoff is none again, responder is human, and Alex’s reply carries the person mark. Had nobody been free, handoff would go back to none and the Company Agent would say why. A cancel may not take effect, so the agent watches these fields.',
     });
-    await this.play(machine.replay(STORY.slice(2, 5)));
+    await this.play(machine.sendSequence(STORY.slice(2, 5)));
 
     await this.step('invite', {
       title: 'The Company asks for you',
@@ -158,7 +157,7 @@ export default class Conversations extends Scene<World, Shown> {
       caption:
         'Alex wants to confirm the exchange with you, not with your agent. The Company cannot reach you. It can only add a user_requested event to the conversation, with a short reason, and none of the four fields changes. The invitation lands in front of your agent, which asks you whether you want to talk. What happens if you say no?',
     });
-    await this.play(machine.replay(STORY.slice(5, 6)));
+    await this.play(machine.sendSequence(STORY.slice(5, 6)));
 
     await this.step('direct', {
       title: 'A second, smaller table',
@@ -166,7 +165,7 @@ export default class Conversations extends Scene<World, Shown> {
       caption:
         'You agree, so your agent opens a Direct Conversation: a new conversation, linked to the first, where you speak for yourself and your agent may watch. The Company keeps the earlier history, and you need not read it. Had you said no, your agent would have told the Company for you. While the small table is open, the first one waits: a message there gets 409 direct_conversation_open.',
     });
-    await this.play(machine.replay(STORY.slice(6, 9)));
+    await this.play(machine.sendSequence(STORY.slice(6, 9)));
 
     await this.step('words', {
       title: 'Your own words are marked human',
@@ -174,7 +173,7 @@ export default class Conversations extends Scene<World, Shown> {
       caption:
         'You type “Medium, please.” and your agent sends it as written, marked human. Had your agent passed on your wish in its own words, as a summary, the message would be marked agent: only your own words count as yours. The specialist’s reply carries the person mark too, so all four voices stay distinct. Draft 1.0 adds that either side reads a mark it does not know as AI, so nothing passes for a person’s words unless it says human.',
     });
-    await this.play(machine.replay(STORY.slice(9, 11)));
+    await this.play(machine.sendSequence(STORY.slice(9, 11)));
 
     await this.step('owner', {
       title: 'Who may continue this conversation',
@@ -193,6 +192,6 @@ export default class Conversations extends Scene<World, Shown> {
     });
     this.shown = {};
     await this.play(world.sync({ runTime: 0.6, match: { by: 'key', text: 'whole' } }));
-    await this.play(machine.replay(STORY.slice(11, 12)));
+    await this.play(machine.sendSequence(STORY.slice(11, 12)));
   }
 }

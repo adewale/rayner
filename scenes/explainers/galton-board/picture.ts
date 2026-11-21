@@ -4,7 +4,7 @@
 import { Axes, Dot, Group, Line, Text, VMobject, keyed } from '../../../src/index.ts';
 import { ArcBetweenPoints } from '../../../extras/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { bell } from './model.ts';
 import type { Turn } from './model.ts';
 
@@ -59,10 +59,10 @@ export function routePath(route: readonly Turn[], style: { stroke?: string; stro
 }
 
 /** A ball. */
-export const ball = (s: Stage, at: Vec = START, opacity = 1) => new Dot({ radius: BALL, color: s.look.emphasis, opacity }).moveTo(at);
+export const ball = (s: DrawContext, at: Vec = START, opacity = 1) => new Dot({ radius: BALL, color: s.look.emphasis, opacity }).moveTo(at);
 
 /** The pegs, the walls between the bins and the floor. Keyed `board`, each peg `peg:row:j`. */
-export function drawBoard(s: Stage, rows: number): Group {
+export function drawBoard(s: DrawContext, rows: number): Group {
   const g = new Group();
   for (let row = 0; row < rows; row++)
     for (let j = 0; j <= row; j++) g.add(keyed(new Dot({ radius: PEG, color: s.look.ink }).moveTo(pegAt(row, j)), `peg:${row}:${j}`));
@@ -76,7 +76,7 @@ export function drawBoard(s: Stage, rows: number): Group {
 }
 
 /** Every hop a ball could make: from each peg, an arc to the left and one to the right. Keyed `lattice`. */
-export function drawLattice(s: Stage, rows: number): Group {
+export function drawLattice(s: DrawContext, rows: number): Group {
   const g = new Group(), paint = { stroke: s.look.soft, strokeWidth: 0.025, opacity: 0.55 };
   const seen = new Set<string>();
   const add = (route: Turn[]) => {
@@ -96,9 +96,9 @@ export function drawLattice(s: Stage, rows: number): Group {
  * The chart the bins make: bin positions across, balls up, its floor the board's floor. The board's
  * walls and floor are the chart's frame, so the axes only place the bars and the curve and are not drawn.
  */
-export function binAxes(s: Stage, rows: number): Axes {
+export function binAxes(s: DrawContext, rows: number): Axes {
   const axes = new Axes({
-    xRange: [-0.5, rows + 0.5, 1], yRange: [0, TALLEST, TALLEST], width: (rows + 1) * W, height: CHART_H, shaping: s.scene.textShaping,
+    xRange: [-0.5, rows + 0.5, 1], yRange: [0, TALLEST, TALLEST], width: (rows + 1) * W, height: CHART_H, shaping: s.shaping,
   });
   const origin = axes.c2p(0, 0);
   axes.shift([binX(rows, 0) - origin[0], FLOOR - origin[1]]);
@@ -106,20 +106,20 @@ export function binAxes(s: Stage, rows: number): Axes {
 }
 
 /** The pile as bars, one per bin, each keyed `bar:<bin>`. */
-export function drawPile(s: Stage, axes: Axes, counts: readonly number[]): Group {
+export function drawPile(s: DrawContext, axes: Axes, counts: readonly number[]): Group {
   const bars = axes.bar(counts, { x: counts.map((_, k) => k), width: 0.8, colors: s.look.emphasis, fillOpacity: 0.85 });
   bars.children.forEach((bar, k) => keyed(bar, `bar:${k}`));
   return keyed(bars, 'pile');
 }
 
 /** How many balls each bin holds, under its floor. Keyed `count:<bin>`. */
-export function drawCounts(s: Stage, rows: number, counts: readonly number[]): Group {
+export function drawCounts(s: DrawContext, rows: number, counts: readonly number[]): Group {
   return keyed(new Group(...counts.map((n, k) =>
-    keyed(new Text(String(n), { fontSize: SIZE, color: s.look.ink, shaping: s.scene.textShaping }).moveTo([binX(rows, k), FLOOR - 0.42]), `count:${k}`))), 'counts');
+    keyed(new Text(String(n), { fontSize: SIZE, color: s.look.ink, shaping: s.shaping }).moveTo([binX(rows, k), FLOOR - 0.42]), `count:${k}`))), 'counts');
 }
 
 /** The bell curve with the pile's mean and spread, scaled to `total` balls, and its area over bins `lo` to `hi`. */
-export function drawBell(s: Stage, axes: Axes, rows: number, total: number, lo: number, hi: number) {
+export function drawBell(s: DrawContext, axes: Axes, rows: number, total: number, lo: number, hi: number) {
   const height = (x: number) => total * bell(rows, x);
   return {
     curve: keyed(axes.plot(height, { xRange: [-0.5, rows + 0.5], samples: 97, color: s.look.ink, strokeWidth: 0.05 }), 'bell:curve'),
@@ -130,10 +130,10 @@ export function drawBell(s: Stage, axes: Axes, rows: number, total: number, lo: 
 /** Lines of words in the column beside the board, top line first. */
 export interface SideLine { text: string; size?: number; soft?: boolean; bold?: boolean; mono?: boolean; gap?: number }
 export const SIDE_X = 0.75;
-export function sideWords(s: Stage, lines: readonly SideLine[], top = 2.3): Text[] {
+export function sideWords(s: DrawContext, lines: readonly SideLine[], top = 2.3): Text[] {
   let y = top;
   return lines.map(({ text, size = SIZE, soft, bold, mono, gap = 0.3 }) => {
-    const t = new Text(text, { fontSize: size, color: soft ? s.look.soft : s.look.ink, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}), shaping: s.scene.textShaping });
+    const t = new Text(text, { fontSize: size, color: soft ? s.look.soft : s.look.ink, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}), shaping: s.shaping });
     t.moveTo([SIDE_X, y - size / 2], [-1, 0]);
     y -= size + gap;
     return t;

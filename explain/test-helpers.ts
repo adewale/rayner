@@ -9,7 +9,7 @@ import type { StepRecord } from '../src/trace.ts';
 import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../src/fonts.ts';
 import type { Mobject } from '../src/mobject.ts';
-import { viewMismatch } from './view.ts';
+import { viewMismatch, viewInput } from './view.ts';
 import type { View } from './view.ts';
 import { Diagram } from './diagrams.ts';
 import type { DiagramSnapshot } from './diagram-snapshot.ts';
@@ -31,12 +31,12 @@ const json = (value: unknown) => (value === undefined ? 'undefined' : JSON.strin
 
 /**
  * Fail unless the step named `step` ended with each field of `expected` in its state (the trace's
- * `after`): the scene against the program it explains. Fields `expected` does not name are not
+ * local `state`, or the model's `after`): the scene against the program it explains. Fields `expected` does not name are not
  * compared. Throws a RangeError when the trace has no such step, and an Error naming the field,
  * its value and the expected value when one differs.
  */
-export function assertStepState(trace: { readonly steps: readonly Pick<StepRecord<object>, 'step' | 'after'>[] }, step: string, expected: Readonly<Record<string, unknown>>): void {
-  const after = trace.steps.find((s) => s.step === step)?.after;
+export function assertStepState(trace: { readonly steps: readonly Pick<StepRecord<object>, 'step' | 'after' | 'state'>[] }, step: string, expected: Readonly<Record<string, unknown>>): void {
+  const record = trace.steps.find((s) => s.step === step), after = record?.state ?? record?.after;
   if (!after) throw new RangeError(`assertStepState(): no step "${step}" ended; the steps are ${trace.steps.map((s) => s.step).join(', ')}`);
   for (const [key, value] of Object.entries(expected)) {
     const actual = (after as Record<string, unknown>)[key];
@@ -65,9 +65,9 @@ export function assertSteps(trace: { readonly steps: readonly Pick<StepRecord<ob
 
 /**
  * Run the scene and fail unless, at the end of every step, the view `pick` finds shows what `draw`
- * (by default the view's own) makes of the state the trace records then (viewMismatch): the
- * picture tells the same story as the state. Steps before the view exists are skipped, and it
- * fails if the view never exists. Returns how many steps it checked.
+ * (by default the view's own) makes of its state input and the scene's authored shown fields.
+ * Steps before the view exists are skipped, and it fails if the view never exists. Returns
+ * how many steps it checked.
  */
 export async function assertViewFollowsState(
   Explainer: SceneClass,
@@ -77,8 +77,8 @@ export async function assertViewFollowsState(
   // Per step: null before the view exists, else viewMismatch's answer (null when they agree).
   const checks: ({ mismatch: string | null } | null)[] = [];
   const sink = new TraceSink({ atRest: (scene) => {
-    const v = pick(scene), end = sink.steps().at(-1)!;
-    checks.push(v ? { mismatch: viewMismatch(v, end.after, { shown: end.shown ?? {}, draw: draw ?? v.draw }) } : null);
+    const v = pick(scene);
+    checks.push(v ? { mismatch: viewMismatch(v, v[viewInput](scene.state), { shown: scene.shownJson(), draw: draw ?? v.draw }) } : null);
   } });
   await new Explainer(sink).run();
   let checked = 0;

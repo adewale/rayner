@@ -10,6 +10,7 @@ import { restingPictures } from '../tools/lib/explain-shots.ts';
 import { traceScene } from '../explain/testing.ts';
 
 class Two extends Scene {
+  override state: { after?: boolean } = {};
   override async construct() {
     const s = stage(this);
     await this.step('one', { caption: 'A box.' });

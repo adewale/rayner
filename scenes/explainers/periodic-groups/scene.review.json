@@ -3,7 +3,7 @@
   "subjects": [
     { "step": "column", "opening": true, "targets": [{ "key": "periodic-family-comparison" }] },
     { "step": "fill", "targets": [{ "text": "run of 2" }, { "text": "run of 6" }, { "text": "run of 10" }, { "text": "run of 14" }, { "text": "Every full run is 2, 6, 10 or 14 cells" }] },
-    { "step": "stack", "targets": [{ "text": "2 columns" }, { "text": "10 columns" }, { "text": "6 columns" }] },
+    { "step": "stack", "opening": true, "targets": [{ "key": "periodic-width:s" }, { "key": "periodic-width:d" }, { "key": "periodic-width:p" }, { "key": "periodic-width:f" }] },
     { "step": "names", "targets": [{ "text": "s: 2 columns" }, { "text": "d: 10 columns" }, { "text": "p: 6 columns" }, { "key": "periodic-symbol:2" }] },
     { "step": "blocks", "targets": [{ "text": "d: 10 columns" }, { "text": "p: 6 columns" }, { "text": "2 + 10 + 6 = 18 numbered columns" }] },
     { "step": "blocks", "settings": { "element": "na" }, "targets": [{ "text": "Sodium: 1s² 2s² 2p⁶ 3s¹" }, { "text": "3s¹ starts a run of 2: s column 1, group 1." }] },

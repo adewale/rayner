@@ -44,7 +44,7 @@ test('an awaited action plays each beat in a play of its own; composed in a Succ
   await d.walk([['A', 'B']]);
   const fps = a.scene.fps;
   assert.equal(a.scene.frameCount - before, 2 * Math.round(0.18 * fps) + Math.round(0.8 * fps));
-  assert.deepEqual(a.scene.stateJson().walks, [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.deepEqual(a.scene.evidence.filter(e => e.kind === 'diagram-walk').map(({ kind, ...walk }) => walk), [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
 
   // Composed: a Succession of an entry, a reveal and the walk is one play of their summed run time,
   // and the walk is recorded at the same moment, after its move.
@@ -55,7 +55,7 @@ test('an awaited action plays each beat in a play of its own; composed in a Succ
   await b.scene.play(new Succession([b.s.enter(dot, { runTime: 0.5 }), e.reveal('rest'), e.walk([['A', 'B']])]));
   const reveal = 0.65 + 2 * 0.12 * 0.65;
   assert.equal(b.scene.frameCount - start, Math.round((0.5 + reveal + 0.18 + 0.8 + 0.18) * fps));
-  assert.deepEqual(b.scene.stateJson().walks, [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.deepEqual(b.scene.evidence.filter(e => e.kind === 'diagram-walk').map(({ kind, ...walk }) => walk), [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
   assert.ok(e.visible.has('B') && b.scene.familyMembers().includes(dot));
   // The token faded out and left the diagram, as an awaited walk's does.
   assert.equal(e.root.family().filter((m) => m.constructor.name === 'Dot').length, 0);
@@ -73,7 +73,7 @@ test('actions play together in one play: a camera move beside a walk, and a valu
   assert.equal(scene.frameCount - before, Math.round((0.18 + 0.8 + 0.18) * scene.fps));
   assert.ok(scene.familyMembers().includes(card.value), 'the card was faded in and kept');
   assert.notDeepEqual(scene.frame.box(), [-8, -4.5, 8, 4.5], 'the camera moved');
-  assert.equal((scene.stateJson().walks as unknown[]).length, 1);
+  assert.equal((scene.evidence.filter(e => e.kind === 'diagram-walk')).length, 1);
 });
 
 test('s.show composes in play(), which waits for the layout it reads, and gives its diagram once it begins', async () => {
@@ -150,6 +150,47 @@ test('an action made but never played fails its step, and the scene at its end',
   await new Played(new NullSink()).run();
 });
 
+test('an action left by an end listener fails its own step, including the last step', async () => {
+  for (const trackedAlready of [false, true]) for (const last of [true, false]) {
+    class Late extends Scene {
+      override async construct() {
+        const s = stage(this, { heading: false });
+        await this.step('one');
+        if (trackedAlready) await s.clear();
+        this.onStepEnd(() => { s.enter(new Circle()); });
+        if (!last) await this.step('two');
+      }
+    }
+    await assert.rejects(new Late(new NullSink()).run(), /^Error: s\.enter\(\): it was made in step "one" but never played/);
+  }
+});
+
+test('opening and closing listeners can plan and play actions in their named step', async () => {
+  const circle = new Circle();
+  class Listeners extends Scene {
+    override async construct() {
+      const s = stage(this, { heading: false });
+      let enter: ReturnType<typeof s.enter> | undefined;
+      this.onStep(() => { enter = s.enter(circle); });
+      await s.clear(); // Begin tracking before the first named step.
+      await this.step('one');
+      this.onStepEnd(async () => { await enter; });
+    }
+  }
+  const ran = await new Listeners(new NullSink()).run();
+  assert.ok(ran.mobjects.includes(circle));
+});
+
+test('an unplayed action made before the first named step fails as that step begins', async () => {
+  class Before extends Scene {
+    override async construct() {
+      stage(this, { heading: false }).enter(new Circle());
+      await this.step('one');
+    }
+  }
+  await assert.rejects(new Before(new NullSink()).run(), /^Error: s\.enter\(\): it was made before the first step but never played/);
+});
+
 test('an action’s errors surface when it plays, awaited or composed, not when it is called', async () => {
   const { scene, s } = setUp();
   const d = await s.show(spec, { build: 'frame' });
@@ -157,7 +198,7 @@ test('an action’s errors surface when it plays, awaited or composed, not when 
   await assert.rejects(async () => walk, /d\.walk\(\): B -> A is not a link of this diagram/);
   // Revealed by the reveal before it in the same Succession: a walk checks its links when it plays.
   await scene.play(new Succession([d.reveal(['A', 'B', 'edge:A->B#0']), d.walk([['A', 'B']])]));
-  assert.equal((scene.stateJson().walks as unknown[]).length, 1);
+  assert.equal((scene.evidence.filter(e => e.kind === 'diagram-walk')).length, 1);
   await assert.rejects(scene.play(s.focus([])), /nothing to look at/);
 });
 
@@ -171,15 +212,16 @@ test('an action that waits, made in a machine transition, plays there: the play 
     action(scene, 's.show()', () => ({ value: undefined, beats: [{ runTime: 0.2, play: () => [new FadeIn(new Circle({ radius: 0.2 }).moveTo([n, -2]), { runTime: 0.2 })] }] }),
       waits ? { ready: new Promise((r) => setTimeout(r, 5)), late: true } : {});
   const run = async (waits: boolean) => {
-    class InTransition extends Scene<{ n: number }> {
+    class InTransition extends Scene {
+      override state = { n: 0 };
+
       override async construct() {
-        this.state = { n: 0 };
         const v = view(this, (s: { n: number }) => new Circle({ radius: 0.5 + s.n / 10 }));
         // The second event's transition is made only once the first has landed, mid-play: the play waits for it there.
         const m = new Machine(this, { start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [v], transition: { UP: (t) => fade(this, t.after.n, waits) } });
         await this.step('a');
         this.add(v);
-        await this.play(m.replay(['UP', 'UP']));
+        await this.play(m.sendSequence(['UP', 'UP']));
       }
     }
     const sink = new StringSink();
@@ -194,9 +236,8 @@ test('an action that waits, made in a machine transition, plays there: the play 
 
   // A real s.show, reading its diagram's layout, as a transition.
   const { scene: bare, s } = setUp();
-  const scene = bare as unknown as Scene<{ n: number }>;
+  const scene = Object.assign(bare, { state: { n: 0 } });
   const v = view(scene, (st: { n: number }) => new Circle({ radius: 0.5 + st.n / 10 }));
-  scene.state = { n: 0 };
   let shown: ReturnType<typeof s.show> | null = null;
   const m = new Machine(scene, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => (shown = s.show(spec)) } });
   scene.add(v);
@@ -224,8 +265,7 @@ test('what an action or a machine transition makes as its turn comes has one wri
   const twice = action(scene, 'y()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(e), new FadeOut(e)] }] }));
   await assert.rejects(scene.play(twice), /^Error: this\.play\(\): a FadeIn and a FadeOut both animate a Circle/);
   // A machine's transition, made at its turn, against an animation beside the machine.
-  const counting = scene as unknown as Scene<{ n: number }>;
-  counting.state = { n: 0 };
+  const counting = Object.assign(scene, { state: { n: 0 } });
   const v = view(counting, (st: { n: number }) => new Circle({ radius: 0.5 + st.n / 10 }));
   scene.add(v);
   const ring = new Circle({ radius: 2 });

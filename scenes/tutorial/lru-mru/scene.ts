@@ -10,18 +10,21 @@ const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 /** What the card shows after some requests: the requests so far, and each policy's cache, evictions and hits. */
 type CardState = { Requests: string; 'Newest first': [string, string]; Evicted: [string, string]; Hits: [string, string] };
 
-export default class LruMru extends Scene<CardState, { lit: string | null }> {
+export default class LruMru extends Scene {
   static meta = {
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
     ],
   } satisfies ExplainerMeta;
-  static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
+  static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }] as const;
+
+  override state: CardState = { Requests: '', 'Newest first': ['', ''], Evicted: ['none', 'none'], Hits: ['0', '0'] };
+  override shown: { lit: string | null } = { lit: null };
 
   override async construct() {
     const s = stage(this, { style: 'nord', headingSize: 0.54 });
-    const next = settingsOf(this).next as keyof typeof NEXT;
+    const next = settingsOf(this, LruMru).next;
     const requests = [...('ABCD' + NEXT[next])];
     const trace = { lru: run('lru', SIZE, requests), mru: run('mru', SIZE, requests) };
 
@@ -46,15 +49,15 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
     this.state = shown(3);
     this.shown = { lit: null };
-    const cache = view(this, (st, sh) => {
-      return card(s, [
+    const cache = view(this, (st, sh, drawing) => {
+      return card(drawing, [
         ['Requests', st.Requests],
         ['Slots', SIZE],
         ['Newest first', ...st['Newest first']],
         ['Evicted', ...st.Evicted],
         ['Hits', ...st.Hits],
       ], { columns: ['LRU', 'MRU'], width: 6.8, size: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
-    }, { place: false });
+    }, { drawing: s.drawing, place: false });
     await s.enter(cache, { runTime: 0.35 });
 
     const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];

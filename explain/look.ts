@@ -59,6 +59,10 @@ export function selfDescribed<T extends Mobject>(m: T, seen: () => Description, 
   Object.assign(m, { [seenSource]: seen, ...(emphasis ? { [emphasisSource]: emphasis } : {}) });
   return m;
 }
+/** Give a component its own words on stage. Read its current parts from `self`, including on a copy. */
+export function described<T extends Mobject>(m: T, describe: (self: T) => Description): T {
+  return selfDescribed(m, function (this: T) { return describe(this); });
+}
 /**
  * What `m` shows in words: each part that describes itself, as it describes itself, and the text
  * of every other `Text`, in family order. A self-describing part's own text is not repeated.
@@ -179,22 +183,6 @@ export interface Look {
   /** The style's faint colour, for guides, axes and tracks that are not read as text. */
   readonly muted: string;
 }
-/** The look of a palette: the colours drawn on its paper. */
-const stagePalettes = new WeakMap<object, () => Palette>();
-/**
- * The palette a stage was styled from, for the card and code panels the kit builds (a card's
- * headings take the palette's own accent). Not public: a scene draws with `s.look`.
- */
-export function stagePalette(s: object, api: string): Palette {
-  const read = stagePalettes.get(s);
-  if (!read) throw new TypeError(`${api}: its first argument must be a stage, stage(this)`);
-  return read();
-}
-/** Records where a stage's current palette is read from (see stagePalette). */
-export function bindStagePalette(s: object, read: () => Palette): void {
-  stagePalettes.set(s, read);
-}
-
 /**
  * A size a type cannot hold to its range: a finite number above 0, in scene units. An option bag's
  * keys and types are TypeScript's to check; this is one of the values it cannot.

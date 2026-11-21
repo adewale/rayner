@@ -1,5 +1,5 @@
 import { Group, Line, Rectangle, keyed } from '../../../src/index.ts';
-import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
+import type { Stage, DrawContext, StagedStepsOptions } from '../../../explain/index.ts';
 import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from './model.ts';
 import type { Criterion, Level, Version } from './model.ts';
 import { tile, label, table } from '../../../explain/drawing.ts';
@@ -25,7 +25,7 @@ export function columns(level: Level): Criterion[] {
 interface Lists { level: Level; totals: number[]; columns: string[]; rows: Record<string, string[]> }
 /** One row per version, one cell per column it asks for, coloured by the version that added it;
  *  level brackets above, each version's count at the right, and 4.1.1 Parsing's gap named below. */
-function lists(st: Lists, s: Stage) {
+function lists(st: Lists, s: DrawContext) {
   const cols = st.columns.map((num) => CRITERIA.find((c) => c.num === num)!);
   const levels = LEVELS.slice(0, LEVELS.indexOf(st.level) + 1);
   const GAP = 0.3,

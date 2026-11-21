@@ -165,7 +165,10 @@ type AriFocus = { lines: [number, number]; as: string };
 /** Each diagram's entry, the code's version and focus, and the ARI code's focus. */
 type CertShown = { [name in DiagramName]?: DiagramShown } & { code?: CodeShown; ariFocus?: AriFocus };
 
-export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
+export default class CertRenewalExplainer extends Scene {
+  override state: CertState = {};
+  override shown: CertShown = {};
+
   static meta = {
     sources: [
       'https://github.com/cabforum/servercert/blob/3574ae809e5f909b58ee4c26b7bac4a3b9e78421/docs/BR.md#632-certificate-operational-periods-and-key-pair-usage-periods',
@@ -218,12 +221,12 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       default: 'fixed30',
       options: (Object.keys(RULES) as Rule[]).map((k) => ({ value: k, label: RULES[k].name })),
     },
-  ];
+  ] as const;
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this),
-      key = values.lifetime as LifetimeKey,
-      rule = values.rule as Rule,
+    const values = settingsOf(this, CertRenewalExplainer),
+      key = values.lifetime,
+      rule = values.rule,
       other: Rule = rule === 'fraction' ? 'fixed30' : 'fraction',
       life = LIFETIMES[key],
       short = key === '160h',
@@ -231,7 +234,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       colours = s.look;
     /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
     const cardOf = async (rowsOf: (st: CertState) => CardRow[], opts: CardOptions) => {
-      const v = view(this, (st) => card(s, rowsOf(st), opts), { place: false });
+      const v = view(this, (st, _shown, drawing) => card(drawing, rowsOf(st), opts), { drawing: s.drawing, place: false });
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
@@ -316,17 +319,17 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     this.shown.code = { version: 'old', focus: [2, 3] } satisfies CodeShown;
     const codeView = view(
       this,
-      (_st, sh) => {
+      (_st, sh, drawing) => {
         const c = having(sh, 'code').code;
-        const panel = code(s, c.version === 'old' ? OLD_CODE : NEW_CODE, {
+        const panel = code(drawing, c.version === 'old' ? OLD_CODE : NEW_CODE, {
           ...codeOpts,
-          width: code(s, OLD_CODE, codeOpts).panel.width(),
+          width: code(drawing, OLD_CODE, codeOpts).panel.width(),
           lit: { lines: c.focus },
           key: 'code',
         });
         return panel;
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     const showCode = async (change: CodeShown) => {
       this.shown.code = change;
@@ -582,7 +585,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       const b = bar(r),
         room = b[0] - chartLeft > new Text(text, { fontSize: 0.22 }).width() + 0.4;
       const note = callout(
-        s,
+        s.drawing,
         b,
         text,
         room
@@ -598,7 +601,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         from = Math.round(byRule[rule].due),
         x = b[0] + ((mine.firstRefused! - from) / (life.hours - from)) * (b[2] - b[0]);
       const refused = callout(
-        s,
+        s.drawing,
         [x, b[1]],
         `refused at hour ${mine.firstRefused}; ${mine.refusedPerYear} refused, ${mine.renewalsPerYear} renewed in 365 days`,
         {
@@ -675,16 +678,16 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     this.shown.ariFocus = (settingFirst ? { lines: [10, 12], as: 'the setting first' } : { lines: [4, 9], as: 'a fresh draw' }) satisfies AriFocus;
     const ariCode = view(
       this,
-      (_st, sh) => {
+      (_st, sh, drawing) => {
         const f = having(sh, 'ariFocus').ariFocus;
-        return code(s, ARI_CODE, {
+        return code(drawing, ARI_CODE, {
           at: regionBox('full', { bottom: -1.0 }),
           size: 0.22,
           lit: f,
           key: 'ari',
         });
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(ariCode, { runTime: 0.4 });
     this.state.ari = {

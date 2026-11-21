@@ -22,7 +22,7 @@ const unit = (v: Vec): Vec => {
 };
 
 export interface AnnotationLook {
-  shaping?: TextShaping;
+  shaping?: TextShaping | null;
   /** Line and text colour. */
   color: string;
   /** Text size in scene units; 0.24 is about 19 px on a 1280 px stage. */
@@ -360,7 +360,7 @@ export function swatchWords(item: LegendItem): string {
 
 export interface LegendLook {
   ink: string;
-  shaping?: TextShaping;
+  shaping?: TextShaping | null;
   /** Text size; the swatch is about as tall as the text. */
   size?: number;
   /** Where the first entry starts: its swatch's left edge, on the entry's centre line. */

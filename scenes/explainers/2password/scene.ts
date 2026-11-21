@@ -41,7 +41,10 @@ type PasswordState = {
 /** Each picture's part of what is shown, from the step that first shows it; the command's focused line. */
 type PasswordShown = { boundary?: BoundaryShown; listing?: ListingShown; sequence?: SequenceShown; commandFocus?: number | null };
 
-export default class PasswordExplainer extends Scene<PasswordState, PasswordShown> {
+export default class PasswordExplainer extends Scene {
+  override state: PasswordState = {};
+  override shown: PasswordShown = {};
+
   static meta = {
     sources: [
       `${SOURCE}/src/discover.ts`,
@@ -112,16 +115,16 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
     this.shown.listing = { columns: 'item', focus: [1, ITEMS.length] } satisfies ListingShown;
     const listing = view(
       this,
-      (_st, sh) => {
+      (_st, sh, drawing) => {
         const l = having(sh, 'listing').listing;
-        return code(s, listingLines(l.columns), {
+        return code(drawing, listingLines(l.columns), {
           at: [-5.5, -4.25, 5.5, -0.5],
           size: 0.3,
           lit: { lines: l.focus },
           key: 'listing',
         });
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(listing, { runTime: 0.4 });
 
@@ -204,22 +207,22 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
     this.shown.commandFocus = null;
     const command = view(
       this,
-      (_st, sh) =>
-        code(s, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
+      (_st, sh, drawing) =>
+        code(drawing, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
           at: regionBox('top', { bottom: 1.2 }),
           size: 0.3,
           lit: sh.commandFocus == null ? null : { lines: sh.commandFocus },
           key: 'command',
         }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(command, { runTime: 0.4 });
-    const before = s.keep(code(s, Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`), {
+    const before = s.keep(code(s.drawing, Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`), {
       at: regionBox('full', { right: -0.75, top: 0.7 }),
       title: "op's environment",
       size: 0.26,
     }));
-    const child = s.keep(code(s, Object.entries(launched.childEnv).map(([k, v]) => `${k}=${v}`), {
+    const child = s.keep(code(s.drawing, Object.entries(launched.childEnv).map(([k, v]) => `${k}=${v}`), {
       at: regionBox('full', { left: 0.75, top: 0.7 }),
       title: "app's environment",
       size: 0.26,

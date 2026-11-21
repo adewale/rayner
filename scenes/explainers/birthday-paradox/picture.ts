@@ -1,12 +1,12 @@
 import { Group, Rectangle, keyed } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { TYPE, label, tile, stat } from '../../../explain/drawing.ts';
 import { percent } from '../lib/format.ts';
 
 const pct2 = (p: number) => percent(p, { digits: 2 });
 
 /** The room as date cards, one per sampled day; the cards whose day is in `lit` are outlined. */
-export function room(s: Stage, days: readonly number[], dates: readonly string[], lit: readonly number[], footer: string): Group {
+export function room(s: DrawContext, days: readonly number[], dates: readonly string[], lit: readonly number[], footer: string): Group {
   // A phone opening shows about 13.8 units across, so the widest row stays inside that.
   const big = days.length > 30,
     cols = 5,
@@ -35,7 +35,7 @@ export function room(s: Stage, days: readonly number[], dates: readonly string[]
  * of cards, by index, whose dates are the same.
  */
 export function pairGrid(
-  s: Stage,
+  s: DrawContext,
   { you, people: n, count, chance, matched: matchedPairs, footer }:
     { you: boolean; people: number; count: number; chance: number; matched: readonly (readonly number[])[]; footer: string },
 ): Group {
@@ -68,7 +68,7 @@ export function pairGrid(
 }
 
 /** The 365 days of the year as a grid of 20 a row: the dates already taken in red, the free ones pale. */
-export function drawDays(s: Stage, people: number, occupied: number, allowed: number): Group {
+export function drawDays(s: DrawContext, people: number, occupied: number, allowed: number): Group {
   const grid = new Group(
     ...Array.from({ length: 365 }, (_, i) =>
       new Rectangle({
@@ -86,7 +86,7 @@ export function drawDays(s: Stage, people: number, occupied: number, allowed: nu
 }
 
 /** The pair shortcut's arithmetic, with the shortcut and the exact chance side by side. */
-export function drawEstimate(s: Stage, pairs: number, shortcut: number, chance: number): Group {
+export function drawEstimate(s: DrawContext, pairs: number, shortcut: number, chance: number): Group {
   return new Group(
     label(s, 'One pair shares a birthday: 1 in 365', { at: [0, 2.2], size: 0.66 }),
     label(s, `All ${pairs} pairs miss: 364/365, ${pairs} times over`, { at: [0, 1.2], size: 0.66 }),

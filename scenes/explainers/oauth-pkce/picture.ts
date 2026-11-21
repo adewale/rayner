@@ -1,6 +1,6 @@
 import { Group, Rectangle, Text, Arrow, Line, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { keyedParts, emphasised } from '../../../explain/drawing.ts';
 import { listed } from '../lib/format.ts';
 import type { Message, LaneMessage, SignIn, SignInEvent } from './model.ts';
@@ -39,7 +39,7 @@ const LABEL = 0.3;
 /** What a piece of a label is coloured as: a value's own colour, plain ink, or the answer's outcome. */
 type Tone = 'challenge' | 'code' | 'ink' | 'good' | 'bad';
 type Piece = readonly [string, Tone];
-const toneColor = (tone: Tone, s: Stage) =>
+const toneColor = (tone: Tone, s: DrawContext) =>
   ({ challenge: CHALLENGE, code: CODE, ink: s.look.ink, good: s.look.good, bad: s.look.bad })[tone];
 
 /** What each message says in the state it is drawn from (pieces of text and their tones), and why an answer was refused. */
@@ -72,7 +72,7 @@ function notes(st: SignIn): Partial<Record<keyof typeof X, string>> {
   return { ...(st.challenge !== null ? { C: 'keeps code_verifier' } : {}), ...(server.length ? { S: server.join(' · ') } : {}) };
 }
 /** A dot in the colour of what a message carries: the challenge, the code, or the answer's outcome. */
-export function tokenColor(id: MessageId, st: SignIn, s: Stage): string {
+export function tokenColor(id: MessageId, st: SignIn, s: DrawContext): string {
   if (id === 'authorize') return st.challenge !== null ? CHALLENGE : s.look.ink;
   if (id.endsWith('answer')) return st[id.startsWith('app') ? 'app' : 'client'].answer === 'Access token' ? s.look.good : s.look.bad;
   return CODE;
@@ -83,7 +83,7 @@ export function tokenColor(id: MessageId, st: SignIn, s: Stage): string {
  * browser lane other apps can read and a green TLS lane, each sent message an arrow in its fixed place with what it
  * carries above it (a refusal's reason under it), and notes under the client and the server. Every part is keyed.
  */
-export function signInPicture(st: SignIn, s: Stage): Group {
+export function signInPicture(st: SignIn, s: DrawContext): Group {
   const ink = s.look.ink, { add, group } = keyedParts();
   const band = (lane: 'browser' | 'tls', top: number, bottom: number, color: string, title: readonly [string, string]) => {
     const rect = new Rectangle({ width: 15.0, height: top - bottom, cornerRadius: 0.12, fill: color, fillOpacity: 0.07, stroke: color, strokeWidth: 0.04 }).moveTo([0, (top + bottom) / 2]);
@@ -153,7 +153,7 @@ export const laneWords = (lane: LaneMessage[]) =>
  * with the names of what it carries above it (the challenge's method rides with it as S256); replies are dashed.
  * Narrow enough for a phone's opening to show both lanes whole with every label at 12 px.
  */
-export function channelMap(map: Record<Message['channel'], LaneMessage[]>, s: Stage) {
+export function channelMap(map: Record<Message['channel'], LaneMessage[]>, s: DrawContext) {
   const SIZE = 0.45,
     HALF = 4.5,
     END = 3.9,

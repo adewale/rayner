@@ -1,12 +1,12 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
 import type { View, Choreography, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Machine, view, answerOf } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
 import type { CodeBlockOptions } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
-import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
+import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, drawOverview, sayOverview, sayRing } from './picture.ts';
 import type { Ink } from './picture.ts';
 
 // RingBuffer from ./model.ts, without the `this.`s.
@@ -37,7 +37,9 @@ const turnBetween = (from: number, to: number) => {
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
 
-export default class RingBufferExplainer extends Scene<RingState, {}> {
+export default class RingBufferExplainer extends Scene {
+  override state: RingState = ringStart(SLOTS);
+
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
@@ -54,7 +56,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
         { value: 'full', label: 'Push 7 into five slots' },
       ],
     },
-  ];
+  ] as const;
   /** head, tail and length in the middle of the ring: a View of `this.state`. */
   readout?: View;
   /** The card's Operation and Result values: a View of `this.state`. */
@@ -67,7 +69,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
   code?: View;
 
   override async construct() {
-    const which = settingsOf(this).operations!,
+    const which = settingsOf(this, RingBufferExplainer).operations,
       s = stage(this, { headingSize: 0.6, style: 'dusk' }),
       ink = s.look.ink;
 
@@ -78,8 +80,41 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
 
     // The queue the ring replaces: an array whose pop moves every value left.
     await readerFrames(s, { kind: 'short' });
-    const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
+    // The reading path keeps the ring and its order together. The implementation below is optional.
+    const overviewStart = this.state, overviewStory = ringStory(which);
     await this.step('slots', {
+      title: 'Keep the slots still; move head and tail',
+      line: 'H is the next slot to read; T is the next slot to write.',
+      caption: `${answerOf(this)}. Push writes at tail; pop reads at head. Queue order starts at head, so a value can stay in its slot while its place in the queue changes. The diagram keeps the slots, markers and queue order together; Details shows the implementation.`,
+      predict: { prompt: 'After five pushes, where will head and tail point?', options: ['Both at slot 0', 'Head at slot 0, tail at slot 4'], answer: 'Both at slot 0' },
+    });
+    await s.clear();
+    const overview = view(this, (st, _shown, drawing) => drawOverview(st, drawing), { drawing: s.drawing, place: false });
+    await s.enter(overview, { describe: () => sayOverview(this.state) });
+    const overviewMachine = new Machine<RingState, RingEvent>(this, {
+      start: overviewStart, events: ['push', 'pop'], next: ringNext, views: [overview], runTime: 0.4,
+      bound: (st, event) => event === 'push' && st.next > 9 ? 'This story pushes the values 1 to 9' : undefined,
+    });
+    const overviewReplays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
+    for (let i = 0; i < overviewReplays.length; i++) {
+      await this.step(['fill', 'next', 'result'][i]!, {
+        title: i === 0 ? 'Both markers return to 0; length says full' : which === 'wrap' ? i === 1 ? 'Pop 1 and 2; the other values stay put' : 'Answer: reuse slots 0 and 1, with no stored value moved' : i === 1 ? 'Push 6 is refused: every slot is occupied' : 'Push 7 is refused too; the queue is unchanged',
+        line: i === 2 ? `Queue order: ${queueOrder(overviewStory.at(-1)!.result).join(', ')}.` : i === 0 ? 'Length distinguishes a full ring from an empty one.' : 'The slot numbers stay fixed.',
+        caption: i === 0
+          ? 'Five pushes fill slots 0 to 4. Tail wraps to 0, where head already points, but length is now 5. The same marker positions can mean empty or full: the count tells them apart.'
+          : which === 'wrap'
+            ? i === 1
+              ? 'Pop reads 1 at head, then 2, and advances head to slot 2. Values 3, 4 and 5 stay in their original slots. Tail still points at slot 0, the first place a push can reuse.'
+              : 'Push 6 writes slot 0 and push 7 writes slot 1. Head and tail meet at slot 2, and reading from head gives 3, 4, 5, 6, 7. Each stored value stays in its slot. Use the push or pop button to try another operation, or open Details to inspect the code.'
+            : i === 1
+              ? 'Push 6 finds all five slots occupied. The queue still holds 1, 2, 3, 4, 5, and head and tail stay at slot 0.'
+              : 'Push 7 also finds the buffer full. The ring still holds 1 through 5, and the refused values are 6 and 7. Use the pop button to make room, then try push. Open Details to inspect the code.',
+      });
+      await overviewMachine.sendSequence(overviewReplays[i]!);
+    }
+    const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
+    await this.step('implementation-slots', {
+      kind: 'detail',
       title: 'Answer: keep the values still, and move two markers instead',
       line: 'Predict: after five pushes, where are head and tail?',
       // Where the model's ring leaves both markers after the fifth push.
@@ -110,10 +145,10 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // The buffer's own fields, rebuilt from this.state at every sync.
     const readout = (this.readout = view(
       this,
-      (st) => card(s, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
+      (st, _shown, drawing) => card(drawing, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
         size: 0.24, at: [C[0], C[1] + 0.1], width: 1.9, panel: false, key: 'readout',
       }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     ));
     // The fields card describes itself.
     s.keep(readout);
@@ -123,7 +158,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // the state too: its Result row is lit while push is refused with Full.
     const blankCard = (lit: string | null) =>
       card(
-        s,
+        s.drawing,
         [
           ['Operation', '–'],
           ['Result', '–'],
@@ -175,7 +210,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     const litOf = (st: RingState): CodeBlockOptions['lit'] =>
       st.error != null ? { lines: 1 } : st.operation === 'pop' ? { lines: [8, 12] } : st.operation != null ? { lines: [2, 4] } : null;
     const codeAt = regionBox('full', { left: -0.25, top: resultCard.box()![1] - 0.25 });
-    const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { place: false }));
+    const codePanel = (this.code = view(this, (st, _shown, drawing) => code(drawing, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { drawing: s.drawing, place: false }));
     await s.enter(codePanel, { runTime: 0.4 });
 
     // The reader could press push or pop; each press is one model step, its motion authored below.
@@ -283,7 +318,8 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       : [{ options: ['Throws Full', 'Overwrites 1', 'Writes past slot 4'], answer: next.error === 'Full' ? 'Throws Full' : 'Overwrites 1' }];
     const replays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
     for (let g = 0; g < replays.length; g++) {
-      await this.step(['fill', 'next', 'result'][g]!, {
+      await this.step(['implementation-fill', 'implementation-next', 'implementation-result'][g]!, {
+        kind: 'detail',
         title:
           g === 0
             ? 'Answer: both back at slot 0, so only length says full'
@@ -319,7 +355,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
         ...(predictions[g] ? { predict: predictions[g] } : {}),
       });
       // The code's lit lines and the card's lit Result row are drawn from the state each event leaves.
-      await this.play(machine.replay(replays[g]!));
+      await this.play(machine.sendSequence(replays[g]!));
       // The live step: a phone shows the whole picture after each press, so its close-ups take in every
       // view the reader drives, not only what the step changed, and each label reads 12 px in one of them.
       if (g === replays.length - 1) s.opening(ring, readout, results, resultCard, codePanel);

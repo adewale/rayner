@@ -50,6 +50,8 @@ export let borrowChildren: (m: Mobject, parts: readonly Mobject[]) => void;
  * and what `add` refuses. What Scene.replace does for a part inside a group on stage.
  */
 export let replaceChild: (parent: Mobject, old: Mobject, ...replacements: Mobject[]) => void;
+/** Copy a subclass's own data into a retained member of the same class. */
+let copyData: (m: Mobject, source: Mobject) => void;
 /** A composite's hook that names its own children again after a copy or a restore (see rebindReferences). */
 let rebind: (m: Mobject, source: Mobject, copies: ReadonlyMap<Mobject, Mobject>) => void;
 let nextId = 1;
@@ -210,6 +212,7 @@ export class Mobject {
       if (!replacements.includes(old)) parent.remove(old);
       parent.#put('this.replace()', at, replacements);
     };
+    copyData = (m, source) => m.copyData(source);
     rebind = (m, source, copies) => m.rebindReferences(source, copies);
   }
   /**
@@ -396,7 +399,7 @@ export class Mobject {
    * References outside the copied tree (for example its Scene) remain shared. */
   protected rebindReferences(_source: Mobject, _copies: ReadonlyMap<Mobject, Mobject>): void {}
 
-  /** Deep-copy point data from `src`. Subclasses override. */
+  /** Copy this class's data from a member of the same class, for a new copy or an in-place adoption. */
   protected copyData(_src: Mobject): void {}
 
   // ---- bounding box ------------------------------------------------------
@@ -899,7 +902,7 @@ function ownContainer(v: unknown): unknown {
 const ownFields = (o: object): (string | symbol)[] =>
   [...Object.keys(o), ...Object.getOwnPropertySymbols(o).filter((k) => Object.prototype.propertyIsEnumerable.call(o, k))];
 
-/** Rewrite `m`'s data from `state` in place (see restore()); `state` itself is never touched. */
+/** @internal Rewrite `m`'s data from `state` in place (see restore()); `state` itself is never touched. */
 export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string> = KEEP_ON_RESTORE): void {
   const fresh = state.copy();
   const same = m.sameShapeAs(fresh);
@@ -919,8 +922,9 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
     // Symbol-keyed fields (what a drawn part says it emphasises or shows) are data like any other, but
     // the scene colours it took, which it keeps.
     const adopt = (k: string | symbol) => typeof k === 'symbol' ? k !== sceneColors : !keep.has(k);
-    for (const k of ownFields(t)) if (!(k in f) && adopt(k)) delete t[k as string];
+    for (const k of ownFields(t)) if (!Object.hasOwn(f, k) && adopt(k)) delete t[k as string];
     for (const k of ownFields(f)) if (adopt(k)) t[k as string] = place(f[k as string]);
+    if (same || Object.getPrototypeOf(to) === Object.getPrototypeOf(from)) copyData(to, from);
     if (!keep.has('key')) setKey(to, from.key);
     dropBox(to);
     to.touchPoints();

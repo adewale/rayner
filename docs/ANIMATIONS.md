@@ -24,7 +24,15 @@ new Transform(mobject, target, options?)    // target: a mobject, or 'saved'
 
 `'saved'` as the target returns `mobject` to the state `saveState()` stored
 ([below](#back-to-a-saved-state-come-back-exactly)); it morphs by index and keeps `mobject`, so
-it refuses `match`, `fromCopy` and `replace`. A matched transform reports what it paired once it
+it takes animation timing options, and refuses matching or handover options (`match`, `ordered`,
+`staged`, `fadeMismatches`, `fromCopy` and `replace`), even redundant values such as `match: 'index'`
+or `replace: false`. An option whose value is `undefined` counts as omitted.
+The constructor enforces these option rules for TypeScript and JavaScript callers.
+`TransformOptions` also rejects
+`fromCopy: true` together with `replace: false`. Narrow a target typed as `Mobject | 'saved'`
+before supplying options that only make sense for another mobject.
+To add your own options, intersect the union: `type MyOptions = TransformOptions & { strength?: number }`.
+A matched transform reports what it paired once it
 has begun: `pairs`, `morphed`, `removed`, `added`, and `summary()`, a `MatchSummary` (`null` for a
 morph by index), recorded as the step's `match` evidence. `TransformDiff` is a matched
 `Transform` whose pairing is a code diff ([diff-driven](MATCHING.md#diff-driven)).

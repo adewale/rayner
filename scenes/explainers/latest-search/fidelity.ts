@@ -4,6 +4,7 @@ import { having } from '../../../explain/index.ts';
 import { assertStepState } from '../../../explain/testing.ts';
 import { raceLifetimes, racePage, raceReplay } from './model.ts';
 import type { RaceState } from './model.ts';
+import type { Decision } from './picture.ts';
 import type LatestSearchExplainer from './scene.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
@@ -14,7 +15,7 @@ export async function check(trace: TraceOf<typeof LatestSearchExplainer>, values
   const newFirst = values.order === 'new-first', first = newFirst ? 'B' : 'A';
   const after = (step: string) => trace.steps.find(s => s.step === step)!.after;
   // A decision's state (its ticket against the latest), and a race machine's.
-  const reading = (step: string) => having(after(step), 'query', 'ticket');
+  const reading = (step: string) => having(trace.steps.find(s => s.step === step)!.state!, 'query', 'ticket') as Decision;
   const race = (step: string) => having(after(step), 'log', 'guarded');
   for (const [id, query] of [['reader-first', first], ['reader-ticket', newFirst ? 'A' : 'B']] as const) {
     const r = reading(id);

@@ -1,6 +1,6 @@
 import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE, addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, seal, station, stationExit, stationHolds, stop, ticket, label } from '../lib/poppy-kit.ts';
 import { AGENT, SID } from '../poppy/model.ts';
@@ -107,7 +107,7 @@ const tearPoints = (code: string, edge: number, top: number, h: number): Vec[] =
  * `at` is the centre of its whole rectangle. With `stampRoom`, the printing moves right of a place
  * for the stamp.
  */
-export function stub(s: Stage, { at, code, width, stampRoom = false, h = SLIP_H }: { at: Vec; code: string; width: number; stampRoom?: boolean; h?: number }): Group {
+export function stub(s: DrawContext, { at, code, width, stampRoom = false, h = SLIP_H }: { at: Vec; code: string; width: number; stampRoom?: boolean; h?: number }): Group {
   const [x, y] = at, l = x - width / 2, r = x + width / 2, t = y + h / 2, b = y - h / 2, k = RADIUS.ticket;
   const outline: Vec[] = [[l + k, t], ...tearPoints(code, r, t, h), [l + k, b], [l, b + k], [l, t - k]];
   const text = label(s, shortCode(code), { mono: true, bold: true, color: TONE.print, at: stampRoom ? [l + 0.95, y] : [x - 0.1, y], align: stampRoom ? 'start' : 'middle' });
@@ -115,7 +115,7 @@ export function stub(s: Stage, { at, code, width, stampRoom = false, h = SLIP_H 
 }
 
 /** The cookie half: the dark part of the ticket, its left edge torn along the code's zigzag, a cookie on it. `left` is its tear's straight line. */
-export function cookieHalf(s: Stage, { left, y, code, h = SLIP_H }: { left: number; y: number; code: string; h?: number }): Group {
+export function cookieHalf(s: DrawContext, { left, y, code, h = SLIP_H }: { left: number; y: number; code: string; h?: number }): Group {
   const t = y + h / 2, b = y - h / 2, r = left + halfW(h), k = RADIUS.ticket;
   const outline: Vec[] = [...tearPoints(code, left, t, h), [r - k, b], [r, b + k], [r, t - k], [r - k, t]];
   return new Group(
@@ -131,7 +131,7 @@ function missingHalf(code: string, left: number, y: number, h = SLIP_H): Polygon
 }
 
 /** The Company's record of a code, as one row of the rack: its keyed parts. */
-function row(s: Stage, parts: ReturnType<typeof keyedParts>, record: CodeRecord, y: number) {
+function row(s: DrawContext, parts: ReturnType<typeof keyedParts>, record: CodeRecord, y: number) {
   const id = `row:${shortCode(record.code)}`, l = RACK_X, edge = l + STUB_W;
   parts.add(stub(s, { at: [l + STUB_W / 2, y], code: record.code, width: STUB_W, stampRoom: true, h: ROW_H }), `${id}:stub`);
   const stampAt: Vec = [l + 0.5, y];
@@ -201,7 +201,7 @@ export function sayWorld(w: World, shown: Shown): string {
 // The world.
 
 /** The state as its picture: agent, browser and Company, the rack of codes, and the last answer. */
-export function drawWorld(w: World, s: Stage, shown: Shown): Group {
+export function drawWorld(w: World, s: DrawContext, shown: Shown): Group {
   const parts = keyedParts(), last = w.last, report = reportOf(w), teeth = teethOf(w.signIn);
 
   // Your agent: its station, with its seal and its key (or the empty slot for one).
@@ -302,7 +302,7 @@ const COLUMN_X = [-5.55, -1.95, 1.75, 5.45] as const;
 const TABLE_ROW_Y = [2.45, 0.95, -0.55, -2.05] as const;
 
 /** A small browser window holding an account tag, or nothing: a login, or none. */
-function miniWindow(s: Stage, at: Vec, cell: Cell, name?: string): Group {
+function miniWindow(s: DrawContext, at: Vec, cell: Cell, name?: string): Group {
   const [x, y] = at, w = 2.5, h = 1.15;
   const items: Mobject[] = [
     new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel }).moveTo(at),
@@ -317,7 +317,7 @@ function miniWindow(s: Stage, at: Vec, cell: Cell, name?: string): Group {
 }
 
 /** The spec's table as four rows of windows, computed from the model's joinEffect. */
-export function drawLogins(s: Stage): Group {
+export function drawLogins(s: DrawContext): Group {
   const parts = keyedParts();
   ['before', 'join', 'while joined', 'sign-in ends'].forEach((head, i) => parts.add(label(s, head, { at: [COLUMN_X[i]!, 3.75], bold: true }), `logins:head:${i}`));
   ROWS.forEach((r, i) => {
