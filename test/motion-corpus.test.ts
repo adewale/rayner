@@ -10,7 +10,10 @@
 // still be caught. Recall may rise; when it does, add the entry to CAUGHT.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
 import { applyEdits } from '../tools/repo/motion-corpus-lib.ts';
@@ -18,7 +21,7 @@ import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 import { ROOT } from '../tools/lib/roots.ts';
 import { analyzeKeyedMotion } from '../src/keyed-motion.ts';
 
-/** Current reconstructed mutations caught on 19 November (docs/MOTION-CORPUS.md): 30 of 59. */
+/** Keep all 30 November 19 rejections and both independently painted occlusion gains. */
 const CAUGHT: readonly string[] = [
   'poppy-ticket-over-lane-names',
   'refusals-ticket-over-station',
@@ -26,8 +29,10 @@ const CAUGHT: readonly string[] = [
   'refusals-delegation-over-station',
   'sessions-ticket-from-under-stamp',
   'sessions-squeezed',
+  'sign-in-ask-people-slide',
   'sign-in-tokens-over-labels',
   'sign-in-ask-squeezed',
+  'sign-in-poll-over-card',
   'sign-in-code-tiny-words',
   'sign-in-tag-over-scopes',
   'browser-ticket-over-road-name',
@@ -52,9 +57,24 @@ const CAUGHT: readonly string[] = [
   'discovery-fetch-squeezed',
 ];
 /**
- * The default run: one entry for each of covers, small words and flicker, from the quicker chapters.
+ * The default run: covers, small words, flicker and both attributed occlusion gains.
  */
-const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades'];
+const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades', 'sign-in-poll-over-card', 'sign-in-ask-people-slide'];
+
+test('the credited poll mutation removes actual letter pixels and its fixed route preserves them', {
+  skip: !process.env.FULL && 'set FULL=1: independently rasterizes the credited poll and fixed route',
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-motion-proof-'));
+  try {
+    await promisify(execFile)(process.execPath, [join(ROOT, 'tools/repo/motion-occlusion-proof.ts'), '--out', directory]);
+    const proof = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
+    assert.equal(proof.entry, 'sign-in-poll-over-card');
+    assert.equal(proof.fixed.length, 3);
+    assert.equal(proof.mutation.length, 3);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 // Keeper for the original poppy-last-object-lingers mechanical assertion. Current
 // whole-word rest no longer reproduces its incidental size jump. These are actual
@@ -89,17 +109,19 @@ test('every corpus entry still applies to the current Poppy scenes, and names it
   for (const id of [...CAUGHT, ...SAMPLE]) assert.ok(CORPUS.some((e) => e.id === id), `${id} is a corpus entry`);
 });
 
-test('a sample of the corpus: a defect each for covers, small words and flicker is caught', async () => {
+test('a sample of the corpus: covers, small words, flicker and attributed occlusion are caught', async () => {
   const entries = CORPUS.filter((e) => SAMPLE.includes(e.id));
+  assert.equal(entries.length, SAMPLE.length);
   // The catalog's gate keeps the scenes as they are free of findings, so no baseline is run here.
   const { results } = await runCorpus(entries, { bases: false });
+  assert.equal(results.length, SAMPLE.length);
   for (const r of results) {
     assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
     assert.ok(r.caught, `${r.id} is no longer caught`);
   }
 });
 
-test('the whole corpus: every defect caught when recall was measured is still caught', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it checks every corpus entry, about 14 minutes on four cores' }, async () => {
+test('the whole corpus: every defect caught when recall was measured is still caught', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it replays all 59 reconstructed mutations' }, async () => {
   const { results } = await runCorpus(CORPUS, { bases: false });
   for (const r of results) assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
   const caught = results.filter((r) => r.caught).map((r) => r.id);

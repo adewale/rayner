@@ -1,0 +1,602 @@
+{
+  "date": "2026-11-20",
+  "summary": {
+    "caught": 32,
+    "of": 59,
+    "byKind": {
+      "passes over": {
+        "caught": 20,
+        "of": 28
+      },
+      "result before cause": {
+        "caught": 0,
+        "of": 5
+      },
+      "layout motion": {
+        "caught": 1,
+        "of": 8
+      },
+      "two copies": {
+        "caught": 2,
+        "of": 4
+      },
+      "squeezed": {
+        "caught": 3,
+        "of": 3
+      },
+      "too long": {
+        "caught": 0,
+        "of": 3
+      },
+      "small label in flight": {
+        "caught": 3,
+        "of": 3
+      },
+      "glyph dissolve": {
+        "caught": 0,
+        "of": 1
+      },
+      "flicker": {
+        "caught": 3,
+        "of": 4
+      }
+    }
+  },
+  "comparison": "baseline-subtracted",
+  "renderedSourceFingerprint": "85eb969448409dd0e588308d0dda97353c7135c303ce9344a168ad94b95e3bf0",
+  "attributionReview": {
+    "runtimeFingerprint": "c2d97e30f70085f9d200b37618f27cf6093e8fc08f55ea0615cba9b81730ef3d",
+    "renderDefinitionsSha256": "97438bce2753d4e6cb84825fa20fa54061bd562912b542819483e10f564f9993",
+    "note": "The recorded source identifies the frozen render run. An attribution-only expectation for the people-slide mutation was added afterward. All 59 rendered mutation definitions are unchanged and the raw receipts were rescored using the canonical baseline and attribution functions."
+  },
+  "previous": {
+    "caught": 30,
+    "retained": 30,
+    "lost": [],
+    "gains": [
+      "sign-in-ask-people-slide",
+      "sign-in-poll-over-card"
+    ]
+  },
+  "baselines": [
+    {
+      "id": "base-poppy",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-refusals",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-sessions",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-sign-in",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-browser",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-conversations",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-coverage",
+      "findings": 0
+    },
+    {
+      "id": "base-poppy-discovery",
+      "findings": 0
+    }
+  ],
+  "cases": [
+    {
+      "id": "poppy-ticket-over-lane-names",
+      "caught": true,
+      "freshFindings": 352,
+      "sample": {
+        "scenario": "{\"approve\":\"read-write\"}",
+        "line": "step \"seal\", play 1, event 1: covers: part “ticket:flight” at 0.933 s travels over “API” (part “lane:api:name”), covering 100% of it, for 0.33 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "poppy-key-over-station-name",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "poppy-last-object-lingers",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "refusals-ticket-over-station",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"answer\"): authored transition lasts 3.450 s but the event allows 3.400 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "refusals-ticket-over-lane-name",
+      "caught": true,
+      "freshFindings": 215,
+      "sample": {
+        "scenario": "{}",
+        "line": "step \"turned-back\", play 2, event 1: covers: part “ticket:flight” at 0.500 s travels over “API” (part “lane:api:name”), covering 123% of it, for 0.60 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "refusals-lanes-slide",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "refusals-lanes-gone-in-flight",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "refusals-delegation-over-station",
+      "caught": true,
+      "freshFindings": 5,
+      "sample": {
+        "scenario": "{}",
+        "line": "step \"seal\", play 1, event 2: covers: part “delegation” at 0.800 s travels over “your agent” (part “agent:name”), covering 42% of it, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sessions-ticket-from-under-stamp",
+      "caught": true,
+      "freshFindings": 48,
+      "sample": {
+        "scenario": "{\"company\":\"remembers\"}",
+        "line": "step \"send\", play 1, event 1: covers: part “ticket:flight” at 0.467 s travels over “until 06:00” (part “chain:until”), covering 60% of it, for 0.30 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "sessions-key-to-wax-after-check",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sessions-key-in-two-places",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sessions-squeezed",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"send\"): authored transition lasts 3.060 s but the event allows 2.600 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "sessions-too-long",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-ask-people-slide",
+      "caught": true,
+      "freshFindings": 23,
+      "attributedFindings": 1,
+      "sample": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "line": "step \"reask\", play 1, event 1: occluded words: part “page:hint” at 3.433 s “password” stays readable by opacity but “agent:station”, an opaque foreground shape, covers at least 90% of 3 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+      }
+    },
+    {
+      "id": "sign-in-collect-people-slide",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-collect-too-long",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-tokens-over-labels",
+      "caught": true,
+      "freshFindings": 12,
+      "sample": {
+        "scenario": "{\"flow\":\"device\"}",
+        "line": "after ask, approve-read, collect, ask, collect: covers: part “poll” at 0.767 s travels over “refresh token” (part “tag”), covering 42% of it, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "sign-in-password-before-card",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-ask-squeezed",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"ask\"): authored transition lasts 2.800 s but the event allows 2.200 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "sign-in-pages-overlap",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-card-from-desk",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "caught": true,
+      "freshFindings": 13,
+      "attributedFindings": 13,
+      "sample": {
+        "scenario": "{\"flow\":\"device\"}",
+        "line": "step \"ask\", play 1, event 2: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+      }
+    },
+    {
+      "id": "sign-in-password-hand-and-flight",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-code-tiny-words",
+      "caught": true,
+      "freshFindings": 26,
+      "sample": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "line": "step \"key\", play 1, event 1: small words: part “code” at 1.067 s carries “c_5Rm2” 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)"
+      }
+    },
+    {
+      "id": "sign-in-password-route",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "caught": true,
+      "freshFindings": 12,
+      "sample": {
+        "scenario": "{\"flow\":\"device\"}",
+        "line": "after ask, approve-read, collect, ask, sign-out: covers: part “tag:return” at 0.933 s travels over “Example Company” (part “card”), covering 56% of it, for 0.57 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "browser-ticket-over-road-name",
+      "caught": true,
+      "freshFindings": 129,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"fetch\", play 2, event 1: covers: part “ticket:flight” at 0.800 s travels over “agent’s requests” (part “lane:agent:name”), covering 48% of it, for 0.53 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "browser-halves-together",
+      "caught": true,
+      "freshFindings": 17,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"load\", play 1, event 1: covers: part “shelf:join:flight” at 2.067 s travels over “Vn3q” (part “page:stub:flight”), covering 74% of it, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "browser-read-across-page",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "browser-forge-across-stage",
+      "caught": true,
+      "freshFindings": 39,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering 70% of it, for 0.27 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "browser-message-across-stage",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"phish\"): authored transition lasts 3.450 s but the event allows 3.350 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "browser-message-lingers",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "browser-submit-meet-on-top",
+      "caught": true,
+      "freshFindings": 32,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"submit\", play 1, event 1: covers: part “carried:half” at 1.167 s travels over “Vn3q” (part “carried”), covering 74% of it, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "browser-forge-ends-on-stop",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "browser-record-after-halves",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "browser-read-over-its-copy",
+      "caught": true,
+      "freshFindings": 42,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"authorize\", play 1, event 1: duplicate words: part “read” at 0.400 s travelling text overlaps another visible copy of the same words; fix: hide the resting copy until the travelling copy has landed"
+      }
+    },
+    {
+      "id": "browser-legend-moves",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "browser-attacker-over-shelf",
+      "caught": true,
+      "freshFindings": 36,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "after load, submit, load, authorize, submit, forge: covers: part “forged” at 0.967 s travels over “R5ty” (part “row:R5ty:stub”), covering 53% of it, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "browser-read-tiny-words",
+      "caught": true,
+      "freshFindings": 21,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"authorize\", play 1, event 1: small words: part “read” at 1.267 s carries “Vn3q” 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)"
+      }
+    },
+    {
+      "id": "browser-forge-tiny-words",
+      "caught": true,
+      "freshFindings": 39,
+      "sample": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"forge\", play 3, event 1: small words: part “forged” at 0.700 s carries “K9wd” 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)"
+      }
+    },
+    {
+      "id": "conversations-layout-slides",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "conversations-turn-over-seat-name",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"ask\"): authored transition lasts 2.000 s but the event allows 1.800 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "conversations-words-dissolve",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "conversations-person-over-ledger",
+      "caught": true,
+      "freshFindings": 9,
+      "sample": {
+        "scenario": "{}",
+        "line": "step \"direct\", play 1, event 2: covers: part “specialist:mark:flight” at 0.633 s travels over “none” (part “written:role:value”), covering 30% of it, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "conversations-table-block-blinks",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "conversations-block-crossfades",
+      "caught": true,
+      "freshFindings": 110,
+      "sample": {
+        "scenario": "{}",
+        "line": "step \"direct\", play 1, event 1: flicker: part “written:title:0” at 0.233 s went from alpha 0.50 to 0.16 and came back 1.30 s later, unchanged and in the same place (“On the table”); fix: leave it alone: a part that ends as it began should stay (only words that change are replaced; drop it from beats' fresh unless the event makes it new)"
+      }
+    },
+    {
+      "id": "coverage-strips-cross",
+      "caught": true,
+      "freshFindings": 30,
+      "sample": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"sort\", play 1, event 1: covers: part “strip:aside:0:flight” at 0.567 s travels over “checkout page” (part “strip:used:1:flight”), covering 54% of it, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "coverage-report-too-long",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "coverage-skill-card-twice",
+      "caught": true,
+      "freshFindings": 36,
+      "sample": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"skill\", play 1, event 1: covers: part “skill:read” at 0.400 s travels over “skill” (part “skill:card”), the same words as its own, for 0.17 s: two copies at once, one over the other; fix: take the resting copy away as the travelling one sets off (leave it as the flight appears), or start the flight beside it"
+      }
+    },
+    {
+      "id": "coverage-reach-over-strips",
+      "caught": true,
+      "freshFindings": 36,
+      "sample": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"skill\", play 1, event 1: long transition: part “transition” at 0.000 s keeps changing for 5.13 s, over the 5 s ceiling; fix: shorten or split the authored transition; leave caption reading time as a hold"
+      }
+    },
+    {
+      "id": "coverage-desk-blinks",
+      "caught": true,
+      "freshFindings": 30,
+      "sample": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "after read tasks, close account: flicker: part “desk:head” at 0.167 s went from alpha 0.68 to 0.21 and came back 0.30 s later, unchanged and in the same place (“the shop sees”); fix: leave it alone: a part that ends as it began should stay (only words that change are replaced; drop it from beats' fresh unless the event makes it new)"
+      }
+    },
+    {
+      "id": "coverage-user-line-blinks",
+      "caught": true,
+      "freshFindings": 4,
+      "sample": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "after close account, read tasks, close account: flicker: part “tray:user:close” at 0.167 s went from alpha 0.68 to 0.21 and came back 0.37 s later, unchanged and in the same place (“Close my account”); fix: leave it alone: a part that ends as it began should stay (only words that change are replaced; drop it from beats' fresh unless the event makes it new)"
+      }
+    },
+    {
+      "id": "coverage-list-over-labels",
+      "caught": true,
+      "freshFindings": 12,
+      "sample": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"board\", play 1, event 1: covers: part “list” at 0.767 s travels over “feedback” (part “feedback:name”), covering 36% of it, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      }
+    },
+    {
+      "id": "discovery-arm-over-register",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"check\"): authored transition lasts 1.850 s but the event allows 1.550 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "discovery-sheet-over-shop",
+      "caught": false,
+      "freshFindings": 0
+    },
+    {
+      "id": "discovery-fetch-squeezed",
+      "caught": true,
+      "freshFindings": 1,
+      "sample": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"check\"): authored transition lasts 1.750 s but the event allows 1.300 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      }
+    },
+    {
+      "id": "discovery-path-slides",
+      "caught": false,
+      "freshFindings": 0
+    }
+  ],
+  "newAttributedObservations": [
+    {
+      "id": "sign-in-ask-people-slide",
+      "classification": "secondary occlusion caused by reflow",
+      "findings": [
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"reask\", play 1, event 1: occluded words: part “page:orders:write:line” at 3.100 s “Exchange items” stays readable by opacity but “tag”, an opaque foreground shape, covers at least 90% of 6 glyph boxes for 0.43 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        }
+      ]
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "classification": "intended historical occlusion",
+      "findings": [
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "step \"ask\", play 1, event 2: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-all, collect, sign-out, ask, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, collect, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, thief, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, sign-out, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, disconnect, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-all, collect, sign-out, ask, collect, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, approve-read, collect, ask, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, approve-read, collect, ask, collect, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, approve-read, collect, ask, thief, collect: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+        }
+      ]
+    }
+  ],
+  "guardOnly": [
+    "refusals-ticket-over-station",
+    "sessions-squeezed",
+    "sign-in-ask-squeezed",
+    "browser-message-across-stage",
+    "conversations-turn-over-seat-name",
+    "discovery-arm-over-register",
+    "discovery-fetch-squeezed"
+  ],
+  "errors": []
+}

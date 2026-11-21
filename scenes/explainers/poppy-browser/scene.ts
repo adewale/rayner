@@ -124,6 +124,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         // The browser asks for the join page; the code comes back into the page, then the cookie half down onto the shelf.
         load: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
+          // Make room in the rack before the new record occupies its slot.
           return beats(c, () => [
             ...pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.45, leave: 0.25 }),
             // The Company keeps its record of the new code before handing out the two halves.
@@ -131,7 +132,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
             ...flight(c, 'page:stub', [[COUNTER_X - 1.2, ROAD_B], PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
             ...flight(c, 'shelf:join', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
             // A failed form's error page goes before the new code comes into the page, not under it.
-          ], { fresh: [...FRESH, 'page:error'], lead: BROWSER_ROAD });
+          ], { fresh: [...FRESH, 'page:error'], lead: [...BROWSER_ROAD, 'row:'] });
         },
         // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
         // pressed on the Company's stub only once the ticket lands, and covers the ring.

@@ -162,7 +162,9 @@ export default class SignIn extends Scene<World, Shown> {
       },
       thief: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
-        return beats(c, flight(c, 'thief', [[THIEF_AT[0], -4.6]], { move: 0.7 }), { fresh: FRESH });
+        // The agent may still hold a printed tag below the counter when another sign-in is open.
+        const entryX = THIEF_AT[0] + 1.6;
+        return beats(c, flight(c, 'thief', [[entryX, -4.6], [entryX, THIEF_AT[1]]], { move: 0.7 }), { fresh: FRESH });
       },
       'sign-out': (t: Transition<World, SignInEvent>) => giveBack(t),
       disconnect: (t: Transition<World, SignInEvent>) => giveBack(t),

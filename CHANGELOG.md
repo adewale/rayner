@@ -6,6 +6,8 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Keyed motion detects temporary foreground coverage of glyph boxes, including partial words and non-travelling paper. Native raster controls cover holes, curves, clips, strokes, transparent paint and text handoffs. Corpus reporting rejects failed baselines and attributes new gains to the observed defect. Target parts enter in their intended paint order; newly exposed sign-in, statechart and record-rack crossings are repaired.
+
 - Machine responses can live in `shown.result` outside durable state identity. Live links and Reset replay them, and check validates every accepted edge's response.
 - `s.opening` measures sibling labels inside its subjects and accepts a requested `zoom`. Raw iframes reapply their planned crop after resizing. Phone crops keep neighbouring words whole, and review rejects partial label ink while retaining required subject coverage.
 - `view.sync({how:'fade'})`, whole-word `c.rest()`, order-independent replacement construction and Group entry preserve picture families and keys. Overlong authored transitions report their declared and actual durations instead of squeezing their fades.

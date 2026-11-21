@@ -155,7 +155,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     const replay = async (machine: typeof brew, chapter: 'parent' | 'frother', events: readonly string[]) => {
       show(chapter);
       this.state = machine.spec.start;
-      await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
+      await this.play(main.sync({ match: byKey, staged: chapter === 'frother', runTime: 1.2 }));
       await this.play(machine.replay(events));
     };
 

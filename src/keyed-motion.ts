@@ -5,7 +5,7 @@
 // MotionSink (verify.ts) follows the renderer's leaves, so a part redrawn as new mobjects, which is
 // what a view's rebuild and a choreography's leave-then-enter do, is a different thing to it from
 // one frame to the next, and `rayner check` never ran it on a reader's press. A key is the part's
-// address across those redraws, so this follows parts by key and finds five defects that filming
+// address across those redraws, so this follows parts by key and finds defects that filming
 // every transition found in the Poppy series (issue #101, items 12 and 14), and no check saw
 // (docs/MOTION-CORPUS.md measures how many of the filmed defects each catches):
 //
@@ -26,6 +26,9 @@
 //                 its ink (a filled shape's outline, not its box) for a run of frames before it
 //                 reaches its landing: a ticket over a lane's name; with the label's own words, two
 //                 copies of one thing at once.
+//   occluded words an opaque foreground fill obscures two glyph boxes (one for a one-glyph
+//                 label), even when it is not a travelling token. Respects actual curve bounds,
+//                 fill rules, camera, descendant clips and co-located foreground text handoffs.
 //   small words   a token carries words smaller than a phone reads on the whole picture and than
 //                 every label at rest: a label scaled down to travel. Judged only when the sink is
 //                 given a label's reading size (the explain layer's), as `rayner check` gives it.
@@ -43,7 +46,7 @@ import { playsBegun } from './scene.ts';
 import { FRAME } from './units.ts';
 import { intersect } from './box.ts';
 
-export type KeyedMotionKind = 'jump' | 'flicker' | 'early words' | 'covers' | 'small words' | 'duplicate words' | 'long transition';
+export type KeyedMotionKind = 'jump' | 'flicker' | 'early words' | 'covers' | 'occluded words' | 'small words' | 'duplicate words' | 'long transition';
 /** One defect: in which transition, which part, when (seconds from the transition's first frame), and how much. */
 export interface KeyedMotionFinding {
   kind: KeyedMotionKind;
@@ -54,7 +57,7 @@ export interface KeyedMotionFinding {
   path: string;
   /** Seconds since the transition's first sampled frame, to the millisecond. */
   t: number;
-  /** The measured value: units moved (jump, or a size change as a fraction), seconds hidden (flicker), the alpha the words reached (early words), seconds covered (covers), or the words' size in units (small words). */
+  /** The measured value: units moved (jump, or a size change as a fraction), seconds hidden (flicker), the alpha the words reached (early words), seconds covered (covers, occluded words), or the words' size in units (small words). */
   value: number;
   detail: string;
   /** One line on how to fix it. */
@@ -96,6 +99,8 @@ export const KEYED_MOTION_LIMITS = {
   cover: 0.3,
   /** ...for at least this many seconds in a row (three frames at 30 fps), before it reaches its landing... */
   covering: 0.1,
+  /** Temporary occlusion: a nearly opaque foreground fill hides this share of two glyph boxes. */
+  glyphCover: 0.9,
   /** ...which it has reached when it has under this many units left to travel (its landing is its resting picture's, judged at rest). */
   landed: 0.05,
   /** Small words: a token's words are smaller than this share of the smallest readable label at rest in the transition's first and last frames... */
@@ -154,7 +159,7 @@ class PartSample {
   }
 }
 /** One drawn leaf: the renderer's id for it, its box on screen, its alpha, the fill and stroke that show, and its words and their reading size on screen if it is a run of text. */
-interface Leaf { id: number; box: Box; a: number; paint: string; text?: string; em?: number; poly?: Float64Array[] }
+interface Leaf { id: number; box: Box; a: number; paint: string; text?: string; em?: number; poly?: Float64Array[]; fillAlpha?: number; clip?: Box; glyphs?: Box[]; path?: string; hulls?: Box[]; fillPath?: Float64Array[]; fillRule?: 'nonzero' | 'evenodd' }
 interface Frame { t: number; parts: Map<string, PartSample>; leaves: Leaf[] }
 
 /** A leaf's alpha as MotionSink reads it: opacity times the paint that shows, times how far it is drawn. */
@@ -163,6 +168,11 @@ function alphaOf(m: Mobject): number {
   const f = s.fill !== 'none' ? s.fillOpacity : 0;
   const k = s.stroke !== 'none' ? s.strokeOpacity : 0;
   return (s.opacity ?? 1) * Math.max(f, k) * (s.drawFraction ?? 1);
+}
+/** Intrinsic alpha of a resolved solid hex paint; unsupported CSS paints cannot prove coverage. */
+function paintAlpha(fill: string | undefined): number {
+  if (!fill || !/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(fill)) return 0;
+  return fill.length === 5 ? parseInt(fill[4]!, 16) / 15 : fill.length === 9 ? parseInt(fill.slice(7), 16) / 255 : 1;
 }
 const textOf = (m: Mobject): string | undefined => {
   const t = (m as { text?: unknown }).text;
@@ -231,12 +241,19 @@ export class KeyedMotionSink implements Sink {
 function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefined): Frame {
   const [fx0, fy0, fx1, fy1] = scene.frame.box()!, k = FRAME.w / (fx1 - fx0), cx = (fx0 + fx1) / 2, cy = (fy0 + fy1) / 2;
   const parts = new Map<string, PartSample>(), leaves: Leaf[] = [];
+  const screen = (b: Box): Box => [(b[0] - cx) * k, (b[1] - cy) * k, (b[2] - cx) * k, (b[3] - cy) * k];
+  // Keep a zero-area intersection: an empty viewport must never turn back into no viewport.
+  const clipped = (a: Box, b: Box): Box => {
+    const x = Math.max(a[0], b[0]), y = Math.max(a[1], b[1]);
+    return [x, y, Math.max(x, Math.min(a[2], b[2])), Math.max(y, Math.min(a[3], b[3]))];
+  };
   const seen = new Set<Mobject>();
   /** Walks `m`, adding its drawn leaves; returns the alpha of its most opaque one. */
-  const walk = (m: Mobject, path: string): number => {
+  const walk = (m: Mobject, path: string, inherited: Box): number => {
     if (seen.has(m)) return 0;
     seen.add(m);
     const from = leaves.length;
+    const clip = m.clipBox ? clipped(inherited, screen(m.clipBox)) : inherited;
     const here = m.key !== undefined ? (path ? `${path}/${m.key}` : m.key) : path;
     // A merged run (Text) is one visual thing whose glyphs are rebuilt when its words change, so it is one leaf, as MotionSink takes it.
     const unit = !!m[mergeLeaves] && m.children.length > 0;
@@ -247,7 +264,10 @@ function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefine
       const b = a > 0.02 ? m.box() : null;
       if (b) {
         const st = unit ? m.children[0]!.style : m.style;
-        const leaf: Leaf = { id: mobjectId(m), box: [(b[0] - cx) * k, (b[1] - cy) * k, (b[2] - cx) * k, (b[3] - cy) * k], a, paint: `${paintsFill(st) ? st.fill : ''}/${paintsStroke(st) ? st.stroke : ''}` };
+        // Unknown CSS paints (gradients, variables, transparent named colours) do not prove
+        // opacity. Resolved engine paints are hex; include alpha from #rgba and #rrggbbaa.
+        const leaf: Leaf = { id: mobjectId(m), box: screen(b), a, paint: `${paintsFill(st) ? st.fill : ''}/${paintsStroke(st) ? st.stroke : ''}`, clip, path: here || undefined,
+          fillAlpha: paintsFill(st) && (st.drawFraction ?? 1) >= 1 ? (st.opacity ?? 1) * (st.fillOpacity ?? 1) * paintAlpha(st.fill) : 0 };
         // A filled shape's outline, its anchors on screen, so what it covers is its ink, not its box (a speech
         // bubble's long tail, a key's teeth): only read for covering, and only a filled leaf can cover.
         if (text === undefined && !unit && paintsFill(st)) leaf.poly = m.pointArrays().map((arr) => {
@@ -255,8 +275,62 @@ function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefine
           for (let i = 0; i < n; i++) { out[2 * i] = (arr[6 * i]! - cx) * k; out[2 * i + 1] = (arr[6 * i + 1]! - cy) * k; }
           return out;
         });
+        if (leaf.poly) {
+          leaf.fillRule = st.fillRule;
+          leaf.hulls = [];
+          leaf.fillPath = [];
+          const hulls = leaf.hulls;
+          let ring: number[] = [];
+          const boundary = (p: number[], depth = 0): void => {
+            const [x0, y0, x1, y1, x2, y2, x3, y3] = p as [number, number, number, number, number, number, number, number];
+            const chord = Math.hypot(x3 - x0, y3 - y0);
+            const bend = chord > 1e-9 ? Math.max(Math.abs((x1 - x0) * (y3 - y0) - (y1 - y0) * (x3 - x0)),
+              Math.abs((x2 - x0) * (y3 - y0) - (y2 - y0) * (x3 - x0))) / chord : Math.max(Math.hypot(x1 - x0, y1 - y0), Math.hypot(x2 - x0, y2 - y0));
+            if (bend * k > 0.01 && depth < 5) {
+              const a = [(x0 + x1) / 2, (y0 + y1) / 2], b = [(x1 + x2) / 2, (y1 + y2) / 2], c = [(x2 + x3) / 2, (y2 + y3) / 2];
+              const d = [(a[0]! + b[0]!) / 2, (a[1]! + b[1]!) / 2], e = [(b[0]! + c[0]!) / 2, (b[1]! + c[1]!) / 2];
+              const f = [(d[0]! + e[0]!) / 2, (d[1]! + e[1]!) / 2];
+              boundary([x0, y0, ...a, ...d, ...f], depth + 1); boundary([...f, ...e, ...c, x3, y3], depth + 1);
+            } else {
+              hulls.push(screen([Math.min(x0, x1, x2, x3), Math.min(y0, y1, y2, y3), Math.max(x0, x1, x2, x3), Math.max(y0, y1, y2, y3)]));
+              ring.push((x0 - cx) * k, (y0 - cy) * k);
+            }
+          };
+          for (const arr of m.pointArrays()) {
+            ring = [];
+            for (let i = 0; i + 7 < arr.length; i += 6) boundary(Array.from(arr.subarray(i, i + 8)));
+            if (arr.length >= 2) ring.push((arr.at(-2)! - cx) * k, (arr.at(-1)! - cy) * k);
+            leaf.fillPath.push(new Float64Array(ring));
+            // SVG fills an open subpath as if its final anchor were joined to its first.
+            if (arr.length >= 2) leaf.hulls.push(screen([
+              Math.min(arr[0]!, arr.at(-2)!), Math.min(arr[1]!, arr.at(-1)!), Math.max(arr[0]!, arr.at(-2)!), Math.max(arr[1]!, arr.at(-1)!),
+            ]));
+          }
+        }
         if (text !== undefined) {
           leaf.text = text;
+          // Glyph ink boxes exclude the run's empty ascent/descent and spaces. Descendant
+          // clips still apply when Text is represented as a single motion leaf.
+          const glyphs: Box[] = [];
+          const ink = (g: Mobject, parent: Box): void => {
+            const viewport = g.clipBox ? clipped(parent, screen(g.clipBox)) : parent;
+            const s = g.style;
+            const painted = Math.max(paintsFill(s) ? (s.fillOpacity ?? 1) * paintAlpha(s.fill) : 0,
+              paintsStroke(s) ? (s.strokeOpacity ?? 1) * paintAlpha(s.stroke) : 0) * (s.opacity ?? 1);
+            if (g instanceof VMobject && painted >= KEYED_MOTION_LIMITS.readable && (s.drawFraction ?? 1) >= 1) {
+              const b = g.box();
+              // Path boxes omit the stroke. A miter may reach farther than half its
+              // width; use the SVG limit (at least its default four) conservatively.
+              const margin = paintsStroke(s) ? s.strokeWidth / 2 * Math.max(4, s.miterLimit ?? 4) : 0;
+              const visible = b && screen([b[0] - margin, b[1] - margin, b[2] + margin, b[3] + margin]);
+              // A clip through a glyph's empty counter is not visible ink. Certify only
+              // whole glyph boxes; partial-glyph evidence needs actual outline clipping.
+              if (visible && area(visible) > 0 && visible[0] >= viewport[0] && visible[1] >= viewport[1] && visible[2] <= viewport[2] && visible[3] <= viewport[3]) glyphs.push(visible);
+            }
+            for (const child of g.children) ink(child, viewport);
+          };
+          if (unit) for (const child of m.children) ink(child, clip);
+          leaf.glyphs = glyphs;
           const em = labelSize?.(m);
           if (em !== undefined) leaf.em = em * k;
         }
@@ -264,7 +338,7 @@ function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefine
         alpha = a;
       }
     }
-    if (!unit) for (const c of m.children) alpha = Math.max(alpha, walk(c, here));
+    if (!unit) for (const c of m.children) alpha = Math.max(alpha, walk(c, here, clip));
     const to = leaves.length;
     if (m.key !== undefined && to > from) {
       const had = parts.get(here);
@@ -279,7 +353,7 @@ function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefine
     }
     return alpha;
   };
-  for (const top of scene.mobjects) walk(top, '');
+  for (const top of scene.mobjects) walk(top, '', screen([fx0, fy0, fx1, fy1]));
   return { t: scene.time, parts, leaves };
 }
 
@@ -366,6 +440,25 @@ function inkIn(poly: readonly Float64Array[], b: Box): number {
     for (let i = 0, n = pts.length / 2; i < n; i++) { const j = (i + 1) % n; total += pts[2 * i]! * pts[2 * j + 1]! - pts[2 * j]! * pts[2 * i + 1]!; }
   }
   return Math.abs(total) / 2;
+}
+
+/** Conservative fill proof. Every cubic lies in its control-point hull. If no hull
+ * enters the box, the fill cannot change inside it; winding its centre against the
+ * anchor chords is exact there. This handles curved concavities and both SVG hole
+ * rules without claiming that a chord polygon's area is the curve's painted area. */
+function fillsBox(mask: Leaf, box: Box): boolean {
+  if (!mask.fillPath || !mask.hulls) return false;
+  if (mask.clip && (mask.clip[0] > box[0] || mask.clip[1] > box[1] || mask.clip[2] < box[2] || mask.clip[3] < box[3])) return false;
+  if (mask.hulls.some(h => h[0] < box[2] && h[2] > box[0] && h[1] < box[3] && h[3] > box[1])) return false;
+  const x = (box[0] + box[2]) / 2, y = (box[1] + box[3]) / 2;
+  let winding = 0;
+  for (const ring of mask.fillPath) for (let i = 0; i < ring.length; i += 2) {
+    const j = (i + 2) % ring.length, x0 = ring[i]!, y0 = ring[i + 1]!, x1 = ring[j]!, y1 = ring[j + 1]!;
+    const side = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0);
+    if (y0 <= y && y1 > y && side > 0) winding++;
+    if (y0 > y && y1 <= y && side < 0) winding--;
+  }
+  return mask.fillRule === 'evenodd' ? Math.abs(winding) % 2 === 1 : winding !== 0;
 }
 
 /** A key's short form for messages: the part's own key, with the address when keys repeat inside it. */
@@ -669,6 +762,78 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
           detail: `carries “${small.text.length > 40 ? small.text.slice(0, 39) + '…' : small.text}” ${fmt(small.em)} units high, under the ${fmt(legible!)} a phone reads on the whole picture and smaller than every label at rest (${fmt(rest)})`,
           fix: 'carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)' });
     }
+  }
+  // Temporary occlusion is independent of a token's lifetime or route. Inspect glyph ink boxes
+  // rather than a whole line's em box: hiding a short name inside a long label still matters.
+  // Require nearly complete masking of two glyphs, an opaque fill drawn above them, and a clear
+  // copy of these same words in this transition. Permanent background replacement is not a blink.
+  type HiddenRun = { first: number; last: number; glyphs: number; text: string; path: string; by: string };
+  const obscured = new Map<string, { clear: boolean; active?: HiddenRun; longest?: HiddenRun }>();
+  const alreadyCovered = new Set(out.filter(f => f.kind === 'covers').map(f => f.path));
+  const closeHidden = (record: { active?: HiddenRun; longest?: HiddenRun }) => {
+    const run = record.active;
+    if (run && frames[run.last]!.t - frames[run.first]!.t >= L.covering - 1e-8 &&
+      (!record.longest || run.last - run.first > record.longest.last - record.longest.first)) {
+      // A terminal wipe may intentionally remove old contents behind the new page. Keep
+      // emergence/return defects and wrong stacking that persists in the resting picture.
+      const visibleLater = frames.slice(Math.min(run.last + 1, frames.length - 1)).some(f => f.leaves.some(l => l.path === run.path && l.text === run.text && l.a >= L.readable && l.glyphs?.length));
+      if (visibleLater) record.longest = { ...run };
+    }
+    delete record.active;
+  };
+  for (let j = 0; j < frames.length; j++) {
+    const f = frames[j]!;
+    const now = new Map<string, { path: string; text: string; copies: { box: Box; covered: number; by: string }[] }>();
+    for (let q = 0; q < f.leaves.length; q++) {
+      const label = f.leaves[q]!;
+      if (!label.text?.trim() || label.a < L.readable || !label.glyphs?.length) continue;
+      const path = label.path;
+      if (!path) continue;
+      let most = 0;
+      let by = 'unkeyed shape';
+      for (let r = q + 1; r < f.leaves.length; r++) {
+        const mask = f.leaves[r]!;
+        if (mask.text !== undefined || !mask.poly || (mask.fillAlpha ?? 0) < 0.95 || !intersect(mask.box, label.box)) continue;
+        const maskPath = mask.path;
+        // The travelling-token rule already reports this obstruction with its route and remedy.
+        if (maskPath && [...alreadyCovered].some(p => maskPath === p || maskPath.startsWith(`${p}/`))) continue;
+        let covered = 0;
+        for (const glyph of label.glyphs) {
+          const inset = (1 - Math.sqrt(L.glyphCover)) / 2;
+          const dx = (glyph[2] - glyph[0]) * inset, dy = (glyph[3] - glyph[1]) * inset;
+          if (fillsBox(mask, [glyph[0] + dx, glyph[1] + dy, glyph[2] - dx, glyph[3] - dy])) covered++;
+        }
+        if (covered >= Math.min(2, label.glyphs.length) && covered > most) { most = covered; by = maskPath ? named(maskPath) : by; }
+      }
+      const id = `${path}\0${label.text}`;
+      const had = now.get(id);
+      const copy = { box: label.box, covered: most, by };
+      if (had) had.copies.push(copy);
+      else now.set(id, { path, text: label.text, copies: [copy] });
+    }
+    for (const [id, entry] of now) {
+      const record = obscured.get(id) ?? { clear: false };
+      // A foreground copy in the same place keeps a seamless handoff readable. A remote
+      // repeated label does not excuse hidden letters at the original location.
+      const hidden = entry.copies.find(c => c.covered && !entry.copies.some(other => !other.covered && samePlace(c.box, other.box, L.same)));
+      if (!hidden) { record.clear = true; closeHidden(record); }
+      else {
+        record.active ??= { first: j, last: j, glyphs: hidden.covered, text: entry.text, path: entry.path, by: hidden.by };
+        record.active.last = j;
+        record.active.glyphs = Math.max(record.active.glyphs, hidden.covered);
+      }
+      obscured.set(id, record);
+    }
+    for (const [id, record] of obscured) if (!now.has(id)) closeHidden(record);
+  }
+  for (const record of obscured.values()) {
+    closeHidden(record);
+    if (!record.clear || !record.longest) continue;
+    const { first, last, glyphs, text, path, by } = record.longest;
+    const duration = frames[last]!.t - frames[first]!.t;
+    out.push({ kind: 'occluded words', segment, key: named(path), path, t: ms(frames[first]!.t - t0), value: ms(duration),
+      detail: `“${text.length > 40 ? text.slice(0, 39) + '…' : text}” stays readable by opacity but “${by}”, an opaque foreground shape, covers at least ${100 * L.glyphCover}% of ${glyphs} glyph ${glyphs === 1 ? 'box' : 'boxes'} for ${fmt(duration)} s`,
+      fix: 'draw the words above their paper, route the foreground shape round them, or take the old words away before covering them' });
   }
   // A part inside one that has the same defect at the same moment moves, blinks or arrives with it: name the outer one.
   return out.filter((f) => !out.some((g) => g !== f && g.kind === f.kind && f.path.startsWith(`${g.path}/`) && Math.abs(g.t - f.t) <= 2 * dt + 1e-9));

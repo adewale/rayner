@@ -43,6 +43,15 @@ export interface CorpusEntry {
    * these from every reachable state, with every play of the run. Absent: every event, as `rayner check`.
    */
   events?: readonly string[];
+  /** When present, credit only a fresh finding matching the observed historical defect. */
+  expectedFinding?: {
+    scenario: string;
+    transition: RegExp;
+    kind: string;
+    path: string;
+    /** Quoted subjects or foreground parts in the observation, before the suggested fix. */
+    subjects: readonly string[];
+  };
 }
 
 export const CORPUS: readonly CorpusEntry[] = [
@@ -175,6 +184,12 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sign-in-ask-people-slide', chapter: 'poppy-sign-in', kind: 'layout motion', commit: '3038108f', method: 'adapted', events: ['ask'],
     what: 'When the page opened, you and the agent slid to your places beside it, motion that says nothing about the protocol; the fix cross-fades them.',
+    // The moving tag also crosses the page's words. That visible consequence is
+    // what the detector catches; judging the purpose of the slide is editorial.
+    expectedFinding: {
+      scenario: '{"flow":"direct"}', transition: /^step "reask", play 1, event 1$/,
+      kind: 'occluded words', path: 'page:orders:write:line', subjects: ['Exchange items', 'tag'],
+    },
     edits: [
       { file: 'poppy-sign-in/scene.ts', find: 'const c = t.choreograph(world), seal = centre(c, \'agent:seal\', \'to\'), moved = relaid(c);', replace: 'const c = t.choreograph(world), seal = centre(c, \'agent:seal\', \'to\'), moved: string[] = [];' },
     ],
@@ -236,6 +251,10 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sign-in-poll-over-card', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'd99c9195', method: 'reverted', events: ['collect'],
     what: 'With the device card on the stage, the poll ran over it to the desk; the fix sends it along a lower line.',
+    expectedFinding: {
+      scenario: '{"flow":"device"}', transition: /^(?:step "ask", play 1, event 2|after .+, collect)$/,
+      kind: 'occluded words', path: 'card', subjects: ['Example Company', 'poll'],
+    },
     edits: [
       { file: 'poppy-sign-in/scene.ts', find: 'const poll = (p: Pt) => (c.has(\'card\', \'from\') ? low(p) : toDesk(p));', replace: 'const poll = (p: Pt) => toDesk(p);' },
     ],
@@ -334,7 +353,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'The Company’s record of the new code appeared on the rack only after the two halves had been handed out; the fix shows it first.',
     edits: [
       { file: 'poppy-browser/scene.ts', find: '            // The Company keeps its record of the new code before handing out the two halves.\n            new AnimationGroup([c.enter(`row:${id}:stub`, {}, { runTime: 0.3 }), c.enter(`row:${id}:ring`, {}, { runTime: 0.3 })]),\n', replace: '' },
-      { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...FRESH, \'page:error\'], lead: BROWSER_ROAD });', replace: '          ], { fresh: [...FRESH, \'page:error\'], lead: BROWSER_ROAD, then: [`row:${id}:stub`, `row:${id}:ring`] });' },
+      { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'] });', replace: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'], then: [`row:${id}:stub`, `row:${id}:ring`] });' },
     ],
   },
   {
@@ -397,8 +416,11 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-words-dissolve', chapter: 'poppy-conversations', kind: 'glyph dissolve', commit: '0a887ad4', method: 'reverted', events: [],
     what: 'Two steps’ plain view.sync() morphed the ledger’s words glyph by glyph, so they dissolved into rows of dots (#101 item 12); the fix matches words whole.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8, match: {by:\'key\',text:\'glyphs\'} })' },
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6, match: {by:\'key\',text:\'glyphs\'} })' },
+      // view.sync uses the public by-place mode; "glyphs" belongs to choreograph.rest.
+      // The current ledger changes all these keys, so neither mode pairs its words:
+      // this reconstruction currently renders identically to its baseline (still a miss).
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8, match: {by:\'key\',text:\'by-place\'} })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6, match: {by:\'key\',text:\'by-place\'} })' },
     ],
   },
   {
