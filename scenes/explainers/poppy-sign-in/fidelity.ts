@@ -1,13 +1,17 @@
+import {paintedPixels} from '../lib/native-ink.ts';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { stripTypeScriptTypes } from 'node:module';
+import { withIntent, withSettings } from '../../../explain/testing.ts';
 import { Text, VMobject } from '../../../src/index.ts';
 import type { Scene } from '../../../src/index.ts';
-import { LiveSink, liveSteps, runLive } from '../../../explain/internal.ts';
+import { LiveSink, liveBase, liveSteps, runLive } from '../../../explain/internal.ts';
 import type { Trace } from '../../../explain/testing.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import { assertFollowsStory, answersIn, worldsOf } from '../../../test/lib/story-fidelity.ts';
 import { MachineMotionCheck } from '../../../tools/lib/explain-motion-rules.ts';
 import { routeInkCheck } from '../lib/route-ink/fidelity.ts';
-import { CARDS, STORY, next, start } from './model.ts';
+import { CARDS, DEVICE, ORGANIZATION, STORY, next, start } from './model.ts';
 import type { Flow, SignInEvent } from './model.ts';
 
 /** Include the printed lines individually along with their paper and the named station parts. */
@@ -22,6 +26,10 @@ function surfaces(scene: Scene, keys: ReadonlySet<string>) {
 export async function check(trace: Trace, values: Record<string, string>, {scenario}: Pick<FidelityRun, 'scenario'>): Promise<void> {
   const flow = values.flow as Flow;
   assertFollowsStory(trace, worldsOf(start(flow), next, STORY[flow]), (world) => answersIn(world.last).flatMap((answer) => [String(answer.status), ...(answer.error ? [answer.error] : [])]));
+  await collectionPacing(scenario);
+  await collectionSlowdown(scenario);
+  await unchangedPassword(scenario);
+  await issuedKeys(scenario);
   await approvals(scenario);
   const contracts = new MachineMotionCheck(), authored = new scenario.Scene(contracts);
   await contracts.during(authored, () => authored.run());
@@ -31,6 +39,8 @@ export async function check(trace: Trace, values: Record<string, string>, {scena
 
   const host = await new scenario.Scene(new LiveSink()).run(), place = liveSteps(host).get('sign-out');
   assert.ok(place, 'the final sign-in step exposes the reader machine');
+  const {base} = await liveBase(scenario.Scene, 'sign-out', place);
+  assert.ok(base, 'the reader offers an admitted origin');
   const readGrant: SignInEvent[] = ['ask', 'approve-read', 'collect', 'ask'];
   const ring = ['agent:ring', 'agent:key:slot', 'your agent'];
   const display = ['card', 'WDJB-MJHT', 'Example Company', 'you:password'];
@@ -48,11 +58,11 @@ export async function check(trace: Trace, values: Record<string, string>, {scena
   const keys = new Set(['agent:name', 'agent:ring', 'agent:key:slot', 'agent:key', 'tag:cord', 'tag', 'card', 'you:password']);
   for (const {log, required, returns} of runs) {
     const outward = routeInkCheck(), back = routeInkCheck();
-    await runLive(scenario.Scene, 'sign-out', place, log, {from: 'start', animate: {
+    await runLive(scenario.Scene, 'sign-out', place, log, {from: base.from, animate: {
       async frame(scene) {
         const protectedParts = surfaces(scene, keys);
-        outward.frame(scene, 'poll', protectedParts);
-        if (returns) back.frame(scene, 'poll:back', protectedParts);
+        await outward.frame(scene, 'poll', protectedParts);
+        if (returns) await back.frame(scene, 'poll:back', protectedParts);
       },
     }});
     outward.assertClear(log.join(', ') + ' outward poll', required);
@@ -73,13 +83,13 @@ export async function check(trace: Trace, values: Record<string, string>, {scena
     protectedKeys.delete(mover === 'card:flight' ? 'card' : 'tag');
     // The empty-key guide is deliberately behind the first displayed card.
     if (mover === 'card:flight' && log.length === 1) protectedKeys.delete('agent:key:slot');
-    await runLive(scenario.Scene, 'sign-out', place, log, {from: 'start', animate: {
+    await runLive(scenario.Scene, 'sign-out', place, log, {from: base.from, animate: {
       async frame(scene) {
         const parts = surfaces(scene, protectedKeys);
         if (mover === 'tag:return' && !scene.familyMembers().some(m => m.key === mover)) {
           parts.push(...surfaces(scene, new Set(['tag'])));
         }
-        clearance.frame(scene, mover, parts);
+        await clearance.frame(scene, mover, parts);
       },
     }});
     clearance.assertClear(log.join(', ') + ' ' + mover, required);
@@ -97,17 +107,21 @@ function painted(part: import('../../../src/index.ts').Mobject | undefined): boo
 
 async function presentation(scenario: FidelityRun['scenario']) {
   const host = await new scenario.Scene(new LiveSink()).run(), place = liveSteps(host).get('sign-out')!;
+  const {base} = await liveBase(scenario.Scene, 'sign-out', place);
+  assert.ok(base, 'the reader offers an admitted origin');
   const logs: SignInEvent[][] = [['ask'], ['ask', 'approve-read', 'collect', 'ask']];
   for (const log of logs) {
     let count = 0, first = true;
-    await runLive(scenario.Scene, 'sign-out', place, log, {from: 'start', animate: {
+    await runLive(scenario.Scene, 'sign-out', place, log, {from: base.from, animate: {
       async frame(scene) {
         const part = scene.familyMembers().find(m => m.key === 'card:flight');
         if (!painted(part)) return;
         count++;
         const box = part!.box()!, frame = scene.frame.box()!;
         assert.ok(box[0] >= frame[0] && box[2] <= frame[2] && box[1] >= frame[1] && box[3] <= frame[3], 'the paper and every printed letter fit onstage throughout presentation');
-        assert.deepEqual(part!.family().filter((m): m is Text => m instanceof Text).map(m => m.text).sort(), ['Example Company', 'WDJB-MJHT']);
+        const printed = part!.family().filter((m): m is Text => m instanceof Text).map(m => m.text);
+        for (const required of [ORGANIZATION.name, ORGANIZATION.domain, DEVICE.user_code])
+          assert.ok(printed.includes(required), `the presented card includes ${required}`);
         if (first) {
           first = false;
           const slot = scene.familyMembers().find(m => m.key === 'agent:key:slot')!;
@@ -123,10 +137,12 @@ async function presentation(scenario: FidelityRun['scenario']) {
 async function approvals(scenario: FidelityRun['scenario']) {
   const approvals: SignInEvent[] = ['approve-read', 'approve-all'];
   const host = await new scenario.Scene(new LiveSink()).run(), place = liveSteps(host).get('sign-out')!;
+  const {base} = await liveBase(scenario.Scene, 'sign-out', place);
+  assert.ok(base, 'the reader offers an admitted origin');
   for (const event of approvals) for (const repeat of [false, true]) {
     const log: SignInEvent[] = repeat ? ['ask', 'approve-read', 'collect', 'ask', event] : ['ask', event];
     let source: number[] | undefined, moved = 0, initial = false;
-    await runLive(scenario.Scene, 'sign-out', place, log, {from: 'start', animate: {
+    await runLive(scenario.Scene, 'sign-out', place, log, {from: base.from, animate: {
       async frame(scene) {
         const members = scene.familyMembers(), hand = members.find(m => m.key === 'you:password');
         const field = members.find(m => m.key === 'page:password');
@@ -144,4 +160,64 @@ async function approvals(scenario: FidelityRun['scenario']) {
     }});
     assert.ok(initial && moved > 2, `${scenario.values.flow}: ${log.join(',')} needs a visible source and moving card`);
   }
+}
+
+/** Approval is durable context while a trick or thief is a different event. */
+export async function unchangedPassword(scenario: FidelityRun['scenario']): Promise<void> {
+  const device = scenario.values.flow === 'device';
+  const log: SignInEvent[] = device ? ['ask','approve-read','collect','ask','approve-read','thief'] : ['ask','approve-read','trick'];
+  const host = await new scenario.Scene(new LiveSink()).run(), place = liveSteps(host).get('sign-out')!;
+  const {base} = await liveBase(scenario.Scene, 'sign-out', place);
+  assert.ok(base, 'the reader offers an admitted origin');
+  let reference: number | undefined, samples = 0;
+  await runLive(scenario.Scene,'sign-out',place,log,{from:base.from,animate:{async frame(scene) {
+    const ink = await paintedPixels(scene, scene.find('page:password'));
+    reference ??= ink;
+    assert.ok(reference > 30, 'the approved field paints before the unrelated event');
+    assert.equal(ink,reference,'an unrelated attack preserves the native password-dot contribution count');
+    samples++;
+  }}});
+  assert.ok(samples > 2);
+}
+
+/** Every issued key protects its recipient name, including replacement grants. */
+export async function issuedKeys(scenario: FidelityRun['scenario']): Promise<void> {
+  const check = routeInkCheck();
+  await new scenario.Scene({async frame(scene) {
+    const name = scene.find('agent:name');
+    if (name) await check.frame(scene,'agent:key:flight',[name]);
+  }}).run();
+  check.assertClear(`${scenario.values.flow}: issued keys`,['your agent']);
+}
+
+/** Chapter policy: receiving a grant fits a 4.5-second response, including its handoffs.
+ * This measures the actual published interval, independently of runTime arithmetic.
+ */
+async function collectionPacing(scenario: FidelityRun['scenario']): Promise<void> {
+  const host = await new scenario.Scene(new LiveSink()).run(), place = liveSteps(host).get('sign-out');
+  assert.ok(place);
+  const {base} = await liveBase(scenario.Scene, 'sign-out', place);
+  assert.ok(base);
+  let began: number | undefined, ended = 0, frames = 0;
+  await runLive(scenario.Scene, 'sign-out', place, ['ask', 'approve-read', 'collect'], {
+    from: base.from, animate: {async frame(scene) {
+      began ??= scene.time; ended = scene.time; frames++;
+    }},
+  });
+  assert.ok(began !== undefined && frames > 2, 'the token collection actually played');
+  assert.ok(ended - began! <= 4.5 + 2 / host.fps + 1e-6,
+    `SignIn collection pacing: ${scenario.values.flow} played ${(ended - began!).toFixed(3)} s beyond its 4.5 s response policy plus frame bookkeeping`);
+}
+
+/** Exact historical inverse stays with this repository-owned reader oracle. */
+async function collectionSlowdown(scenario: FidelityRun['scenario']): Promise<void> {
+  let source = await readFile(new URL('./scene.ts', import.meta.url), 'utf8');
+  const fixed = "(a.last?.kind === 'tokens' ? 4.45 : 2.8)";
+  assert.equal(source.split(fixed).length, 2, 'one historical timing context');
+  source = source.replace(fixed, "(a.last?.kind === 'tokens' ? 4.8 : 2.8)");
+  source = source.replace(/from '([^']+)'/g, (_, path: string) =>
+    `from '${new URL(path, new URL('./scene.ts', import.meta.url)).href}'`);
+  const Slow = (await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`)).default;
+  const Bound = withSettings(withIntent(Slow, await readFile(new URL('./script.md', import.meta.url), 'utf8')), scenario.values);
+  await assert.rejects(collectionPacing({...scenario, Scene: Bound}), /SignIn collection pacing:/);
 }

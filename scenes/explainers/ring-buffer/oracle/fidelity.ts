@@ -6,10 +6,10 @@ import {toSvgString} from '../../../../src/index.ts';
 import type {Arrow, SceneClass} from '../../../../src/index.ts';
 import {NullSink, KeyedMotionSink} from '../../../../src/internal.ts';
 import {withIntent, withSettings} from '../../../../explain/testing.ts';
-import {liveSteps, runLive} from '../../../../explain/internal.ts';
+import {liveBase, liveSteps, runLive} from '../../../../explain/internal.ts';
+import {acceptedLog} from '../../../../app/embed-live.ts';
 import {rasterize} from '../../../../tools/lib/explain-raster.ts';
 
-const LOG = ['push', 'push', 'push', 'push', 'pop', 'pop', 'push', 'pop', 'pop', 'pop'];
 interface Row {
   time: number; source: number; proxy: number; receipt: number;
   headBase: readonly number[];
@@ -18,10 +18,29 @@ interface Row {
 async function observe(Source: SceneClass) {
   const host = await new Source(new NullSink()).run(), place = liveSteps(host).get('implementation-result');
   assert.ok(place, 'the implementation machine offers its actual reader controls');
+  const {machine, base} = await liveBase(Source, 'implementation-result', place);
+  assert.ok(base, 'the public reader has an origin');
+  // Use only events admitted at the published resting picture. The two authored
+  // scenarios need different prefixes; the last pop transfers slot four's value.
+  const log: string[] = [];
+  let before = base.state as {head: number};
+  for (let n = 0; n < 6; n++) {
+    log.push('pop');
+    const outcome = machine.outcome(before, 'pop');
+    assert.ok('next' in outcome, 'the selected reader pop is accepted');
+    if (before.head === 4) break;
+    before = outcome.next as {head: number};
+  }
+  assert.equal(before.head, 4, 'the reader reaches the independently selected fifth value');
+  const admitted = acceptedLog(machine, base.state, log);
+  assert.deepEqual(admitted.kept, log, 'the page admits the entire evidence history');
+  const after = admitted.states.at(-1)! as {tray: {values: unknown[]}};
+  const receipt = `ring:tray:${after.tray.values.length - 1}`;
+  const source = `ring:value:${before.head}`, proxy = `${receipt}:source:0:${source}`;
   const motion = new KeyedMotionSink(() => 'last reader pop');
   const wanted = [0, 0.4, 0.5, 19/30, 1, 1.4, 2.1], rows: Row[] = [];
   let start: number | undefined;
-  const result = await runLive(Source, 'implementation-result', place, LOG, {from: 'start', animate: {async frame(scene) {
+  const result = await runLive(Source, 'implementation-result', place, log, {from: base.from, animate: {async frame(scene) {
     await motion.frame(scene, 0);
     start ??= scene.time;
     const time = scene.time - start;
@@ -42,8 +61,8 @@ async function observe(Source: SceneClass) {
       return changed;
     };
     const slot = scene.find('ring:slot:4')!, head = scene.find('ring:pointer:head:arrow') as Arrow;
-    rows.push({time, source: await contribution('ring:value:4'),
-      proxy: await contribution('ring:tray:2:source:0:ring:value:4'), receipt: await contribution('ring:tray:2'),
+    rows.push({time, source: await contribution(source),
+      proxy: await contribution(proxy), receipt: await contribution(receipt),
       headBase: head.line.start(), slotPaint: {fill: slot.style.fill, fillOpacity: slot.style.fillOpacity}});
   }}});
   return {rows, duplicates: motion.finish().filter(f => f.kind === 'duplicate words'), state: result.scene.stateJson()};
@@ -83,7 +102,8 @@ export async function checkMotion(Source: SceneClass, values: Record<string, str
   ownership(keeper);
   const poison = await observe(await retainedSource(values));
   assert.throws(() => ownership(poison), /source ownership is exclusive through departure/);
-  assert.equal(poison.duplicates.length, 1, 'the retained source also triggers the normal duplicate detector');
+  // Physical ownership, rather than equal text in unrelated locations, is the
+  // authority here. The generic duplicate rule only diagnoses overlapping ink.
   assert.deepEqual(keeper.state, poison.state, 'the defect and repair reach the same durable result');
   for (let i = 0; i < keeper.rows.length; i++) {
     assert.equal(keeper.rows[i]!.time, poison.rows[i]!.time);

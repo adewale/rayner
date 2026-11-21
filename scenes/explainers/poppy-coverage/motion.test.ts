@@ -114,9 +114,33 @@ test('competing paper groups and the secret reach preserve the other strips’ a
     if (step !== 'sort' && step !== 'skill') return;
     const words = scene.familyMembers().filter(m => /^strip:used:[01](?::flight)?$/.test(m.key ?? ''))
       .flatMap(m => m.family().filter((word): word is Text => word instanceof Text));
-    if (step === 'sort') crossing.frame(scene, 'strip:aside:0:flight', words);
-    else reach.frame(scene, 'strip:aside:2:flight', words);
+    if (step === 'sort') await crossing.frame(scene, 'strip:aside:0:flight', words);
+    else await reach.frame(scene, 'strip:aside:2:flight', words);
   } }).run();
   crossing.assertClear('set-aside note strips', ['applyGiftCard', 'checkout page']);
   reach.assertClear('secret-reaching strip', ['GET the order', 'POST the exchange']);
+});
+
+
+test('each report leg clears its reading surfaces and the retired search yields the receiving space', async () => {
+  const project = await loadProject(Coverage, import.meta.dirname);
+  for (const scenario of project.scenarios) {
+    const sent=routeInkCheck(), reply=routeInkCheck();let retired=0;
+    await new scenario.Scene({async frame(scene) {
+      if(scene.currentStep?.path!=='report')return;
+      const labels=scene.familyMembers().filter((m):m is Text=>m instanceof Text &&
+        ['lane:chat:name','feedback:name','trayname','desk:head','agent:name'].includes(m.key??''));
+      await sent.frame(scene,'report:sent',labels);await reply.frame(scene,'report:reply',labels);
+      const carrier=scene.find('report:reply');
+      if(carrier && paint(scene,carrier).pixels>0) {
+        for(const key of ['desk:seen','desk:why']) {
+          const old=scene.find(key);assert.equal(old?paint(scene,old).pixels:0,0,'old search ink leaves before the reply receives its space');
+        }
+        retired++;
+      }
+    }}).run();
+    sent.assertClear(`${scenario.values.company} report`,['Chat','feedback','your agent']);
+    reply.assertClear(`${scenario.values.company} reply`,['Chat','feedback','what its model reads','the shop sees']);
+    assert.ok(retired>2);
+  }
 });

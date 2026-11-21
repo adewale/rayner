@@ -1,12 +1,12 @@
 // node tools/repo/motion-occlusion-proof.ts [--chromium] [--out <directory>]
-// Replay the credited poll mutation and its unedited chapter. Determine what the
+// Replay the current poll mutation and its unedited chapter. Determine what the
 // named glyphs actually paint by removing each one from the composited SVG.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { Resvg } from '@resvg/resvg-js';
+import { renderAsync } from '@resvg/resvg-js';
 import { loadFonts } from '../../explain/testing.ts';
 import { Text, toSvgString, type Scene } from '../../src/index.ts';
 import { CORPUS } from '../../test/fixtures/motion-corpus/corpus.ts';
@@ -14,10 +14,12 @@ import { collectProject } from '../lib/explain-project.ts';
 import { ROOT } from '../lib/roots.ts';
 import { buildVariant, type Variant } from './motion-corpus-lib.ts';
 
-const name = 'Example Company', glyphCount = [...name].filter(c => c !== ' ').length;
-const offsets = [27 / 30, 29 / 30, 30 / 30]; // 0.900, 0.967 and 1.000 s into collect.
+// Restoring the promised domain changes the current victim. Keep the corpus's
+// frozen company-name target unchanged and uncredited; this is a separate native owner.
+const name = 'example.com', glyphCount = [...name].filter(c => c !== ' ').length;
+const offsets = [25 / 30, 26 / 30, 27 / 30]; // 0.833, 0.867 and 0.900 s into collect.
 const width = 800;
-const raster = (svg: string) => new Resvg(svg, { font: { loadSystemFonts: false } }).render();
+const raster = (svg: string) => renderAsync(svg, { font: { loadSystemFonts: false } });
 // The first SVG is the composite. Each following SVG has exactly one glyph removed.
 interface BrowserFrames { drawn: string[]; withoutPoll: string[] }
 const { values } = parseArgs({ options: { out: { type: 'string' }, chromium: { type: 'boolean' } } });
@@ -33,37 +35,39 @@ function contribution(drawn: Uint8Array, removed: Uint8Array): number {
   return n;
 }
 
-function glyphPixels(scene: Scene, word: Text, composite: Uint8Array, svgs?: string[]): number[] {
-  return word.children.map(glyph => {
+async function glyphPixels(scene: Scene, word: Text, composite: Uint8Array, svgs?: string[]): Promise<number[]> {
+  const counts: number[] = [];
+  for (const glyph of word.children) {
     const opacity = glyph.style.opacity;
     try {
       glyph.setOpacity(0);
       const svg = toSvgString(scene, { width });
       svgs?.push(svg);
-      return contribution(composite, raster(svg).pixels);
+      counts.push(contribution(composite, (await raster(svg)).pixels));
     } finally { glyph.setOpacity(opacity); }
-  });
+  }
+  return counts;
 }
 
-function measure(scene: Scene, browser?: BrowserFrames) {
+async function measure(scene: Scene, browser?: BrowserFrames) {
   const family = scene.familyMembers();
   const cards = family.filter(m => m.key === 'card'), polls = family.filter(m => m.key === 'poll');
   assert.equal(cards.length, 1, 'exactly one device card');
   assert.equal(polls.length, 1, 'exactly one collect poll');
   const words = cards[0]!.family().filter((m): m is Text => m instanceof Text && m.text === name);
-  assert.equal(words.length, 1, 'the company name belongs to this card');
+  assert.equal(words.length, 1, 'the domain belongs to this card');
   const word = words[0]!, poll = polls[0]!;
-  assert.equal(word.children.length, glyphCount, 'one glyph per non-space character in this company name');
-  const svg = toSvgString(scene, { width }), image = raster(svg);
+  assert.equal(word.children.length, glyphCount, 'one glyph per non-space character in this domain');
+  const svg = toSvgString(scene, { width }), image = await raster(svg);
   browser?.drawn.push(svg);
-  const drawn = glyphPixels(scene, word, image.pixels, browser?.drawn);
+  const drawn = await glyphPixels(scene, word, image.pixels, browser?.drawn);
   const opacities = poll.family().map(m => ({ m, opacity: m.style.opacity }));
   let withoutPoll: number[];
   try {
     poll.setOpacity(0);
     const svg = toSvgString(scene, { width });
     browser?.withoutPoll.push(svg);
-    withoutPoll = glyphPixels(scene, word, raster(svg).pixels, browser?.withoutPoll);
+    withoutPoll = await glyphPixels(scene, word, (await raster(svg)).pixels, browser?.withoutPoll);
   } finally {
     for (const { m, opacity } of opacities) m.setStyle({ opacity }, false);
   }
@@ -105,7 +109,7 @@ async function capture(variant: Variant, fixed: boolean) {
       const sinceCollect = scene.time - origin;
       const offset = offsets.find(t => Math.abs(sinceCollect - t) < 1e-6);
       if (offset === undefined) return;
-      const { drawn, withoutPoll, image } = measure(scene, offset === offsets[1] ? browser : undefined);
+      const { drawn, withoutPoll, image } = await measure(scene, offset === offsets[1] ? browser : undefined);
       verifyPixels(drawn, withoutPoll, fixed);
       if (offset === offsets[1]) png = image.asPng();
       observations.push({ seconds: scene.time, sinceCollect: offset, drawn, withoutPoll });
@@ -171,6 +175,7 @@ await Promise.all([
   writeFile(join(dir, 'mutation.png'), mutation.png),
   writeFile(join(dir, 'report.json'), JSON.stringify({
     entry: entry.id, scenario: { flow: 'device' }, step: 'ask', event: 'collect', part: 'card', label: name, foreground: 'poll',
+    historicalTarget: 'Example Company', historicalTargetCredit: false,
     width, imageSinceCollect: offsets[1], fixed: fixed.observations, mutation: mutation.observations, chromium,
   }, null, 2) + '\n'),
 ]);

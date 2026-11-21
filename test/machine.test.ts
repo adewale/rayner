@@ -297,7 +297,7 @@ test('a live origin already in the start\'s sampled prefix still gets its own ex
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
   const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
   assert.equal(good[0]!.phoneWarnings.length, 3);
-  assert.deepEqual(good.map(({ phoneWarnings, ...m }) => m), [{ events: ['UP', 'OFF'], states: 3, observations: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
+  assert.deepEqual(good.map(({ phoneWarnings, ...m }) => m), [{ events: ['UP', 'OFF'], states: 3, presentations: 3, transitions: 6, observations: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
   const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different observation',

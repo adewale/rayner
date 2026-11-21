@@ -18,7 +18,7 @@ test('password cards enter the field with the scope words still visible in each 
         if (step !== 'approve' && step !== 'reask') return;
         const words = scene.familyMembers().filter((m): m is Text => m instanceof Text &&
           (m.key === 'page:orders:read:line' || m.key === 'page:orders:write:line'));
-        (step === 'approve' ? first : second).frame(scene, 'page:password:flight', words);
+        await (step === 'approve' ? first : second).frame(scene, 'page:password:flight', words);
       },
     }).run();
     const words = scenario.values.flow === 'device' ? ['read', 'write'] : ['See your orders', 'Exchange items'];
@@ -37,8 +37,8 @@ test('the device poll and its reply reach the counter without hiding either line
       if (scene.currentStep?.path !== 'ask') return;
       const words = scene.familyMembers().filter(object => object.key === 'card')
         .flatMap(card => card.family().filter((word): word is Text => word instanceof Text));
-      outward.frame(scene, 'poll', words);
-      reply.frame(scene, 'poll:back', words);
+      await outward.frame(scene, 'poll', words);
+      await reply.frame(scene, 'poll:back', words);
     },
   }).run();
   const words = ['WDJB-MJHT', 'Example Company'];

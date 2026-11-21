@@ -1,5 +1,5 @@
 import type { Machine } from '../../explain/index.ts';
-import { canonicalJson, cloneJson, jsonObject } from '../../src/json.ts';
+import { canonicalJson, cloneJson, jsonObject } from '../../src/internal.ts';
 
 type AnyMachine = Machine<object, string>;
 export interface PictureRoot {

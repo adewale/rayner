@@ -178,13 +178,13 @@ test('speech protects the writer mark and joining people preserve the ledger ink
         : said.speaker === 'person' ? (said.at === 'direct' ? 'specialist:mark' : 'person:mark') : `${said.speaker}:mark`;
       const marks = family.filter(m => m.key === key);
       const flight = family.find(m => m.key === 'turn:flight' && inked(m));
-      if (flight) { turn.frame(scene, 'turn:flight', marks); speakers.add(key); }
+      if (flight) { await turn.frame(scene, 'turn:flight', marks); speakers.add(key); }
       if (!turnPoison && flight && opaque(flight) && marks.length) {
         const at = flight.center(), bad = routeInkCheck();
         try {
           // A deliberate seat-centred launch tests the actual symbol, independently of words.
           flight.moveTo(marks[0]!.center());
-          bad.frame(scene, 'turn:flight', marks);
+          await bad.frame(scene, 'turn:flight', marks);
           assert.throws(() => bad.assertClear('seat-centred turn', [key]), /hides \d+ painted drawing pixels/);
           turnPoison = true;
         } finally { flight.moveTo(at); }
@@ -193,14 +193,14 @@ test('speech protects the writer mark and joining people preserve the ledger ink
     const words = family.filter((m): m is Text => m instanceof Text && ['written:author.type:value', 'written:role:value', 'written:author.type:label', 'written:role:label'].includes(m.key ?? ''));
     // The first join changes the old turn's values to none after the walk. They need not
     // appear early. The direct join already has none on its ledger throughout the walk.
-    if (family.some(m => m.key === 'person:mark:flight' && inked(m))) person.frame(scene, 'person:mark:flight', words.filter(m => m.text !== 'none'));
-    if (family.some(m => m.key === 'specialist:mark:flight' && inked(m))) specialist.frame(scene, 'specialist:mark:flight', words);
+    if (family.some(m => m.key === 'person:mark:flight' && inked(m))) await person.frame(scene, 'person:mark:flight', words.filter(m => m.text !== 'none'));
+    if (family.some(m => m.key === 'specialist:mark:flight' && inked(m))) await specialist.frame(scene, 'specialist:mark:flight', words);
     const joining = family.find(m => m.key === 'specialist:mark:flight' && inked(m));
     if (!personPoison && joining && opaque(joining) && words.length) {
       const at = joining.center(), bad = routeInkCheck();
       try {
         joining.moveTo(words[0]!.center());
-        bad.frame(scene, 'specialist:mark:flight', words);
+        await bad.frame(scene, 'specialist:mark:flight', words);
         assert.throws(() => bad.assertClear('person over ledger', []), /hides \d+ painted text pixels/);
         personPoison = true;
       } finally { joining.moveTo(at); }

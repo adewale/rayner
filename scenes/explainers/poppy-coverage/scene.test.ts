@@ -46,7 +46,7 @@ test('the tasks list passes the desk headings while the shop and agent readouts 
         const words = scene.familyMembers().filter(object => object.key === 'feedback:name' || object.key === 'trayname' ||
           object.key?.startsWith('desk:') || object.key?.startsWith('user:'))
           .flatMap(object => object.family().filter((word): word is Text => word instanceof Text));
-        list.frame(scene, 'list', words);
+        await list.frame(scene, 'list', words);
       },
     }).run();
     list.assertClear(`${scenario.values.company} shop task list`, ['feedback', 'what its model reads', 'the shop sees', 'Close my account']);

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { LiveSink, liveSteps, runLive } from '../../explain/internal.ts';
+import { LiveSink, liveBase, liveSteps, runLive } from '../../explain/internal.ts';
 import { loadFonts } from '../../explain/testing.ts';
 import { Text } from '../../src/index.ts';
 import { routeInkCheck } from '../../scenes/explainers/lib/route-ink/fidelity.ts';
@@ -30,18 +30,20 @@ for (const mutated of [false, true]) {
     const host = await new scenario.Scene(new LiveSink()).run();
     const place = liveSteps(host).get('sign-out');
     assert.ok(place);
+    const {base} = await liveBase(scenario.Scene, 'sign-out', place);
+    assert.ok(base);
     const outward = routeInkCheck(), returning = routeInkCheck();
     let frames = 0;
-    await runLive(scenario.Scene, 'sign-out', place, history, {from:'start', animate:{
+    await runLive(scenario.Scene, 'sign-out', place, history, {from:base.from, animate:{
       async frame(scene) {
         frames++;
         const words = scene.familyMembers().filter((m):m is Text=>m instanceof Text &&
-          (m.text === 'your agent' || m.text === 'refresh token' || m.text === 'pat_8Hk2' || m.text === 'Example Company' || m.text === 'WDJB-MJHT'));
-        outward.frame(scene, 'poll', words);
-        returning.frame(scene, 'poll:back', words);
+          (m.text === 'your agent' || m.text === 'refresh token' || m.text === 'pat_8Hk2' || m.text === 'Example Company' || m.text === 'example.com' || m.text === 'WDJB-MJHT'));
+        await outward.frame(scene, 'poll', words);
+        await returning.frame(scene, 'poll:back', words);
       },
     }});
-    const required = ['your agent', 'refresh token', 'pat_8Hk2', 'Example Company', 'WDJB-MJHT'];
+    const required = ['your agent', 'refresh token', 'pat_8Hk2', 'Example Company', 'example.com', 'WDJB-MJHT'];
     outward.assertClear(`${mutated?'enlarged':'normal'} held-token outward route`,required);
     returning.assertClear(`${mutated?'enlarged':'normal'} held-token return route`,required);
     assert.ok(frames > 2);

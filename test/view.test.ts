@@ -635,7 +635,7 @@ test('fade-only sync preserves geometry and child opacity while replacing an unk
   beginAnimation(sync);
   interpolateAnimation(sync, 0.25);
   assert.deepEqual(old.box(), box, 'fading does not shrink the picture');
-  assert.equal(old.children[0]!.style.opacity, 0.4);
+  assert.equal(old.children[0]!.style.opacity, 0.2, 'the half-faded child keeps its relative dimming');
   interpolateAnimation(sync, 0.5);
   assert.ok(v.children.every(m => m.style.opacity === 0), 'the pictures do not overlap at the handoff');
   finishAnimation(sync);

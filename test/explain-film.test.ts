@@ -23,11 +23,12 @@ export default class Film extends Scene{static meta={id:"film"};static settings=
     assert.ok(result.frames > result.films.length, 'motion has intermediate samples');
     const manifest = JSON.parse(await readFile(join(output, 'film.json'), 'utf8'));
     assert.equal(manifest.films.length, 6);
-    const frames = await readdir(join(output, 'frames'));
+    const frames = await readdir(join(output, 'frames', manifest.generation));
     assert.equal(frames.filter(f => f.endsWith('.png')).length, result.frames);
     await writeFile(join(output, 'frames/stale.png'), 'stale');
     await filmProject(project, output);
-    assert.ok(!(await readdir(join(output, 'frames'))).includes('stale.png'));
+    assert.equal(await readFile(join(output, 'frames/stale.png'), 'utf8'), 'stale', 'unowned files survive publication');
+    assert.ok(!(await readdir(join(output, 'frames'))).includes(manifest.generation), 'only the old owned generation is retired');
     await midplayFrames(project.scenarios[0]!, output);
     for (const n of [1, 2]) assert.ok((await readFile(join(output, `try.mid${n}.png`))).length > 100);
     await reviewContactSheet(output);

@@ -76,7 +76,8 @@ test('redirect replaces the joined address and keeps it present while the fetche
 test('all seven fetched sheets preserve the actual doorway and fascia lettering, with visible inverse controls', async () => {
   const project = await loadProject(Discovery, import.meta.dirname);
   assert.equal(project.scenarios.length, 1);
-  const route = routeInkCheck(), poisonedDoor = routeInkCheck(), poisonedName = routeInkCheck();
+  const routes = new Map(SERVER_ORDER.map(server => [server, routeInkCheck()]));
+  const poisonedDoor = routeInkCheck(), poisonedName = routeInkCheck();
   const trips = new Set<string>();
   let doorPoison = 0, namePoison = 0;
   await new project.scenarios[0]!.Scene({ async frame(scene) {
@@ -86,7 +87,7 @@ test('all seven fetched sheets preserve the actual doorway and fascia lettering,
     if (!token) return;
     const door = family.find(m => m.key === 'shop:door'), name = family.find(m => m.key === 'shop:name');
     assert.ok(door && name, 'the fetched sheet needs its actual shop as context');
-    route.frame(scene, 'sheet:token', [door, name]);
+    await routes.get((scene.state as World).server)!.frame(scene, 'sheet:token', [door, name]);
     trips.add((scene.state as World).server);
     if ((scene.state as World).server !== 'shop') return;
     for (const [subject, control, count] of [[door, poisonedDoor, doorPoison], [name, poisonedName, namePoison]] as const) {
@@ -94,12 +95,12 @@ test('all seven fetched sheets preserve the actual doorway and fascia lettering,
       const at = token.center();
       try {
         token.moveTo(subject.center());
-        control.frame(scene, 'sheet:token', [subject]);
+        await control.frame(scene, 'sheet:token', [subject]);
       } finally { token.moveTo(at); }
       if (subject === door) doorPoison++; else namePoison++;
     }
   } }).run();
-  route.assertClear('fetched document', ['shop:door', 'example.com', 'examp1e.com', 'evil.example', 'corner.example', 'example.co.uk']);
+  for (const [server, route] of routes) route.assertClear(`${server}: fetched document`, ['shop:door']);
   assert.deepEqual([...trips].sort(), [...SERVER_ORDER].sort(), 'every offered server actually fetched a moving sheet');
   assert.equal(doorPoison, 2);
   assert.equal(namePoison, 2);

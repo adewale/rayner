@@ -37,11 +37,11 @@ async function journeys(scenario: FidelityRun['scenario']): Promise<void> {
       if (!mover) continue;
       const check = checks.get(key)!;
       check.frames++;
-      check.clear.frame(scene, key, words);
+      await check.clear.frame(scene, key, words);
       if (key !== 'ticket:flight') {
         // This is the actual historical scale reversal on the authored path. Preserve
         // its ring, teeth, paint order and alpha and restore before the next frame.
-        try { mover.scale(2); check.full.frame(scene, key, words); }
+        try { mover.scale(2); await check.full.frame(scene, key, words); }
         finally { mover.scale(0.5); }
       }
       if (!check.poison && check.frames >= 8) {
@@ -49,7 +49,7 @@ async function journeys(scenario: FidelityRun['scenario']): Promise<void> {
         const poison = routeInkCheck();
         try {
           mover.moveTo(word.center());
-          poison.frame(scene, key, [word]);
+          await poison.frame(scene, key, [word]);
           assert.throws(() => poison.assertClear(`${key} overlap control`, ['Sign-in']), /hides [1-9]\d* painted text pixels/);
           check.poison = true;
         } finally { mover.moveTo(at); }
@@ -85,7 +85,7 @@ async function journeys(scenario: FidelityRun['scenario']): Promise<void> {
       async frame(scene) {
         const words = scene.familyMembers().filter((m): m is Text => m instanceof Text &&
           (m.key === 'agent:name' || /^lane:[^:]+:name$/.test(m.key ?? '')));
-        route.frame(scene, mover, words);
+        await route.frame(scene, mover, words);
       },
     }});
     route.assertClear(`${scenario.values.approve} reader ${log.join(',')}`, required);

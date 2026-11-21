@@ -21,7 +21,10 @@ import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 import { ROOT } from '../tools/lib/roots.ts';
 import { analyzeKeyedMotion } from '../src/keyed-motion.ts';
 
-/** Retain measured rejections, including nine exact authored-motion diagnoses.
+/** Retain 39 credited cases, including nine exact authored-motion diagnoses.
+ * Sessions pacing is measured by its chapter owner; the current poll mutation covers
+ * the newly restored domain rather than its frozen company-name target, so neither
+ * earns the old generic point. See docs/MOTION-CORPUS.md.
  * The held-token keeper below owns the old enlarged-poll hazard now prevented by its dock. */
 const CAUGHT: readonly string[] = [
   'poppy-ticket-over-lane-names',
@@ -32,7 +35,6 @@ const CAUGHT: readonly string[] = [
   'sessions-squeezed',
   'sign-in-ask-people-slide',
   'sign-in-ask-squeezed',
-  'sign-in-poll-over-card',
   'sign-in-code-tiny-words',
   'sign-in-tag-over-scopes',
   'browser-ticket-over-road-name',
@@ -62,7 +64,6 @@ const CAUGHT: readonly string[] = [
   'browser-record-after-halves',
   'conversations-table-block-blinks',
   'refusals-lanes-gone-in-flight',
-  'sessions-too-long',
   'sign-in-pages-overlap',
   'sign-in-password-hand-and-flight',
 ];
@@ -73,20 +74,22 @@ const SAMPLE = new Map([
   ['coverage-list-over-labels', 'covers'],
   ['sign-in-code-tiny-words', 'small words'],
   ['conversations-block-crossfades', 'flicker'],
-  ['sign-in-poll-over-card', 'occluded words'],
   ['sign-in-ask-people-slide', 'occluded words'],
   ['conversations-table-block-blinks', 'motion contract'],
   ['sign-in-password-hand-and-flight', 'motion contract'],
 ]);
 
-test('the credited poll mutation removes actual letter pixels and its fixed route preserves them', {
-  skip: !process.env.FULL && 'set FULL=1: independently rasterizes the credited poll and fixed route',
+test('the current poll mutation removes actual domain pixels and its fixed route preserves them', {
+  skip: !process.env.FULL && 'set FULL=1: independently rasterizes the current domain victim and fixed route',
 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'rayner-motion-proof-'));
   try {
     await promisify(execFile)(process.execPath, [join(ROOT, 'tools/repo/motion-occlusion-proof.ts'), '--out', directory]);
     const proof = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
     assert.equal(proof.entry, 'sign-in-poll-over-card');
+    assert.equal(proof.label, 'example.com');
+    assert.equal(proof.historicalTarget, 'Example Company');
+    assert.equal(proof.historicalTargetCredit, false);
     assert.equal(proof.fixed.length, 3);
     assert.equal(proof.mutation.length, 3);
   } finally {

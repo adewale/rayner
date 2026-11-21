@@ -12,12 +12,7 @@ await loadFonts();
 /** Reject measured damage immediately. Incomplete source/travel witnesses are checked
  * at the end of the run; continuing a known-bad route only allocates more native rasters. */
 function rejectInkLoss(check: ReturnType<typeof routeInkCheck>, label: string): void {
-  try { check.assertClear(label, []); }
-  catch (error) {
-    if (error instanceof assert.AssertionError &&
-      (error.message.includes('must paint the traveller') || error.message.includes('has no painted witness'))) return;
-    throw error;
-  }
+  check.assertUnobstructed(label);
 }
 
 test('the replacement keys clear the API and MCP lettering as they travel to their hooks', async () => {
@@ -35,7 +30,7 @@ test('the replacement keys clear the API and MCP lettering as they travel to the
         const words = scene.familyMembers().filter((word): word is Text => word instanceof Text &&
           (word.key?.startsWith('lane:') && word.key.endsWith(':name') || word.key === 'agent:name' || word.key === 'agent:mcp-key:name'));
         const moverKey = at === 'slip' ? 'agent:key:flight' : 'agent:mcp-key:flight';
-        (at === 'slip' ? api : mcp).frame(scene, moverKey, words);
+        await (at === 'slip' ? api : mcp).frame(scene, moverKey, words);
         rejectInkLoss(at === 'slip' ? api : mcp, at === 'slip' ? 'API key' : 'MCP key');
         const target = scene.familyMembers().find(m => m.key === moverKey.replace(':flight', '') && m.family().some(p =>
           p instanceof VMobject && p.hasPoints() && p.style.opacity > 0.5));
@@ -48,7 +43,7 @@ test('the replacement keys clear the API and MCP lettering as they travel to the
           const name = words.find(m => m.text === (at === 'slip' ? 'API' : 'MCP'))!;
           const from = mover.center();
           mover.moveTo(name.center());
-          (at === 'slip' ? wrongApi : wrongMcp).frame(scene, moverKey, [name]);
+          await (at === 'slip' ? wrongApi : wrongMcp).frame(scene, moverKey, [name]);
           mover.moveTo(from);
           poisoned.set(moverKey, (poisoned.get(moverKey) ?? 0) + 1);
         }
@@ -88,10 +83,10 @@ test('tickets preserve station ink and lane signs; delegations preserve the stat
     }
     const station = family.find(m => m.key === 'agent:station'), name = family.find(m => m.key === 'agent:name');
     if (!station || !name) return; // The stage's entrance precedes admission of the world.
-    ticketStation.frame(scene, 'ticket:flight', [station]);
-    ticketWords.frame(scene, 'ticket:flight', [name, ...signs]);
-    delegation.frame(scene, 'delegation', [name]);
-    seal.frame(scene, 'fresh-seal', [name]);
+    await ticketStation.frame(scene, 'ticket:flight', [station]);
+    await ticketWords.frame(scene, 'ticket:flight', [name, ...signs]);
+    await delegation.frame(scene, 'delegation', [name]);
+    await seal.frame(scene, 'fresh-seal', [name]);
     for (const [check, label] of [[ticketStation, 'ticket at the station'], [ticketWords, 'ticket beside the lane names'],
       [delegation, 'delegation'], [seal, 'new seal']] as const) rejectInkLoss(check, label);
     for (const key of ['delegation', 'fresh-seal']) {
@@ -101,7 +96,7 @@ test('tickets preserve station ink and lane signs; delegations preserve the stat
       if (key === 'delegation' && delegationPoison < 2) {
         const at = mover.center();
         mover.moveTo(name.center());
-        wrongDelegation.frame(scene, key, [name]);
+        await wrongDelegation.frame(scene, key, [name]);
         mover.moveTo(at);
         delegationPoison++;
       }
@@ -131,7 +126,7 @@ test('tickets preserve station ink and lane signs; delegations preserve the stat
           // Deliberately place the real painted ticket over each actual victim. Restoring
           // its centre is the inverse control; no stand-in rectangle supplies the defect.
           mover.moveTo(victim.center());
-          control.frame(scene, 'ticket:flight', [victim]);
+          await control.frame(scene, 'ticket:flight', [victim]);
           mover.moveTo(at);
           if (victim === station) stationPoison++; else namePoison++;
         }

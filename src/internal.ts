@@ -7,7 +7,7 @@ export { center, contains, intersect, nonempty, overlaps, pad, pointsBox, unionB
 export { contrastRatio, isHex } from './color.ts';
 export { FALLBACK, MONO, SANS } from './font-data.ts';
 export { embeddedFaces } from './fonts.ts';
-export { canonicalJson, jsonObject } from './json.ts';
+export { canonicalJson, cloneJson, jsonObject } from './json.ts';
 export { LETTERING_VERSION, RTL_SCRIPTS, SUBSET_LETTERING_VERSION, bindLettering, cutFace, defaultCutFace, letteringOf, numericAlphabet, packLettering, pinnedFor, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, unpackLettering, usesLettering, usesOutlineLettering, withSceneLettering } from './lettering-outlines.ts';
 export type { LetteringCut, LetteringProvider, LetteringSnapshot, PackedLetteringSnapshot, StoredLetteringSnapshot } from './lettering-outlines.ts';
 export { LETTERING_SCRIPTS } from './lettering-scripts.ts';

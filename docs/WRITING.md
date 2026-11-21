@@ -633,6 +633,8 @@ With every fix in, `check` passes. It prints its report as JSON and saves it in 
         "add 100"
       ],
       "states": 16,
+      "presentations": 16,
+      "transitions": 15,
       "observations": 16
     }
   ]
@@ -644,7 +646,7 @@ Compare each part with what you meant to write:
 - `model` is the oracle test's run: three tests, three passed.
 - `script.answer` is the first step that states the Answer, and its position. It should be the step you planned to say it in.
 - `predictions` is the prediction, its answer in this scenario, and the step that reveals it.
-- `machines` lists the live step’s events. They reach 16 states, the count from the model’s second test. This machine uses the full model as its observation, so the report counts 16 observations as well.
+- `machines` lists the live step’s events. They reach 16 states, the count from the model’s second test. This machine has no transient result, so those are also its 16 distinct presentations. The 15 accepted transitions add one of the remaining numbers. It uses the full model as its observation, so the report counts 16 observations as well. A machine with transient results can have more presentations than durable states; a bounded traversal is marked `sampled`.
 
 In the full report, `legibility.labelsUnder12PxAt390` is the number of labels a phone reader sees under 12 px. Keep it at 0.
 

@@ -1,3 +1,4 @@
+import {paintedPixels} from '../lib/native-ink.ts';
 import { assertFollowsStory, answersIn, worldsOf } from '../../../test/lib/story-fidelity.ts';
 import assert from 'node:assert/strict';
 import { Text, VMobject } from '../../../src/index.ts';
@@ -57,6 +58,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
       await afterMessage.during(scene, () => scene.play(machine.send('fetch')));
     }});
   assert.deepEqual(afterMessage.findings, [], 'a new fetch retires the declined message before its ticket travels');
+  await unchangedEmptyRack(scenario);
   await checkTravel(scenario);
 }
 
@@ -80,7 +82,7 @@ async function checkTravel(scenario: FidelityRun['scenario']): Promise<void> {
       if (key === 'phish-cookie' && event !== 'phish' || key === 'submit-half' && event !== 'submit') continue;
       const movers = scene.familyMembers().filter(m => m.key === moverKey && visible(m));
       if (!movers.length) continue;
-      const subjects = key === 'read' ? [...inPart(scene, 'browser'), ...inPart(scene, 'page:stub')]
+      const subjects = key === 'read' ? [...inPart(scene, 'browser'), ...inPart(scene, 'page:stub'), ...inPart(scene, 'agent:name')]
         : key === 'submit-half' ? inPart(scene, 'carried')
         : key === 'shelf:join:flight' ? inPart(scene, 'page:stub')
         : key === 'phish-cookie' ? [...inPart(scene, 'evil'), ...inPart(scene, 'evil:shelf')]
@@ -88,7 +90,7 @@ async function checkTravel(scenario: FidelityRun['scenario']): Promise<void> {
       if (!subjects.length) continue;
       const check = checks.get(key)!;
       check.frames++;
-      check.clear.frame(scene, moverKey, subjects);
+      await check.clear.frame(scene, moverKey, subjects);
       if (key === 'forged') {
         const mover = movers[0]!, at = mover.center(), position = at.join(',');
         if (previousForge && position !== previousForge) forgeMoved = true;
@@ -97,25 +99,25 @@ async function checkTravel(scenario: FidelityRun['scenario']): Promise<void> {
         previousForge = position;
         const stop = scene.familyMembers().find(m => m.key === 'road:browser:stop');
         const protectedParts = dwell && stop ? [...subjects, stop] : subjects;
-        landing.clear.frame(scene, moverKey, protectedParts);
-        landing.poison.frame(scene, moverKey, protectedParts);
-        landing.priorPort.frame(scene, moverKey, protectedParts);
+        await landing.clear.frame(scene, moverKey, protectedParts);
+        await landing.poison.frame(scene, moverKey, protectedParts);
+        await landing.priorPort.frame(scene, moverKey, protectedParts);
         if (dwell && stop) {
           landing.frames++;
-          try { mover.moveTo(stop.center()); landing.poison.frame(scene, moverKey, protectedParts); }
+          try { mover.moveTo(stop.center()); await landing.poison.frame(scene, moverKey, protectedParts); }
           finally { mover.moveTo(at); }
           // The old centre-based offset grazed the symbol even though it was not centred on it.
-          try { mover.moveTo([COUNTER_X - 0.75, ROAD_B]); landing.priorPort.frame(scene, moverKey, protectedParts); }
+          try { mover.moveTo([COUNTER_X - 0.75, ROAD_B]); await landing.priorPort.frame(scene, moverKey, protectedParts); }
           finally { mover.moveTo(at); }
         }
       }
       // Witness actual native paint and motion on the unmodified trajectory first.
-      check.poison.frame(scene, moverKey, subjects);
+      await check.poison.frame(scene, moverKey, subjects);
       if (!check.poisoned && check.frames >= 8 && movers[0]!.family().some(m => m instanceof VMobject && m.style.opacity >= 0.95)) {
         const mover = movers[0]!, at = mover.center();
         try {
           mover.moveTo(subjects[0]!.center());
-          check.poison.frame(scene, moverKey, subjects);
+          await check.poison.frame(scene, moverKey, subjects);
           check.poisoned = true;
         } finally { mover.moveTo(at); }
       }
@@ -150,8 +152,27 @@ async function checkTravel(scenario: FidelityRun['scenario']): Promise<void> {
     const mover = log.at(-1) === 'authorize' ? 'read' : 'forged', route = routeInkCheck();
     await runLive(scenario.Scene, 'phish', place, log, {from: 'start', animate: {async frame(scene) {
       const subjects = [...inPart(scene, 'browser'), ...(mover === 'forged' ? [...inPart(scene, 'evil'), ...inPart(scene, 'page:who'), ...inPart(scene, 'page:session'), ...inPart(scene, 'page:sid')] : [])];
-      if (scene.familyMembers().some(m => m.key === mover && visible(m))) route.frame(scene, mover, subjects);
+      if (scene.familyMembers().some(m => m.key === mover && visible(m))) await route.frame(scene, mover, subjects);
     }}});
     route.assertClear(`${scenario.values.signin} reader ${log.join(', ')}`, mover === 'read' ? ['example.com'] : ['example.com', 'evil.example']);
   }
+}
+
+/** Fetching help is not issuing a code: the same empty notice remains complete. */
+export async function unchangedEmptyRack(scenario: FidelityRun['scenario']): Promise<void> {
+  let reference: number | undefined, samples = 0;
+  await new scenario.Scene({async frame(scene) {
+    if (scene.currentStep?.path !== 'fetch') return;
+    const label = scene.find('rack:none'), trip = scene.find('ticket:flight');
+    if (!trip) {
+      const ink = await paintedPixels(scene, label);
+      if (ink > 100) reference = Math.max(reference ?? 0, ink);
+      return;
+    }
+    if (!(await paintedPixels(scene, trip))) return;
+    assert.ok(reference !== undefined && reference > 100, 'the empty rack is independently visible before fetch');
+    assert.equal(await paintedPixels(scene, label), reference, 'help fetch preserves the complete unchanged empty-rack notice');
+    samples++;
+  }}).run();
+  assert.ok(samples > 2, 'the help ticket paints on its journey');
 }

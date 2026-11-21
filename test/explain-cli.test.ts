@@ -319,7 +319,7 @@ test('machine check offers explicit JSON and prints a concise verdict with its r
     assert.equal(report.scenarios.length, 1);
     assert.ok(report.scenarios[0].machines.length > 0);
     assert.equal('phoneWarnings' in report.scenarios[0].machines[0], false);
-    assert.match(result.stderr, /Check passed: 1 scenarios, \d+ steps, \d+ reachable states, \d+ model tests, 0 problems, 0 phone warnings/);
+    assert.match(result.stderr, /Check passed: 1 scenarios, \d+ steps, \d+ checked states, \d+ model tests, 0 problems, 0 phone warnings/);
     assert.ok(result.stderr.includes(output));
     const picture = join(directory, 'scene', 'picture.ts');
     const original = await readFile(picture, 'utf8');

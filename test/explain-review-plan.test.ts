@@ -207,6 +207,7 @@ test('story receipts expire when caption claims, served runtime or review depend
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
       'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
       'tools/lib/explain-live-review.ts', 'tools/lib/review-reader.ts', 'tools/lib/explain-embed-size.ts',
+      'tools/lib/explain-motion-rules.ts', 'tools/lib/explain-film.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
@@ -271,6 +272,13 @@ test('story receipts expire when caption claims, served runtime or review depend
     await writeFile(raster, Buffer.concat([rasterBytes, Buffer.from('\n// changed native rasterization\n')]));
     await assert.rejects(merge(), /stale review implementation/, 'native composite evidence depends on the rasterizer');
     await writeFile(raster, rasterBytes);
+    for (const file of ['tools/lib/explain-motion-rules.ts', 'tools/lib/explain-film.ts']) {
+      const path = join(root, file), bytes = await readFile(path);
+      await writeFile(path, Buffer.concat([bytes, Buffer.from('\nthrow new Error("changed transitive verifier");\n')]));
+      assert.equal((await buildInputs(root)).hash, renderingHash, `${file}: page identity stays fixed`);
+      await assert.rejects(merge(), /stale review implementation/, `${file}: transitive verification changes expire a receipt`);
+      await writeFile(path, bytes);
+    }
     assert.equal((await merge()).scenarios, 3);
   } finally { await rm(root, {recursive: true, force: true}); }
 });
