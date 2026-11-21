@@ -4,7 +4,7 @@ import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/inde
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
 import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Vec } from '../../../src/index.ts';
-import { STORY, TABLE_EVENTS, bound, next, start } from './model.ts';
+import { STORY, TABLE_EVENTS, activeOf, bound, next, start } from './model.ts';
 import type { TableEvent, World } from './model.ts';
 import { BACK_OFFICE_X, PALETTE, drawWorld, sayWorld, seatsOf, speakerAt } from './picture.ts';
 import type { Shown } from './picture.ts';
@@ -102,6 +102,9 @@ export default class Conversations extends Scene<World, Shown> {
       next,
       bound,
       views: [world],
+      motion: ({event, after}) => ['ask', 'you', 'read'].includes(event) && after.said?.at === activeOf(after)
+        ? [{view: world, during: 'turn:flight', present: ['written:title:0', 'written:author.type:label', 'written:role:label']}]
+        : [],
       runTime: ({event}) => event === 'joins' ? 2 : event === 'invite' ? 1.75 : 1.8,
       transition: {
         ask: spoken,

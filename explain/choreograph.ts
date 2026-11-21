@@ -99,7 +99,7 @@ export interface Choreography {
  * a call brings in is added to the current picture, and a part a call takes out leaves it, so when
  * every part has finished the current picture shows the target's parts.
  */
-export function choreograph(current: Mobject, target: Mobject): Choreography {
+export function choreograph(current: Mobject, target: Mobject, registerTrip?: (key: string, move: Animation) => void): Choreography {
   const now = keyedParts(current), want = keyedParts(target);
   const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
   const replacements = new Map<string, Mobject>();
@@ -238,9 +238,11 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       if (want.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is in the target picture, and a travelling token only passes through; travel a key the target does not have`);
       const start = path.pointFromProportion(0);
       const part = insert(key, token.copy().moveTo(start));
+      const movement = new MoveAlongPath(part, path, { runTime: move, rateFunc: linear });
+      registerTrip?.(key, movement);
       return {
         appear: new Transform(part, token.copy().moveTo(start), { runTime: appear }),
-        move: new MoveAlongPath(part, path, { runTime: move, rateFunc: linear }),
+        move: movement,
         leave: self.leave(key, { runTime: leave }),
       };
     },

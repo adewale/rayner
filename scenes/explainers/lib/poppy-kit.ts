@@ -1,7 +1,7 @@
 import { Circle, Group, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Style, Vec } from '../../../src/index.ts';
 // The series' measures, words, parts and choreography are rayner/drawing's; this file adds the Poppy palette and objects.
-import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, label, addAll, connector, plate, route, flight, pass, beats as kitBeats, emphasised } from '../../../explain/drawing.ts';
+import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, label, addAll, connector, plate, route, flight, pass, carry, beats as kitBeats, emphasised } from '../../../explain/drawing.ts';
 import type { LabelOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/drawing.ts';
 import type { Choreography, Stage } from '../../../explain/index.ts';
 
@@ -101,7 +101,7 @@ export const TONE = {
 /** The stage's palette for `stage(this, { palette: { ...PALETTE }, heading: false })`. */
 export const PALETTE = { paper: TONE.ground, ink: TONE.ink, accent: TONE.wax, muted: TONE.steel } as const;
 
-export { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, label, addAll, route, flight, pass };
+export { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, label, addAll, route, flight, pass, carry };
 export type { LabelOptions, Parts, Beat, FlightTiming };
 /** Corner radii, in units, named for the series' objects: rayner/drawing's RADIUS. */
 export const RADIUS = { paper: KIT_RADIUS.sharp, ticket: KIT_RADIUS.small, panel: KIT_RADIUS.panel, device: KIT_RADIUS.round } as const;

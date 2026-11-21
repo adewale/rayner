@@ -3,7 +3,7 @@ export { view, having } from './view.ts';
 export type { View, Having, ViewOptions, ViewPlace, SyncOptions, TweenOptions } from './view.ts';
 export type { FollowSpec } from './state.ts';
 export { Machine, refuse, isRefusal } from './machine.ts';
-export type { MachineSpec, Transition, Refusal } from './machine.ts';
+export type { MachineSpec, MotionRule, Transition, Refusal } from './machine.ts';
 export type { Choreography } from './choreograph.ts';
 export { stage } from './stage.ts';
 export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions, DiagramPicture } from './stage.ts';

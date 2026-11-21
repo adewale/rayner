@@ -1,7 +1,7 @@
 import { AnimationGroup, Scene } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { beats, flight, pass } from '../lib/poppy-kit.ts';
+import { beats, carry, flight, pass } from '../lib/poppy-kit.ts';
 import { POPPY_EVENTS, STORY, next, start } from './model.ts';
 import type { PoppyEvent, Scope, World } from './model.ts';
 import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, SEAL_AT, THIEF_FROM, documentToken, drawWorld, keyRoute, routeOf, sayWorld } from './picture.ts';
@@ -90,6 +90,13 @@ export default class Poppy extends Scene<World, {}> {
       },
       next,
       views: [world],
+      motion: ({event, before, after}) => {
+        if (event === 'discover' && !before.found)
+          return [{view: world, during: 'document', absent: ['door:barrier', 'door:words']}];
+        if (after.last?.kind === 'request')
+          return [{view: world, during: 'ticket:flight', absent: ['exhibit:mark']}];
+        return [];
+      },
       runTime: ({ event }) => (event === 'sign-out' ? 2.1 : event === 'discover' ? 2.7 : event === 'exchange' || event === 'thief' ? 2.5 : 2.2),
       transition: {
         // poppy.json crosses from the Company to the agent, and then the lanes it lists are drawn.
@@ -118,8 +125,9 @@ export default class Poppy extends Scene<World, {}> {
         'sign-out': (t) => {
           const c = t.choreograph(world);
           return beats(c, () => {
-            const back = pass(c, 'agent:key:return', c.from('agent:key').copy().scale(0.5), [...keyRoute()].reverse(), { appear: 0.2, move: 0.9, leave: 0.25 });
-            return [new AnimationGroup([c.leave('agent:key', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];
+            return carry(c, 'agent:key:return', 'agent:key', [...keyRoute()].reverse().slice(1), {
+              token: c.from('agent:key').copy().scale(0.5), appear: 0.2, move: 0.9, leave: 0.25,
+            });
           }, { lead: LEAD, fresh: FRESH });
         },
       },

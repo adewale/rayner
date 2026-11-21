@@ -22,6 +22,24 @@ import type { Choreography } from './choreograph.ts';
 import type { SceneState } from '../src/scene.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
 
+/** Which keyed parts of a view must draw, or must be gone, during a named travel's move beat. */
+export interface MotionRule {
+  view: View;
+  /** The exact travelling key passed to c.travel or pass; flight uses `<target>:flight`. */
+  during: string;
+  /** Each key identifies one subject in the source picture, destination picture, or both. */
+  present?: readonly string[];
+  absent?: readonly string[];
+}
+
+/** @internal A check attaches to the actual movement animation as the author constructs the trip. */
+type RegisterTrip = (view: View, key: string, move: Animation) => void;
+/** @internal Called at the start of each accepted, inspected event that declares motion. */
+export type ObserveMotion = (machine: object, event: string, rules: readonly MotionRule[], views: readonly View[], target: (v: View) => Mobject) => RegisterTrip;
+
+/** @internal Scene-local, scoped registration keeps the native checker out of the browser/player. */
+export const motionObservers = new WeakMap<Scene<any>, ObserveMotion>();
+
 export interface MachineSpec<S extends object, E extends string> {
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
   start: S;
@@ -63,6 +81,8 @@ export interface MachineSpec<S extends object, E extends string> {
    * one that does not end on them, or breaks an invariant on the way.
    */
   transition?: Partial<Record<E, (t: Transition<S, E>) => Animation | AnimationGroup>>;
+  /** Keyed context that must be present or absent during an actual travel beat. Evaluated by rayner check at the event's turn. */
+  motion?: (t: Pick<Transition<S, E>, 'event' | 'before' | 'after' | 'target'>) => readonly MotionRule[];
   /** Pictures of the scene's state, made with view(scene, draw), synced after each event. */
   views: readonly View<Mobject, S>[];
   /**
@@ -152,6 +172,7 @@ export class Machine<S extends object, E extends string> {
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
     // The spec's shape is its type's to check; what a type cannot say is checked here.
     // A scene may read its events from its data (a statechart's arrows), as a list whose type does not carry its length.
+    if (spec.motion !== undefined && typeof spec.motion !== 'function') throw new TypeError('new Machine(): motion must be a function of the event and its states');
     if (spec.liveStart !== undefined && spec.liveStart !== 'start') throw new RangeError("new Machine(): liveStart must be 'start' when supplied");
     if (!spec.events.length) throw new RangeError('new Machine(): it needs at least one event');
     for (const event of spec.events)
@@ -233,7 +254,14 @@ export class Machine<S extends object, E extends string> {
       return placed.get(view)!;
     };
     const result = this.spec.result?.({event, before, after});
-    return { event, before, after, ...(result === undefined ? {} : {result}), target, choreograph: (view) => choreograph(view.current, target(view)) };
+    const observe = motionObservers.get(this.scene);
+    const register = observe && this.spec.motion
+      ? observe(this, event, this.spec.motion({event, before, after, target}), views, target)
+      : undefined;
+    return {
+      event, before, after, ...(result === undefined ? {} : {result}), target,
+      choreograph: view => choreograph(view.current, target(view), register && ((key, move) => register(view, key, move))),
+    };
   }
 
   /** @internal Adopt an accepted event's transient result; exploration uses the same presentation path. */
@@ -290,7 +318,16 @@ export class Machine<S extends object, E extends string> {
    */
   defaultPlay(event: E, before: S, after: S): AnimationGroup {
     const { views, match } = this.spec;
-    return new AnimationGroup(views.map((v) => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) })));
+    const syncs = views.map(v => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) }));
+    if (!this.spec.motion) return new AnimationGroup(syncs);
+    // A declaration still needs a witness when an author removes the whole travel transition.
+    const machine = this;
+    return new class extends AnimationGroup {
+      protected override doBegin(): void {
+        if (motionObservers.has(machine.scene)) machine.transitionFor(event, before, after);
+        super.doBegin();
+      }
+    }(syncs);
   }
 
   /** The run time of `event` from `before` to `after`: the spec's, or what its function gives. */

@@ -2,7 +2,7 @@ import { AnimationGroup, Group, Rectangle, Scene } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, Stage, Transition } from '../../../explain/index.ts';
-import { TONE, beats, codeSlip, cookie, flight, pass } from '../lib/poppy-kit.ts';
+import { TONE, beats, carry, codeSlip, cookie, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
 import type { JoinEvent, SignIn, World } from './model.ts';
@@ -97,7 +97,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
     const world = view(this, (w, sh) => drawWorld(w, s, sh), { place: false });
 
-    const codeOf = (t: Transition<World, JoinEvent>) => {
+    const codeOf = (t: Pick<Transition<World, JoinEvent>, 'event' | 'after'>) => {
       const last = t.after.last;
       if (!last || !('code' in last)) throw new Error(`${t.event} left no code`);
       return shortCode(last.code);
@@ -114,6 +114,16 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       bound,
       end,
       views: [world],
+      motion: t => {
+        if (t.event === 'forge' && t.before.last?.event === 'phish')
+          return [{view: world, during: 'forged', absent: ['message', 'message:note']}];
+        if (t.event !== 'load') return [];
+        const record = `row:${codeOf(t)}`;
+        return ['page:stub:flight', 'shelf:join:flight'].map(during => ({
+          view: world, during, present: [`${record}:stub`, `${record}:ring`],
+          absent: world.current.find('rack:none') ? ['rack:none'] : [],
+        }));
+      },
       runTime: ({ event }) => ({ fetch: 2.2, load: 4.15, authorize: 3.5, submit: 3.35, browse: 1.75, forge: 2.8, phish: 3.35 })[event],
       transition: {
         // The agent's own fetch: a ticket with its seal, and no key, on its own road.
@@ -151,9 +161,9 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = codeOf(t);
           const joined = t.after.last?.event === 'submit' && t.after.last.answer.status === 303;
           return beats(c, () => {
-            const stubTrip = pass(c, 'carried', c.from('page:stub').copy(), [PAGE_AT, MEET_STUB], { appear: 0.2, move: 0.8, leave: 0.25 });
+            const stubTrip = carry(c, 'carried', 'page:stub', [PAGE_AT, MEET_STUB], { appear: 0.2, move: 0.8, leave: 0.25 });
             const halfTrip = pass(c, 'carried:half', c.from('shelf:join').copy(), [JOIN_AT, [SIDE_X, JOIN_AT[1]], [SIDE_X, ROAD_B], MEET_HALF], { appear: 0.2, move: 0.8, leave: 0.25 });
-            const away = [c.leave('page:stub', { runTime: 0.2 }), ...(!c.has('shelf:join', 'to') ? [c.leave('shelf:join', { runTime: 0.2 })] : [])];
+            const away = c.has('shelf:join', 'to') ? [] : [c.leave('shelf:join', {runTime: 0.2})];
             const seat = c.has(`row:${id}:half`, 'to') ? [new AnimationGroup([c.enter(`row:${id}:half`, {}, { runTime: 0.3 })])] : [];
             const back = joined ? flight(c, 'shelf:session', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, SESSION_AT[1]], SESSION_AT], { appear: 0.2, move: 0.6, leave: 0.25 })() : [];
             return [new AnimationGroup([...away, stubTrip[0]!, halfTrip[0]!]), ...together(stubTrip.slice(1), halfTrip.slice(1)), ...seat, ...back];

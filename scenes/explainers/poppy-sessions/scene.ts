@@ -106,6 +106,13 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       },
       next,
       views: [world],
+      motion: ({event, before}) => {
+        if (this.shown.links < 3 || event !== 'published' || before.last?.tamper === 'published') return [];
+        return [
+          {view: world, during: 'chain:ring:on-wax:flight', absent: ['chain:ring']},
+          {view: world, during: 'ticket:flight', present: ['chain:ring:on-wax']},
+        ];
+      },
       // Each transition's own length, so the machine plays it at its authored pace: the words and the old
       // ticket go (0.25 s), the ticket travels (0.9 s), the validator stamps it (0.2 s), eleven punches
       // (1.0 s), then the answer (0.45 s); the published key's trip to or from the wax adds its own time.

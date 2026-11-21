@@ -32,7 +32,9 @@ export async function keyedMotionFindings(file: string, events?: readonly string
   for (const v of project.scenarios) {
     const scenario = JSON.stringify(v.values);
     const sink = keyedMotionSink();
-    const ran = await new v.Scene(sink).run();
+    const playback = new v.Scene(sink);
+    const ran = await sink.rules.during(playback, () => playback.run());
+    for (const line of sink.rules.findings) out.push({scenario, line});
     for (const f of sink.finish()) out.push({ scenario, line: `${f.segment}: ${keyedMotionLine(f)}` });
     for (const m of await exploreMachines(ran, v.Scene, undefined, { events })) for (const line of m.motion) out.push({ scenario, line });
   }

@@ -5,6 +5,7 @@ import { renderElements } from '../../src/internal.ts';
 import { serializeElement, canonicalJson, zoomOf, contains, intersect, unionBoxes, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, UNITS, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
+import { MachineMotionCheck } from './explain-motion-rules.ts';
 import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -220,8 +221,18 @@ export const PHONE_WHOLE_MIN_SIZE = READ_PX / PHONE_UNIT;
  * The keyed motion sink `rayner check` runs (src/keyed-motion.ts), able to judge words by size:
  * a label's reading size, and the size that reads on a phone showing the whole picture.
  */
-export const keyedMotionSink = (segmentOf?: (scene: Scene) => string | null) =>
-  new KeyedMotionSink(segmentOf, { labelSize: readingLabelSize, legible: PHONE_WHOLE_MIN_SIZE });
+class CheckedMotionSink extends KeyedMotionSink {
+  readonly rules: MachineMotionCheck;
+  constructor(segmentOf?: (scene: Scene) => string | null) {
+    super(segmentOf, { labelSize: readingLabelSize, legible: PHONE_WHOLE_MIN_SIZE });
+    this.rules = new MachineMotionCheck(segmentOf);
+  }
+  override async frame(scene: Scene, dt = 0): Promise<void> {
+    await super.frame(scene, dt);
+    await this.rules.frame(scene);
+  }
+}
+export const keyedMotionSink = (segmentOf?: (scene: Scene) => string | null) => new CheckedMotionSink(segmentOf);
 /** A step's close-ups on the phone, as the player works them out: the opening's zoom, and each view's zoom and box in view units. */
 type PhoneCloseUps = { k: number; views: { k: number; box: Box }[] };
 function phoneCloseUps(layout: Parameters<typeof closeUps>[0]): PhoneCloseUps {
@@ -829,8 +840,8 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
       const keyedMotion = keyedMotionSink(() => at);
       await keyedMotion.frame(scene, 0);
       draw(keyedMotion);
-      try { await scene.play(machine.defaultPlay(event, state, after)); } finally { draw(); }
-      motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`));
+      try { await keyedMotion.rules.during(scene, () => scene.play(machine.defaultPlay(event, state, after))); } finally { draw(); }
+      motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`), ...keyedMotion.rules.findings);
       if (machine.spec.result) problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(p => `${at}: ${p}`));
       scene.state = jsonObject(state, 'machine state');
       scene.shown = beforeShown;
@@ -857,8 +868,8 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     await keyedMotion.frame(scene, 0);
     const t0 = scene.time;
     draw(new FanSink([frames, keyedMotion]));
-    try { await scene.play(motion); } finally { draw(); }
-    motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`));
+    try { await keyedMotion.rules.during(scene, () => scene.play(motion)); } finally { draw(); }
+    motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`), ...keyedMotion.rules.findings);
     // Each invariant's first failing frame, by how far through the transition it is.
     const failed = new Set<string>();
     for (const f of frames.failures) {
@@ -962,8 +973,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const keys = new KeySink();
     // Every keyed part followed from frame to frame within each play: jumps, flicker, early words, covers and small words (src/keyed-motion.ts).
     const keyedMotion = keyedMotionSink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, keyedMotion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
-    const stepMotion = keyedMotion.finish().map((f) => `${f.segment}: ${keyedMotionLine(f)}`);
+    const playback = new v.Scene(new FanSink([invariants, motion, keyedMotion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys]));
+    const ran = await keyedMotion.rules.during(playback, () => playback.run());
+    const stepMotion = [...keyedMotion.finish().map(f => `${f.segment}: ${keyedMotionLine(f)}`), ...keyedMotion.rules.findings];
     // The last frame, before exploring machines moves the scene.
     const finalSvg = toSvgString(ran);
     const { frames } = capture,
