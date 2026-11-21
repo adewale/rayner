@@ -103,7 +103,7 @@ function covers(rect: Rectangle, box: Box): boolean {
 }
 
 /** Visible route ink crossing a resting label. Invisible route helpers and glyph outlines are not routes. */
-export function restingRouteProblems(scene: Scene): string[] {
+export function restingRouteProblems(scene: Pick<Scene, 'familyMembers' | 'mobjects' | 'frame'>): string[] {
   const records = renderElements(scene, { relative: false });
   const order = new Map(records.map((r, i) => [r.id, i]));
   const record = new Map(records.map((r) => [r.id, r]));

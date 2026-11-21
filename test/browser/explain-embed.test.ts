@@ -1682,26 +1682,37 @@ test(
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
       // Next plays 'home', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
-      // Observe in the browser before the click. Polling over CDP can miss the
-      // entire short glide under load even when the browser paints every frame.
+      // Observe in the browser before the click: under load, the click can return after the
+      // short glide has ended, so polling from Node afterwards misses genuinely painted frames.
       await page.evaluate(() => {
-        const w=window as unknown as {cameraFrames:Painted[];cameraObserver:MutationObserver};
-        w.cameraFrames=[];
-        w.cameraObserver=new MutationObserver(()=>{
-          const svg=document.querySelector('.stage svg:not(.leaving)');if(!svg)return;
-          const size=svg.parentElement!.getBoundingClientRect();
-          w.cameraFrames.push({view:svg.getAttribute('viewBox')!,camera:svg.getAttribute('data-camera')!,w:size.width,h:size.height});
-        });
-        w.cameraObserver.observe(document.querySelector('.stage')!,{subtree:true,attributes:true,attributeFilter:['viewBox','data-camera']});
+        const capture = { frames: [] as Painted[], frame: 0 };
+        const sample = () => {
+          const svg = document.querySelector('.stage svg:not(.leaving)');
+          if (svg) {
+            const p = {
+              view: svg.getAttribute('viewBox')!,
+              camera: svg.getAttribute('data-camera') ?? svg.getAttribute('viewBox')!,
+              w: svg.parentElement!.getBoundingClientRect().width,
+              h: svg.parentElement!.getBoundingClientRect().height,
+            };
+            if (capture.frames.at(-1)?.view !== p.view) capture.frames.push(p);
+          }
+          capture.frame = requestAnimationFrame(sample);
+        };
+        (window as unknown as { cameraGlideCapture: typeof capture }).cameraGlideCapture = capture;
+        sample();
       });
       await page.locator('.stepper').getByRole('button', { name: 'Next step' }).click();
       await quiet(page);
-      const seen=await page.evaluate(()=>{const w=window as unknown as {cameraFrames:Painted[];cameraObserver:MutationObserver};w.cameraObserver.disconnect();return w.cameraFrames;});
+      const seen = await page.evaluate(() => {
+        const capture = (window as unknown as { cameraGlideCapture: { frames: Painted[]; frame: number } }).cameraGlideCapture;
+        cancelAnimationFrame(capture.frame);
+        return capture.frames;
+      });
       const gliding = seen.filter((p) => p.camera !== author.camera && p.camera !== home);
       assert.ok(gliding.length > 0, `the camera glide was seen under the zoom: ${seen.map((p) => p.camera).join(' | ')}`);
       for (const p of seen)
         assert.ok(Math.abs(zoomOf(p)!.k - 2.56) < 1e-3, `zoom held through the glide: ${p.camera} -> ${p.view}`);
-      await quiet(page);
       assert.equal((await paintedView(page)).camera, home, 'the camera is home after clear()');
       await page.locator('.stage').focus();
       await page.keyboard.press('0');
@@ -1825,8 +1836,8 @@ function stepsOf(p: Project, values: Settings): StepSpec[] {
     caption: stepWords(s).caption,
     title: stepWords(s).title,
     line: stepWords(s).line,
-    summary: pictureSummary(s.shown),
-    picture: pictureHtml(s.shown),
+    summary: pictureSummary(s.derived),
+    picture: pictureHtml(s.derived),
   }));
 }
 const current = (m: PlayerModel) => m.entries[m.index]!;
@@ -3502,7 +3513,7 @@ test('source tours show the token-cap calculation and send()’s answer in every
             const dot=keyed('balance:found:R10').center(),drop=keyed('balance:spend:R10').box()!;
             assert.ok(Math.abs(dot[0]-1.6)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
-            assert.equal(scene.state.tokens,after);
+            assert.equal(scene.stateJson().tokens,after);
           }else{
             // A send() on a new socket throws; one after close() returns without sending.
             const early=scenario.values.when==='connecting', ready=early?'CONNECTING':'CLOSING';
@@ -3512,7 +3523,7 @@ test('source tours show the token-cap calculation and send()’s answer in every
             assert.ok(ring[0]<=state[0]&&ring[1]<=state[1]&&ring[2]>=state[2]&&ring[3]>=state[3]);
             const box=keyed(`send:box:${early?'throw':'return'}`).box()!;
             assert.ok(box[2]>box[0]&&box[3]>box[1]);
-            assert.equal(scene.state.ready,ready);
+            assert.equal(scene.stateJson().ready,ready);
           }
           nativeChecked=true;
         }}).run();
@@ -3581,7 +3592,7 @@ test('both pen drawings retain every construction mark and its readable count th
         const members=scene.familyMembers(),marks=members.filter(m=>m.key==='construction:marks'),
           tallies=members.filter(m=>m.key==='construction:tally');
         assert.equal(marks.length,1);assert.equal(tallies.length,1);
-        assert.deepEqual(scene.state.marks,{outlines:40,filled:13,words:8});
+        assert.deepEqual(scene.stateJson().marks,{outlines:40,filled:13,words:8});
         assert.deepEqual(tallies[0]!.family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),
           ['40 outlines · 13 filled shapes · 8 words']);
         // Each period has four plank sides, four event sides, a ring, string,

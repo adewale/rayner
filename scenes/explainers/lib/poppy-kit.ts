@@ -3,7 +3,7 @@ import type { Mobject, Style, Vec } from '../../../src/index.ts';
 // The series' measures, words, parts and choreography are rayner/drawing's; this file adds the Poppy palette and objects.
 import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, label, addAll, connector, plate, route, flight, pass, carry, beats as kitBeats, emphasised } from '../../../explain/drawing.ts';
 import type { LabelOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/drawing.ts';
-import type { Choreography, Stage } from '../../../explain/index.ts';
+import type { Choreography, DrawContext } from '../../../explain/index.ts';
 
 /*
  * THE POPPY KIT: the visual system of the Poppy series (Personal Agent Protocol, draft 1.0), as code.
@@ -156,7 +156,7 @@ export type SealOptions = {
  * four-petalled poppy, standing in relief. In WAX; with `foreign`, PEWTER pressed with a star:
  * a seal some other agent made. Size: about 2r across (default r 0.5). One unkeyed Group.
  */
-export function seal(_s: Stage, { at = [0, 0], r = 0.5, foreign = false }: SealOptions = {}): Group {
+export function seal(_s: DrawContext, { at = [0, 0], r = 0.5, foreign = false }: SealOptions = {}): Group {
   const [base, deep, light] = foreign ? [TONE.pewter, TONE.pewterDeep, TONE.pewterLight] : [TONE.wax, TONE.waxDeep, TONE.waxLight];
   const wobble = (a: number) => 1 + 0.045 * Math.sin(5 * a + 0.6) + 0.025 * Math.sin(11 * a + 1.9) + 0.012 * Math.sin(17 * a + 0.3);
   const spill = (scale: number, lift: number) => Array.from({ length: 96 }, (_, k): P => {
@@ -205,7 +205,7 @@ export type KeyOptions = {
  * `ghost`, the same outline dashed in STEEL: the slot where a key would hang. Size: 2.0 × 0.68
  * units at size 1, bow to the left. One unkeyed Group.
  */
-export function key(_s: Stage, { at = [0, 0], size = 1, teeth = 1, ghost = false, facing = 'left', onPaper = false }: KeyOptions = {}): Group {
+export function key(_s: DrawContext, { at = [0, 0], size = 1, teeth = 1, ghost = false, facing = 'left', onPaper = false }: KeyOptions = {}): Group {
   const u = size, f = facing === 'left' ? 1 : -1;
   const p = (x: number, y: number): P => [at[0] + f * x * u, at[1] + y * u];
   const bowC = p(-0.66, 0.0);
@@ -265,7 +265,7 @@ export const stationHolds = (at: Vec, r = 1.05, withKey = true): { seal: Vec; ke
  * Keyed parts: `<key>:station`, `<key>:seal`, `<key>:name`, and with `keyTeeth` the slot
  * `<key>:key:slot` (a ghost key, always) and, when it has teeth, `<key>:key`.
  */
-export function station(s: Stage, { at = [0, 0], r = 1.05, name = 'your agent', key: k = 'agent', foreign = false, keyTeeth }: StationOptions = {}): Mobject[] {
+export function station(s: DrawContext, { at = [0, 0], r = 1.05, name = 'your agent', key: k = 'agent', foreign = false, keyTeeth }: StationOptions = {}): Mobject[] {
   const holds = stationHolds(at, r, keyTeeth !== undefined);
   const out: Mobject[] = [
     keyedAs(new Group(new Circle({ radius: r, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.bold }).moveTo(at)), `${k}:station`),
@@ -296,7 +296,7 @@ export type CounterOptions = {
  * face (see `stop`); what the Company keeps (its ledger) stands behind it, to the right.
  * One keyed part, `<key>`, a Group.
  */
-export function counter(_s: Stage, { x, top, bottom, key: k = 'counter' }: CounterOptions): Mobject[] {
+export function counter(_s: DrawContext, { x, top, bottom, key: k = 'counter' }: CounterOptions): Mobject[] {
   const h = top - bottom, cy = (top + bottom) / 2, depth = 0.5, n = Math.max(3, 2 * Math.round(h / 0.56) + 1), pitch = h / n;
   const stripes = Array.from({ length: n }, (_, i) => i).filter((i) => i % 2 === 1)
     .map((i) => new Rectangle({ width: depth - 0.12, height: pitch, fill: TONE.rule, stroke: 'none' }).moveTo([x + 0.12 + (depth - 0.12) / 2, top - pitch * (i + 0.5)]));
@@ -356,7 +356,7 @@ export function laneRoute({ from, trunk, y, to, fan = 0.45 }: Pick<LaneOptions, 
  * Keyed parts: `lane:<id>:line`, `lane:<id>:plate` (not with `nameAt: 'above'`), `lane:<id>:name`,
  * `lane:<id>:stop`.
  */
-export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, reached = active, fan = 0.45, nameAt = 'line' }: LaneOptions): Mobject[] {
+export function lane(s: DrawContext, { id, name, y, from, trunk, to, nameX, active = false, reached = active, fan = 0.45, nameAt = 'line' }: LaneOptions): Mobject[] {
   const k = `lane:${id}`;
   const line = connector(s, laneRoute({ from, trunk, y, to, fan }), { active });
   if (nameAt === 'above') {
@@ -368,7 +368,7 @@ export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = f
 }
 
 /** A stop: a circle of radius 0.17 on the counter's face, ringed in INK, filled INK when `active`. One unkeyed Circle. */
-export function stop(_s: Stage, { at = [0, 0], active = false }: { at?: Vec; active?: boolean } = {}): Mobject {
+export function stop(_s: DrawContext, { at = [0, 0], active = false }: { at?: Vec; active?: boolean } = {}): Mobject {
   return new Circle({ radius: 0.17, fill: active ? TONE.ink : TONE.ground, stroke: active ? TONE.ink : TONE.steel, strokeWidth: STROKE.line }).moveTo(at);
 }
 
@@ -393,7 +393,7 @@ export const TICKET = { width: 2.1, height: 0.86 } as const;
  * token, and otherwise two printed lines (the request itself). Size: 2.1 × 0.86 units, always, so a
  * ticket with and without a key are the same object. One unkeyed Group.
  */
-export function ticket(s: Stage, { at = [0, 0], foreign = false, keyTeeth = null }: TicketOptions = {}): Group {
+export function ticket(s: DrawContext, { at = [0, 0], foreign = false, keyTeeth = null }: TicketOptions = {}): Group {
   const { width: w, height: h } = TICKET, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2;
   const k = RADIUS.ticket, stub = l + 0.8, bite = 0.12;
   const outline: P[] = [
@@ -415,7 +415,7 @@ export function ticket(s: Stage, { at = [0, 0], foreign = false, keyTeeth = null
  * banded INK and ground like a level-crossing arm. It stands where the Company stops a request,
  * between the refused ticket and the counter. One unkeyed Group.
  */
-export function barrier(_s: Stage, { at = [0, 0], height = 0.96 }: { at?: Vec; height?: number } = {}): Group {
+export function barrier(_s: DrawContext, { at = [0, 0], height = 0.96 }: { at?: Vec; height?: number } = {}): Group {
   const w = 0.28, n = 5, inner = height - 0.1, band = inner / n;
   const bands = Array.from({ length: n }, (_, i) => i).filter((i) => i % 2 === 0)
     .map((i) => new Rectangle({ width: w - 0.1, height: band, fill: TONE.ink, stroke: 'none', cornerRadius: i === 0 || i === n - 1 ? 0.06 : 0 }).moveTo([at[0], at[1] + inner / 2 - band * (i + 0.5)]));
@@ -459,7 +459,7 @@ export type LedgerOptions = {
  * Keyed parts: `<key>:title`, `<key>:rule`, and for each row `<key>:<row>:label`, `:value`,
  * `:rule`, and `:mark` when changed, where `<row>` is the label in lower case with spaces as dashes.
  */
-export function ledger(s: Stage, rows: readonly LedgerRow[], { at, width, title, key: k, rowGap = 0.86, changedAs = 'changed' }: LedgerOptions): Mobject[] {
+export function ledger(s: DrawContext, rows: readonly LedgerRow[], { at, width, title, key: k, rowGap = 0.86, changedAs = 'changed' }: LedgerOptions): Mobject[] {
   const [x, top] = at, right = x + width, out: Mobject[] = [];
   out.push(keyedAs(label(s, title, { at, bold: true, align: 'start' }), `${k}:title`));
   out.push(keyedAs(new Group(
@@ -514,7 +514,7 @@ export const ANSWER_NUMBER_WIDTH = 3 * 0.6 * TYPE.display;
  * ANSWER_NUMBER_WIDTH (2.88) wide. Size: about 3.4 + phrase width × 2.6 units.
  * Keyed parts: `<key>:asked`, `<key>:code` (Text) or `<key>:key` (Group), `<key>:phrase`, `<key>:meaning`.
  */
-export function answer(s: Stage, { at, asked, number, keyTeeth = 1, phrase, meaning, key: k = 'answer', emphasis, textX = at[0] + ANSWER_NUMBER_WIDTH + SPACE.m, meaningMono = false }: AnswerOptions): Mobject[] {
+export function answer(s: DrawContext, { at, asked, number, keyTeeth = 1, phrase, meaning, key: k = 'answer', emphasis, textX = at[0] + ANSWER_NUMBER_WIDTH + SPACE.m, meaningMono = false }: AnswerOptions): Mobject[] {
   const [x, y] = at, mid = y - 1.48;
   const out: Mobject[] = [keyedAs(label(s, asked, { at, color: TONE.soft, align: 'start' }), `${k}:asked`)];
   if (number !== null) out.push(keyedAs(label(s, number, { at: [x - 0.06, mid], size: TYPE.display, mono: true, bold: true, align: 'start' }), `${k}:code`));
@@ -549,7 +549,7 @@ export type SheetOptions = {
  * apart, 0.28 padding); otherwise `lines` ruled bars stand for text. Default 1.0 × 1.3 units, the
  * size a document travels at. One unkeyed Group.
  */
-export function sheet(s: Stage, { at = [0, 0], width, height, title, fields = [], lines }: SheetOptions = {}): Group {
+export function sheet(s: DrawContext, { at = [0, 0], width, height, title, fields = [], lines }: SheetOptions = {}): Group {
   const printed = [...(title ? [title] : []), ...fields];
   const texts = printed.map((line, i) => label(s, line, { mono: true, color: TONE.print, bold: i === 0 && !!title, align: 'start' }));
   const pad = SPACE.s, lead = 0.62;
@@ -574,7 +574,7 @@ export function sheet(s: Stage, { at = [0, 0], width, height, title, fields = []
  * A one-time code slip: a strip of PAPER torn along its bottom edge, the code printed on it in mono
  * bold PRINT ("K7Q-29F"). Size: the code's width + 0.56 × 0.95 units. One unkeyed Group.
  */
-export function codeSlip(s: Stage, { at = [0, 0], code = 'K7Q-29F' }: { at?: Vec; code?: string } = {}): Group {
+export function codeSlip(s: DrawContext, { at = [0, 0], code = 'K7Q-29F' }: { at?: Vec; code?: string } = {}): Group {
   const text = label(s, code, { mono: true, bold: true, color: TONE.print, at: [at[0], at[1] + 0.06] });
   const w = text.width() + 0.56, h = 0.95, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2;
   const teeth = Math.max(4, Math.round(w / 0.16)), tear: P[] = [];
@@ -601,7 +601,7 @@ export type CertificateOptions = {
  * another party, PEWTER, with `foreign`). Default 1.9 × 1.3 units (1.5 high, and wide enough, with a
  * title). The ribbon tails hang 0.5 below the seal, past the paper's edge. One unkeyed Group.
  */
-export function certificate(s: Stage, { at = [0, 0], width = 1.9, height = 1.3, title, foreign = false }: CertificateOptions = {}): Group {
+export function certificate(s: DrawContext, { at = [0, 0], width = 1.9, height = 1.3, title, foreign = false }: CertificateOptions = {}): Group {
   const head = title ? label(s, title, { mono: true, bold: true, color: TONE.print, align: 'start' }) : null;
   const w = Math.max(width, head ? head.width() + 0.9 : 0), h = Math.max(height, head ? 1.5 : 0), [x, y] = at, l = x - w / 2, t = y + h / 2;
   const sealAt: P = [x + w / 2 - 0.42, y - h / 2 + 0.34], ribbon = foreign ? TONE.pewterDeep : TONE.waxDeep;
@@ -633,7 +633,7 @@ export type InstructionCardOptions = {
  * PRINT rule under it, then ruled lines in PAPER_LINE, like a recipe card: instructions a party
  * reads and follows. Default 2.2 × 1.4 units. One unkeyed Group.
  */
-export function instructionCard(s: Stage, { at = [0, 0], title = 'SKILL.md', lines = 3, width = 2.2 }: InstructionCardOptions = {}): Group {
+export function instructionCard(s: DrawContext, { at = [0, 0], title = 'SKILL.md', lines = 3, width = 2.2 }: InstructionCardOptions = {}): Group {
   const head = label(s, title, { mono: true, bold: true, color: TONE.print, align: 'start' });
   const w = Math.max(width, head.width() + 0.6), h = 0.95 + lines * 0.22, [x, y] = at, l = x - w / 2, t = y + h / 2;
   const parts: Mobject[] = [
@@ -667,7 +667,7 @@ export type BrowserOptions = {
  * with a few STEEL bars standing for its content. The page area is the window less its top 0.92
  * units. Default 4.4 × 2.8 units, widened to hold the host. One unkeyed Group.
  */
-export function browserWindow(s: Stage, { at = [0, 0], width = 4.4, height = 2.8, host = 'example.com', lines = 3 }: BrowserOptions = {}): Group {
+export function browserWindow(s: DrawContext, { at = [0, 0], width = 4.4, height = 2.8, host = 'example.com', lines = 3 }: BrowserOptions = {}): Group {
   const probe = label(s, host, { mono: true, align: 'start' }), fieldW = probe.width() + 0.5;
   width = Math.max(width, 1.05 + fieldW + 0.3);
   const [x, y] = at, l = x - width / 2, t = y + height / 2, bar = 0.92;
@@ -690,7 +690,7 @@ export function browserWindow(s: Stage, { at = [0, 0], width = 4.4, height = 2.8
  * A cookie, a browser's stored state: a round biscuit of radius `r` (default 0.42) in PAPER with
  * a bite taken from its upper right and four GROUND chips. One unkeyed Group.
  */
-export function cookie(_s: Stage, { at = [0, 0], r = 0.42 }: { at?: Vec; r?: number } = {}): Group {
+export function cookie(_s: DrawContext, { at = [0, 0], r = 0.42 }: { at?: Vec; r?: number } = {}): Group {
   const theta = Math.PI / 4, rb = 0.36 * r, bc = polar(at, r, theta);
   const d = 2 * Math.asin(rb / (2 * r));
   const rim = arc(at, r, theta + d, theta + 2 * Math.PI - d, 60).map((p, i) => polar(at, r * (1 + 0.025 * Math.sin(i * 1.7)), Math.atan2(p[1] - at[1], p[0] - at[0])));
@@ -715,7 +715,7 @@ export function cookie(_s: Stage, { at = [0, 0], r = 0.42 }: { at?: Vec; r?: num
  * A person, the User: a head and shoulders silhouette in INK, `size` 1 being 0.9 wide and 1.0
  * high. A plain figure, no face, the same figure everywhere a person is meant. One unkeyed Group.
  */
-export function person(_s: Stage, { at = [0, 0], size = 1, color = TONE.ink }: { at?: Vec; size?: number; color?: string } = {}): Group {
+export function person(_s: DrawContext, { at = [0, 0], size = 1, color = TONE.ink }: { at?: Vec; size?: number; color?: string } = {}): Group {
   const u = size, [x, y] = at;
   const shoulders: P[] = [[x - 0.45 * u, y - 0.5 * u], ...arc([x, y - 0.5 * u], 0.45 * u, Math.PI, 0, 20).map(([px, py]): P => [px, y - 0.5 * u + (py - (y - 0.5 * u)) * 1.15]), [x + 0.45 * u, y - 0.5 * u]];
   return new Group(fill(ring([x, y + 0.24 * u], 0.24 * u, 32), color), fill(shoulders, color));
@@ -725,7 +725,7 @@ export function person(_s: Stage, { at = [0, 0], size = 1, color = TONE.ink }: {
  * The AI mark: a four-pointed spark in INK, the series' sign that words or actions came from an AI.
  * `size` 1 is 0.7 across. One unkeyed Group.
  */
-export function aiMark(_s: Stage, { at = [0, 0], size = 1, color = TONE.ink }: { at?: Vec; size?: number; color?: string } = {}): Group {
+export function aiMark(_s: DrawContext, { at = [0, 0], size = 1, color = TONE.ink }: { at?: Vec; size?: number; color?: string } = {}): Group {
   const u = 0.35 * size, pts: P[] = [];
   for (let k = 0; k < 4; k++) {
     const a = (k * Math.PI) / 2;
@@ -758,7 +758,7 @@ export type SpeechOptions = {
  * little low, by the tail's tip. Height 0.9 (1.2 with the tail); width the words + 0.56.
  * One unkeyed Group.
  */
-export function speech(s: Stage, text: string, { at = [0, 0], who, side = 'left', width }: SpeechOptions): Group {
+export function speech(s: DrawContext, text: string, { at = [0, 0], who, side = 'left', width }: SpeechOptions): Group {
   const isPerson = who === 'person';
   const t = label(s, text, { at, color: isPerson ? TONE.print : TONE.ink });
   const w = width ?? t.width() + 0.56, h = 0.9, [x, y] = at, f = side === 'left' ? -1 : 1, k = RADIUS.panel;
@@ -787,7 +787,7 @@ export type PhoneOptions = {
  * (1.06 × 1.7) × size at its centre, raised 0.02 × size: a code slip of four digits needs size 1.8.
  * One unkeyed Group.
  */
-export function phone(_s: Stage, { at = [0, 0], size = 1, screen }: PhoneOptions = {}): Group {
+export function phone(_s: DrawContext, { at = [0, 0], size = 1, screen }: PhoneOptions = {}): Group {
   const u = size, [x, y] = at;
   return new Group(
     new Rectangle({ width: 1.3 * u, height: 2.3 * u, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.device * u }).moveTo(at),
@@ -803,7 +803,7 @@ export function phone(_s: Stage, { at = [0, 0], size = 1, screen }: PhoneOptions
  * by default; with `open`, the shackle is lifted and its right leg free. `size` 1 is 0.8 wide and
  * about 1.1 high. One unkeyed Group.
  */
-export function padlock(_s: Stage, { at = [0, 0], size = 1, open = false, color = TONE.ink }: { at?: Vec; size?: number; open?: boolean; color?: string } = {}): Group {
+export function padlock(_s: DrawContext, { at = [0, 0], size = 1, open = false, color = TONE.ink }: { at?: Vec; size?: number; open?: boolean; color?: string } = {}): Group {
   const u = size, [x, y] = at, lift = open ? 0.2 * u : 0;
   const body = roundRect([x, y - 0.18 * u], 0.8 * u, 0.62 * u, 0.1 * u);
   const hole = [...ring([x, y - 0.1 * u], 0.085 * u, 20)];
@@ -821,7 +821,7 @@ export function padlock(_s: Stage, { at = [0, 0], size = 1, open = false, color 
  * with `remaining` (0 to 1), a SOFT wedge sweeping clockwise from twelve for the time left.
  * `remaining: 0` draws an empty face: expired. Radius `r`, default 0.45. One unkeyed Group.
  */
-export function clock(_s: Stage, { at = [0, 0], r = 0.45, remaining }: { at?: Vec; r?: number; remaining?: number } = {}): Group {
+export function clock(_s: DrawContext, { at = [0, 0], r = 0.45, remaining }: { at?: Vec; r?: number; remaining?: number } = {}): Group {
   const parts: Mobject[] = [new Circle({ radius: r, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.line }).moveTo(at)];
   if (remaining !== undefined && remaining > 0) {
     const a0 = Math.PI / 2, a1 = Math.PI / 2 - 2 * Math.PI * Math.min(1, remaining);
@@ -845,7 +845,7 @@ export function clock(_s: Stage, { at = [0, 0], r = 0.45, remaining }: { at?: Ve
  * with an exclamation mark cut out of it, `size` 1 being 0.9 wide. Shape carries the warning; no
  * colour is spent on it. One unkeyed Group.
  */
-export function warning(_s: Stage, { at = [0, 0], size = 1 }: { at?: Vec; size?: number } = {}): Group {
+export function warning(_s: DrawContext, { at = [0, 0], size = 1 }: { at?: Vec; size?: number } = {}): Group {
   const u = size * 0.9, [x, y] = at, h = u * 0.87, k = 0.08 * u;
   const corners: P[] = [[x, y + h * 0.62], [x + u / 2, y - h * 0.38], [x - u / 2, y - h * 0.38]];
   const tri: P[] = corners.flatMap((c, i) => {

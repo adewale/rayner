@@ -4,7 +4,7 @@
 // Labeled), keyed by the code point's place in the word, so the cells that regroup are the same cells.
 import { Group, Labeled, Rectangle, Text, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { TYPE, tile } from '../../../explain/drawing.ts';
 import { byteHex } from './model.ts';
 import type { Apart } from './model.ts';
@@ -19,13 +19,13 @@ const DOTTED = String.fromCodePoint(0x25cc);
 const ringed = (cp: number) => cp >= 0x0900 && cp <= 0x097f;
 
 /** Words centred at `at`. */
-export const words = (s: Stage, value: string, at: Vec, { size = SIZE, soft = false, mono = false, bold = false } = {}): Text =>
-  new Text(value, { fontSize: size, color: soft ? s.look.soft : s.look.ink, ...(mono ? { font: 'mono' as const } : {}), ...(bold ? { weight: 'bold' as const } : {}), shaping: s.scene.textShaping }).moveTo(at);
+export const words = (s: DrawContext, value: string, at: Vec, { size = SIZE, soft = false, mono = false, bold = false } = {}): Text =>
+  new Text(value, { fontSize: size, color: soft ? s.look.soft : s.look.ink, ...(mono ? { font: 'mono' as const } : {}), ...(bold ? { weight: 'bold' as const } : {}), shaping: s.shaping }).moveTo(at);
 
 /** One cell: a rounded square with `shown` centred on it. */
-export function cell(s: Stage, shown: string, at: Vec, key: string, width = CELL): Labeled<Rectangle, Text> {
+export function cell(s: DrawContext, shown: string, at: Vec, key: string, width = CELL): Labeled<Rectangle, Text> {
   const shape = new Rectangle({ width, height: CELL, cornerRadius: 0.14, fill: s.look.raised, fillOpacity: 1, stroke: s.look.rule, strokeWidth: 0.04 });
-  const glyph = new Text(shown, { fontSize: GLYPH, color: s.look.ink, shaping: s.scene.textShaping });
+  const glyph = new Text(shown, { fontSize: GLYPH, color: s.look.ink, shaping: s.shaping });
   return keyed(new Labeled(shape, glyph).moveTo(at), key);
 }
 
@@ -53,12 +53,12 @@ export function grouped(word: Apart, gap: number): number[] {
 }
 
 /** The cells of a word's code points at the given x places, on the line y. Keyed `<key>:<index>`. */
-export function cells(s: Stage, word: Apart, xs: readonly number[], y: number, key: string): Group {
+export function cells(s: DrawContext, word: Apart, xs: readonly number[], y: number, key: string): Group {
   return new Group(...word.parts.map((part, i) => cell(s, alone(part), [xs[i]!, y], `${key}:${i}`)));
 }
 
 /** Under each cell: the code point's number, and what it is. Keyed `<key>:hex:<index>` and `<key>:kind:<index>`. */
-export function names(s: Stage, word: Apart, xs: readonly number[], y: number, key: string): Group {
+export function names(s: DrawContext, word: Apart, xs: readonly number[], y: number, key: string): Group {
   return new Group(...word.parts.flatMap((part, i) => [
     keyed(words(s, part.hex, [xs[i]!, y], { mono: true }), `${key}:hex:${i}`),
     keyed(words(s, part.kind, [xs[i]!, y - 0.66], { soft: true }), `${key}:kind:${i}`),
@@ -71,7 +71,7 @@ export const BYTE_PITCH = 0.9;
  * Under each cell: its UTF-8 bytes, first byte on top, one box each; the bytes of the code point at
  * `lit` are in use. Keyed `<key>:byte:<index>:<k>`.
  */
-export function byteBoxes(s: Stage, word: Apart, xs: readonly number[], y: number, key: string, lit: number): Group {
+export function byteBoxes(s: DrawContext, word: Apart, xs: readonly number[], y: number, key: string, lit: number): Group {
   const g = new Group();
   word.parts.forEach((part, i) => part.bytes.forEach((b, k) => {
     g.add(...tile(s, byteHex(b), { at: [xs[i]!, y - k * BYTE_PITCH], key: `${key}:byte:${i}:${k}`, width: 1.2, raised: true, size: TYPE.small, mono: true, active: i === lit }).children);

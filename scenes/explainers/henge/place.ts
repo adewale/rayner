@@ -17,7 +17,7 @@ import type { Vec } from '../../../src/index.ts';
 import type { Part, Vec3, Viewpoint, SeenOptions } from '../../../explain/geo.ts';
 import { seenFrom, project, circleOn, greatArc, latLon, toLatLon } from '../../../explain/geo.ts';
 import { TYPE, label } from '../../../explain/drawing.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { LAND } from './land.ts';
 import { REFRACTION, TILT, along } from './model.ts';
 import { INK, SUN, SUMMER, MUTED, ROAD, WALL, azAlt, facing, pinhole, flat, canyon, shape } from './sky.ts';
@@ -48,7 +48,7 @@ export function lensOf(frame: Frame, bearing: number): { vp: Viewpoint; o: { at:
  * One street view, unmasked: the sky (the horizon and each Sun's disc), the ground, the road, the walls,
  * each disc's outline where the walls hide it, the date under each disc and the far Sun at the edge.
  */
-function streetParts(st: StreetState, frame: Frame, paper: string, s: Stage, key: string, names = true) {
+function streetParts(st: StreetState, frame: Frame, paper: string, s: DrawContext, key: string, names = true) {
   const { vp, o } = lensOf(frame, st.bearing);
   const left = frame.at[0] - frame.width / 2, right = frame.at[0] + frame.width / 2;
   const bottom = frame.at[1] - frame.height / 2, horizonY = o.at[1];
@@ -119,7 +119,7 @@ function windows(boxes: (readonly [number, number, number, number])[], paper: st
 /** The street-view step's window: five degrees either side of the street. */
 export const WIDE: Frame = { at: [0, 0.15], width: 11.8, height: 5.2, field: 5, horizon: 0.35 };
 /** The street-view step: one view down the street, every Sun the state names at true size. */
-export function streetView(st: StreetState & { legend?: string }, s: Stage, key = 'henge-view'): Group {
+export function streetView(st: StreetState & { legend?: string }, s: DrawContext, key = 'henge-view'): Group {
   const frame = WIDE;
   const { g, box } = streetParts(st, frame, s.look.paper, s, key);
   const parts = [g, ...windows([box], s.look.paper, key)];
@@ -127,7 +127,7 @@ export function streetView(st: StreetState & { legend?: string }, s: Stage, key 
   return keyed(new Group(...parts), key);
 }
 /** Two close views side by side, a degree either side of the street: each with its Sun and its words above. */
-export function closeViews(views: { st: StreetState; title: string; words: string }[], s: Stage, key = 'henge-close'): Group {
+export function closeViews(views: { st: StreetState; title: string; words: string }[], s: DrawContext, key = 'henge-close'): Group {
   const drawn = views.map(({ st }, i) => {
     const frame: Frame = { at: [i === 0 ? -3.05 : 3.05, -0.2], width: 5.6, height: 3.9, field: 1.1, horizon: -0.9 };
     return streetParts(st, frame, s.look.paper, s, `${key}:${i}`, false);
@@ -144,7 +144,7 @@ export function closeViews(views: { st: StreetState; title: string; words: strin
 /** The disc step's state: the first half-Sun and full-Sun moments, with their dates and clock times. */
 export interface HalfFullState { bearing: number; metres: number; zone: string; half: Disc & { date: string; clock: string }; full: Disc & { date: string; clock: string } }
 /** Half Sun and full Sun, each in its own close view down the street. */
-export function halfAndFull(st: HalfFullState, s: Stage): Group {
+export function halfAndFull(st: HalfFullState, s: DrawContext): Group {
   const one = (d: HalfFullState['half'], name: string) =>
     ({ st: { bearing: st.bearing, metres: st.metres, suns: [d] }, title: `${name}, ${d.date}`, words: `${d.clock} ${st.zone}` });
   return closeViews([one(st.half, 'Half Sun'), one(st.full, 'Full Sun')], s);
@@ -171,7 +171,7 @@ export function yearArc(st: Pick<GlobeState, 'latitude' | 'longitude' | 'bearing
   }
   return points;
 }
-export function globe(st: GlobeState, s: Stage): Group {
+export function globe(st: GlobeState, s: DrawContext): Group {
   const vp = globeView(st), here = latLon(st.latitude, st.longitude), meets = latLon(st.meets.lat, st.meets.lon);
   const parallel = (lat: number) => circleOn([0, 0, 1], 90 - lat);
   const parts: Part[] = [

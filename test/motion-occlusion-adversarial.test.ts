@@ -342,3 +342,150 @@ test('nested owners report each independently hidden word, including repeated te
     assert.deepEqual(paths(sought), wanted);
   }
 });
+
+test('consecutive masks retain a continuous victim interval and their own measured attribution', async () => {
+  for (const control of ['covered', 'clear gaps', 'clipped second'] as const) for (const fps of [15, 30, 60]) {
+    class AlternatingMasks extends Scene {
+      override async construct() {
+        await this.step('alternating covers');
+        const first = keyed(plate(), 'first cover').setOpacity(0);
+        const second = keyed(plate(), 'second cover').setOpacity(0);
+        if (control === 'clipped second') second.clipBox = [3, -1, 4, 1];
+        this.add(label(), first, second);
+        await this.wait(0.2);
+        for (let turn = 0; turn < 6; turn++) {
+          first.setOpacity(turn % 2 === 0 ? 1 : 0);
+          second.setOpacity(turn % 2 === 0 ? 0 : 1);
+          await this.wait(1 / 15);
+          if (control === 'clear gaps') {
+            first.setOpacity(0); second.setOpacity(0);
+            await this.wait(0.1);
+          }
+        }
+        first.setOpacity(0); second.setOpacity(0);
+        await this.wait(0.2);
+      }
+    }
+    const replay = new KeyedMotionSink(() => 'alternating covers');
+    const pictures: string[] = [];
+    const witnesses = new Set<string>();
+    await new AlternatingMasks({ async frame(scene, dt) {
+      pictures.push(toSvgString(scene, { width: 480 }));
+      const first = scene.find('first cover'), second = scene.find('second cover');
+      if (!first || !second) { await replay.frame(scene, dt); return; }
+      const active = first.style.opacity === 1 ? 'first' : second.style.opacity === 1 ? 'second' : 'clear';
+      const visible = ink(scene);
+      if (active === 'clear' || (active === 'second' && control === 'clipped second'))
+        assert.ok(visible > 100, 'each clear sample independently paints the word');
+      else assert.equal(visible, 0, 'each attributed foreground actually erases the word');
+      witnesses.add(active);
+      await replay.frame(scene, dt);
+    } }, { fps }).run();
+    assert.deepEqual([...witnesses].sort(), ['clear', 'first', 'second']);
+    const findings = replay.finish().filter(f => f.kind === 'occluded words');
+    if (control !== 'covered') assert.deepEqual(findings, [], `${control}, ${fps} fps`);
+    else {
+      assert.equal(findings.length, 1, JSON.stringify(findings));
+      assert.ok(findings[0]!.value >= 0.3, 'short mask intervals still form one continuous loss');
+      const spans = [...findings[0]!.detail.matchAll(/“(first cover|second cover)” \(([\d.]+)–([\d.]+) s\)/g)];
+      assert.equal(spans.length, 6, findings[0]!.detail);
+      spans.forEach((span, index) => {
+        assert.equal(span[1], index % 2 ? 'second cover' : 'first cover');
+        assert.ok(+span[3]! - +span[2]! < 0.1, 'a mask is not blamed for the full victim interval');
+        if (index) assert.equal(span[2], spans[index - 1]![3], 'consecutive attributions meet');
+      });
+      if (fps === 30) {
+        const sought = new KeyedMotionSink(() => 'alternating covers');
+        for (let frame = 0; frame < pictures.length; frame++) {
+          await renderFrame(AlternatingMasks, frame, { async frame(scene, dt) {
+            assert.equal(toSvgString(scene, { width: 480 }), pictures[frame]);
+            await sought.frame(scene, dt);
+          } }, { fps });
+        }
+        assert.deepEqual(sought.finish().filter(f => f.kind === 'occluded words'), findings);
+      }
+    }
+  }
+});
+
+test('travelling coverage measures the visible fill inside its own and ancestor clips', async () => {
+  for (const control of ['opaque', 'own clip', 'parent clip', 'transparent fill', 'transparent hex'] as const) {
+    const motion = new KeyedMotionSink(() => 'crossing');
+    let clear = 0, hidden = 0;
+    class Crossing extends Scene {
+      override async construct() {
+        await this.step('crossing');
+        const word = label(), paper = plate();
+        const traveller = keyed(new Group(paper), 'traveller').moveTo([-5, 0]);
+        if (control === 'own clip') paper.clipBox = [30, 30, 31, 31];
+        if (control === 'parent clip') traveller.clipBox = [30, 30, 31, 31];
+        if (control === 'transparent fill') paper.setStyle({ fillOpacity: 0, stroke: '#224466', strokeOpacity: 1, strokeWidth: 0.01 });
+        if (control === 'transparent hex') paper.setStyle({ fill: '#22446600', stroke: '#224466', strokeOpacity: 1, strokeWidth: 0.01 });
+        this.add(word);
+        await this.wait(0.2);
+        assert.ok(ink(this) > 100);
+        this.add(traveller);
+        await this.play(traveller.animate.shift([10, 0]), { runTime: 2 });
+        this.remove(traveller);
+        await this.wait(0.2);
+        assert.ok(ink(this) > 100);
+      }
+    }
+    await new Crossing({ async frame(scene, dt) {
+      const carrier = scene.find('traveller');
+      if (carrier && Math.abs(carrier.center()[0]!) < 0.5) {
+        if (control === 'opaque') { assert.equal(ink(scene), 0); hidden++; }
+        else { assert.ok(ink(scene) > 100, 'the labelled word retains actual red ink'); clear++; }
+      }
+      await motion.frame(scene, dt);
+    } }).run();
+    assert.ok(control === 'opaque' ? hidden > 1 : clear > 1, `the ${control} control exercises the crossing`);
+    const findings = motion.finish().filter(f => f.kind === 'covers' || f.kind === 'occluded words');
+    if (control === 'opaque') {
+      assert.equal(findings.length, 1, JSON.stringify(findings));
+      assert.equal(findings[0]!.kind, 'covers');
+    } else assert.deepEqual(findings, [], control);
+  }
+});
+
+test('clipped-away or transparent paper cannot suppress a visible travelling duplicate', async () => {
+  for (const control of ['opaque', 'clip', 'transparent', 'hole'] as const) {
+    const motion = new KeyedMotionSink(() => 'duplicate crossing');
+    let observed = 0;
+    class DuplicateCrossing extends Scene {
+      override async construct() {
+        await this.step('duplicate crossing');
+        const word = keyed(new Text('TOKEN', { fontSize: 0.7, color: '#00ff00' }).moveTo([-2, 0]), 'traveller');
+        const resting = keyed(new Text('TOKEN', { fontSize: 0.7, color: '#ff0000' }), 'rest');
+        const paper = new VMobject({ fill: '#224466', stroke: 'none', fillRule: control === 'hole' ? 'evenodd' : 'nonzero' });
+        paper.setPolygon([[-3, -1], [3, -1], [3, 1], [-3, 1]]);
+        if (control === 'hole') paper.startNewPath([-2.9, -0.9]).addLineTo([2.9, -0.9]).addLineTo([2.9, 0.9]).addLineTo([-2.9, 0.9]).closePath();
+        if (control === 'clip') paper.clipBox = [4, -1, 5, 1];
+        if (control === 'transparent') paper.setStyle({ fillOpacity: 0, stroke: '#224466', strokeOpacity: 1, strokeWidth: 0.01 });
+        word.setOpacity(0);
+        this.add(word, paper, resting);
+        await this.wait(0.2);
+        word.setOpacity(1);
+        await this.play(word.animate.shift([4, 0]), { runTime: 1.5 });
+        word.setOpacity(0);
+        await this.wait(0.2);
+      }
+    }
+    await new DuplicateCrossing({ async frame(scene, dt) {
+      const word = scene.find('traveller');
+      if (word?.style.opacity === 1 && word.center()[0]! > -1 && word.center()[0]! < -0.4) {
+        const { pixels } = new Resvg(toSvgString(scene, { width: 480 }), { font: { loadSystemFonts: false } }).render();
+        let green = 0;
+        for (let p = 0; p < pixels.length; p += 4) if (pixels[p]! < 90 && pixels[p + 1]! > 160 && pixels[p + 2]! < 90) green++;
+        if (control === 'opaque') assert.equal(green, 0);
+        else assert.ok(green > 10, 'the travelling copy contributes distinct native glyph ink');
+        assert.ok(ink(scene) > 100, 'the fixed copy also remains readable');
+        observed++;
+      }
+      await motion.frame(scene, dt);
+    } }).run();
+    assert.ok(observed > 2);
+    const findings = motion.finish().filter(f => f.kind === 'duplicate words');
+    assert.equal(findings.length, control === 'opaque' ? 0 : 1, `${control}: ${JSON.stringify(findings)}`);
+  }
+});

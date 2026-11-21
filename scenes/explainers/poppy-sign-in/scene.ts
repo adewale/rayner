@@ -1,10 +1,10 @@
 import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { beats, flight, pass, route } from '../lib/poppy-kit.ts';
+import { MARGIN, beats, flight, pass, route } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { CARDS, SIGN_IN_EVENTS, STORY, next, start } from './model.ts';
-import type { Flow, SignInEvent, World } from './model.ts';
+import type { SignInEvent, World } from './model.ts';
 import {
   ADDRESS_AT, DESK, PALETTE, THIEF_AT,
   codeToken, drawWorld, requestToken, sayWorld, tag as keyTag,
@@ -28,7 +28,7 @@ const PAGE = ['window:frame', 'window:host', 'window:page', 'page:title', 'page:
 // signature to the counter's desk, and the key and the tag come back from there; a poll runs to the
 // desk and back; a swapped code and a thief's copy come from outside, not from the page or the agent,
 // and stop before a barrier or apart; at sign-out the tag goes back to the desk.
-export default class SignIn extends Scene<World, Shown> {
+export default class SignIn extends Scene {
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -56,12 +56,12 @@ export default class SignIn extends Scene<World, Shown> {
         { value: 'device', label: 'Device Sign-In' },
       ],
     },
-  ] satisfies readonly Setting[];
-  override state = start('direct');
+  ] as const satisfies readonly Setting[];
+  override state: World = start(settingsOf(this, SignIn).flow);
   override shown: Shown = { password: true };
 
   override async construct() {
-    const flow = settingsOf(this).flow as Flow, device = flow === 'device', story = STORY[flow];
+    const flow = settingsOf(this, SignIn).flow, device = flow === 'device', story = STORY[flow];
     // The world after each event of the story, from the model, so the words say what it computed.
     const after = story.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);
@@ -74,10 +74,8 @@ export default class SignIn extends Scene<World, Shown> {
     const firstKey = at(story.indexOf('collect', story.indexOf('approve-read')));
     if (firstKey.kind !== 'tokens') throw new Error('the story expected tokens');
 
-    this.state = start(flow);
-    this.shown = { password: true };
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w, shown) => drawWorld(w, shown, s), { place: false });
+    const world = view(this, (w, shown, drawing) => drawWorld(w, shown, drawing), { drawing: s.drawing, place: false });
 
     type Pt = [number, number];
     type C = Choreography;
@@ -92,8 +90,8 @@ export default class SignIn extends Scene<World, Shown> {
     const LANE = -1.62, FACE_LEFT = DESK[0] - 2.2;
     const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
     const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];
-    const request = () => requestToken(s).scale(0.55);
-    const code = () => codeToken(s);
+    const request = () => requestToken(s.drawing).scale(0.55);
+    const code = () => codeToken(s.drawing);
     /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
     const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 }): Beat[] => {
       const part = c.to(k), walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
@@ -123,9 +121,11 @@ export default class SignIn extends Scene<World, Shown> {
         const swap = (): Beat[] => [new AnimationGroup([...fadeOut(c, moved), ...fadeOut(c, stale)]), ...(moved.length ? [new AnimationGroup(fadeIn(c, moved))] : [])];
         const opens = pageIn(c), frame = (): Beat[] => (reopen.length ? [new AnimationGroup(fadeIn(c, reopen))] : []);
         if (device) {
-          // A full-width code card is presented above the agent's held key.
-          const present: Pt = c.has('tag', 'to')
-            ? [seal[0], c.to('agent:key').box()![3] + c.to('card').height() / 2 + 0.06] : seal;
+          // The agent presents the complete printed card above its ring, including
+          // when it has no key yet. Reserve the paper's full width inside the stage.
+          const card = c.to('card');
+          const present: Pt = [Math.max(MARGIN.left + card.width() / 2 + 0.06, seal[0]),
+            c.to('agent:key:slot').box()![3] + card.height() / 2 + 0.06];
           return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...fly(c, 'card', [present]), ...frame()], { fresh: FRESH, then: opens });
         }
         return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 }), ...frame()], { fresh: FRESH, then: opens });
@@ -189,7 +189,7 @@ export default class SignIn extends Scene<World, Shown> {
           ? c.to('page:orders:read:box').box()![0] - halfCard
           : Math.max(c.from('page:orders:read:line').box()![2], c.from('page:orders:write:line').box()![2]) + halfCard;
         const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];
-        const card = pass(c, 'password:travel', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
+        const card = pass(c, 'page:password:flight', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
         return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];
       }, { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });
     };
@@ -199,7 +199,7 @@ export default class SignIn extends Scene<World, Shown> {
       const heldDevice = device && !!t.before.sign;
       // In the open device layout the station is between the held tag and the desk.
       // Release the printed original into the same punched tag, seen in transit.
-      const token = heldDevice ? keyTag(s, { at: from, value: null }) : c.from('tag').copy();
+      const token = heldDevice ? keyTag(s.drawing, { at: from, value: null }) : c.from('tag').copy();
       const halfHeight = token.height() / 2 + 0.06;
       const acrossY = heldDevice ? Math.max(from[1], c.from('agent:name').box()![3] + halfHeight) : from[1];
       const dockX = heldDevice ? DESK[0] - token.width() / 2 : FACE_LEFT;
@@ -227,10 +227,26 @@ export default class SignIn extends Scene<World, Shown> {
       },
       next,
       views: [world],
+      motion: ({event, before}) => {
+        // The password is one physical card until it reaches the Company's field.
+        if (event === 'approve-read' || event === 'approve-all') return [{
+          view: world, during: 'page:password:flight', absent: ['you:password', 'page:password'],
+          present: ['page:field', 'page:orders:read:line', 'page:orders:write:line'],
+        }];
+        // The earlier website must be gone before presenting the device composition.
+        if (event === 'ask' && device) return [{
+          view: world, during: 'request', absent: ['window:frame', 'window:page', 'page:field'],
+        }];
+        // Revocation retires the access, rather than leaving a second held key/tag.
+        if ((event === 'sign-out' || event === 'disconnect') && before.holds) return [{
+          view: world, during: 'tag:return', absent: ['tag', 'agent:key', 'tag:cord'],
+        }];
+        return [];
+      },
       runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 4.45 : 2.8) : event === 'ask' ? 4.1 : 2.35),
       transition,
     });
-    const replay = (from: number, to: number) => machine.replay(story.slice(from, to));
+    const replay = (from: number, to: number) => machine.sendSequence(story.slice(from, to));
     const idx = (event: SignInEvent, from = 0) => story.indexOf(event, from);
 
     await this.step('password', {

@@ -8,22 +8,26 @@ import { Scene } from '../src/index.ts';
 import { loadProject, traceScene, withSettings } from '../explain/testing.ts';
 import { bindSnapshots } from '../explain/internal.ts';
 import type { Jsonified, StepRecord, Trace, TraceOf } from '../explain/testing.ts';
-import type { EndedStep, SceneState, Step } from '../src/index.ts';
+import type { EndedStep, SceneClass, SceneState, Step } from '../src/index.ts';
 import LatestSearch from '../scenes/explainers/latest-search/scene.ts';
 
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 const same = <A, B>(proof: Same<A, B>) => proof;
 
 interface Model { count: number; label?: string; items: string[]; nested: { on: boolean | null }; maybe: number | undefined }
-class Typed extends Scene<Model, { lit?: string }> {
+class Typed extends Scene {
+  override state: Model = { count: 1, items: ['a'], nested: { on: null }, maybe: undefined };
+  override shown: { lit?: string } = {};
+
   override async construct() {
-    this.state = { count: 1, items: ['a'], nested: { on: null }, maybe: undefined };
     this.shown.lit = 'a';
     await this.step('one');
     this.state.count = 2;
   }
 }
-class Untyped extends Scene {
+class DynamicState extends Scene {
+  override state: SceneState = {};
+  override shown: SceneState = {};
   override async construct() {
     this.state.anything = 1;
     await this.step('one');
@@ -43,30 +47,55 @@ test('Jsonified maps a JSON-safe type to itself, and what the JSON copy refuses 
   same<Jsonified<{ f: () => void }>, { f: () => void }>(true);
 });
 
-test('traceScene types every state from the scene class, and an untyped scene gives a plain Trace', async () => {
-  same<TraceOf<typeof Typed>, Trace<Jsonified<Model> & { walks?: unknown }, Jsonified<{ lit?: string }> & Record<string, unknown>>>(true);
-  same<TraceOf<typeof Untyped>, Trace>(true);
+test('traceScene preserves initialized fields and explicit dynamic dictionaries', async () => {
+  same<TraceOf<typeof Typed>, Trace<Jsonified<Model>, Jsonified<{ lit?: string }>>>(true);
+  same<TraceOf<typeof DynamicState>, Trace>(true);
   same<TraceOf<any>, Trace>(true);
+  same<TraceOf<SceneClass>, Trace>(true);
+  class Empty extends Scene {}
+  same<keyof TraceOf<typeof Empty>['steps'][number]['after'], never>(true);
   const trace = await traceScene(Typed);
   const after = trace.steps[0]!.after;
   const count: number = after.count;
-  // recordWalk writes `walks` into the state: a test reads it without a cast, as unknown.
+  // Framework evidence is not a model field.
+  // @ts-expect-error the model declares no walks field
   const walks: unknown = after.walks;
   void walks;
   assert.equal(count, 2);
   assert.equal(trace.steps[0]!.before.count, 1);
   // @ts-expect-error a key the model does not name
   void after.cuont;
-  // What is shown is typed, and what helpers add to it (the stage's picture) reads as unknown.
+  // Authored presentation is exact; derived observations have a separate channel.
   const lit: string | undefined = trace.steps[0]!.shown?.lit;
   assert.equal(lit, 'a');
-  const extra: unknown = trace.steps[0]!.shown?.picture;
+  // @ts-expect-error derived fields never appear in authored presentation
+  void trace.steps[0]!.shown?.picture;
+  const extra: unknown = trace.steps[0]!.derived?.picture;
   void extra;
   // A typed trace goes wherever a plain one does.
   const plain: Trace = trace;
   void plain;
-  const loose = await traceScene(Untyped);
+  const loose = await traceScene(DynamicState);
   assert.equal(loose.steps[0]!.after.anything, 1);
+});
+
+test('an interface-initialized state is a valid scene constructor and its trace keeps concrete field types', async () => {
+  interface Counter { count: number; label: string }
+  const initial = (): Counter => ({ count: 7, label: 'seven' });
+  class InterfaceState extends Scene {
+    override state: Counter = initial();
+    override async construct() { await this.step('one'); this.state.count++; }
+  }
+  const constructor: SceneClass = InterfaceState;
+  const trace = await traceScene(InterfaceState);
+  const count: number = trace.steps[0]!.after.count;
+  const label: string = trace.steps[0]!.after.label;
+  assert.deepEqual({ count, label }, { count: 8, label: 'seven' });
+  const erased = await traceScene(constructor);
+  const unknown: unknown = erased.steps[0]!.after.count;
+  // @ts-expect-error an erased constructor's model remains unknown JSON, not any
+  const unsafe: number = erased.steps[0]!.after.count;
+  void [unknown, unsafe];
 });
 
 test('the classes withSettings and bindSnapshots bind, and loadProject, keep the scene type', async () => {
@@ -116,4 +145,57 @@ test('a trace holds ended steps only, so each one\'s end, last frame and state a
   const sink = new TraceSink();
   await new Stopped(sink).run();
   assert.deepEqual(sink.steps().map((s) => [s.step, s.frame0, s.frame1]), [['one', 0, 6]]);
+});
+
+test('frame zero receives the bound model and shown before construct runs', async () => {
+  const { settingsOf } = await import('../explain/index.ts');
+  const { StopScene } = await import('../src/scene.ts');
+  class Counter extends Scene {
+    static settings = [{ id: 'start', label: 'Start', default: 'one', options: [
+      { value: 'one', label: 'One' }, { value: 'two', label: 'Two' },
+    ] }] as const;
+    override state: { count: number } = { count: settingsOf(this, Counter).start === 'two' ? 2 : 1 };
+    override shown = { label: String(this.state.count) };
+    override async construct() { assert.fail('the sink stopped on the first frame'); }
+  }
+  for (const [value, count] of [['two', 2], ['one', 1]] as const) {
+    const Bound = withSettings(Counter, { start: value });
+    let frames = 0;
+    const scene = new Bound({ async frame(actual, dt) {
+      assert.equal(dt, 0);
+      assert.equal(actual.frameCount, 0);
+      assert.deepEqual(actual.stateJson(), { count });
+      assert.deepEqual(actual.shownJson(), { label: String(count) });
+      frames++;
+      throw new StopScene();
+    } });
+    assert.equal(scene.state.count, count);
+    assert.equal(scene.shown.label, String(count));
+    await scene.run();
+    assert.equal(frames, 1);
+  }
+});
+
+test('invalid initial JSON is refused before frame zero and construct, even without steps', async () => {
+  for (const channel of ['state', 'shown'] as const) {
+    let frames = 0, constructs = 0;
+    class Broken extends Scene {
+      override async construct() { constructs++; }
+    }
+    const broken = new Broken({ async frame() { frames++; } });
+    broken[channel] = { first: [{ amount: Infinity }] };
+    await assert.rejects(broken.run(), { name: 'TypeError', message: `this.${channel}: this.${channel}.first[0].amount must contain finite, acyclic JSON data` });
+    assert.deepEqual([frames, constructs], [0, 0]);
+  }
+});
+
+test('initial validation reads authored fields even if a subclass overrides its JSON convenience methods', async () => {
+  let frames = 0;
+  class Broken extends Scene {
+    override state = { amount: Infinity };
+    override stateJson() { return {}; }
+    override shownJson() { return {}; }
+  }
+  await assert.rejects(new Broken({ async frame() { frames++; } }).run(), /this\.state\.amount.*finite, acyclic JSON/);
+  assert.equal(frames, 0);
 });

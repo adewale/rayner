@@ -5,12 +5,12 @@ import { drawDoor } from './picture.ts';
 
 // A machine explainer: the model in model.ts drives the door, the picture is a view of the state,
 // and the step where the machine last plays is live, so the reader presses the events there.
-export default class DoorMachine extends Scene<DoorState, {}> {
-  override state = doorStart();
+export default class DoorMachine extends Scene {
+  override state: DoorState = doorStart();
 
   override async construct() {
     const s = stage(this);
-    const door = view(this, (st) => drawDoor(st, s.look));
+    const door = view(this, (st, _shown, drawing) => drawDoor(st, drawing.look), { drawing: s.drawing });
     // The model, its events and the picture of its state. `next` returns refuse(reason) where the
     // door refuses an event, and the player says that reason on the event's button.
     const machine = new Machine<DoorState, DoorEvent>(this, {
@@ -34,6 +34,6 @@ export default class DoorMachine extends Scene<DoorState, {}> {
       line: 'Press the events: a refused one says why.',
       caption: 'Close the door, then lock it. A locked door must unlock before it opens: open is refused now, and the model says why. Press the events to drive the door yourself.',
     });
-    await this.play(machine.replay(['close', 'lock']));
+    await this.play(machine.sendSequence(['close', 'lock']));
   }
 }

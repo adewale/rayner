@@ -11,25 +11,28 @@
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
 
-import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
+import { Mobject, Group, adoptState, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
 import { Animation as BaseAnimation, Enclosing, Transform, knownTransform } from '../src/animation.ts';
 import type { Animation } from '../src/animation.ts';
 import { linear } from '../src/rate.ts';
-import { Follow } from './state.ts';
+import { Follow, stateTarget } from './state.ts';
 import type { Match, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import { Text } from '../src/text.ts';
-import type { Scene, SceneState, Evidence } from '../src/scene.ts';
+import type { Scene, SceneInputs, SceneState, Evidence } from '../src/scene.ts';
 import type { Vec } from '../src/vec.ts';
 import { action } from './action.ts';
 import type { Action } from './action.ts';
+import { drawContext, type DrawContext } from './draw-context.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
 export type ViewPlace = 'left' | 'center' | 'right';
 
 export interface ViewOptions {
+  /** A detached drawing context, supplied to every draw and used for default paint. */
+  drawing?: DrawContext;
   /**
    * The point a rebuilt picture keeps (default 'center'): a left-placed
    * readout whose text grows stays put at its left edge, as a Text's `anchor`
@@ -64,8 +67,17 @@ export interface TweenOptions extends Pick<PlayOptions, 'runTime' | 'rateFunc'> 
   lagRatio?: never;
 }
 
-/** What fitting a freshly built picture gives (see View.measure): its unplaced size, and the scale it was given. */
-interface ViewFit { size: [number, number]; scale: number }
+/** One sampled scene model, redrawn by every listed view at the same eased time. */
+export interface TweenStateOptions<S extends object = any, Sh extends object = any> extends TweenOptions {
+  /** Views of this scene's model. Each is redrawn from the same sampled state; list each once. */
+  views: readonly View<Mobject, S, Sh>[];
+}
+
+/** The anchor and uniform scale at which a View takes a freshly drawn picture. */
+interface ViewPlacement { at: Vec | null; scale: number }
+
+/** @internal A view's input binding; a symbol keeps it out of animation-builder method inference. */
+export const viewInput = Symbol('viewInput');
 
 /**
  * A picture rebuilt from state. `current` is the picture on screen; the View
@@ -74,31 +86,40 @@ interface ViewFit { size: [number, number]; scale: number }
  * model and shown types, which its draw reads; a bare `View` is a view of any scene.
  */
 export class View<M extends Mobject = Mobject, S extends object = any, Sh extends object = any> extends Group {
-  /** @internal Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
+  /** @internal Draws the bound input: the scene's current model, or a staged step's local state. Called at construction and at each sync's begin(). */
   build: () => M;
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
   readonly draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
-  private readonly host: Scene<S, Sh>;
+  private readonly host: SceneInputs<any, Sh>;
+  /** A staged step's input, when this picture belongs to a local specimen instead of the model. */
+  private readonly localState: S | undefined;
   /** The point a rebuilt picture keeps (see ViewOptions.place). */
   private readonly place: ViewPlace | false;
-  /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
-  builtSize: [number, number];
-  /** @internal The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
-  scaleK: number;
+  /** The last adopted placement, including the anchor when a picture has temporarily lost all its points. */
+  private adopted: ViewPlacement = { at: null, scale: 1 };
+  /** Actual placed bounds when the picture was adopted, so only a later external change counts as scaling. */
+  private placedBox: Box | null;
 
   /**
    * @internal `view(scene, draw)` makes a View. Every View is a picture of a scene's state with a
    * draw that check can call again. A draw can still read variables outside the state; the checks
    * catch that when a redraw disagrees.
    */
-  constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOptions = {}) {
+  constructor(scene: SceneInputs<any, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center', drawing }: ViewOptions = {}, localState?: S) {
     super();
     this.host = scene;
+    this.localState = localState;
     // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
-    this.build = () => paintedFor(scene, draw(scene.state, scene.shown)); this.draw = draw; this.place = place; this.scaleK = 1;
+    this.draw = drawing ? (st, sh) => {
+      const picture = draw(st, sh);
+      if (picture instanceof Mobject) paintDefaults(picture, drawing.look);
+      return picture;
+    } : draw;
+    this.build = () => paintedFor(scene, this.draw(this[viewInput](scene.state), scene.shown));
+    this.place = place;
     const first = fresh(this.build(), null);
-    this.builtSize = layoutSize(first);
+    this.placedBox = place ? layoutBox(first) : null;
     this.add(first);
   }
 
@@ -107,6 +128,12 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 
   /** The strings the picture shows, in family order: what the fidelity check compares. */
   get texts(): string[] { return pictureText(this.current); }
+
+  /** @internal Whether this view reads this scene's model, rather than another host or a local specimen. */
+  belongsTo(scene: Scene): boolean { return this.host === scene && this.localState === undefined; }
+
+  /** @internal The input a fidelity check redraws: the local specimen, or the checked scene's model. */
+  [viewInput](state: S): S { return this.localState ?? state; }
 
   /**
    * An action (see Action) that rebuilds the picture when its turn comes (so after any state
@@ -119,18 +146,13 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   }
 
   /**
-   * The state moving through time, and the picture with it: at each frame the scene's state is
-   * `stateAt(t)`, t running from 0 to 1 at the eased alpha, and the view draws it. So the picture is
-   * the view's draw of the state at every frame, a seek renders what a full play renders, and the
-   * play ends with the state at `stateAt(1)`. `stateAt` must be a function of t alone, return JSON,
-   * and keep the family shape the view's draw gives (as a Follow's draw does). An action, as
-   * sync() is.
+   * An action that sets the scene's state to `stateAt(t)` at each frame and redraws the view.
+   * The eased progress t is clamped to [0, 1], and the play keeps its last sample
+   * (`stateAt(0)` with thereAndBack). For a seek to draw the same frame as a full play,
+   * `stateAt` must depend only on t, return JSON, and preserve the family shape the view draws.
    */
-  tween(stateAt: (t: number) => S, { runTime = 1, rateFunc }: TweenOptions = {}): Action {
-    return turnAction(this.host, 'view.tween()', runTime, () => new ViewTween<S, Sh>(this, (t) => {
-      this.host.state = cloneJson(stateAt(t), 'view.tween()', 'stateAt(t)') as Scene<S, Sh>['state'];
-      return this.placed(this.host.state);
-    }, rateFunc ? { runTime, rateFunc } : { runTime }));
+  tween(stateAt: (t: number) => S, opts: TweenOptions = {}): Action {
+    return sampledState<S, Sh>(this.host, stateAt, { ...opts, views: [this] }, 'view.tween()');
   }
 
   /**
@@ -145,8 +167,8 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /** Rebuild now, without animating: for a View not on screen yet (on screen it would jump). */
   rebuild(): this {
     const { picture, fit } = this.measure(fresh(this.build(), this.current));
-    this.commit(fit);
     this.swap(picture);
+    this.commit(fit);
     return this;
   }
 
@@ -156,29 +178,32 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * since the last build; uniform scale only, a rotation is not carried), and the fit the View
    * records once it takes the picture (see commit).
    */
-  measure(next: M): { picture: M; fit: ViewFit } {
-    const size = layoutSize(next);
-    let scale = this.scaleK;
-    if (this.place !== false) {
-      const old = this.current, cur = layoutSize(old), was = this.builtSize;
-      // Height decides (text keeps its height as it grows); width for a flat picture
-      const measured = was[1] > 1e-9 && cur[1] > 1e-9 ? cur[1] / was[1] : was[0] > 1e-9 && cur[0] > 1e-9 ? cur[0] / was[0] : scale;
-      // A shift moves Float32 points by an ulp: only a real change of scale counts
-      if (Math.abs(measured - scale) > 1e-6 * scale) scale = measured;
-      const at = anchorOf(old, this.place);
-      if (at) {
-        if (scale !== 1) next.scale(scale, { aboutPoint: anchorOf(next, this.place) ?? [0, 0] });
-        const now = anchorOf(next, this.place);
-        if (now) next.shift([at[0] - now[0], at[1] - now[1]]);
+  measure(next: M, fit = this.placement()): { picture: M; fit: ViewPlacement } {
+    if (this.place && fit.at) {
+      let now = anchorOf(layoutBox(next), this.place);
+      if (now && fit.scale !== 1) {
+        next.scale(fit.scale, { aboutPoint: now });
+        now = anchorOf(layoutBox(next), this.place);
       }
+      if (now) next.shift([fit.at[0] - now[0], fit.at[1] - now[1]]);
     }
-    return { picture: next, fit: { size, scale } };
+    return { picture: next, fit };
   }
 
-  /** @internal Record the fit of a measured picture the View takes: its built size, and the scale it was given. */
-  commit(fit: ViewFit): void {
-    this.builtSize = fit.size;
-    this.scaleK = fit.scale;
+  /** @internal Capture at a sync or tween's turn, before its first draw changes the picture. */
+  placement(): ViewPlacement {
+    if (!this.place) return this.adopted;
+    const box = layoutBox(this.current);
+    if (!box) return this.adopted;
+    const change = this.placedBox ? scaleBetween(this.placedBox, box) : 1;
+    const scale = this.adopted.scale;
+    return { at: anchorOf(box, this.place), scale: Math.abs(change - 1) > 1e-6 ? scale * change : scale };
+  }
+
+  /** @internal Record the placement and the actual dimensions of the picture just adopted. */
+  commit(fit: ViewPlacement): void {
+    this.adopted = fit;
+    if (this.place) this.placedBox = layoutBox(this.current);
   }
 
   /** @internal Make `next` the picture, in the old one's place among the children. */
@@ -192,10 +217,10 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 
 /**
  * An action of one beat, `runTime` long, whose animation `make` makes when the beat's turn comes:
- * what view.sync(), view.tween(), machine.send() and machine.replay() return.
+ * what view.sync(), view.tween(), tweenState(), machine.send() and machine.sendSequence() return.
  */
-export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation): Action {
-  return action(scene, name, () => ({ value: undefined, beats: [{ runTime, play: () => [make()] }] }));
+export function turnAction(scene: Scene, name: string, runTime: number, make: () => ScheduledAnimation, targets?: readonly Mobject[]): Action {
+  return action(scene, name, () => ({ value: undefined, beats: [{ runTime, targets, play: () => [make()] }] }));
 }
 
 /**
@@ -210,12 +235,15 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   match: Match;
   staged: boolean;
   how: 'morph' | 'fade';
-  /** @internal Set as it begins: the morph from the current picture to the built one, or null when nothing changed. */
+  /** @internal Set as it begins: the morph from the current picture to the built one, or null when points and paint agree. */
   inner!: Animation | null;
-  /** Set by begin(): the built, placed picture, swapped in at finish(). */
-  private next!: M | null;
+  /** The new picture, including data a morph cannot interpolate. */
+  private next!: M;
+  /** The unmoving picture's original data, retained if an easing curve leaves the endpoint again. */
+  private beforeStill: M | null = null;
+  private stillAtEnd = false;
   /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
-  private fit!: ViewFit;
+  private fit!: ViewPlacement;
 
   constructor(v: View<M, any, any>, { match = 'key', staged = true, how = 'morph', ...opts }: SyncOptions = {}) {
     super(v, opts);
@@ -227,12 +255,9 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     const v = this.view, old = v.current;
     const { picture: next, fit } = v.measure(fresh(v.build(), old));
     this.fit = fit;
-    this.inner = null; this.next = null;
-    if (samePicture(old, next)) { v.commit(fit); return null; }
-    if (this.how === 'fade') {
-      this.next = next;
-      return this.inner = new PictureFade(v, old, next);
-    }
+    this.inner = null; this.next = next; this.beforeStill = null; this.stillAtEnd = false;
+    if (samePicture(old, next)) return null;
+    if (this.how === 'fade') return this.inner = new PictureFade(v, old, next);
     const match = this.match;
     if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
@@ -242,20 +267,37 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     const inner = match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
       : new Transform(old, next, { match: transformMatch, replace: false, staged, rateFunc });
     inner.lagRatio = this.lagRatio;
-    this.inner = inner; this.next = next;
+    this.inner = inner;
     return inner;
+  }
+
+  // Equal points and paint need no morph. The new draw can still carry a different
+  // key, clip or meaning. Retain the child and adopt the whole picture at the endpoint.
+  private sampleStill(alpha: number): void {
+    const atEnd = alpha === 1;
+    if (this.inner || this.stillAtEnd === atEnd) return;
+    const current = this.view.current;
+    this.beforeStill ??= current.copy();
+    adoptState(current, atEnd ? this.next : this.beforeStill);
+    this.stillAtEnd = atEnd;
+  }
+
+  protected override doInterpolate(alpha: number): void {
+    super.doInterpolate(alpha);
+    this.sampleStill(alpha);
   }
 
   protected override doFinish(end: number = this.rateFunc(1)): void {
     // The morph ends where this sync's last frame drew it, and ends finished, as one the scene began would.
     super.doFinish(end);
-    if (!this.inner) return;
+    this.sampleStill(end);
+    this.beforeStill = null;
     // Finished on the new picture: hand over to it (a matching transform leaves faded
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
     if (end === 1) {
+      if (this.inner) this.view.swap(this.next);
       this.view.commit(this.fit);
-      this.view.swap(this.next!);
     }
   }
 
@@ -292,36 +334,75 @@ class PictureFade extends BaseAnimation {
 }
 
 /**
- * The animation a tween() action plays: a Follow of the view's draw over t from 0 to 1, writing into the
- * picture on screen when it begins, not when it was made. In `new Succession([view.sync(), view.tween(f)])`
- * the sync swaps in a new picture first, and the tween draws into that one.
+ * A sampled model and its dependent views: one Follow draws every view over t from 0 to 1,
+ * writing the pictures on screen when it begins. A preceding sync can swap in a new picture;
+ * the tween takes that one. The shared model target also reserves the nonvisual write.
  */
-class ViewTween<S extends object, Sh extends object> extends Enclosing {
-  private readonly view: View<Mobject, S, Sh>;
-  private readonly draw: (t: number) => Mobject;
+class StateTween<S extends object, Sh extends object> extends Enclosing {
+  private readonly views: readonly View<Mobject, S, Sh>[];
+  private readonly host: SceneInputs<S, Sh>;
+  private readonly draw: (t: number) => readonly Mobject[];
+  /** Fixed before the first sample, so a frame never derives its placement from a preceding frame. */
+  private placements!: ViewPlacement[];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
 
-  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: TweenOptions) {
-    super(view.current, opts);
-    this.view = view;
-    this.draw = draw;
+  constructor(host: SceneInputs<S, Sh>, views: readonly View<Mobject, S, Sh>[], stateAt: (t: number) => S, opts: TweenOptions, call: string) {
+    super(views[0]!.current, opts);
+    this.host = host;
+    this.views = views;
+    this.draw = (t) => {
+      host.state = cloneJson(stateAt(t), call, 'stateAt(t)') as SceneInputs<S, Sh>['state'];
+      return views.map((v, i) => v.measure(fresh(paintedFor(host, v.draw(host.state, host.shown)), v.current), this.placements[i]!).picture);
+    };
   }
 
+  // Record what Follow actually adopted so a later sync or tween can see an external change of scale.
+  private commitFits(): void { this.placements.forEach((fit, i) => this.views[i]!.commit(fit)); }
+  protected override doBegin(): void { super.doBegin(); this.commitFits(); }
+  protected override doInterpolate(alpha: number): void { super.doInterpolate(alpha); this.commitFits(); }
+  protected override doFinish(alpha: number = this.rateFunc(1)): void { super.doFinish(alpha); this.commitFits(); }
+
   /** The picture on screen now: what this writes once it begins. */
-  override targets(): Mobject[] { return [this.follow ? this.mobject : this.view.current]; }
+  override targets(): Mobject[] { return [stateTarget(this.host), ...(this.follow?.targets() ?? this.views.map((v) => v.current))]; }
 
   /** The Follow's own time is linear: this tween's rate function eases it. */
   protected override enclose(): Follow {
-    this.mobject = this.view.current;
-    return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject], rateFunc: linear }));
+    const targets = this.views.map((v) => v.current), members = targets.flatMap((m) => m.family());
+    if (new Set(members).size !== members.length) throw new Error('tweenState(): views overlap; list independent views, not a view and one inside it');
+    this.placements = this.views.map(v => v.placement());
+    this.mobject = targets[0]!;
+    return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets, rateFunc: linear }));
   }
 
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
 }
 
+/**
+ * Sample the scene's model once at each eased time, then redraw every listed view from that state.
+ * `stateAt(t)` must depend only on t, return JSON, and preserve each view's family shape. The
+ * action reserves the scene's state: a simultaneous model writer is refused before it begins.
+ * Like view.tween(), this is seekable and single-use; a preceding sync's new picture is used.
+ */
+export function tweenState<S extends object, Sh extends object>(
+  scene: SceneInputs<S, Sh>, stateAt: (t: number) => NoInfer<S>, options: TweenStateOptions<NoInfer<S>, NoInfer<Sh>>,
+): Action {
+  return sampledState(scene, stateAt, options, 'tweenState()');
+}
+
+function sampledState<S extends object, Sh extends object>(
+  scene: SceneInputs<S, Sh>, stateAt: (t: number) => S, { views, runTime = 1, rateFunc }: TweenStateOptions<S, Sh>, call: string,
+): Action {
+  if (!views.length) throw new RangeError(`${call}: it needs the views to redraw, views: [a, b, ...]`);
+  if (new Set(views).size !== views.length) throw new Error(`${call}: a view is listed twice; list each view once`);
+  for (const v of views) if (!(v instanceof View) || !v.belongsTo(scene))
+    throw new Error(`${call}: every view must read this scene's model; make it with view(scene, draw)`);
+  const selected = [...views], opts = rateFunc ? { runTime, rateFunc } : { runTime };
+  return turnAction(scene, call, runTime, () => new StateTween(scene, selected, stateAt, opts, call), [stateTarget(scene)]);
+}
+
 /** `m`, its parts given `scene`'s colours where they still hold a default. */
-function paintedFor<M extends Mobject>(scene: Scene<any, any>, m: M): M {
+function paintedFor<M extends Mobject>(scene: Scene, m: M): M {
   // A stand-in for a scene (a test's `{ state, shown }`) has no colours: its parts take them when they enter one.
   if (scene.colors && m instanceof Mobject) paintDefaults(m, scene.colors);
   return m;
@@ -332,11 +413,22 @@ export const isView = (m: Mobject): m is View => m instanceof View;
 
 /**
  * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync, its arguments typed
- * from the scene (`Scene<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
+ * from the scene (`SceneInputs<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
  * (see viewMismatch) and redrawn for any state a Machine reaches. Most draws read only the model.
  */
-export function view<S extends object, Sh extends object, M extends Mobject>(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOptions): View<M, S, Sh> {
-  return new View(scene, draw, opts);
+export function view<S extends object, Sh extends object, M extends Mobject>(
+  scene: SceneInputs<S, Sh>, draw: (state: S, shown: Sh, context: DrawContext) => M, opts: ViewOptions & { drawing: DrawContext },
+): View<M, S, Sh>;
+export function view<S extends object, Sh extends object, M extends Mobject>(
+  scene: SceneInputs<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOptions,
+): View<M, S, Sh>;
+export function view<S extends object, Sh extends object, M extends Mobject>(
+  scene: SceneInputs<S, Sh>, draw: (state: S, shown: Sh, context: DrawContext) => M, opts?: ViewOptions,
+): View<M, S, Sh> {
+  if (!opts?.drawing) return new View(scene, draw as (st: S, sh: Sh) => M, opts);
+  // A structurally supplied context can be a mutable object. Snapshot its drawing inputs once.
+  const context = drawContext(opts.drawing);
+  return new View(scene, (st: S, sh: Sh) => draw(st, sh, context), { ...opts, drawing: context });
 }
 
 /**
@@ -373,12 +465,11 @@ export function pictureText(m: Mobject): string[] {
 }
 
 /**
- * The fidelity check for the picture side: null when the View shows what its
- * draw() makes of `state` (a trace step's `after`) and `shown` (its `shown`),
- * else what differs. Compares the text the pictures show, not their geometry.
+ * Compare the View's text with what draw() produces from its state input and
+ * the authored shown fields. Returns null on a match or describes the difference.
  */
-export function viewMismatch(
-  v: View, state: SceneState, { shown = {}, draw = v.draw }: { shown?: SceneState; draw?: (state: SceneState, shown: SceneState) => Mobject } = {},
+export function viewMismatch<Sh extends object = SceneState>(
+  v: View, state: SceneState, { shown = {}, draw = v.draw }: { shown?: Sh | SceneState; draw?: (state: SceneState, shown: Sh | SceneState) => Mobject } = {},
 ): string | null {
   const texts = v.texts, want = pictureText(draw(state, shown));
   return JSON.stringify(texts) === JSON.stringify(want) ? null : `the view shows ${JSON.stringify(texts)}, the state ${JSON.stringify(state)} draws ${JSON.stringify(want)}`;
@@ -410,13 +501,24 @@ function layoutBox(m: Mobject): Box | null {
   return pointsBox(arrays);
 }
 
-function layoutSize(m: Mobject): [number, number] {
-  const b = layoutBox(m);
-  return b ? [b[2] - b[0], b[3] - b[1]] : [0, 0];
+/** Uniform scale since adoption. Height decides when text grows wider; a flat path uses its width. */
+function scaleBetween(before: Box, after: Box): number {
+  const w = before[2] - before[0], h = before[3] - before[1];
+  const width = after[2] - after[0], height = after[3] - after[1];
+  const byWidth = w && width ? width / w : null;
+  const byHeight = h && height ? height / h : null;
+  if (byWidth === null) return byHeight ?? 1;
+  if (byHeight === null) return byWidth;
+
+  // Translated Float32 coordinates can leave a thin bar only a few ulps tall. If both dimensions
+  // agree to their rounding precision, use the better-resolved measurement of the uniform scale.
+  const x = Math.max(Math.abs(after[0]), Math.abs(after[2])) + byWidth * Math.max(Math.abs(before[0]), Math.abs(before[2]));
+  const y = Math.max(Math.abs(after[1]), Math.abs(after[3])) + byWidth * Math.max(Math.abs(before[1]), Math.abs(before[3]));
+  if (x / w < y / h && Math.abs(height - byWidth * h) <= 2 ** -22 * y) return byWidth;
+  return byHeight;
 }
 
-function anchorOf(m: Mobject, place: ViewPlace): Vec | null {
-  const b = layoutBox(m);
+function anchorOf(b: Box | null, place: ViewPlace): Vec | null {
   if (!b) return null;
   const [cx, cy] = center(b);
   return [place === 'left' ? b[0] : place === 'right' ? b[2] : cx, cy];

@@ -1,6 +1,6 @@
 import { Circle, Group, Polygon, Rectangle, keyed as keyedAs } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, addAll, barrier, codeSlip, counter, key, person, phone, seal, station, ticket, label } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
@@ -164,7 +164,7 @@ const outline = (points: Vec[], fill: string) => new Polygon(points, { fill, str
  * hole ringed in brass, "refresh token" and its value printed on it. Blank (a copy seen from afar)
  * with `value` null, stamped with another's seal when `foreign`. One unkeyed Group.
  */
-export function tag(s: Stage, { at, value, foreign = false, holeRight = false }: { at: Vec; value: string | null; foreign?: boolean; holeRight?: boolean }): Group {
+export function tag(s: DrawContext, { at, value, foreign = false, holeRight = false }: { at: Vec; value: string | null; foreign?: boolean; holeRight?: boolean }): Group {
   const text = value ? label(s, value, { mono: true, bold: true, color: TONE.print, align: 'start' }) : null;
   const name = value ? label(s, 'refresh token', { color: TONE.print, align: 'start' }) : null;
   const w = text && name ? Math.max(text.width(), name.width()) + 0.85 : 1.0, h = value ? 1.44 : 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
@@ -180,7 +180,7 @@ export function tag(s: Stage, { at, value, foreign = false, holeRight = false }:
 }
 
 /** Your password, as a card: PAPER, 1.8 × 0.86, six PRINT dots in a field ruled under them. One unkeyed Group. */
-export function passwordCard(_s: Stage, { at }: { at: Vec }): Group {
+export function passwordCard(_s: DrawContext, { at }: { at: Vec }): Group {
   const [x, y] = at;
   return new Group(
     new Rectangle({ width: 1.8, height: 0.86, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo(at),
@@ -208,7 +208,7 @@ function box(at: Vec, ticked: boolean): Mobject {
 }
 
 /** The display card the agent shows for Device Sign-In: the code, and the Company's name, its right edge at `at`; or a card someone else's, face down, centred at `at`. */
-function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
+function deviceCard(s: DrawContext, at: Vec, foreign: boolean): Group {
   const code = label(s, DEVICE.user_code, { mono: true, bold: true, align: 'start' }), name = label(s, 'Example Company', { align: 'start' });
   const w = foreign ? 3.4 : Math.max(code.width(), name.width()) + 0.7, h = 1.5, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
   if (foreign)
@@ -224,12 +224,12 @@ function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
 }
 
 /** A barrier lying across, between something stopped and whoever it would have reached. */
-const crossBarrier = (s: Stage, at: Vec, length: number) => barrier(s, { at, height: length }).rotate(Math.PI / 2);
+const crossBarrier = (s: DrawContext, at: Vec, length: number) => barrier(s, { at, height: length }).rotate(Math.PI / 2);
 
 /** A request on its way, for the transitions: the kit's ticket, stamped with the agent's seal. */
-export const requestToken = (s: Stage): Mobject => ticket(s, {});
+export const requestToken = (s: DrawContext): Mobject => ticket(s, {});
 /** A one-time code on its way to the agent, with the PKCE verifier riding on it to the token endpoint. */
-export const codeToken = (_s: Stage): Mobject => {
+export const codeToken = (_s: DrawContext): Mobject => {
   // A small slip of paper with a torn lower edge and a printed line: the code in transit, too small to carry words.
   const w = 1.3, h = 0.52, l = -w / 2, r = w / 2, t = h / 2, b = -h / 2, n = 9, tear: Vec[] = [];
   for (let i = 0; i <= n; i++) tear.push([r - (i * w) / n, b + (i % 2 ? 0.05 : 0)]);
@@ -240,7 +240,7 @@ export const codeToken = (_s: Stage): Mobject => {
 // The picture
 
 /** Your browser window, with the Company's page in it, joined to the counter. */
-function browser(s: Parts, st: Stage, host: string, rows: Rows) {
+function browser(s: Parts, st: DrawContext, host: string, rows: Rows) {
   const w = WIN.right - WIN.left, h = WIN.top - WIN.bottom, cx = (WIN.left + WIN.right) / 2, cy = (WIN.top + WIN.bottom) / 2;
   const address = label(st, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2] });
   s.add(new Group(
@@ -261,7 +261,7 @@ const bridge = (from: number, rows: Rows) => {
 };
 
 /** Your phone, upright, with the Company's page on its screen, joined to the counter. */
-function handset(s: Parts, st: Stage, rows: Rows) {
+function handset(s: Parts, st: DrawContext, rows: Rows) {
   s.add(phone(st, { at: PHONE.at, size: PHONE.size }), 'window:frame');
   const inset = 0.08;
   s.add(new Group(
@@ -271,7 +271,7 @@ function handset(s: Parts, st: Stage, rows: Rows) {
 }
 
 /** The agent's station and its keyring, in a layout. Keyed: the station's parts, `agent:ring`, `agent:key:slot`, `agent:key`, `tag:cord`, `tag`. */
-function agentWith(s: Stage, at: Ring, teeth: number, card: string | null, slot = true): Mobject[] {
+function agentWith(s: DrawContext, at: Ring, teeth: number, card: string | null, slot = true): Mobject[] {
   const out = [...station(s, { at: at.station, r: STATION_R })];
   const keyed = <T extends Mobject>(m: T, k: string): T => keyedAs(m, k);
   const direction = at.ring[0] < at.station[0] ? -1 : 1;
@@ -296,7 +296,7 @@ function agentWith(s: Stage, at: Ring, teeth: number, card: string | null, slot 
 }
 
 /** The state as its picture. */
-export function drawWorld(w: World, shown: Shown, s: Stage): Group {
+export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
   const parts = keyedParts();
   if (shown.password) return drawShortcut(s, parts);
   const report = reportOf(w, shown), last = w.last, device = w.flow === 'device', rows = ROWS[w.flow], open = !!w.sign;
@@ -380,13 +380,13 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
 }
 
 /** A code slip from another Company's sign-in: the kit's slip, with a PEWTER issuer stamp: someone else's. */
-function swappedSlip(s: Stage, at: Vec): Group {
+function swappedSlip(s: DrawContext, at: Vec): Group {
   const slip = codeSlip(s, { at, code: 'c_9Zt4' });
   return new Group(slip, seal(s, { at: [at[0] + 1.55, at[1] + 0.25], r: 0.3, foreign: true }));
 }
 
 /** The readout: who did what in SOFT, the phrase in TYPE.title bold, and what it means. */
-function readout(s: Stage, parts: Parts, report: Report | null) {
+function readout(s: DrawContext, parts: Parts, report: Report | null) {
   if (!report) {
     parts.add(label(s, 'nothing asked yet', { at: [READ_X, READ_Y - 1.2], size: TYPE.label, color: TONE.soft, align: 'start' }), 'answer:phrase');
     return;
@@ -397,7 +397,7 @@ function readout(s: Stage, parts: Parts, report: Report | null) {
 }
 
 /** Step 1's picture: the shortcut. Your password hangs on the agent's keyring, where a key would, and the agent types it in. */
-function drawShortcut(s: Stage, parts: Parts): Group {
+function drawShortcut(s: DrawContext, parts: Parts): Group {
   const rows = ROWS.direct;
   addAll(parts, counter(s, { x: FACE, top: MARGIN.top, bottom: COUNTER_BOTTOM }));
   browser(parts, s, 'example.com', rows);

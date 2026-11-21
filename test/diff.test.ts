@@ -346,7 +346,7 @@ test('every animation that decides something records it as it begins: nested in 
   const { Succession, AnimationGroup, Dot, linear } = await import('../src/index.ts');
   const { view } = await import('../explain/index.ts');
   const { Follow } = await import('../explain/state.ts');
-  const s = await new (class extends Scene<{ word: string }> {
+  const s = await new (class extends Scene {
     override state = { word: 'cache' };
     override async construct() {
       await this.step('a');

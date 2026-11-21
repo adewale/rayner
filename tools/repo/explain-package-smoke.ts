@@ -14,6 +14,7 @@ import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf, listTree, relativePosix } from '../lib/hash.ts';
 import { options as authoredOptions, typeCheckAuthored } from './lib/authored-types.ts';
+import { assertCommandHelp, assertPinnedCommandInputs, captureCommand } from '../../test/lib/cli-contract.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
 async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
@@ -75,6 +76,19 @@ try {
   // The command works straight after the install, from npm's bin link.
   assert.ok((await run(bin, ['--help'], { cwd: folder })).stdout.startsWith(`Rayner ${version} (Node 24+)`));
   assert.equal((await run(bin, ['--version'], { cwd: folder })).stdout.trim(), version);
+  const invalid = await run(bin, ['not-a-command'], { cwd: folder }).then(
+    () => { throw new Error('the installed executable accepted an unknown command'); },
+    (error: { code: number; stdout: string; stderr: string }) => error,
+  );
+  assert.equal(invalid.code, 1);
+  assert.equal(invalid.stdout, '');
+  assert.match(invalid.stderr, /^rayner: "not-a-command" is not a command/m);
+  // Run the full contract directly against the installed implementation. The few calls above
+  // own npm's executable link and the OS exit status; they do not repeat the argument matrix.
+  const { run: command } = await import(pathToFileURL(cli).href);
+  const installedCommand = captureCommand(command);
+  await assertCommandHelp(installedCommand);
+  await assertPinnedCommandInputs(installedCommand, join(folder, 'cli-contract'));
   for (const entry of entryPoints(ROOT).keys())
     await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: folder });
   // Nothing else: the compiled modules behind the entry points, and the command, are not importable.
@@ -139,12 +153,12 @@ try {
     }
     return target;
   };
-  // The diagram add-on, from the installed command. Without it, a diagram that scene.snapshots/ lacks
-  // is refused with the line that installs it, and pinned natural diagrams (font-metrics) replay.
+  // Preparation names the missing diagram add-on; consuming a missing pin asks for preparation.
+  // Pinned natural diagrams (font-metrics) replay without capture dependencies.
   await mkdir(join(folder, 'drawn'));
   await writeFile(join(folder, 'drawn/scene.ts'), `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Drawn extends Scene{static meta={id:'drawn',title:'One diagram'};async construct(){const s=stage(this);await this.step('one',{caption:'A diagram from Mermaid source.'});await s.show({source:'graph LR\\nA --> B'});}}`);
   const addOn = Object.entries(installedManifest.peerDependencies as Record<string, string>).map(([name, range]) => `${name}@${range}`);
-  const refused = await run(process.execPath, [cli, 'check', 'drawn'], { cwd: folder }).then(() => undefined, (error: { stderr: string }) => error);
+  const refused = await run(process.execPath, [cli, 'snapshots', 'drawn'], { cwd: folder }).then(() => undefined, (error: { stderr: string }) => error);
   assert.ok(refused, 'a diagram to capture without the diagram add-on is refused');
   assert.match(refused.stderr, /capturing the diagram "graph LR", which scene\.snapshots\/ does not hold, needs the diagram add-on/);
   assert.ok(refused.stderr.includes(`Install it with: npm install --save-dev ${addOn.join(' ')}.`), refused.stderr);
@@ -174,8 +188,8 @@ try {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
-  await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
-  await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
+  // Keep every fixture named by the consumer config, including negative API controls.
+  await cp(join(ROOT, 'test/consumer'), folder, { recursive: true });
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
   // Every explainer, its tests and every recipe, engine imports rewritten to the entry points, type-check
   // against the packed declarations, where @internal members are left out.

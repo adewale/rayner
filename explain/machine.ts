@@ -6,13 +6,13 @@
 
 import { Animation, AnimationGroup, MadeAtTurn, Succession } from '../src/animation.ts';
 import type { Match } from '../src/animation.ts';
-import { SetState } from './state.ts';
-import { canonicalJson } from '../src/json.ts';
-import { cloneJson } from '../src/json.ts';
+import { SetState, stateTarget } from './state.ts';
+import { canonicalJson, cloneJson } from '../src/json.ts';
+import type { JsonValue } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
-import type { Scene } from '../src/scene.ts';
+import type { Scene, SceneInputs } from '../src/scene.ts';
 import { turnAction, ViewSync } from './view.ts';
 import type { View } from './view.ts';
 import type { Action } from './action.ts';
@@ -21,6 +21,7 @@ import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
 import type { SceneState } from '../src/scene.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
+import { offerMachine } from './machine-offers.ts';
 
 /** Which keyed parts of a view must draw, or must be gone, during a named travel's move beat. */
 export interface MotionRule {
@@ -38,9 +39,11 @@ type RegisterTrip = (view: View, key: string, move: Animation) => void;
 export type ObserveMotion = (machine: object, event: string, rules: readonly MotionRule[], views: readonly View[], target: (v: View) => Mobject) => RegisterTrip;
 
 /** @internal Scene-local, scoped registration keeps the native checker out of the browser/player. */
-export const motionObservers = new WeakMap<Scene<any>, ObserveMotion>();
+export const motionObservers = new WeakMap<Scene, ObserveMotion>();
 
 export interface MachineSpec<S extends object, E extends string> {
+  /** Pure JSON observation the picture must distinguish. Omitted means the full model. Never changes exploration identity or which events are checked. */
+  observe?: (state: Readonly<S>) => unknown;
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
   start: S;
   /** Every event the machine accepts, in order: what a reader's buttons would be. */
@@ -95,7 +98,7 @@ export interface MachineSpec<S extends object, E extends string> {
   match?: Match;
   /** Each event's morph or transition, in seconds (default 0.6), or a function of the event and the states either side. */
   runTime?: number | ((t: { event: E; before: S; after: S }) => number);
-  /** The most states `rayner check` explores (default 256); a larger machine is sampled breadth first up to it. */
+  /** A positive finite integer: the most states explored per origin (default 256); a larger machine is sampled breadth first up to it. */
   limit?: number;
   /** Start reader events from the model's start even when the authored resting state can still move. */
   liveStart?: 'start';
@@ -161,7 +164,7 @@ type MachineModel<S extends object, E extends string> = Readonly<Required<Pick<M
 
 /** A model driven by events on one scene, typed by the scene's model type `S`. */
 export class Machine<S extends object, E extends string> {
-  private readonly scene: Scene<S, any>;
+  private readonly scene: SceneInputs<S>;
   /** The spec the machine was made with, its defaults filled in. Frozen; its `start` is a fresh copy at every read. */
   readonly spec: Readonly<Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
@@ -169,7 +172,7 @@ export class Machine<S extends object, E extends string> {
   /** The step this machine last played in; exploration checks it on that step's stage. */
   private playedInStep: string | null = null;
 
-  constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
+  constructor(scene: SceneInputs<S>, spec: MachineSpec<S, E>) {
     // The spec's shape is its type's to check; what a type cannot say is checked here.
     // A scene may read its events from its data (a statechart's arrows), as a list whose type does not carry its length.
     if (spec.motion !== undefined && typeof spec.motion !== 'function') throw new TypeError('new Machine(): motion must be a function of the event and its states');
@@ -180,12 +183,20 @@ export class Machine<S extends object, E extends string> {
     if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
     for (const [event, label] of Object.entries<string | undefined>(spec.labels ?? {}))
       if (!label?.trim()) throw new RangeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
-    // Exploration redraws any reachable state after the run, which needs each picture to be a function
-    // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
+    if (spec.limit !== undefined && (!Number.isInteger(spec.limit) || spec.limit <= 0))
+      throw new RangeError('new Machine(): limit must be a positive finite integer');
+    if (spec.observe !== undefined && typeof spec.observe !== 'function') throw new TypeError('new Machine(): observe must be a pure function');
+    // A structurally compatible View may belong to a different scene; its sync would read that
+    // scene while this machine updates this one. Reject the mismatch before registering it.
+    if (spec.views.some((view) => !view.belongsTo(scene)))
+      throw new RangeError('new Machine(): every view must belong to this scene; make it with view(scene, draw)');
     this.scene = scene;
     this.spec = frozenSpec(spec);
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
+
+  /** Make this machine available to the reader at the current step. */
+  offer(): void { offerMachine(this.scene, this); }
 
   /**
    * @internal What the scene showed when this machine last played (`scene.shown`), or null before it played.
@@ -267,7 +278,7 @@ export class Machine<S extends object, E extends string> {
   /** @internal Adopt an accepted event's transient result; exploration uses the same presentation path. */
   present(event: E, before: S, after: S): void {
     if (!this.spec.result) return;
-    const {result: _previous, ...shown} = this.scene.shown;
+    const {result: _previous, ...shown} = this.scene.shownJson();
     const result = this.spec.result({event, before, after});
     this.scene.shown = result === undefined ? shown : {...shown, result: cloneJson(result, 'machine.result()', 'result')};
   }
@@ -281,12 +292,12 @@ export class Machine<S extends object, E extends string> {
    */
   send(event: E, from: S = this.scene.state): Action {
     const schedule = this.schedule(event, from);
-    return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule);
+    return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule, [stateTarget(this.scene)]);
   }
 
   /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the views' finish. */
   private schedule(event: E, from: S): Succession {
-    const before = JSON.parse(JSON.stringify(from)) as S;
+    const before = cloneJson(from, 'machine.send()', 'from') as S;
     const o = this.outcome(before, event);
     if ('beyond' in o) throw new RangeError(`machine.send(): ${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
     if ('refused' in o) throw new RangeError(`machine.send(): ${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
@@ -342,20 +353,21 @@ export class Machine<S extends object, E extends string> {
    * transition. `rayner check` plays each one this way, in a play of the explored scene.
    */
   transitionPlay(event: E, before: S, after: S): ScheduledAnimation | null {
-    const authored = this.spec.transition?.[event];
+    const transitions = this.spec.transition;
+    const authored = transitions && Object.hasOwn(transitions, event) ? transitions[event] : undefined;
     if (!authored) return null;
     return new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), this.spec.views, this.runTimeOf(event, before, after));
   }
 
   /** Events in turn, each from where the last left the state (default start: the scene's state now), as one action. */
-  replay(events: readonly E[], from: S = this.scene.state): Action {
+  sendSequence(events: readonly E[], from: S = this.scene.state): Action {
     let at = from;
     const schedule = new Succession(events.map((e) => {
       const step = this.schedule(e, at);
       at = this.after(at, e)!;
       return step;
     }));
-    return turnAction(this.scene, 'machine.replay()', schedule.runTime, () => schedule);
+    return turnAction(this.scene, 'machine.sendSequence()', schedule.runTime, () => schedule, events.length ? [stateTarget(this.scene)] : []);
   }
 
   /**
@@ -364,23 +376,54 @@ export class Machine<S extends object, E extends string> {
    * up to `limit` states. States are compared as JSON, whatever the order of their keys.
    */
   reachable(from: S = this.spec.start): { state: S; path: E[] }[] {
-    const start = from;
-    const seen = new Map<string, { state: S; path: E[] }>([[canonicalJson(start), { state: start, path: [] }]]);
+    return this.explore(from).states;
+  }
+
+  /**
+   * @internal A bounded breadth-first walk and whether it exhausted the graph from this origin.
+   * Reaching the limit alone does not mean sampling: the admitted states may be the whole graph.
+   * At the limit, inspect their outgoing edges until an unvisited state proves truncation.
+   * Keep this result before combining origins; deduplicating states cannot establish completeness.
+   */
+  explore(from: S = this.spec.start): { states: { state: S; path: E[] }[]; complete: boolean } {
+    const seen = new Map<string, { state: S; path: E[] }>([[canonicalJson(from), { state: from, path: [] }]]);
     const queue = [...seen.values()];
-    while (queue.length && seen.size < this.spec.limit) {
-      const { state, path } = queue.shift()!;
+    for (let at = 0; at < queue.length; at++) {
+      const { state, path } = queue[at]!;
       for (const event of this.spec.events) {
         const next = this.after(state, event);
         if (next === undefined) continue;
         const key = canonicalJson(next);
         if (seen.has(key)) continue;
+        if (seen.size === this.spec.limit) return { states: [...seen.values()], complete: false };
         const entry = { state: next, path: [...path, event] };
         seen.set(key, entry);
         queue.push(entry);
-        if (seen.size >= this.spec.limit) break;
       }
     }
-    return [...seen.values()];
+    return { states: [...seen.values()], complete: true };
+  }
+}
+
+/** @internal A detached, validated observation. It is never a machine-state identity. */
+export function observedValue<S extends object, E extends string>(machine: Machine<S, E>, state: S, where?: string): JsonValue {
+  const read = () => {
+    const input = cloneJson(state, 'machine.observe()', 'model') as S;
+    const before = canonicalJson(input);
+    const value = machine.spec.observe ? machine.spec.observe(input) : input;
+    if (canonicalJson(input) !== before) throw new TypeError('machine.observe(): the selector must not change the model');
+    const copied = cloneJson({ value }, 'machine.observe()', 'observation');
+    if (!Object.hasOwn(copied, 'value')) throw new TypeError('machine.observe(): the selector must return a JSON value');
+    return copied.value!;
+  };
+  try {
+    const value = read();
+    if (machine.spec.observe && canonicalJson(value) !== canonicalJson(read())) throw new TypeError('machine.observe(): repeated observations of the same model must agree');
+    return value;
+  } catch (error) {
+    if (!where) throw error;
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`machine.observe(): ${where}: ${detail.replace(/^machine\.observe\(\):\s*/, '')}`, { cause: error });
   }
 }
 
@@ -390,11 +433,9 @@ export class Machine<S extends object, E extends string> {
  * at every read, so neither the caller nor a reader can change what the machine explores.
  */
 function frozenSpec<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
-  // A state is JSON (a send sets it through the trace's JSON rules), and the bare runtime that
-  // replays a page has no structuredClone.
-  const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
+  const copy = (state: S): S => cloneJson(state, 'new Machine()', 'start') as S;
   const start = copy(spec.start);
-  const kept = { match: { by: 'key', text: 'whole' } as Match, runTime: 0.6, limit: 256, ...spec };
+  const kept = { match: { by: 'key', text: 'whole' } as Match, runTime: 0.6, ...spec, limit: spec.limit ?? 256 };
   return Object.freeze(Object.defineProperties(kept, {
     start: { get: () => copy(start), enumerable: true },
     events: { value: Object.freeze([...spec.events]), enumerable: true },
@@ -438,8 +479,8 @@ class WhenItsTurnComes extends MadeAtTurn {
  */
 class TakePictures extends Animation {
   views: readonly View[];
-  scene: Scene<any>;
-  constructor(scene: Scene<any>, views: readonly View[]) {
+  scene: Scene;
+  constructor(scene: Scene, views: readonly View[]) {
     super(views[0] ?? new Group(), { runTime: 1 / scene.fps, rateFunc: linear });
     this.scene = scene; this.views = views;
   }
@@ -468,7 +509,7 @@ class TakePictures extends Animation {
 
 const registry = new WeakMap<object, Machine<object, string>[]>();
 /** The machines a scene made, in order: what `rayner check` explores after a run. */
-export function machinesOf(scene: Scene<any>): Machine<object, string>[] {
+export function machinesOf(scene: Scene): Machine<object, string>[] {
   let list = registry.get(scene);
   if (!list) registry.set(scene, (list = []));
   return list;

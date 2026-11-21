@@ -17,13 +17,24 @@ for (const entry of EXPLAINERS)
     const { check } = (await import(pathToFileURL(file).href)) as { check: FidelityCheck };
     const project = await collectProject(`scenes/explainers/${entry.id}`, { write: false });
     for (const scenario of project.scenarios) {
-      const { values, trace } = scenario,
-        last = trace.steps.at(-1)!;
+      const { values, trace } = scenario;
+      // Construction is the declared scenario's initial domain state. A deliberate event before
+      // the first named step records prelude evidence; an unexplained setup assignment must not
+      // make frame zero describe another scenario or an empty required model.
+      if (trace.steps.length && !trace.evidence?.some(record => record.kind === 'event')) {
+        const initial = new scenario.Scene({ async frame() {} });
+        assert.deepEqual(initial.stateJson(), trace.steps[0]!.before,
+          `${entry.id} ${JSON.stringify(values)}: initialize the selected model before frame zero`);
+      }
       // Every visible token (including sequence build-ins) names a link in a captured diagram.
       const links = Object.values(project.store)
         .flatMap((s) => s.parts)
         .filter((p) => p.from && p.to);
-      const walks = (last.after?.walks ?? []) as Walk[];
+      const records = [...(trace.evidence ?? []), ...trace.steps.flatMap(s => s.evidence ?? [])];
+      const walks: Walk[] = records.filter(e => e.kind === 'diagram-walk').map(e => {
+        assert.ok(typeof e.from === 'string' && typeof e.to === 'string' && typeof e.edge === 'string');
+        return { from: e.from, to: e.to, edge: e.edge, ...(typeof e.step === 'string' ? { step: e.step } : {}) };
+      });
       for (const walk of walks)
         assert.ok(
           links.some((p) => p.id === walk.edge && p.from === walk.from && p.to === walk.to),

@@ -1,7 +1,7 @@
 import { Scene, Group, Text, FadeIn, FadeOut, SurroundingRectangle, keyed, Transform } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, answerOf, having } from '../../../explain/index.ts';
-import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
+import type { DrawContext, ExplainerMeta } from '../../../explain/index.ts';
 import { bars, table } from '../../../explain/drawing.ts';
 import { WORDS, apart, clusters, cutStory, lengths, word } from './model.ts';
 import type { LengthState } from './model.ts';
@@ -11,7 +11,9 @@ import { numberWord } from '../lib/format.ts';
 const count = (n: number) => numberWord(n);
 const Count = (n: number) => numberWord(n, { capital: true });
 
-export default class StringLength extends Scene<LengthState, {}> {
+export default class StringLength extends Scene {
+  override state: LengthState = { text: word('namaste').text, ...lengths(word('namaste').text), view: 'whole' };
+
   static meta = {
     // Devanagari, Hebrew, Arabic and Chinese are drawn from their own faces, and bold from real Bold cuts.
     lettering: { scripts: ['Deva', 'Hebr', 'Arab', 'Hani'], styles: ['bold'] },
@@ -44,7 +46,7 @@ export default class StringLength extends Scene<LengthState, {}> {
         line: 'A form allows ten characters. Is this word too long?',
         caption: `A sign-up form limits a name to ten characters, and someone types ${hi.text}, namaste. How long is that? It depends on what is counted: ${hi.bytes} bytes, ${hi.points} code points, or the ${hi.characters} characters a reader sees. None of the three is wrong. ${answerOf(this)}. The next steps take the word apart to find each number.`,
         state: { ...base(hi), view: 'whole' } as LengthState,
-        draw: (st: LengthState, s: Stage) => {
+        draw: (st: LengthState, s: DrawContext) => {
           const chart = bars(s, [
             { label: 'Bytes, in UTF-8', value: st.bytes, display: String(st.bytes) },
             { label: 'Code points', value: st.points, display: String(st.points) },
@@ -52,7 +54,7 @@ export default class StringLength extends Scene<LengthState, {}> {
           ], st.bytes, { key: 'lengths' });
           chart.scale(0.86).moveTo([2.75, -0.35]);
           return new Group(
-            keyed(new Text(st.text, { fontSize: 1.35, color: s.look.ink, shaping: s.scene.textShaping }).moveTo([-5.15, 0.6]), 'word'),
+            keyed(new Text(st.text, { fontSize: 1.35, color: s.look.ink, shaping: s.shaping }).moveTo([-5.15, 0.6]), 'word'),
             words(s, 'namaste: a greeting', [-5.15, -0.6], { soft: true }),
             chart,
           );
@@ -68,10 +70,10 @@ export default class StringLength extends Scene<LengthState, {}> {
     });
     await s.clear({ runTime: 0.2 });
     this.state = { ...base(hi), view: 'points', shown: shown(hi) };
-    const apartX = spread(hi.parts.length, 2.35), row = cells(s, hi, apartX, 1.7, 'cp');
-    const named = names(s, hi, apartX, 0.45, 'cp');
+    const apartX = spread(hi.parts.length, 2.35), row = cells(s.drawing, hi, apartX, 1.7, 'cp');
+    const named = names(s.drawing, hi, apartX, 0.45, 'cp');
     // The caption's dotted ring, said on the stage too.
-    named.add(words(s, 'Dotted ring: the letter a mark or a joiner sits on', [0, -1.05], { soft: true }));
+    named.add(words(s.drawing, 'Dotted ring: the letter a mark or a joiner sits on', [0, -1.05], { soft: true }));
     // The row enters as one group, cell after cell, so that the regrouping later moves this group's own cells.
     await this.play(new FadeIn(row, { runTime: 1.4, lagRatio: 0.12 }));
     s.keep(row, { describe: () => (this.state.view === 'characters'
@@ -86,7 +88,7 @@ export default class StringLength extends Scene<LengthState, {}> {
       caption: `To store or send the word, each code point is written as bytes. UTF-8 uses one byte for the first 128 code points, which cover English, two for the next couple of thousand, and three for the tens of thousands after those, including every Devanagari letter. So the first code point, ${hi.parts[0]!.hex}, becomes ${hi.parts[0]!.bytes.map((b) => b.toString(16).toUpperCase()).join(' ')}, and the ${count(hi.points)} code points become ${hi.bytes} bytes. A limit set in bytes is the tightest of the three.`,
     });
     this.state = { ...base(hi), view: 'bytes', shown: shown(hi) };
-    const stored = byteBoxes(s, hi, apartX, -1.95, 'cp', 0);
+    const stored = byteBoxes(s.drawing, hi, apartX, -1.95, 'cp', 0);
     await s.enter(stored, { describe: `Under each code point its three UTF-8 bytes, first byte on top; the first, ${hi.parts[0]!.hex}, is ${hi.parts[0]!.bytes.map((b) => b.toString(16).toUpperCase()).join(' ')}` });
 
     // 4. The characters: the same cells, regrouped by key into what a reader sees.
@@ -97,7 +99,7 @@ export default class StringLength extends Scene<LengthState, {}> {
     });
     this.state = { ...base(hi), view: 'characters', shown: shown(hi) };
     await this.play(...fade(named, stored));
-    const closeX = grouped(hi, 1.3), together = cells(s, hi, closeX, 0.2, 'cp');
+    const closeX = grouped(hi, 1.3), together = cells(s.drawing, hi, closeX, 0.2, 'cp');
     // The cells are keyed by their place in the word, so each travels to its place in its character.
     await this.play(new Transform(row, together, { match: 'key', runTime: 1.3 }));
     s.keep(together, { describe: `The same ${count(hi.points)} cells, drawn together where they make one character: ${hi.read.map((c) => clusters(c)[0]!.length).join(', ')} cells` });
@@ -111,9 +113,9 @@ export default class StringLength extends Scene<LengthState, {}> {
     });
     const tally = hi.read.map((c, k) => {
       const mine = hi.parts.filter((p) => p.cluster === k);
-      return words(s, String(mine.length), [(closeX[mine[0]!.index]! + closeX[mine.at(-1)!.index]!) / 2, -1.3], { size: 0.8, bold: true });
+      return words(s.drawing, String(mine.length), [(closeX[mine[0]!.index]! + closeX[mine.at(-1)!.index]!) / 2, -1.3], { size: 0.8, bold: true });
     });
-    tally.push(words(s, 'code points in each character', [0, -2.2], { soft: true }));
+    tally.push(words(s.drawing, 'code points in each character', [0, -2.2], { soft: true }));
     await s.enter(...frames, ...read, ...tally, { describe: `Each character as a reader sees it, over the code points that make it: ${hi.read.map((c, k) => `${c} from ${hi.parts.filter((p) => p.cluster === k).length}`).join(', ')}` });
 
     // 5. Another word, and a prediction: its characters are shown, its code points are not yet.
@@ -128,8 +130,8 @@ export default class StringLength extends Scene<LengthState, {}> {
     await s.clear({ runTime: 0.2 });
     this.state = { ...base(he), view: 'characters' };
     const heWord = keyed(big(he.text, [0, 2.3], 1.35), 'word');
-    const heRead = new Group(...he.read.map((c, k) => cell(s, c, [heX[k]!, 0.2], `he:character:${k}`)));
-    const heNote = words(s, 'shalom: a greeting, read from the right', [0, -1.25], { soft: true });
+    const heRead = new Group(...he.read.map((c, k) => cell(s.drawing, c, [heX[k]!, 0.2], `he:character:${k}`)));
+    const heNote = words(s.drawing, 'shalom: a greeting, read from the right', [0, -1.25], { soft: true });
     await s.enter(heWord, heRead, heNote, { describe: () => `${he.text}, shalom, and its ${count(he.characters)} characters in cells, read from the right` });
 
     // 6. The answer: every code point in its own cell, the vowel points among them.
@@ -140,7 +142,7 @@ export default class StringLength extends Scene<LengthState, {}> {
       caption: `Each point is a code point of its own. The first letter carries two, its vowel and the dot that makes it sh, and the third carries one, so ${count(he.characters)} characters are ${he.points} code points, and at two bytes each in UTF-8, ${he.bytes} bytes. Written without its points, as everyday Hebrew usually is, the same word is ${plain.points} code points and ${plain.bytes} bytes. Its length to a reader has not changed: still ${plain.characters} characters.`,
     });
     this.state = { ...base(he), view: 'points', shown: shown(he) };
-    const hePointsX = spread(he.parts.length, 2.2, true), heRow = cells(s, he, hePointsX, 0.2, 'he:cp'), heNamed = names(s, he, hePointsX, -1.05, 'he:cp');
+    const hePointsX = spread(he.parts.length, 2.2, true), heRow = cells(s.drawing, he, hePointsX, 0.2, 'he:cp'), heNamed = names(s.drawing, he, hePointsX, -1.05, 'he:cp');
     await this.play(...fade(heRead, heNote));
     await this.play(new FadeIn(heRow, { runTime: 1.4, lagRatio: 0.12 }));
     s.keep(heRow, { describe: `${Count(he.points)} cells, one for each code point of ${he.text}, from the right` });
@@ -156,7 +158,7 @@ export default class StringLength extends Scene<LengthState, {}> {
         line: 'Only hello has one length.',
         caption: `The same three counts for five greetings. hello is ${rows[0]!.bytes} by any of them, which is why code that confuses them passes its tests in English. Chinese has no marks, so code points and characters agree, but each character takes three bytes. Hebrew and Arabic carry their marks as extra code points. Hindi fuses letters. The further a script is from one letter, one code point, one byte, the further its counts drift apart.`,
         state: { ...base(hi), view: 'whole', table: rows } as LengthState,
-        draw: (st: LengthState, s: Stage) =>
+        draw: (st: LengthState, s: DrawContext) =>
           new Group(table(s, ['In', 'Word', 'Bytes', 'Code points', 'Characters'],
             having(st, 'table').table.map((r) => ({ key: r.id, cells: [WORDS.find((w) => w.id === r.id)!.script, r.text, r.bytes, r.points, r.characters] })),
             { key: 'greetings', columns: { left: -7, right: 7 }, at: [0, 2.5], gap: 1.05, size: 0.62 })),
@@ -167,13 +169,13 @@ export default class StringLength extends Scene<LengthState, {}> {
         line: 'To shorten text for a reader, cut between characters.',
         caption: `The form’s limit has to cut somewhere. Keep ${cuts[0]!.n} bytes and the fourth code point is split, so it goes: three bare letters are left, and the last character has lost its joined letter and its vowel. Keep ${cuts[1]!.n} code points and the word ends on a joiner with nothing to join, a stray stroke under the last letter. Keep ${cuts[2]!.n} characters and both are whole. Store and send bytes; count and cut what people read in characters.`,
         state: { ...base(hi), view: 'whole', cuts } as LengthState,
-        draw: (st: LengthState, s: Stage) =>
+        draw: (st: LengthState, s: DrawContext) =>
           new Group(...having(st, 'cuts').cuts.flatMap((c, i) => {
             const y = 1.9 - i * 2.1, unit = { bytes: 'bytes', points: 'code points', characters: 'characters' }[c.unit];
             return [
               words(s, `The first ${c.n} ${unit}`, [0, y + 0.36]).moveTo([-7.2, y + 0.36], [-1, 0]),
               words(s, { whole: 'whole characters', joiner: 'ends on a joiner', short: 'the last character is cut short' }[c.ends], [0, y - 0.36], { soft: true }).moveTo([-7.2, y - 0.36], [-1, 0]),
-              keyed(new Text(c.text, { fontSize: 1.3, color: s.look.ink, shaping: s.scene.textShaping }).moveTo([3.6, y]), `cut:${c.unit}`),
+              keyed(new Text(c.text, { fontSize: 1.3, color: s.look.ink, shaping: s.shaping }).moveTo([3.6, y]), `cut:${c.unit}`),
             ];
           })),
       },

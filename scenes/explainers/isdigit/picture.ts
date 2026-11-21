@@ -1,6 +1,6 @@
 import { Text, Rectangle, Line, Group } from '../../../src/index.ts';
 import type { Mobject, Box, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { CHARS, PREDICATES, COUNTS, intOf } from './model.ts';
 import { grouped } from '../lib/format.ts';
 import type { NumericType, Outcome, Predicate } from './model.ts';
@@ -50,7 +50,7 @@ export interface LineupState {
  * The eight characters in one row, a bracket over the run from the left that each check accepts and
  * under the runs int() parses and rejects, this scenario's character circled, and ² said underneath.
  */
-export function drawLineup(st: LineupState, s: Stage): Group {
+export function drawLineup(st: LineupState, s: DrawContext): Group {
   const ink = s.look.ink,
     sup = CHARS.super.char;
   const slot = (i: number) => -6.3 + i * 1.8,
@@ -105,7 +105,7 @@ export interface SetsState {
  * The nested sets with every character in place: the check's set drawn heavier, this scenario's
  * character circled in the colour of what happened to it.
  */
-export function drawSets(st: SetsState, s: Stage): Group {
+export function drawSets(st: SetsState, s: DrawContext): Group {
   const ink = s.look.ink;
   const mark = st.outcome === 'raised' ? s.look.bad : s.look.good;
   const mobs: Mobject[] = [];

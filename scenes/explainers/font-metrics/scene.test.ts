@@ -2,13 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadProject } from '../../../explain/testing.ts';
 import FontMetrics from './scene.ts';
+import type { RulersState } from './picture.ts';
 
 test('font metrics: every Garamond glyph in the phrase advances less than a JetBrains Mono cell', async () => {
   // Its lettering is replayed from the scene.lettering.json beside it, as the page draws it.
   const project = await loadProject(FontMetrics, import.meta.dirname);
   for (const { trace } of project.scenarios) {
     const step = trace.steps.find((s) => s.step === 'rulers')!;
-    const { measured, drawn } = step.after.rulers;
+    const { measured, drawn } = step.state!.rulers as RulersState['rulers'];
     const advances = (stops: number[]) => stops.slice(1).map((x, i) => x - stops[i]!);
     const cells = advances(measured),
       glyphs = advances(drawn);

@@ -364,8 +364,7 @@ test('find and findAll address parts by key, depth first, on a mobject and acros
 
 test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
   const { view } = await import('../explain/index.ts');
-  const scene = new Scene<{ order: number[] }>(new StringSink());
-  scene.state = { order: [1, 2, 3] };
+  const scene = Object.assign(new Scene(new StringSink()), { state: { order: [1, 2, 3] } });
   const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
     const g = new Group(new Rectangle({ width: 0.8, height: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
     keyed(g, `cell:${z}`);

@@ -4,7 +4,7 @@
 import { Text, Rectangle, Group, Arrow, BraceLabel, keyed } from '../../../src/index.ts';
 import type { Mobject, Box } from '../../../src/index.ts';
 import { code } from '../../../explain/drawing.ts';
-import type { Stage, Look } from '../../../explain/index.ts';
+import type { DrawContext, Look } from '../../../explain/index.ts';
 
 /** The stage's colours these pictures use: text, secondary text and the emphasis colour. */
 export type Ink = Pick<Look, 'ink' | 'soft' | 'emphasis'>;
@@ -105,7 +105,7 @@ export const rowWords = (row: RowState) =>
   `${row.label}: commit ${short(row.commit)} names tree ${short(row.tree)}, which lists ${row.entries.map((e) => `${e.file} as blob ${short(e.blob)}`).join(' and ')}`;
 
 /** A code panel keyed `exgit-<name>`, laid out as s.code lays one out, its bar on `lit` lines when given. */
-export const codePanel = (s: Stage, name: string, lines: string[], at: Box, lit?: [number, number]) =>
+export const codePanel = (s: DrawContext, name: string, lines: string[], at: Box, lit?: [number, number]) =>
   code(s, lines, { at, ...(lit ? { lit: { lines: lit } } : {}), key: `exgit-${name}` });
 
 /** The arrow from the blob's bytes down to their id, labelled SHA-1. */

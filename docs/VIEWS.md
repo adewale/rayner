@@ -8,10 +8,10 @@ import { Scene, Text, FadeIn } from 'rayner';
 import { view } from 'rayner/explain';
 import type { View } from 'rayner/explain';
 
-class Ring extends Scene<{ len: number; head: number }, {}> {   // the model's type, and what is shown's
+class Ring extends Scene {
+  override state = { len: 0, head: 0 };
   readout!: View<Text>;                    // kept on the scene, so a test can reach it
   override async construct() {
-    this.state = { len: 0, head: 0 };
     this.readout = view(this, (s) => new Text(`len ${s.len}  head ${s.head}`, { font: 'mono' }), { place: 'left' });
     await this.play(new FadeIn(this.readout));
 
@@ -26,7 +26,7 @@ This is manim's `always_redraw` in the engine's form. The picture changes only
 when you play `sync()`, and each change is a matching transform from the old
 picture to the new one. `sync()` returns an [action](REFERENCE.md#actions), as a stage
 verb does: await it, or hand it to `play()`, a `Succession` or a group. The draw's arguments are typed from the scene: the scene
-declares its model and shown types, `Scene<Model, Shown>`, and `view(this, draw)`
+initializes its model and shown fields, and `view(this, draw)`
 infers `draw(state: Model, shown: Shown)` ([typed state](REFERENCE.md#typed-state-and-shown)).
 
 ## How a sync plays
@@ -49,13 +49,12 @@ A play with a sync in it therefore skips like any other during a seek, and reach
 the byte-identical frame a full run renders, mid-sync included
 (`test/view.test.ts`). A sync morphs between two endpoint pictures; it does not
 evaluate the model between them. For a value that should be sampled along the
-way, tween the state: `view.tween((t) => stateAt(t), opts)` sets the scene's state
-to `stateAt(t)` at every frame, `t` from 0 to 1 at the eased alpha, and writes the
-view's draw of it into the picture, so the picture is that draw at every frame and
-the play ends with the state at `stateAt(1)` ([following one
-number](CHOREOGRAPHY.md#following-one-number)). Like a sync, a tween takes the picture on screen
-when it begins, not when it is made, so in `new Succession([view.sync(), view.tween(f)])` it draws
-into the picture the sync swapped in.
+way, `view.tween(stateAt, opts)` sets the scene's model to `stateAt(t)` and draws
+it at each frame. The value of `t` is the eased progress clamped to [0, 1]. The
+last sample supplies the final model and picture. With `linear` the final state
+is `stateAt(1)`. With `thereAndBack` it is `stateAt(0)`. A tween takes the picture
+on screen when it begins, so in `new Succession([view.sync(), view.tween(f)])` it
+draws into the picture the sync swapped in. [Following one number](CHOREOGRAPHY.md#following-one-number)
 
 ## Changing what is shown
 
@@ -64,19 +63,50 @@ Every way to change the picture changes the state and lets the views draw it. Th
 | I want to… | Use | Because |
 | --- | --- | --- |
 | Change the model for a step and show the change | Assign `this.state` (or one field), then `await v.sync()` | A sync draws the state as it is when it begins, so a change made before the play is the one it shows. This is the common case: about 250 assignments to the state and 80 syncs in the collection. Several model steps in a row are a loop of assignments and plays (periodic-groups' fill step, the choreography recipe) |
-| Let the reader drive the model with events, and check explored states within a declared limit | A [`Machine`](MACHINES.md): `machine.replay(events)` in the scene, `machine.send(event)` for one | Each event adopts the state the tested `next` computes at its turn in the schedule, then the views' sync or the event's transition play: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Eighteen explainers](MACHINES.md) and three tutorial scenes |
-| Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, sets its state, clears the stage and fades in its `draw` as a view of that state, so `rayner check` redraws every step from its state. 38 lists in 26 explainers |
-| Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))` | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
+| Let the reader drive the model with events, and check explored states within a declared limit | A [`Machine`](MACHINES.md): `machine.sendSequence(events)` in the scene, `machine.send(event)` for one | Each event adopts the state the tested `next` computes at its turn in the schedule, then the views' sync or the event's transition play: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Nineteen explainers](MACHINES.md) and three tutorial scenes |
+| Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, binds its local input without changing `scene.state`, clears the stage and fades in its `draw` as a view of that input, so `rayner check` redraws every step from its state. 38 lists in 26 explainers |
+| Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))`, or `tweenState(scene, stateAt, { views })` for several views | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
 | Author an event's motion part by part | The transition's `t.choreograph(v)`, and `c.follow` for parts that follow one number | It names the keyed parts of the view's picture now and of its picture of the next state, animates them in your order, and `rest()` moves the parts no call named to their places, so the transition still ends on the state's picture ([authored transitions](MACHINES.md#refused-events-bounds-and-authored-transitions)) |
 
-A sync, a tween, a machine's `send` and `replay`, and the stage's and diagrams' verbs are all [actions](REFERENCE.md#actions), so they play the same way: awaited, or together in one play, `this.play(v.sync(), d.walk(hops))`, or in turn in a `Succession`. Each plays once, and a step that ends with one made in it and never played fails, so an action cannot be left unplayed by mistake. They differ in when they read the state: a sync, a tween and a machine's events draw the state as it is when their turn comes, while a stage or diagram verb is decided when it is called, so what it shows does not follow a change of state made after the call: draw state in a view.
+A sync, a tween, a machine's `send` and `sendSequence`, and the stage's and diagrams' verbs are all [actions](REFERENCE.md#actions), so they play the same way: awaited, or together in one play, `this.play(v.sync(), d.walk(hops))`, or in turn in a `Succession`. Each plays once, and a step that ends with one made in it and never played fails, so an action cannot be left unplayed by mistake. They differ in when they read the state: a sync, a tween and a machine's events draw the state as it is when their turn comes, while a stage or diagram verb is decided when it is called, so what it shows does not follow a change of state made after the call: draw state in a view.
 
 A machine's schedule is built before it plays, so its events change the state at their turns inside it, with an animation of its own that only machines use; a scene's own code changes the state by assignment.
+
+## Comparing independent models
+
+The [LRU/MRU comparison](https://github.com/adewale/rayner/blob/main/scenes/explainers/cache-policies/scene.ts) sends the same request to
+two independent caches. Each policy reads only its own cache. The explanation stores both results
+and their shared request history in one explicit product state:
+
+```ts
+function request(before: Comparison, key: Key): Comparison {
+  return {
+    lru: requestCache('lru', before.lru, key),
+    mru: requestCache('mru', before.mru, key),
+    history: [...before.history, key],
+  };
+}
+
+this.state = request(this.state, 'D');
+await this.play(left.sync(), right.sync(), stream.sync());
+```
+
+The three named views (`cache:lru`, `cache:mru`, `cache:stream`) project the same committed input.
+The live `Machine` uses this same `request` function; Undo and Reset replay one request log and
+restore both caches together. The [owning tests](https://github.com/adewale/rayner/blob/main/scenes/explainers/cache-policies/scene.test.ts)
+check every guided request against hand-worked results and each view's input. The
+[player integration test](https://github.com/adewale/rayner/blob/main/test/cache-comparison-live.test.ts)
+checks Send, Undo and Reset against those same independent expectations.
+
+This composition fits models that share an input sequence and checkpoints. The author defines the
+complete next state, so no registry or automatic merging of partial writes is needed. Independence
+of the two policy calculations does not imply independent clocks: this comparison intentionally
+advances both on each request.
 
 ## API
 
 ```ts
-view(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
+view(scene: Scene & { state: S, shown: Sh }, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
 having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one chapter (below)
 
 view.current            // the picture on screen (the View's one child)
@@ -84,6 +114,7 @@ view.texts              // the strings it shows, in family order
 view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Action: await it or compose it; by key and staged unless told otherwise (SyncOptions: PlayOptions with match and staged)
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 view.tween((t) => state, { runTime, rateFunc }?)   // an Action: the state at t, drawn at every frame (above); TweenOptions, which has no lagRatio: one state is drawn whole
+tweenState(scene, (t) => state, { views: [a, b], runTime, rateFunc }) // one model sample shared by several views; TweenStateOptions
 ```
 
 `sync()` and `rebuild()` are one pair: each redraws the view from the state as it is
@@ -96,6 +127,14 @@ it would jump, which the motion check reports.
 Most draws read only the model, `state`. A picture that depends on which of several
 pictures is showing, which is not part of the model, reads it from `shown`, the
 scene's `this.shown`.
+
+For several pictures of one continuously changing model, use `tweenState` from
+`rayner/explain`. It samples `stateAt(t)` once and gives that state to every listed
+view before drawing the frame. Each view must belong to the same scene. Two
+simultaneous `view.tween` calls would both replace that scene's whole state, so the
+scheduler refuses them before either sampler runs; sequence them or use one shared
+sampler. The same write check covers a machine's state adoption. Ordinary unrelated
+picture animations can still run alongside the sampled views.
 
 A scene whose state changes shape by chapter declares the shapes, as a union or as one
 record with optional parts, and a draw of one chapter narrows to its shape:
@@ -157,15 +196,18 @@ The old picture fades out in the first half and the new one fades in in the seco
 their geometry and each child's authored opacity. It needs no keys. `how:'morph'` is the usual
 matching sync; its keyed default replaces changed words whole.
 
-If the rebuilt, placed picture matches the current one, the sync sets up no
-transform. "Matches" means the same family shape and point counts, points within
-1e-5, equal styles and equal strings. Nothing moves, the current child stays, and
-the sync **still takes its run time**, so step timing, frame numbers and
-`Succession` timings follow from the program alone rather than from whether the
-state happened to change. If you don't want the hold, don't play the sync.
+When the rebuilt, placed picture has the same family shape and point counts,
+points within 1e-5, equal styles and equal strings, the sync keeps the current
+child and skips the morph. At alpha 1 the child takes the new drawing's data,
+including keys, clips and descriptions. A rounded readout can keep the same
+visible digits while its description reports a new exact value.
+The sync **still takes its run time**, so step timing, frame numbers and
+`Succession` timings follow from the program. If you don't want the hold,
+don't play the sync.
 
-A rate function that does not end at 1 (`thereAndBack`, from `rayner/extras`) ends on the old
-picture, and the View does not swap; the fidelity check below reports that step.
+A sync whose rate function ends halfway leaves the current child halfway through
+the morph. With `thereAndBack` from `rayner/extras`, it returns to the starting
+picture. The View adopts the completed drawing when the eased progress ends at 1.
 
 ## Placement
 
@@ -179,8 +221,10 @@ not drift. This is `Text.setText`'s anchor rule applied to any picture:
   not depend on which letters the text holds.
 - Moving the View (`view.moveTo(...)`, `toEdge`, a Transform) moves the picture,
   and the next build is placed there too.
-- Scaling the View carries over: the View compares the current picture's layout
-  height with what `draw` last returned and scales the next build by the ratio.
+- Scaling the View carries over. It measures external scaling against the last
+  picture it adopted, using the width when a line is flat or its height is too
+  small to measure accurately. A tween takes its scale and anchor when it begins
+  and uses them at every sample, including after a temporarily empty path reappears.
   Only uniform scale carries; a rotation does not.
 - `place: false` turns this off: `draw` decides where the picture goes, and moving
   the View lasts only until the next sync.
@@ -192,13 +236,14 @@ is not on screen adds it abruptly.
 
 `specs/rayner.md` asks for a named pattern: "a scene's state at each step must
 equal the program's". `assertStepState` in `rayner/testing` checks the state side.
-A View adds the picture side, `assertViewFollowsState`, also in `rayner/testing`:
-**at the end of every step, the View shows what the traced state draws.**
+A View adds the picture side with `assertViewFollowsState`, also in `rayner/testing`.
+**At the end of every step, the View shows what its state input and the scene's
+authored shown fields draw.** Helpers can add evidence to the recorded trace with
+`addJson()`. The check redraws with the same inputs the View receives.
 
 ```ts
 import { assertViewFollowsState } from 'rayner/testing';
 
-// Runs the scene once. At each step's end it compares view.texts with draw(step.after, step.shown).
 await assertViewFollowsState(Ring, (scene) => (scene as Ring).readout);
 ```
 
@@ -219,23 +264,23 @@ from `shown` when it is presentation rather than model. A draw is synchronous an
 picture whole, so each has a builder a draw can call, which puts the mark in the picture and
 lets the part describe itself. The drawing kit builds cards, code panels and annotations
 (`card`, `code` and `callout` from `rayner/drawing`); the stage's `s.card` and `s.code`
-enter the same pictures for a part that does not change, and `s.enter` or `s.keep` any other.
+enter the same pictures for a part that does not change. Bind `{ drawing: s.drawing }` to give the draw the stage’s colour roles, lettering, direction and language. The view keeps that snapshot for each sync and historical redraw.
 
 ```ts
 import { view, having } from 'rayner/explain';
 import { card, code, callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.
-const counts = view(this, (st) =>
-  card(s, rows(st), { at: box, lit: { row: st.chosen, as: 'this check' } }), { place: false });
+const counts = view(this, (st, _shown, drawing) =>
+  card(drawing, rows(st), { at: box, lit: { row: st.chosen, as: 'this check' } }), { drawing: s.drawing, place: false });
 await s.enter(counts);                      // no describe: the card describes itself, its lit row too
 
 // A code panel with lit lines, and a callout beside the lit line, from the same state.
-const program = view(this, (st) => {
-  const panel = code(s, lines(st), { at: box, lit: { lines: st.passes ? [1, 2] : 1, as: 'run' } });
+const program = view(this, (st, _shown, drawing) => {
+  const panel = code(drawing, lines(st), { at: box, lit: { lines: st.passes ? [1, 2] : 1, as: 'run' } });
   const line = panel.code.lines[1]!.box()!;
-  return new Group(panel, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.look.good : s.look.bad }));
-}, { place: false });
+  return new Group(panel, callout(drawing, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? drawing.look.good : drawing.look.bad }));
+}, { drawing: s.drawing, place: false });
 
 // A diagram note, placed as a diagram picture places one, from the state's words.
 const note = view(this, (st) => d.notePicture('Capture', `${st.families} families`, { side: 'below' }), { place: false });

@@ -1,10 +1,11 @@
 import { Group, Rectangle, Text, Code, keyed } from '../src/index.ts';
-import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
+import type { Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../src/color.ts';
 import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource, checkSize } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import type { Description } from './trace.ts';
-import { wordsOf } from './words.ts';
+import { wordsFor } from './words.ts';
+import type { DrawContext } from './draw-context.ts';
 import type { LayoutDirection } from './layout-direction.ts';
 
 /** A label and its value; with `columns`, one value per column or a single value that spans them. */
@@ -98,7 +99,7 @@ function place(panel: Group, at: Vec | Box, height: number, align: 'center' | 't
  * the resting frame of a step shows what changed.
  */
 export class Card extends Group {
-  private readonly scene: Scene;
+  private readonly lang: string;
   /** The call an error names: the kit's `card()` or the stage's `s.card()`. */
   private readonly api: string;
   /** Each row's value; for a row with a value per column, its last column's. */
@@ -123,16 +124,17 @@ export class Card extends Group {
   private columnRoom: number[] = [];
 
   /** @internal The kit's `card(s, rows, opts)` builds a card on a stage. */
-  constructor(scene: Scene, colors: Palette, rows: readonly CardRow[], options: PlacedOptions<CardOptions> = {}) {
+  constructor(context: DrawContext, rows: readonly CardRow[], options: PlacedOptions<CardOptions> = {}) {
     super();
+    const { palette: colors, lang, shaping } = context;
     const api = (this.api = options.api ?? 'card()');
-    this.direction = options.direction ?? 'ltr';
+    this.direction = options.direction ?? context.direction;
     checkSize(api, 'size', options.size);
     checkSize(api, 'width', options.width);
     const edge = this.direction === 'ltr' ? 1 : -1;
     const labelAnchor = edge === 1 ? 'start' : 'end';
     const valueAnchor = edge === 1 ? 'end' : 'start';
-    this.scene = scene;
+    this.lang = lang;
     this.title = options.title;
     const size = (this.size = options.size ?? 0.24);
     // Without a panel there is nothing to pad: the rows sit at the card's edges.
@@ -146,13 +148,13 @@ export class Card extends Group {
     for (const [label, ...vs] of rows)
       if (vs.length !== 1 && vs.length !== n)
         throw new TypeError(n ? `${api}: the row ${JSON.stringify(label)} has ${vs.length} values for ${n} columns; give one per column, or one to span them` : `${api}: the row ${JSON.stringify(label)} has ${vs.length} values; pass columns to show more than one`);
-    const valueText = (v: unknown) => new Text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor, shaping: this.scene.textShaping });
-    const labels = rows.map(([l]) => new Text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor, shaping: this.scene.textShaping }));
+    const valueText = (v: unknown) => new Text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor, shaping });
+    const labels = rows.map(([l]) => new Text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor, shaping }));
     const cells = rows.map(([, ...vs]) => vs.map(valueText));
     const spans = (i: number) => cells[i]!.length === 1 && n !== 1;
-    const headings = this.columns.map((c) => new Text(c, { fontSize: size, color: colors.accent, weight: 'bold', anchor: valueAnchor, shaping: this.scene.textShaping }));
+    const headings = this.columns.map((c) => new Text(c, { fontSize: size, color: colors.accent, weight: 'bold', anchor: valueAnchor, shaping }));
     const titleText = options.title
-      ? new Text(options.title, { fontSize: size * 1.05, color: colors.accent, weight: 'bold', anchor: labelAnchor, shaping: this.scene.textShaping })
+      ? new Text(options.title, { fontSize: size * 1.05, color: colors.accent, weight: 'bold', anchor: labelAnchor, shaping })
       : null;
     const gap = size * COLUMN_GAP;
     // A column is as wide as its heading or its widest value (at least a glyph), plus the gap before it.
@@ -264,7 +266,7 @@ export class Card extends Group {
     if (options.lit != null) {
       // The bar runs across the panel, on the row's last value.
       this.bar.moveTo([this.panel.center()[0], this.row(options.lit.row).cells.at(-1)!.anchorPoint()[1]]).setOpacity(1);
-      this.lit = { label: options.lit.row, as: options.lit.as ?? wordsOf(scene).marked };
+      this.lit = { label: options.lit.row, as: options.lit.as ?? wordsFor(lang).marked };
     }
   }
 
@@ -291,7 +293,7 @@ export class Card extends Group {
 
   /** The rows as a reader sees them, the lit one with its word. */
   describe(): Description {
-    const w = wordsOf(this.scene);
+    const w = wordsFor(this.lang);
     // A value in a column is named by its row and its column: "Hits (LRU): 0".
     const parts = this.rows.flatMap((r) =>
       r.cells.map((c, j) => ({
@@ -354,7 +356,7 @@ export interface LineMark {
  * `Code`, which draws plain highlighted code text with no panel.
  */
 export class CodeBlock extends Group {
-  private readonly scene: Scene;
+  private readonly lang: string;
   /** The call an error names: the kit's `code()` or the stage's `s.code()`. */
   private readonly api: string;
   readonly code: Code;
@@ -369,22 +371,23 @@ export class CodeBlock extends Group {
   private readonly title: string | undefined;
 
   /** @internal The kit's `code(s, source, opts)` builds a code panel on a stage. */
-  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeBlockOptions> = {}) {
+  constructor(context: DrawContext, lines: readonly string[], options: PlacedOptions<CodeBlockOptions> = {}) {
     super();
+    const { palette: colors, lang, shaping } = context;
     const api = (this.api = options.api ?? 'code()');
-    this.scene = scene;
+    this.lang = lang;
     this.colors = colors;
     checkSize(api, 'size', options.size);
     checkSize(api, 'width', options.width);
     const fontSize = (this.fontSize = options.size ?? 0.25);
     if (!lines.length) throw new Error(`${api}: a code panel needs at least one line`);
-    this.code = new Code(lines, {fontSize, color: colors.ink, shaping: scene.textShaping});
+    this.code = new Code(lines, {fontSize, color: colors.ink, shaping});
     const at = typeof options.at === 'string' ? regionBox(options.at) : (options.at ?? [0, 0]);
     const box = at.length === 4 ? (at as Box) : null;
     this.title = options.title;
     const pad = 0.3;
     const head = options.title
-      ? new Text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start', shaping: this.scene.textShaping })
+      ? new Text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start', shaping })
       : null;
     if (box) {
       const room = (options.width ?? box[2] - box[0]) - 0.7;
@@ -440,7 +443,7 @@ export class CodeBlock extends Group {
       this.bar.closed = [...to.closed];
       this.bar.invalidateBox();
       this.bar.setOpacity(1);
-      this.lit = { lines: [a, b], as: options.lit.as ?? wordsOf(scene).focused };
+      this.lit = { lines: [a, b], as: options.lit.as ?? wordsFor(lang).focused };
     }
     if (options.key) {
       const k = options.key;
@@ -491,7 +494,7 @@ export class CodeBlock extends Group {
 
   /** The lines as a reader sees them, with the lit, added and removed ones named. */
   describe(): Description {
-    const w = wordsOf(this.scene);
+    const w = wordsFor(this.lang);
     const kinds = new Map(this.marks.map((m) => [m.line, w[m.kind]]));
     const f = this.lit;
     const n = this.code.lines.length;

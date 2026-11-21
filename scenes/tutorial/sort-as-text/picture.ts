@@ -1,5 +1,5 @@
 import { Group } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { SPACE, TYPE, keyedParts, tile, tones, label } from '../../../explain/drawing.ts';
 import { sorted, type State } from './model.ts';
 
@@ -8,14 +8,14 @@ const WIDTH = 1.9;
 const row = (count: number) => (i: number) => (i - (count - 1) / 2) * (WIDTH + SPACE.s);
 
 /** One number as a raised box: one group, its two parts keyed `<key>:box` and `<key>:label`. */
-const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
+const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 
 /**
  * The array as written, and under it what sort() makes of it once the state says it is sorted. With
  * no compare function the sorted row shows each number as the string sort() compares, in quotes.
  * Every box is keyed by its number, so when a number joins, the boxes it passes slide aside.
  */
-export function drawSort(s: Stage, st: State): Group {
+export function drawSort(s: DrawContext, st: State): Group {
   const parts = keyedParts(), t = tones(s);
   const across = row(st.values.length);
   parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');

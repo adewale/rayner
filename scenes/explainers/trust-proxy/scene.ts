@@ -184,7 +184,10 @@ type Focus = { lines: number | [number, number]; as: string } | null;
 type TrustCodeShown = { compile: Focus; loop: Focus };
 type TrustShown = { network?: NetShown; trustCode?: TrustCodeShown };
 
-export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
+export default class TrustProxyExplainer extends Scene {
+  override state: TrustState = { addresses: { ...ADDR }, setting: { ...settingsOf(this, TrustProxyExplainer) } };
+  override shown: TrustShown = {};
+
   static meta = {
     sources: [
       GUIDE + '#L26-L31',
@@ -233,13 +236,13 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       default: 'direct',
       options: REQUEST_KEYS.map((q) => ({ value: q, label: REQUEST_LABEL[q] })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const scriptAnswer = scriptAnswerOf(this);
-    const values = settingsOf(this),
-      trustKey = values.trust as TrustKey,
-      reqKey = values.request as RequestKey;
+    const values = this.state.setting,
+      trustKey = values.trust,
+      reqKey = values.request;
     const req = REQUESTS[reqKey],
       got = atExpress(req),
       trust = TRUSTS[trustKey],
@@ -249,7 +252,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     const ink = s.look.ink;
     /** A card drawn from the step's state: a view, so check compares it with the state at the end of every step. */
     const cardView = (rowsOf: (st: TrustState) => CardRow[], opts: CardOptions | ((st: TrustState) => CardOptions)) =>
-      view(this, (st) => card(s, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { place: false });
+      view(this, (st, _shown, drawing) => card(drawing, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { drawing: s.drawing, place: false });
     /**
      * Keep each view and fade them in together, in one play, as s.enter would. A card describes itself;
      * `words` says what else a view shows.
@@ -299,8 +302,6 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       this.shown.network = plainNet;
     };
     // `setting`: the scenario's trust setting and request, which the second card names.
-    this.state.addresses = { ...ADDR };
-    this.state.setting = { trust: trustKey, request: reqKey };
     const addresses = cardView(
       (st) => {
         const a = st.addresses;
@@ -425,10 +426,10 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     /** The result card, and under it whether req.ip is right. */
     const result = view(
       this,
-      (st) => {
+      (st, _shown, drawing) => {
         const { sender, outcome } = having(st, 'sender', 'outcome');
         const drawn = card(
-          s,
+          drawing,
           [
             ['Sent by', `${sender.addr} (${sender.name})`],
             ['req.ip', String(st.ip)],
@@ -439,9 +440,9 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
           },
         );
         const b = drawn.box()!;
-        return new Group(drawn, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? s.look.good : s.look.bad));
+        return new Group(drawn, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? drawing.look.good : drawing.look.bad));
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     s.keep(order);
     s.keep(result, { describe: () => outcomeWords(having(this.state, 'outcome').outcome, having(this.state, 'sender').sender.name) });
@@ -511,7 +512,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     });
     // The key to the boxes, which the caption reads: trusted, req.ip, not read, and the band a count trusts.
     const key = legend(
-      s,
+      s.drawing,
       [
         { label: 'trusted', fill: s.look.good },
         { label: 'req.ip: thick outline', fill: 'none', stroke: s.look.ink },
@@ -554,8 +555,8 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     this.shown.trustCode = { compile: null, loop: null } satisfies TrustCodeShown;
     const compile = view(
       this,
-      (_st, sh) =>
-        code(s, COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
+      (_st, sh, drawing) =>
+        code(drawing, COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
           at: left,
           align: 'top',
           size: 0.3,
@@ -563,13 +564,13 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
           lit: having(sh, 'trustCode').trustCode.compile,
           key: 'compile',
         }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     const loop = view(
       this,
-      (_st, sh) =>
+      (_st, sh, drawing) =>
         code(
-          s,
+          drawing,
           [
             '// alladdrs',
             'var addrs = forwarded(req)',
@@ -591,7 +592,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
             key: 'loop',
           },
         ),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(compile, loop);
     this.shown.trustCode = {
@@ -644,11 +645,11 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     /** A card per request, each with whether its req.ip is right under it. */
     const requestColumns = view(
       this,
-      (st) => {
+      (st, _shown, drawing) => {
         const all = requestsOf(st);
         const columns = all.map(
           ({ q, readings }, k) =>
-            card(s, readings.map((x) => [`${x.index + 1}.`, `${x.addr}  ${VERDICT_WORD[x.verdict]}`] as const), {
+            card(drawing, readings.map((x) => [`${x.index + 1}.`, `${x.addr}  ${VERDICT_WORD[x.verdict]}`] as const), {
               at: [-7.55 + k * third + 0.08, -4.25, -7.55 + (k + 1) * third - 0.08, 2.6] as Box,
               align: 'top',
               size: BIG,
@@ -658,11 +659,11 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
             }),
         );
         const verdicts = all.flatMap(({ q, outcome }, k) =>
-          wrap(outcomeWords(outcome, REQUESTS[q].sender.name), [-7.55 + k * third + 0.2, columns[k]!.box()![1] - 0.15], third - 0.5, BIG, outcome === 'sender' ? s.look.good : s.look.bad),
+          wrap(outcomeWords(outcome, REQUESTS[q].sender.name), [-7.55 + k * third + 0.2, columns[k]!.box()![1] - 0.15], third - 0.5, BIG, outcome === 'sender' ? drawing.look.good : drawing.look.bad),
         );
         return new Group(...columns, ...verdicts);
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await enterViews([requestColumns], {}, () =>
       requestsOf(this.state).map(({ q, outcome }) => outcomeWords(outcome, REQUESTS[q].sender.name)).join('. '),
@@ -760,20 +761,20 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     const side = (which: 0 | 1, box: Box, key: string) =>
       view(
         this,
-        (st) => {
+        (st, _shown, drawing) => {
           const current = st.setting.trust,
             { compare, compareOutcomes } = having(st, 'compare', 'compareOutcomes'),
             t = which === 0 ? current : (Object.keys(compare).find((k) => k !== current) as TrustKey),
             ips = having(compare, t)[t],
             outcomes = having(compareOutcomes, t)[t];
           return keyed(
-            card(s, REQUEST_KEYS.map((q) => [REQUEST_LABEL[q], `${ips[q]}  ${outcomes[q] === 'sender' ? 'right' : 'wrong'}`] as const),
+            card(drawing, REQUEST_KEYS.map((q) => [REQUEST_LABEL[q], `${ips[q]}  ${outcomes[q] === 'sender' ? 'right' : 'wrong'}`] as const),
               { at: box, align: 'top', size: SIZE, title: `trust proxy ${t === 'list' ? TRUST_CODE.list : TRUST_LABEL[t]}` },
             ),
             key,
           );
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
     // The comparison's six answers are the ranges step's evidence. The
     // network panel behind the preceding quote is context when it is revealed.

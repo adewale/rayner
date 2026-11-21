@@ -4,12 +4,13 @@
 // descriptions of the shipped explainers are in explain-real.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
+import { Scene, Rectangle, Group, Text, DecimalNumber, FadeIn, keyed } from '../src/index.ts';
 import { NullSink, renderFrame } from '../src/timeline.ts';
 import { toSvgString } from '../src/svg.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
-import { stage } from '../explain/index.ts';
+import { stage, view } from '../explain/index.ts';
+import { described } from '../explain/drawing.ts';
 import { bindSnapshots } from '../explain/internal.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
@@ -182,7 +183,7 @@ test('descriptions read chart values as written, name marks by their word, and r
     }
   }
   const steps = (await traceScene(bindSnapshots(Described, { [diagramKey(chartSpec)]: chart }))).steps;
-  const [first, drawn, faint, described] = steps.map((s) => s.shown);
+  const [first, drawn, faint, described] = steps.map((s) => s.derived);
   assert.equal(
     pictureSummary(first),
     'XY chart: Tokens from 0 to 5, 2 categories from R1 to R2. Note: “full” beside R1: 4; rejected: R2: 0.5.',
@@ -367,7 +368,7 @@ test('a card drawn lit and code drawn lit carry their bar on the row or lines, a
   const scene = new Scene(new NullSink());
   const s = stage(scene);
   const rows = [['a', 1], ['b', 22], ['c', 333]] as const;
-  const lit = card(s, rows, { at: [1, 0.5], title: 'T', lit: { row: 'b', as: 'chosen' } });
+  const lit = card(s.drawing, rows, { at: [1, 0.5], title: 'T', lit: { row: 'b', as: 'chosen' } });
   // The bar runs across the panel, on row b.
   const bar = lit.bar.box()!, panel = lit.panel.box()!;
   assert.ok(Math.abs(lit.bar.center()[1] - lit.values.get('b')!.anchorPoint()[1]) < 1e-6);
@@ -381,21 +382,21 @@ test('a card drawn lit and code drawn lit carry their bar on the row or lines, a
   assert.deepEqual(lit.describe().parts.map((p) => p.mark), [undefined, 'chosen', undefined]);
   assert.equal(lit.describe().parts.find((p) => p.mark)?.name.startsWith('b'), true);
   // Unlit, the bar is there but hidden, so a picture keeps one family shape whether lit or not.
-  const plain = card(s, rows, { at: [1, 0.5], title: 'T' });
+  const plain = card(s.drawing, rows, { at: [1, 0.5], title: 'T' });
   assert.equal(plain.bar.style.opacity, 0);
   assert.equal(plain.family().length, lit.family().length);
   assert.equal(plain.describe().parts.some((p) => p.mark), false);
-  assert.throws(() => card(s, rows, { lit: { row: 'nope' } }), /card\(\): lit names no row of the card, "nope"/);
+  assert.throws(() => card(s.drawing, rows, { lit: { row: 'nope' } }), /card\(\): lit names no row of the card, "nope"/);
 
   const lines = ['one', 'two', 'three', 'four'];
-  const built = code(s, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
+  const built = code(s.drawing, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
   // The bar covers lines 1 and 2, and neither line beside them.
   const span = built.bar.box()!, ys = built.code.lines.map((l) => l.anchorPoint()[1]);
   assert.equal(built.bar.style.opacity, 1);
   assert.ok(ys[1]! > span[1] && ys[1]! < span[3] && ys[2]! > span[1] && ys[2]! < span[3]);
   assert.ok(ys[0]! > span[3] && ys[3]! < span[1]);
   assert.deepEqual(built.describe().parts.map((p) => p.mark), [undefined, 'run', 'run', undefined]);
-  assert.throws(() => code(s, lines, { lit: { lines: [2, 9] } }), /code\(\): lit names lines 2\.\.9, which are not lines of this panel/);
+  assert.throws(() => code(s.drawing, lines, { lit: { lines: [2, 9] } }), /code\(\): lit names lines 2\.\.9, which are not lines of this panel/);
 
   // On stage, each says what it emphasises.
   scene.add(lit, built);
@@ -413,24 +414,71 @@ test('a view of a card or code is described as that card or code, and a describe
       const s = stage(this);
       this.state = { n: 7 };
       await this.step('card');
-      const card = view(this, (st) => cardPicture(s, [['n', (st as { n: number }).n]], { lit: { row: 'n', as: 'now' } }), { place: false });
+      const card = view(this, (st) => cardPicture(s.drawing, [['n', (st as { n: number }).n]], { lit: { row: 'n', as: 'now' } }), { place: false });
       await s.enter(card);
       await this.step('both');
       await s.clear();
       // A card beside words of its own: the card describes itself, the describe says the rest.
       const pair = view(
         this,
-        (st) => new Group(code(s, [`n = ${(st as { n: number }).n}`], { lit: { lines: 0 } }), new Text('beside', { color: INK }).moveTo([0, -2])),
+        (st) => new Group(code(s.drawing, [`n = ${(st as { n: number }).n}`], { lit: { lines: 0 } }), new Text('beside', { color: INK }).moveTo([0, -2])),
         { place: false },
       );
       await s.enter(pair, { describe: 'Words beside the code' });
     }
   }
-  const [card, both] = (await traceScene(Described)).steps.map((st) => (st.shown!.picture as Picture).entries);
+  const [card, both] = (await traceScene(Described)).steps.map((st) => (st.derived!.picture as Picture).entries);
   assert.deepEqual(card, [{ what: '1 labelled value', marked: { now: ['n: 7'] }, items: [] }]);
   assert.deepEqual(both, [
     { what: 'Code, 1 line', marked: { focused: ['1: n = 7'] }, items: [] },
     { what: 'Words beside the code', items: [] },
+  ]);
+});
+
+test('described reads each copy and leaves an unrelated group’s describe method alone', async () => {
+  class LibraryGroup extends Group {
+    describe(): never { throw new Error('Called a method from a different protocol'); }
+  }
+  class Stations extends Scene {
+    override async construct() {
+      const s = stage(this);
+      const station = new Text('inlet');
+      assert.equal(described(station, (self) => ({ what: 'Station', parts: [{ name: self.text }] })), station);
+      const outlet = station.copy().setText('outlet');
+      await this.step('meters');
+      await s.enter(new Group(new Group(station, outlet), new LibraryGroup(new Text('Flow'))));
+    }
+  }
+  const { steps } = await traceScene(Stations);
+  assert.deepEqual((steps[0]!.derived!.picture as Picture).entries, [
+    { what: 'Station', items: ['inlet'] },
+    { what: 'Station', items: ['outlet'] },
+    { what: '1 label', items: ['Flow'] },
+  ]);
+});
+
+test('a described meter inside a view reports its fresh reading when the rounded digits stay the same', async () => {
+  class Meter extends Scene {
+    override state = { temperature: 10.1 };
+
+    override async construct() {
+      const s = stage(this);
+      this.state = { temperature: 10.1 };
+      const meter = view(this, ({ temperature }) => {
+        const digits = keyed(new DecimalNumber(temperature), 'reading');
+        return new Group(described(digits, (self) => ({ what: 'Temperature', parts: [{ name: `${self.value} °C` }] })));
+      });
+      await this.step('first');
+      await s.enter(new Group(meter));
+      await this.step('warmer');
+      this.state.temperature = 10.4;
+      await meter.sync();
+    }
+  }
+  const { steps } = await traceScene(Meter);
+  assert.deepEqual(steps.map((st) => (st.derived!.picture as Picture).entries), [
+    [{ what: 'Temperature', items: ['10.1 °C'] }],
+    [{ what: 'Temperature', items: ['10.4 °C'] }],
   ]);
 });
 
@@ -455,7 +503,7 @@ test('a staged step says what its picture shows with describe, and its own card 
       ]);
     }
   }
-  const [geometry, words] = (await traceScene(Staged)).steps.map((st) => (st.shown!.picture as Picture).entries);
+  const [geometry, words] = (await traceScene(Staged)).steps.map((st) => (st.derived!.picture as Picture).entries);
   assert.deepEqual(geometry, [{ what: 'A circle of radius 2', items: [] }]);
   // The card is described by itself, and its words are not said again with the picture's other text.
   assert.deepEqual(words, [{ what: '1 labelled value', items: ['k: v'] }, { what: 'under it', items: [] }]);
@@ -503,7 +551,7 @@ test('a diagram picture carries notes beside their parts, dimming that keeps 3:1
   }
   // Described as the live diagram is: the note and the worded mark among its parts, dimmed parts said so;
   // the picture and its note add no entry of their own.
-  const [one] = (await traceScene(bindSnapshots(Pictured, store))).steps.map((st) => (st.shown!.picture as Picture).entries);
+  const [one] = (await traceScene(bindSnapshots(Pictured, store))).steps.map((st) => (st.derived!.picture as Picture).entries);
   assert.equal(one!.length, 1);
   assert.deepEqual(one![0]!.marked, { note: ['“here” beside node C'], chosen: ['node B'] });
   assert.ok(one![0]!.items.some((i) => /dimmed/.test(i)));

@@ -110,14 +110,14 @@ type N = { n: number };
  * written by `transition`; its one press is played in the run, and the run's findings returned.
  */
 async function played(transition: (t: Transition<N, 'go'>, post: ReturnType<typeof view<N, {}, Group>>) => ReturnType<typeof beats>, runTime: number): Promise<string[]> {
-  class Small extends Scene<N, {}> {
+  class Small extends Scene {
     override state: N = { n: 0 };
     override async construct() {
       const s = stage(this, { heading: false });
       const post = view(this, (st: N) => new Group(
         keyed(new Rectangle({ width: 15, height: 8, fill: s.look.paper, stroke: 'none' }), 'ground'),
-        keyed(label(s, 'status: ready', { at: [0, 2] }), 'status'),
-        keyed(label(s, `count ${st.n}`, { at: [0, -2] }), 'count'),
+        keyed(label(s.drawing, 'status: ready', { at: [0, 2] }), 'status'),
+        keyed(label(s.drawing, `count ${st.n}`, { at: [0, -2] }), 'count'),
         keyed(new Rectangle({ width: 0.8, height: 0.5, fill: s.look.emphasis, stroke: 'none' }).moveTo([4, 0]), 'box'),
       ));
       const machine = new Machine<N, 'go'>(this, { start: { n: 0 }, events: ['go'], views: [post], next: (st) => ({ n: st.n + 1 }), runTime, transition: { go: (t) => transition(t, post) } });

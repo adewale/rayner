@@ -18,7 +18,7 @@ export class NullSink implements Sink {
  * sink's own skip time: what the command and the player read a project's steps and layouts from.
  * Nothing reads frames, and the state at a step boundary is exact (see Sink.skipUntil).
  */
-export async function dryRun(SceneClass: SceneClass, sink: Sink, opts: SceneOptions = {}): Promise<Scene> {
+export async function dryRun<S extends Scene>(SceneClass: SceneClass<S>, sink: Sink, opts: SceneOptions = {}): Promise<S> {
   const skipping: Sink = {
     skipUntil: Infinity,
     frame: (scene, dt) => sink.frame(scene, dt),
@@ -37,7 +37,7 @@ export async function dryRun(SceneClass: SceneClass, sink: Sink, opts: SceneOpti
  * Frames before it are counted, not drawn; past the end, the final frame is drawn. The frame is
  * found by its number, never by a rounded time.
  */
-export async function renderFrame(SceneClass: SceneClass, frame: number, sink: Sink = new NullSink(), opts: SceneOptions = {}): Promise<Scene> {
+export async function renderFrame<S extends Scene>(SceneClass: SceneClass<S>, frame: number, sink: Sink = new NullSink(), opts: SceneOptions = {}): Promise<S> {
   if (!Number.isInteger(frame) || frame < 0) throw new RangeError(`renderFrame(): the frame is ${String(frame)}; give a whole frame number, 0 or more`);
   const seek = new FrameSeek(sink, frame);
   const scene = new SceneClass(seek, opts);

@@ -14,6 +14,30 @@ npm run demos:review      # review that exact catalog as served
 npm run pack:smoke        # fresh installed-package checks
 ```
 
+The domain API is accepted against four independent boundaries:
+
+- Initialized model and shown fields must be valid before any frame callback, including seek
+  and empty runs. Source and installed-package consumers must preserve exact named-interface
+  and union inference and reject uninitialized fields, wrong reducer/tween values and erased
+  key access. Real scenario tests compare selected domain starts at frame zero.
+- A detached drawing context must reproduce palette, localized descriptions, RTL layout and
+  shaping without a Stage. Historical redraws must retain the context used for their picture.
+  Interleaved contexts and an explicitly unshaped draw under a foreign ambient service exercise
+  the hidden-global failure case.
+- Watch tests independently supply conflicting same-key values in all four channels, with
+  absent specimens, literal/prototype-sensitive keys, locale and a single display cap. The
+  same readings must reach describe, transcript, check report and the pruned player payload.
+  Served-reader tests cover the actual ticket-link and request-state distinction.
+- Observation tests count full model states and actual checked continuations independently of
+  displayed values. The guarded search's ten-state/nine-edge inventory has three published
+  values; equal blank-page observations still accept different future events. Duplicate words
+  for different observations, bad transition endpoints and invalid/impure selector values must
+  reject. Singleton observations and separately sampled model exploration must remain valid.
+
+Every repaired boundary includes a deliberate defect control. Type checking, the standard
+suite, installed-package checks, real browser interaction and the strict catalogue then cover
+integration; none of those substitutes for the independent domain oracles.
+
 Property tests (fast-check, with `fc` and `params` from `test/lib/pbt.ts`, or `scenes/explainers/lib/pbt.ts` in an explainer's folder) draw their cases from the seed committed in `scenes/explainers/lib/pbt.ts`, so a run and its re-run draw the same cases. CI's gate, the `check` job, runs them from that seed with `FULL=1`, ten times as many cases, so a pull request's gate draws the cases the gate before it drew, unless the pull request changes the tests themselves. The scheduled `properties` workflow (nightly, or run by hand with a seed) runs the same tests with `FULL=1` from a fresh random seed, which it prints first, to find the cases the committed seed misses; what it finds blocks no pull request. A failed property prints its seed and counterexample path, and `tools/repo/ci-tests.ts` prints the command that replays it, `FC_SEED=<seed> FC_PATH=<path> node --test --test-name-pattern='^<test name>$' <file>` (add the lane's other settings, such as `EXPLAIN_BROWSER=1`). `FC_SEED` alone draws from another seed, and `FC_RUNS=<n>` sets every property's count.
 
 Use Node 24 or later. Every browser check launches Chromium through `tools/lib/browser.ts`, which uses Playwright's pinned build if it is installed and otherwise another installed Playwright build or a system Chrome or Chromium that launches and renders within four major versions of it ([Finding Chromium](REFERENCE.md#finding-chromium)); run `npx playwright-core install chromium` only if none is found, or set `CHROMIUM_EXECUTABLE_PATH` to choose one. A test or tool never calls Playwright's `chromium.launch()` itself. `test/chromium-discovery.test.ts` checks the search order and the fall-through with a fake filesystem and launcher. Optional lettering capture checks need the fonts and Python requirements in [LETTERING.md](LETTERING.md). A skipped check supplies no pass evidence.
@@ -23,7 +47,8 @@ Use Node 24 or later. Every browser check launches Chromium through `tools/lib/b
 | Domain values | Each explainer folder's own evidence (below); `view-readouts.test.ts` pins reader values |
 | Engine geometry and animation | Seeded properties, Manim/raster references, native SVG and seek/cache tests |
 | Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
-| Staged steps | Each `s.steps` picture is a view, so `rayner check` holds it to its draw at its step's end and draws it from other states; `staged-steps.test.ts` shows a draw that reads a counter, and one that draws a captured constant, failing, named by their steps |
+| Staged steps | Each `s.steps` picture is a view of its local `StepRecord.state`, separate from the persistent model's `before` and `after`. `rayner check` redraws that input and draws other states; `staged-steps.test.ts` shows counter and captured-constant defects failing, and verifies the typed model during frames and callbacks |
+| Shared sampled state | `tween-state.test.ts` rejects competing model writers before sampling, checks two dependent views against one model at every frame, and compares seeks with full frames after preceding syncs |
 | Machines | `rayner check` explores every machine's reachable states and checks each picture, its labels at 1280 px included, and at a live step on a 390 px phone; `machine.test.ts` checks replay, seeking, shortest paths, a picture that cannot tell states apart, and a live step whose note reads under 12 px on the phone |
 | Caption length | `rayner check` fails a caption over 80 words in any scenario; `explain-script.test.ts` checks how words are counted and the limit |
 | Motion | `rayner check` follows every keyed part through every play of every scenario and every event from each explored machine state, within its declared limit,, and fails a jump, flicker, words readable before the token that causes them lands, a token over a label, or words scaled down to travel; `keyed-motion.test.ts` brings back one defect of each of the first three kinds that filming the Poppy series found (a transition squeezed into a shorter run time, a name that blinks mid-flight, an answer written as its ticket sets off) in `test/fixtures/motion` and shows each failing and the fixed scene passing, and shows the last two on small scenes; `motion-corpus.test.ts` holds the check to its recall on 59 defects filmed in the Poppy series, each brought back as edits to the current scenes ([the motion corpus](MOTION-CORPUS.md): a sample by default, every entry with `FULL=1`) |
@@ -62,6 +87,19 @@ Each explainer folder (`scenes/explainers/<id>/`, `scenes/tutorial/<id>/`) holds
 | `fixtures/` | What an oracle or a measurement recorded | the folder's tests |
 
 Shared helpers stay in `test/lib/`. Engine tests that use an explainer as an example (the CLI, describe, watch, the reader values) and the Chromium reader tests in `test/browser/` stay where they are. `npm test` runs `scenes/*/*/*.test.ts` with the rest.
+
+CLI behavior is tested through `run(args, { stdout, stderr })` in `tools/explain.ts`.
+It returns an exit status and writes command output through those two callbacks; only the
+executable adapter reads `process.argv`, writes process streams and sets `process.exitCode`.
+`test/lib/cli-contract.ts` captures the explicit writers for help, option errors and real
+temporary-project operations. Watch tests supply writers too. They do not replace global
+console methods, filter runtime warnings, or launch Node once per argument combination.
+
+The installed-package gate runs the same contract against the installed implementation.
+A few executable smoke checks retain the separate proof that npm's bin link starts, prints
+help/version and returns a failing OS exit status. External source/compiled-module loading,
+capture tools and long-running preview retain their process integration boundaries; these
+do not own the full argument/help matrix.
 
 The primary Linux/current-Node lane owns the complete browser suite. Minimum Node retains the standard suite, CLI and author-review browser checks, plus installed-package capture and preview. It does not repeat every reader interaction. Set `EXPLAIN_WEBKIT=1` or `EXPLAIN_SAFARI=1` for those browser checks. WebKit emulation does not establish physical iPhone touch, rotation, zoom or VoiceOver behavior.
 

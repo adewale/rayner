@@ -238,7 +238,7 @@ export class KeyedMotionSink implements Sink {
 }
 
 /** One frame's keyed parts, by address (the keys of the keyed parts around a part, then its own), and its drawn leaves. */
-function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefined): Frame {
+function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSize?: (m: Mobject) => number | undefined): Frame {
   const [fx0, fy0, fx1, fy1] = scene.frame.box()!, k = FRAME.w / (fx1 - fx0), cx = (fx0 + fx1) / 2, cy = (fy0 + fy1) / 2;
   const parts = new Map<string, PartSample>(), leaves: Leaf[] = [];
   const screen = (b: Box): Box => [(b[0] - cx) * k, (b[1] - cy) * k, (b[2] - cx) * k, (b[3] - cy) * k];
@@ -565,9 +565,8 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
           if(share<=L.cover||share>=0.999)continue;
           // Both words need visible ink. An opaque foreground plate can mask the
           // moving copy before the fixed label, as a value arrives behind its tray.
-          const masked = a < b && leaves.some((mask, index) => index > a && index < b && !mask.text && mask.a >= 0.99 &&
-            !mask.paint.startsWith('/') && mask.poly && area(intersect(mask.box,overlap)??[0,0,0,0])>=0.99*overlapArea &&
-            inkIn(mask.poly,overlap) >= 0.99 * overlapArea);
+          const masked = a < b && leaves.some((mask, index) => index > a && index < b && !mask.text &&
+            (mask.fillAlpha ?? 0) >= 0.99 && fillsBox(mask, overlap));
           if (masked) continue;
           duplicate = true; break;
         }
@@ -736,8 +735,12 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
             // A leaf with a fill covers its box; an outline alone (a ring round a label, a line) covers almost none of it.
             for (let r = T.from; r < T.to; r++) {
               const t = f.leaves[r]!;
-              if (t.a < L.readable || t.paint.startsWith('/') || overlap(t.box, l.box) < L.cover * whole) continue;
-              most = Math.max(most, (t.poly ? inkIn(t.poly, l.box) : overlap(t.box, l.box)) / whole);
+              if ((t.fillAlpha ?? 0) < L.readable || overlap(t.box, l.box) < L.cover * whole) continue;
+              // A traveller's omitted ancestors can still clip its real fill. Its
+              // uncut path box cannot prove it paints over words outside that clip.
+              const visible = t.clip ? intersect(l.box, t.clip) : l.box;
+              if (!visible) continue;
+              most = Math.max(most, (t.poly ? inkIn(t.poly, visible) : overlap(t.box, visible)) / whole);
             }
             if (most < L.cover) continue;
             now.add(l.id);
@@ -772,7 +775,8 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   // rather than a whole line's em box: hiding a short name inside a long label still matters.
   // Require nearly complete masking of two glyphs, an opaque fill drawn above them, and a clear
   // copy of these same words in this transition. Permanent background replacement is not a blink.
-  type HiddenRun = { first: number; last: number; glyphs: number; text: string; path: string; by: string };
+  type MaskSpan = { first: number; last: number; source: string; by: string };
+  type HiddenRun = { first: number; last: number; glyphs: number; text: string; path: string; masks: MaskSpan[] };
   const obscured = new Map<string, { clear: boolean; active?: HiddenRun; longest?: HiddenRun }>();
   const closeHidden = (record: { active?: HiddenRun; longest?: HiddenRun }) => {
     const run = record.active;
@@ -781,13 +785,13 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       // A terminal wipe may intentionally remove old contents behind the new page. Keep
       // emergence/return defects and wrong stacking that persists in the resting picture.
       const visibleLater = frames.slice(Math.min(run.last + 1, frames.length - 1)).some(f => f.leaves.some(l => l.path === run.path && l.text === run.text && l.a >= L.readable && l.glyphs?.length));
-      if (visibleLater) record.longest = { ...run };
+      if (visibleLater) record.longest = { ...run, masks: run.masks.map(mask => ({ ...mask })) };
     }
     delete record.active;
   };
   for (let j = 0; j < frames.length; j++) {
     const f = frames[j]!;
-    const now = new Map<string, { path: string; text: string; copies: { box: Box; covered: number; by: string }[] }>();
+    const now = new Map<string, { path: string; text: string; copies: { box: Box; covered: number; source: string; by: string }[] }>();
     for (let q = 0; q < f.leaves.length; q++) {
       const label = f.leaves[q]!;
       if (!label.text?.trim() || label.a < L.readable || !label.glyphs?.length) continue;
@@ -795,6 +799,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       if (!path) continue;
       let most = 0;
       let by = 'unkeyed shape';
+      let source = '';
       for (let r = q + 1; r < f.leaves.length; r++) {
         const mask = f.leaves[r]!;
         if (mask.text !== undefined || !mask.poly || (mask.fillAlpha ?? 0) < 0.95 || !intersect(mask.box, label.box)) continue;
@@ -809,11 +814,17 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
           const dx = (glyph[2] - glyph[0]) * inset, dy = (glyph[3] - glyph[1]) * inset;
           if (fillsBox(mask, [glyph[0] + dx, glyph[1] + dy, glyph[2] - dx, glyph[3] - dy])) covered++;
         }
-        if (covered >= Math.min(2, label.glyphs.length) && covered > most) { most = covered; by = maskPath ? named(maskPath) : by; }
+        if (covered >= Math.min(2, label.glyphs.length) && covered > most) {
+          most = covered;
+          by = maskPath ? named(maskPath) : 'unkeyed shape';
+          // Draw-order position also identifies anonymous masks in independently rebuilt
+          // seek frames; renderer ids would change on every such frame.
+          source = maskPath ?? `\0${r}`;
+        }
       }
       const id = `${path}\0${label.text}`;
       const had = now.get(id);
-      const copy = { box: label.box, covered: most, by };
+      const copy = { box: label.box, covered: most, source, by };
       if (had) had.copies.push(copy);
       else now.set(id, { path, text: label.text, copies: [copy] });
     }
@@ -824,9 +835,12 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       const hidden = entry.copies.find(c => c.covered && !entry.copies.some(other => !other.covered && samePlace(c.box, other.box, L.same)));
       if (!hidden) { record.clear = true; closeHidden(record); }
       else {
-        record.active ??= { first: j, last: j, glyphs: hidden.covered, text: entry.text, path: entry.path, by: hidden.by };
+        record.active ??= { first: j, last: j, glyphs: hidden.covered, text: entry.text, path: entry.path, masks: [] };
         record.active.last = j;
-        record.active.glyphs = Math.max(record.active.glyphs, hidden.covered);
+        record.active.glyphs = Math.min(record.active.glyphs, hidden.covered);
+        const mask = record.active.masks.at(-1);
+        if (mask?.source === hidden.source) mask.last = j;
+        else record.active.masks.push({ first: j, last: j, source: hidden.source, by: hidden.by });
       }
       obscured.set(id, record);
     }
@@ -835,10 +849,19 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   for (const record of obscured.values()) {
     closeHidden(record);
     if (!record.clear || !record.longest) continue;
-    const { first, last, glyphs, text, path, by } = record.longest;
+    const { first, last, glyphs, text, path, masks } = record.longest;
     const duration = frames[last]!.t - frames[first]!.t;
+    // The threshold belongs to the victim's continuous loss of readability, even if
+    // several short-lived masks take turns. Attribute each mask only to its sampled
+    // interval rather than blaming the first mask for the complete obscuration.
+    const attribution = masks.length === 1
+      ? `“${masks[0]!.by}”, an opaque foreground shape, covers`
+      : `opaque foreground shapes ${masks.map((mask, i) => {
+        const end = masks[i + 1]?.first ?? mask.last;
+        return `“${mask.by}” (${fmt(frames[mask.first]!.t - t0, 3)}–${fmt(frames[end]!.t - t0, 3)} s)`;
+      }).join(', ')} cover`;
     out.push({ kind: 'occluded words', segment, key: named(path), path, t: ms(frames[first]!.t - t0), value: ms(duration),
-      detail: `“${text.length > 40 ? text.slice(0, 39) + '…' : text}” stays readable by opacity but “${by}”, an opaque foreground shape, covers at least ${100 * L.glyphCover}% of ${glyphs} glyph ${glyphs === 1 ? 'box' : 'boxes'} for ${fmt(duration)} s`,
+      detail: `“${text.length > 40 ? text.slice(0, 39) + '…' : text}” stays readable by opacity but ${attribution} at least ${100 * L.glyphCover}% of ${glyphs} glyph ${glyphs === 1 ? 'box' : 'boxes'} for ${fmt(duration)} s`,
       fix: 'draw the words above their paper, route the foreground shape round them, or take the old words away before covering them' });
   }
   // A part inside one that moves, blinks or arrives with it shares that defect.

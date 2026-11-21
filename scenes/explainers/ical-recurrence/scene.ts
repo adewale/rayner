@@ -2,7 +2,7 @@ import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { Diagram, Stage, Side, DiagramPicture, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, DrawContext, Side, DiagramPicture, ExplainerMeta } from '../../../explain/index.ts';
 import {
   DTSTART,
   GUEST_MEETING,
@@ -88,7 +88,10 @@ type ErShown = { notes: { id: string; text: string; side: Side }[]; dim: string[
 /** The stored object's marks, the meeting the list lights (and what it is called), and the schema's notes. */
 type IcalShown = { stored?: StoredShown; listMark?: { row: string; as: string } | null; er?: ErShown };
 
-export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown> {
+export default class IcalRecurrenceExplainer extends Scene {
+  override state: IcalState = {};
+  override shown: IcalShown = {};
+
   static meta = {
     sources: [
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1',
@@ -129,13 +132,13 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
       default: 'guest',
       options: (Object.keys(COPIES) as Copy[]).map((value) => ({ value, label: COPIES[value] })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const change = values.change as Change,
-      copy = values.copy as Copy;
+    const values = settingsOf(this, IcalRecurrenceExplainer);
+    const change = values.change,
+      copy = values.copy;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const after = organiserCopy(change);
 
@@ -152,16 +155,16 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: IcalState) => (st.change ?? st.invite ?? having(st, 'series').series).components;
     const codeOpts = { at: CODE, align: 'top', size: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
-    const naturalWidth = (vs: readonly VEvent[]) => code(s, lines(vs), codeOpts).panel.width();
+    const naturalWidth = (vs: readonly VEvent[]) => code(s.drawing, lines(vs), codeOpts).panel.width();
     // The widest of the objects shown so far: the panel widens for wider lines and then stays wide.
     const widthFor = (st: IcalState) =>
       Math.max(...[SERIES, ...(st.invite || st.change ? [INVITED] : []), ...(st.change ? [stored(st)] : [])].map(naturalWidth));
     this.shown.stored = { added: [], focus: null } satisfies StoredShown;
     const codeView = view(
       this,
-      (st, sh) => {
+      (st, sh, drawing) => {
         const shownCode = having(sh, 'stored').stored;
-        const panel = code(s, lines(stored(st)), {
+        const panel = code(drawing, lines(stored(st)), {
           ...codeOpts,
           width: widthFor(st),
           added: shownCode.added,
@@ -170,7 +173,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
         });
         return panel;
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     /** The lines of `next` that a line diff from `before` adds: the indices of its hunks' new lines. */
     const addedLines = (before: readonly string[], next: readonly string[]) =>
@@ -183,9 +186,9 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
     // `shown.listMark`: the meeting the list lights and what the description calls it, or none.
     const list = view(
       this,
-      (st, shown) => {
+      (st, shown, drawing) => {
         const mark = shown.listMark;
-        return card(s, rows(stored(st)), {
+        return card(drawing, rows(stored(st)), {
           at: LIST,
           align: 'top',
           width: LIST_WIDTH,
@@ -194,7 +197,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
           lit: mark ?? null,
         });
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(list, { runTime: 0.35, shift: [0, -0.08] });
 
@@ -370,7 +373,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
     } else {
       const [first, second] = bob.messages;
       /** Bob's stored object and the meetings his calendar shows, drawn from the step's state alone. */
-      const bobsCopy = (st: { copy: typeof copyState }, s: Stage) =>
+      const bobsCopy = (st: { copy: typeof copyState }, s: DrawContext) =>
         new Group(
           code(s, lines(st.copy.components), {
             at: CODE,

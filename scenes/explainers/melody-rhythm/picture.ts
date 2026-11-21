@@ -1,6 +1,6 @@
 import { Group, Rectangle, Circle, Line, keyed } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import { NOTE_NAMES } from './model.ts';
 
@@ -27,7 +27,7 @@ const X0 = -6,
  * The two piano rolls, A above B: left to right is time, height is pitch and width is how long a note
  * sounds, with a line on every beat (the bar line strong) and the beat numbers over A.
  */
-export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
+export function scorePicture(s: DrawContext, clips: AudioClip[], look: Look = {}) {
   const figure = new Group();
   keyed(figure, 'music-score');
   clips.forEach((clip, lane) => {

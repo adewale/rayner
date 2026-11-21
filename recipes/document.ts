@@ -15,15 +15,15 @@ export function requestScene(input: RequestInput) {
   // change a replay, and a value the state could not hold is refused here rather than in the trace.
   if (typeof input?.cached !== 'boolean') throw new TypeError('cached must be a boolean');
   const cached = input.cached;
-  return class RequestScene extends Scene<{ cached: boolean; destination: string }, {}> {
-    override state = { cached, destination: 'pending' };
+  return class RequestScene extends Scene {
+    override state: { cached: boolean; destination: string } = { cached, destination: 'pending' };
     override async construct() {
       const request = new Labeled(new Rectangle({ width: 2.4, height: 1 }), new Text('Request', { fontSize: 0.3 })).moveTo([-4, 1]);
       const destination = new Labeled(new Rectangle({ width: 2.4, height: 1 }), new Text('Pending', { fontSize: 0.3 })).moveTo([1, 1]);
       const edge = new Arrow([-2.7, 1], [-0.3, 1]);
       const code = new Code(['if (cached) return cache;', 'return database;'], { fontSize: 0.28 }).moveTo([-2, -1]);
       const s = stage(this, { style: 'github-dark', heading: false });
-      const readout = view(this, (st) => card(s, [['cached', st.cached], ['destination', st.destination]], { at: [3.6, -1.8], panel: false, key: 'readout' }), { place: false });
+      const readout = view(this, (st, _shown, drawing) => card(drawing, [['cached', st.cached], ['destination', st.destination]], { at: [3.6, -1.8], panel: false, key: 'readout' }), { drawing: s.drawing, place: false });
       await this.step('intro', { caption: 'A request can use a cached result or read the database.' });
       await this.play(new FadeIn(request), new FadeIn(destination), new Create(edge), new FadeIn(code), new FadeIn(readout), { runTime: 0.4 });
 

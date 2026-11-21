@@ -11,7 +11,10 @@ export interface Setting {
   default: string;
   options: readonly { value: string; label: string }[];
 }
-export type Settings = Readonly<Record<string, string>>;
+/** Resolved string values, with literal IDs and options when the declarations are known. */
+export type Settings<Declarations extends readonly Setting[] = readonly Setting[]> = {
+  readonly [S in Declarations[number] as S['id']]: S['options'][number]['value'];
+};
 /**
  * How the explainer's own player looks: palette and corner cues, an optional standalone stage-width
  * floor in CSS pixels (at most 4096), and `outline`: show every step's title in the steps rail from
@@ -39,11 +42,12 @@ export interface ExplainerMeta {
   /** Text takes the scene's shaping as TextOptions.shaping (this.textShaping) instead of the running scene's. */
   textContext?: 'explicit';
   player?: PlayerMeta;
-  /**
-   * The state readers follow, from a `scene.state` key to its label in the scene's language (at most
-   * eight): each step shows what it changed of these, under its caption.
-   */
-  watch?: Readonly<Record<string, string>>;
+  /** Ordered reader readouts (at most eight): model changes, or current local/presentation/derived values. Keys are literal own top-level properties. */
+  watch?: readonly {
+    readonly source: 'model' | 'local' | 'shown' | 'derived';
+    readonly key: string;
+    readonly label: string;
+  }[];
   /**
    * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
    * step's title, line or caption contains it, and reports the step where it first appears; it
@@ -69,10 +73,37 @@ export interface ExplainerMeta {
    */
   claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
 }
+const WATCH_MAX = 8;
+/** Validate the wire declaration on every public readout path, including direct describe/runLive. */
+export function watchSelections(watch: unknown): NonNullable<ExplainerMeta['watch']> {
+  if (watch === undefined) return [];
+  if (!Array.isArray(watch)) throw new TypeError('meta.watch: it must be an ordered list of { source, key, label }');
+  if (watch.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${watch.length} keys; name at most ${WATCH_MAX}, so readouts stay readable`);
+  const addresses = new Set<string>(), labels = new Set<string>(), selections: NonNullable<ExplainerMeta['watch']>[number][] = [];
+  for (const entry of watch) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) ||
+        Object.keys(entry).some(key => !['source', 'key', 'label'].includes(key)) ||
+        !['source', 'key', 'label'].every(key => Object.hasOwn(entry, key)))
+      throw new TypeError('meta.watch: each entry must contain only source, key and label');
+    const { source, key, label } = entry;
+    if (!['model', 'local', 'shown', 'derived'].includes(source)) throw new TypeError('meta.watch: source must be model, local, shown or derived');
+    if (typeof key !== 'string' || !key) throw new TypeError('meta.watch: it has an empty key');
+    if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${source}.${JSON.stringify(key)} an empty label`);
+    const address = JSON.stringify([source, key]);
+    if (addresses.has(address)) throw new RangeError(`meta.watch: it selects ${source}.${JSON.stringify(key)} twice`);
+    if (labels.has(label.trim())) throw new RangeError(`meta.watch: labels must distinguish the selected values; ${JSON.stringify(label.trim())} is repeated`);
+    addresses.add(address); labels.add(label.trim());
+    selections.push(Object.freeze({ source, key, label }));
+  }
+  return Object.freeze(selections);
+}
+
 export type ExplainerClass = SceneClass & {
   meta?: ExplainerMeta;
   settings?: readonly Setting[];
 };
+/** Settings do not depend on the instance's domain-state or presentation-state shape. */
+type SettingsClass = (abstract new (...args: ConstructorParameters<SceneClass>) => Scene) & Pick<ExplainerClass, 'settings'>;
 // Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
 const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
   id: true, title: true, lang: true, sources: true, lettering: true, textContext: true,
@@ -121,6 +152,7 @@ export function checkExplainerMeta(meta: unknown): void {
       throw new TypeError(`${where}: ${extra.map((k) => JSON.stringify(k)).join(', ')} ${extra.length > 1 ? 'are not keys' : 'is not a key'} it takes; it takes ${Object.keys(keys).join(', ')}`);
   };
   unknown(META_KEYS, meta, 'static meta');
+  watchSelections(meta.watch);
   if (meta.id !== undefined && typeof meta.id !== 'string') throw new TypeError('meta.id: it must be a string');
   if (meta.id !== undefined && !isIdentifier('id', meta.id)) throw new RangeError(`meta.id: ${JSON.stringify(meta.id)} is not a page id; an id is ${identifierRule('id')}`);
   if (meta.player === undefined) return;
@@ -129,6 +161,29 @@ export function checkExplainerMeta(meta: unknown): void {
 }
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
+type Declarations = Pick<ExplainerClass, 'settings'>;
+const projectDeclarations = new WeakMap<object, ReadonlyMap<object, Declarations>>();
+
+/** A subclass bound to settings or snapshots inherits its load's declarations. */
+function declarationsOfProject(Scene: object): ReadonlyMap<object, Declarations> | undefined {
+  for (let c: object | null = Scene; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    const captured = projectDeclarations.get(c);
+    if (captured) return captured;
+  }
+  return undefined;
+}
+
+/** Capture each base's setting IDs and options so a retained scenario can validate a typed read against its own load. */
+export function captureProjectSettings(Project: ExplainerClass, Source: ExplainerClass): void {
+  const prior = declarationsOfProject(Source);
+  const definition = { settings: Project.settings };
+  const captured = new Map<object, Declarations>([[Project, definition], [Source, definition]]);
+  for (let c: object | null = Object.getPrototypeOf(Source); c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    captured.set(c, prior?.get(c) ?? { settings: structuredClone((c as SettingsClass).settings) });
+  }
+  projectDeclarations.set(Project, captured);
+}
+
 const reserved = new Set<string>(Object.values(PAGE_QUERY));
 /** A page's query for a scenario's `values` at `step` (the scenario's first step without one), without the `?`. */
 export const stepQuery = (values: Readonly<Record<string, string>>, step?: string): string =>
@@ -160,6 +215,8 @@ export const settingsProblem = (error: unknown): SettingsProblem =>
  * Validate declarations and selections once, at the author/URL boundary. It reads only the class's
  * `settings`, so `{ settings: [setting] }` stands for a scene that declares one.
  */
+export function resolveSettings<const Declarations extends readonly Setting[]>(Scene: { settings: Declarations }, values?: Settings): Settings<Declarations>;
+export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values?: Settings): Settings;
 export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values: Settings = {}): Settings {
   const result: Record<string, string> = Object.create(null);
   for (const s of Scene.settings ?? []) {
@@ -177,12 +234,35 @@ export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values:
   return Object.freeze(result);
 }
 
-export function settingsOf(scene: Scene): Settings {
+/**
+ * The scene's selected values. Pass its class to infer IDs and option values from literal
+ * `static settings = [...] as const`; an instance's type alone does not carry its static members.
+ * A base class selects only its own declared keys, using the derived scene's selected values.
+ * A project load validates that selection against the declarations it captured for the base.
+ * Without the class, dynamically declared settings keep their string-record type.
+ */
+export function settingsOf<const Declarations extends readonly Setting[]>(scene: Scene, Source: SettingsClass & { settings: Declarations }): Settings<Declarations>;
+export function settingsOf(scene: Scene, Source?: SettingsClass): Settings;
+export function settingsOf(scene: Scene, Source?: SettingsClass): Settings {
+  if (Source && !(scene instanceof Source)) throw new TypeError('settingsOf(): the supplied class must be this scene\'s class or one of its base classes');
+  // A bound subclass may override the declarations of the supplied base class. Revalidate against
+  // the definition whose type we return, so a narrowed type never conceals incompatible values.
+  const selected = (values: Settings): Settings => {
+    if (!Source) return values;
+    const definition = declarationsOfProject(scene.constructor)?.get(Source) ?? Source;
+    const projection: Record<string, string> = Object.create(null);
+    for (const { id } of definition.settings ?? []) {
+      if (!Object.hasOwn(values, id))
+        throw new TypeError('settingsOf(): the supplied class declares a setting this scene does not have');
+      projection[id] = values[id]!;
+    }
+    return resolveSettings(definition, projection);
+  };
   for (let c: object | null = scene.constructor; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
     const settings = bound.get(c);
-    if (settings) return settings;
+    if (settings) return selected(settings);
   }
-  return resolveSettings(scene.constructor as ExplainerClass);
+  return selected(resolveSettings(scene.constructor as ExplainerClass));
 }
 
 /**

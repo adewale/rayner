@@ -113,7 +113,7 @@ export async function prepareLettering(
   base: string,
   request: SubsetLetteringRequest,
   draw: () => Promise<void>,
-  { write = true }: { write?: boolean } = {},
+  { write = true, capture = true, file = base }: { write?: boolean; capture?: boolean; file?: string } = {},
 ): Promise<Lettering> {
   const sources = Object.fromEntries(
     await Promise.all(FAMILIES.map(async (f) => [f, await readFile(join(ROOT, SOURCES[f].file))] as const)),
@@ -125,9 +125,13 @@ export async function prepareLettering(
   const use = takeLetteringUse();
   const pinFile = base + '.lettering.json';
   const pinned = await readFile(pinFile, 'utf8').then(
-    (t) => JSON.parse(t) as { version?: number; faces?: Record<string, { sourceHash?: string; codePoints?: string; woff2?: string }> },
+    (t) => JSON.parse(t) as { version?: number; scripts?: string[]; faces?: Record<string, { sourceHash?: string; codePoints?: string; woff2?: string }> },
     () => null,
   );
+  const needPreparation = () => new Error(`scene.lettering.json: it is missing or stale; run rayner snapshots ${file}`);
+  if (!capture && (pinned?.version !== SUBSET_LETTERING_VERSION ||
+    !Array.isArray(pinned.scripts) || [...pinned.scripts].sort().join(',') !== [...request.scripts].sort().join(',')))
+    throw needPreparation();
   const faces: Lettering['faces'] = {};
   const pins: Record<string, { source: string; sourceHash: string; codePoints: string; woff2: string }> = {};
   for (const family of FAMILIES) {
@@ -136,6 +140,7 @@ export async function prepareLettering(
     const list = codePoints.map(hex).join(' '),
       sourceHash = sha256(sources[family]);
     const pin = pinned?.version === SUBSET_LETTERING_VERSION ? pinned.faces?.[family] : undefined;
+    if (!capture && !(pin?.sourceHash === sourceHash && pin.codePoints === list && pin.woff2)) throw needPreparation();
     const woff2 =
       pin?.sourceHash === sourceHash && pin.codePoints === list && pin.woff2 ? pin.woff2 : await cut(family, codePoints);
     faces[family] = { codePoints, woff2 };

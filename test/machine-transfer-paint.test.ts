@@ -25,7 +25,7 @@ async function transfer(retainSource: boolean) {
   const audit = new MachineMotionCheck();
   const frames: ReturnType<typeof transferInk>[] = [];
   let before: ReturnType<typeof transferInk> | undefined;
-  class Parcel extends Scene<{received: boolean}> {
+  class Parcel extends Scene {
     override state = {received: false};
     override async construct() {
       const shelf = view(this, ({received}) => new Group(keyed(

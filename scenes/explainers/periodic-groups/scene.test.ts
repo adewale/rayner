@@ -64,6 +64,7 @@ test('reader descriptions match the run fills and complete block fills in every 
       async frame() {},
       async stepEnd(scene, step) {
         if (!phases.includes(step.name)) return;
+        assert.ok(scene instanceof PeriodicGroupsExplainer);
         const label = `${expected.element}/${step.name}`;
         const blocks = ['stack', 'names', 'family'].includes(step.name);
         assert.equal(scene.state.note, step.name, label);
@@ -75,8 +76,8 @@ test('reader descriptions match the run fills and complete block fills in every 
         assert.equal(Boolean(scene.state.blocks), blocks, label);
         const colours = step.name === 'column' ? { '#f7f2e8': 118 } : step.name === 'family' ? expected.family
           : step.name === 'blocks' ? trailColours(expected.trail) : allBlocks;
-        const cells = (scene as PeriodicGroupsExplainer).table!.current.family()
-          .filter((m): m is Rectangle => m instanceof Rectangle && m.style.fill !== 'none');
+        const table = (scene as PeriodicGroupsExplainer).table!.current.family();
+        const cells = table.filter((m): m is Rectangle => m instanceof Rectangle && m.style.fill !== 'none');
         assert.equal(cells.length, Object.values(colours).reduce((sum, n) => sum + n, 0), `${label}: complete cell inventory`);
         const fills: Record<string, number> = {};
         for (const cell of cells) {
@@ -87,8 +88,7 @@ test('reader descriptions match the run fills and complete block fills in every 
         assert.deepEqual(fills, colours, `${label}: actual table fill counts`);
         // The strip under the table gives the run widths unnamed in stack, and names them from blocks on.
         // The fill step has no table yet, so no strip: its rows end in their lengths instead.
-        const words = (scene as PeriodicGroupsExplainer).table!.current.family()
-          .filter((m): m is Text => m instanceof Text).map((t) => t.text);
+        const words = table.filter((m): m is Text => m instanceof Text).map((t) => t.text);
         if (step.name === 'fill') {
           assert.ok(!words.some((w) => /columns/.test(w)), `${label}: no column strip before the table exists`);
           const said = (scene as PeriodicGroupsExplainer).notes!.current.family()
@@ -97,14 +97,19 @@ test('reader descriptions match the run fills and complete block fills in every 
           for (const w of ['run of 2', 'run of 6', 'run of 10', 'run of 14']) assert.ok(said.includes(w), `${label}: legend ${w}`);
         }
         if (step.name === 'stack') {
-          for (const w of ['2 columns', '10 columns', '6 columns', '14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
+          for (const w of ['2', '10', '6', '14', 'Columns in each run']) assert.ok(words.includes(w), `${label}: ${w}`);
           assert.ok(!words.some((w) => /^[spdf]: /.test(w)), `${label}: no block named before the blocks step`);
+          assert.equal(table.filter(m => m instanceof Rectangle && m.style.dashArray).length, 0, `${label}: no dashed row guides in the schematic`);
         }
         if (step.name === 'names' || step.name === 'blocks')
           for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
         const pictured = pictureWordsAt(trace, step.name);
         for (const description of [pictured.summary, pictured.full]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
+          if (step.name === 'stack') {
+            assert.match(description, /unlabelled 118-cell block schematic/i, label);
+            assert.doesNotMatch(description, /dashed outline/i, label);
+          }
           if (step.name === 'stack' || step.name === 'names') {
             assert.ok(description.includes('All 118 element cells are filled in by block colour.'), label);
             assert.ok(!description.includes('Cells 1 to'), `${label}: no partial-fill claim`);
@@ -150,11 +155,11 @@ test('the opening comparison and the answer note show the independently expected
   };
   // The stack step's note: where the last electron lands, counted in unnamed run widths.
   const stacked: Record<string, string> = {
-    na: 'Sodium’s last electron: 1st of a run of 2, column 1',
-    cl: 'Chlorine’s last electron: 5th of a run of 6, column 2 + 10 + 5 = 17',
-    fe: 'Iron’s last electron: 6th of a run of 10, column 2 + 6 = 8',
-    cu: 'Copper’s last electron: 9th of a run of 10, column 2 + 9 = 11',
-    he: 'Helium’s last electron: 2nd of a run of 2, column 2',
+    na: 'Sodium: column 1',
+    cl: 'Chlorine: column 17',
+    fe: 'Iron: column 8',
+    cu: 'Copper: column 11',
+    he: 'Helium: column 2',
   };
   let steps = 0, members = 0, jumps = 0, lines = 0, ghosts = 0, stacks = 0;
   for (const [element, expected] of Object.entries(families)) {
@@ -189,7 +194,12 @@ test('the opening comparison and the answer note show the independently expected
           words(stacked[element]!);
           // Stacking puts helium's run of 2 at the left, so helium sits over beryllium until blocks moves it.
           const table = (scene as PeriodicGroupsExplainer).table!.current.family();
-          const he = words('He', table), be = words('Be', table), ne = words('Ne', table);
+          const cell = (z: number) => {
+            const found = table.find(m => m.key === `periodic-cell:${z}`);
+            assert.ok(found instanceof Rectangle, `schematic retains cell ${z}`);
+            return found;
+          };
+          const he = cell(2), be = cell(4), ne = cell(10);
           assert.ok(Math.abs(he.center()[0] - be.center()[0]) < 0.05 && he.center()[1] > be.center()[1], `${element}: helium over beryllium`);
           assert.ok(Math.abs(he.center()[0] - ne.center()[0]) > 1, `${element}: helium not yet over neon`);
           stacks++;

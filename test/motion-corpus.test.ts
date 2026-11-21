@@ -65,7 +65,14 @@ const CAUGHT: readonly string[] = [
 /**
  * The default run: covers, small words, flicker, attributed occlusion and authored context.
  */
-const SAMPLE: readonly string[] = ['coverage-list-over-labels', 'sign-in-code-tiny-words', 'conversations-block-crossfades', 'sign-in-poll-over-card', 'sign-in-ask-people-slide', 'conversations-table-block-blinks'];
+const SAMPLE = new Map([
+  ['coverage-list-over-labels', 'covers'],
+  ['sign-in-code-tiny-words', 'small words'],
+  ['conversations-block-crossfades', 'flicker'],
+  ['sign-in-poll-over-card', 'occluded words'],
+  ['sign-in-ask-people-slide', 'occluded words'],
+  ['conversations-table-block-blinks', 'motion contract'],
+]);
 
 test('the credited poll mutation removes actual letter pixels and its fixed route preserves them', {
   skip: !process.env.FULL && 'set FULL=1: independently rasterizes the credited poll and fixed route',
@@ -128,18 +135,20 @@ test('every corpus entry still applies to the current Poppy scenes, and names it
     for (const [file, edits] of byFile) assert.notEqual(applyEdits(files.get(file)!, edits, `${e.id}, ${file}`), files.get(file), e.id);
   }
   assert.equal(new Set(CORPUS.map((e) => e.id)).size, CORPUS.length, 'corpus ids are unique');
-  for (const id of [...CAUGHT, ...SAMPLE]) assert.ok(CORPUS.some((e) => e.id === id), `${id} is a corpus entry`);
+  for (const id of [...CAUGHT, ...SAMPLE.keys()]) assert.ok(CORPUS.some((e) => e.id === id), `${id} is a corpus entry`);
 });
 
 test('a sample of the corpus: geometry, occlusion and authored context are caught', async () => {
-  const entries = CORPUS.filter((e) => SAMPLE.includes(e.id));
-  assert.equal(entries.length, SAMPLE.length);
+  const entries = CORPUS.filter((e) => SAMPLE.has(e.id));
+  assert.equal(entries.length, SAMPLE.size);
   // The catalog's gate keeps the scenes as they are free of findings, so no baseline is run here.
   const { results } = await runCorpus(entries, { bases: false, jobs: 2 });
-  assert.equal(results.length, SAMPLE.length);
+  assert.equal(results.length, SAMPLE.size);
   for (const r of results) {
     assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
     assert.ok(r.caught, `${r.id} is no longer caught`);
+    const kind = SAMPLE.get(r.id)!;
+    assert.ok(r.fresh.some((finding) => finding.line.includes(kind === 'motion contract' ? ': motion contract:' : `: ${kind}: part “`)), `${r.id} should produce a ${kind} finding`);
   }
 });
 

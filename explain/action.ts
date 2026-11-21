@@ -4,39 +4,32 @@
 // run the same beats, with the same side effects at the same moments between them.
 
 import type { Scene, Succession } from '../src/index.ts';
+import { addStepCheck } from '../src/scene.ts';
 import { Beats } from '../src/animation.ts';
 import type { BeatPlan } from '../src/animation.ts';
 
 /** The actions each scene has made that have not begun to play: each must, by the end of its step. */
-const unplayed = new WeakMap<Scene<any, any>, Set<{ readonly name: string }>>();
+const unplayed = new WeakMap<Scene, Set<{ readonly name: string }>>();
 
 /**
- * Track `action` until it plays. The first action on a scene makes the scene's step ends check:
- * an action still unplayed when its step ends (or the scene does) throws, naming it, since a lazy
- * action that is neither awaited nor played does nothing.
+ * Track `action` until it plays. A scene checks for unplayed actions before its first named
+ * step and after each named step's closing listeners have had a chance to play them.
  */
-function track(scene: Scene<any, any>, action: { readonly name: string }): void {
+function track(scene: Scene, action: { readonly name: string }): void {
   let waiting = unplayed.get(scene);
   if (!waiting) {
     const left = (waiting = new Set());
     unplayed.set(scene, left);
-    const refuse = (where: string) => {
+    addStepCheck(scene, (step) => {
       if (!left.size) return;
       const names = [...left].map((a) => a.name);
       left.clear();
+      const where = step ? `in step "${step.name}"` : 'before the first step';
       throw new Error(
         `${names.join(', ')}: ${names.length > 1 ? 'they were' : 'it was'} made ${where} but never played; ` +
           'await an action, or hand it to play(), or to a Succession or group that plays, before its step ends',
       );
-    };
-    // Made before any step: refused as the first step begins. Made in a step: refused as it ends.
-    if (!scene.currentStep) {
-      const off = scene.onStep(() => {
-        off();
-        refuse('before the first step');
-      });
-    }
-    scene.onStepEnd((step) => refuse(`in step "${step.name}"`));
+    });
   }
   waiting.add(action);
 }
@@ -71,8 +64,8 @@ export interface Action<T = void> extends Succession, PromiseLike<T> {
  * playing, and which awaiting plays alone.
  */
 class Played<T> extends Beats<T> implements Action<T> {
-  readonly #scene: Scene<any, any>;
-  constructor(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }) {
+  readonly #scene: Scene;
+  constructor(scene: Scene, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }) {
     super(scene, name, make, opts);
     this.#scene = scene;
     track(scene, this);
@@ -102,6 +95,6 @@ class Played<T> extends Beats<T> implements Action<T> {
  * or with `late` once `ready` has settled and the play that holds it begins (a play waits for
  * `ready`): it plays awaited, in play(), or inside a Succession, a group or a machine's transition.
  */
-export function action<T>(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }): Action<T> {
+export function action<T>(scene: Scene, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }): Action<T> {
   return new Played(scene, name, make, opts);
 }

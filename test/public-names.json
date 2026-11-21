@@ -41,6 +41,15 @@
       }
     },
     "rayner/drawing": {
+      "drawContext": {
+        "reason": "A reusable picture can be drawn and measured with its own palette, lettering, language and direction before any scene or stage exists.",
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "described": {
+        "guide": "docs/EXTENDING.md#make-a-reusable-shape-and-composite",
+        "test": "test/explain-emphasis.test.ts"
+      },
       "MARGIN": {
         "guide": "docs/REFERENCE.md#drawing-kit",
         "test": "test/drawing.test.ts"

@@ -1,6 +1,6 @@
 import { Circle, Group, Rectangle, VMobject } from '../../../src/index.ts';
 import type { Mobject, Style, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, STROKE, TONE, TYPE, certificate, clock as clockFace, key, seal, sheet, label } from '../lib/poppy-kit.ts';
 import { AGENT_SIGNER, CHECKS, TIME, attempt, clock, genuine, hostOf, ruleOf } from './model.ts';
@@ -52,6 +52,9 @@ const CERT_X = 1.57, CLOCK_X = 2.82;
 export const TK = { left: -1.79, right: 7.85, top: 1.6, bottom: -4.42 } as const;
 /** The wax on the ticket's top edge, under the stamp. */
 export const SEAL_AT: Vec = [COL.stamp, TK.top];
+/** The wax's irregular lip may meet the stamp's lowest 0.10 units at docking.
+ * Above this port the stamp's handle and head must remain unobstructed. */
+export const TICKET_PORT = { ceiling: TK.top + 0.44 } as const;
 /** The ticket's rows, in three pairs, and the check that punches each. */
 export type RowId = 'aud' | 'htu' | 'iat' | 'ath' | 'jti' | 'sub';
 const ROWS: readonly { id: RowId; word: string; y: number }[] = [
@@ -213,7 +216,7 @@ function stamp(at: P, foot: number, colour: string, deep: string): Group {
 }
 
 /** The ticket: paper, a perforated left margin for the punches, the typ heading, and a row per claim. */
-function ticketOf(s: Stage, r: Request, foreign: boolean): Group {
+function ticketOf(s: DrawContext, r: Request, foreign: boolean): Group {
   const w = TK.right - TK.left, h = TK.top - TK.bottom, rows = rowsOf(r), print = TONE.print;
   const parts: Mobject[] = [
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: 0.08 }).moveTo(TICKET_AT),
@@ -247,7 +250,7 @@ function tear(y: number, valueWidth: number): Group {
   );
 }
 /** The validator's stamp: when the Company received the ticket, inked in an outlined box. */
-function arrived(s: Stage, t: number): Group {
+function arrived(s: DrawContext, t: number): Group {
   const lead = label(s, 'in', { at: [VALUE_X + 0.24, -3.95], color: TONE.print, align: 'start' });
   const time = label(s, clock(t), { at: [VALUE_X + 0.24 + lead.width() + 0.24, -3.95], mono: true, bold: true, color: TONE.print, align: 'start' });
   const w = lead.width() + time.width() + 0.72;
@@ -257,7 +260,7 @@ function arrived(s: Stage, t: number): Group {
 // ------------------------------------------------------------------ the picture
 
 /** The state as its picture: the chain across the top, the punched ticket bottom right, the Company's answer and ledger bottom left. */
-export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
+export function drawWorld(w: SealWorld, shown: Shown, s: DrawContext): Group {
   const parts = keyedParts(), r = requestOf(w), last = w.last, owner = chainOwner(w), published = last?.tamper === 'published';
   const [ink, deep] = owner === 'thief' ? [TONE.pewter, TONE.pewterDeep] : [TONE.ink, TONE.steel];
   const text = (k: string, value: string, o: Parameters<typeof label>[2]) => parts.add(label(s, value, { align: 'start', ...o }), k);

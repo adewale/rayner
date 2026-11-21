@@ -1,6 +1,7 @@
 {
   "version": 2,
   "subjects": [
-    { "step": "shift", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "slot 0" }, { "text": "slot 4" }, { "key": "array:0" }, { "key": "array-after:0" }, { "text": "pop() returned 1 and moved 4 values" }] }
+    { "step": "shift", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "slot 0" }, { "text": "slot 4" }, { "key": "array:0" }, { "key": "array-after:0" }, { "text": "pop() returned 1 and moved 4 values" }] },
+    { "step": "result", "opening": true, "targets": [{ "key": "overview:slot:0" }, { "key": "overview:slot:1" }, { "key": "overview:marker:H" }, { "key": "overview:marker:T" }, { "key": "overview:readout:0" }, { "key": "overview:readout:1" }, { "key": "overview:readout:2" }] }
   ]
 }

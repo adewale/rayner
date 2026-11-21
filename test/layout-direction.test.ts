@@ -1,3 +1,4 @@
+import { drawContext } from '../explain/drawing.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle } from '../src/index.ts';
@@ -41,16 +42,16 @@ const geometry = (m: Mobject) => m.family().map((x) => x.pointArrays().map((a) =
 
 test('explicit LTR is the default, including exact geometry and reader order', () => {
   const r = [['label', '123'], ['long field', 'cache[42]']] as const;
-  const a = new Card(scene(), colors, r, { title: 'Values', width: 4 });
-  const b = new Card(scene(), colors, r, { title: 'Values', width: 4, direction: 'ltr' });
+  const a = new Card(drawContext({ palette: colors }), r, { title: 'Values', width: 4 });
+  const b = new Card(drawContext({ palette: colors }), r, { title: 'Values', width: 4, direction: 'ltr' });
   assert.deepEqual(geometry(a), geometry(b));
   assert.deepEqual(a.describe(), b.describe());
 });
 
 test('RTL swaps field edges, retaining every glyph and logical row order', async () => {
   await fc.assert(fc.asyncProperty(rows, fc.double({ min: 1.9, max: 10, noNaN: true }), words, async (r, width, replacement) => {
-    const ltr = new Card(scene(), colors, r, { width, title: 'Title 123' });
-    const rtl = new Card(scene(), colors, r, { width, title: 'Title 123', direction: 'rtl' });
+    const ltr = new Card(drawContext({ palette: colors }), r, { width, title: 'Title 123' });
+    const rtl = new Card(drawContext({ palette: colors }), r, { width, title: 'Title 123', direction: 'rtl' });
     const lb = ltr.panel.box()!, rb = rtl.panel.box()!;
     near(lb[0], rb[0]); near(lb[2], rb[2]);
     for (const [label] of r) {
@@ -75,8 +76,8 @@ test('RTL swaps field edges, retaining every glyph and logical row order', async
     // The same card drawn from a later state: its first value replaced and that row lit.
     const first = r[0]![0];
     const later = r.map(([label, value], i) => [label, i === 0 ? replacement : value] as const);
-    const ltrLit = new Card(scene(), colors, later, { width, title: 'Title 123', lit: { row: first } });
-    const rtlLit = new Card(scene(), colors, later, { width, title: 'Title 123', direction: 'rtl', lit: { row: first } });
+    const ltrLit = new Card(drawContext({ palette: colors }), later, { width, title: 'Title 123', lit: { row: first } });
+    const rtlLit = new Card(drawContext({ palette: colors }), later, { width, title: 'Title 123', direction: 'rtl', lit: { row: first } });
     assert.deepEqual(ltrLit.describe(), rtlLit.describe());
     const litBox = rtlLit.panel.box()!;
     near(rtlLit.bar.center()[1], rtlLit.values.get(first)!.anchorPoint()[1]);
@@ -87,7 +88,7 @@ test('RTL swaps field edges, retaining every glyph and logical row order', async
 test('empty and nonempty labels and values can be lit, in either direction, with the bar on their row', async () => {
   const digits = fc.array(fc.integer({ min: 0, max: 9 }), { maxLength: 6 }).map((xs) => xs.join(''));
   await fc.assert(fc.asyncProperty(direction, fc.constantFrom('', 'field'), digits, async (d, label, value) => {
-    const k = new Card(scene(), colors, [[label, value]], { width: 3, direction: d, lit: { row: label } });
+    const k = new Card(drawContext({ palette: colors }), [[label, value]], { width: 3, direction: d, lit: { row: label } });
     near(k.bar.center()[1], k.values.get(label)!.anchorPoint()[1]);
     near(k.bar.center()[0], k.panel.center()[0]);
     assert.equal(k.bar.style.opacity, 1);
@@ -104,7 +105,7 @@ test('stage direction resolves logical card/code/carry regions and preserves phy
       near(k.panel.center()[0], x);
       assert.equal(k.direction, d);
       // The kit's card, for a view's draw, is placed and laid out as the stage's.
-      const drawn = card(s, [['field', '123']], { at, width: 3 });
+      const drawn = card(s.drawing, [['field', '123']], { at, width: 3 });
       near(drawn.panel.center()[0], x);
       assert.equal(drawn.direction, d);
       const code = await s.code(['x[12] = 34;'], { at });

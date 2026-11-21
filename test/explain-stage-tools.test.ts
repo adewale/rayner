@@ -126,9 +126,9 @@ test('annotations keep their words and rest without text problems', async () => 
       await this.step('one', { title: 'Annotate' });
       const box = new Rectangle({ width: 2, height: 1 }).moveTo([0, -1]);
       await s.enter(box, { describe: 'a box' });
-      const d = dimension(s, [-1, -1.5], [1, -1.5], '2 units', { offset: -0.3 });
-      const p = pin(s, [1, -0.5], { label: 'corner' });
-      const c = callout(s, box, 'a box', { side: 'left' });
+      const d = dimension(s.drawing, [-1, -1.5], [1, -1.5], '2 units', { offset: -0.3 });
+      const p = pin(s.drawing, [1, -0.5], { label: 'corner' });
+      const c = callout(s.drawing, box, 'a box', { side: 'left' });
       await s.enter(d, p, c);
       assert.ok(d.family().some((m) => m instanceof Text && m.text === '2 units'));
       assert.ok(c.family().some((m) => m instanceof Text && m.text === 'a box'));

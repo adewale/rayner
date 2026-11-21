@@ -79,6 +79,7 @@ test('legibility measures complete matched words without inventing labels for pa
 });
 
 class Two extends Scene {
+  override state: { after?: boolean } = {};
   override async construct() {
     const s = stage(this);
     await this.step('one', { caption: 'A box.' });

@@ -19,7 +19,7 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
       (scale, raw) => {
         const values = raw.map((n) => n % (scale + 1)),
           s = stage(new Scene(new NullSink())),
-          g = bars(s, values.map((v, i) => ({ label: `row ${i}`, value: v, display: String(v) })), scale, { key: 'reader-bars' });
+          g = bars(s.drawing, values.map((v, i) => ({ label: `row ${i}`, value: v, display: String(v) })), scale, { key: 'reader-bars' });
         const fills = g.children.filter((m): m is Rectangle => m instanceof Rectangle && m.style.stroke === 'none');
         assert.equal(fills.length, values.filter((v) => v > 0).length, 'zero must not acquire a decorative stub');
         // Rectangle paths use Float32 coordinates; allow less than 0.001 CSS px at 1280.
@@ -78,8 +78,8 @@ test('token introductions and the ring’s fill and result steps draw the indepe
             const [found, after] = ({ 1: [0.5, 0.5], 2: [1, 0], 4: [2, 1] } as const)[
               Number(v.values.rate) as 1 | 2 | 4
             ];
-            assert.equal((scene.state.balances as number[])[6], after);
-            assert.equal((scene.state.responses as number[])[6], found >= 1 ? 200 : 429);
+            assert.equal((scene.stateJson().balances as number[])[6], after);
+            assert.equal((scene.stateJson().responses as number[])[6], found >= 1 ? 200 : 429);
             const m = scene.familyMembers().find((m) => m.key === 'balance:found:R7:value');
             assert.ok(m instanceof Text);
             assert.equal(
@@ -102,7 +102,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           const expected =
             step.name === 'fill' || v.values.operations === 'full' ? [1, 2, 3, 4, 5] : [6, 7, 3, 4, 5];
           for (const [i, n] of expected.entries()) {
-            const slot = scene.familyMembers().find((m) => m.key === `ring:value:${i}`);
+            const slot = scene.familyMembers().find((m) => m.key === `overview:value:${i}`);
             assert.ok(slot);
             assert.deepEqual(
               slot
@@ -112,6 +112,13 @@ test('token introductions and the ring’s fill and result steps draw the indepe
               [String(n)],
             );
           }
+          const markers = scene.find('overview:readout:2');
+          const at = step.name === 'result' && v.values.operations === 'wrap' ? 2 : 0;
+          assert.ok(markers instanceof Text);
+          assert.equal(markers.text, `H head: ${at}   T tail: ${at}`);
+          const queue = scene.find('overview:readout:1');
+          assert.ok(queue instanceof Text);
+          assert.equal(queue.text, [...expected.slice(at), ...expected.slice(0, at)].join('  '));
           frames++;
         },
       },
@@ -137,7 +144,7 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
               : v.values.stop === 'airport'
                 ? [v.values.date === '2007-06-09' ? 3 : 1, 0]
                 : [0, 2];
-          const day = scene.state.departures as { departures: unknown[]; headways: unknown[] };
+          const day = v.trace.steps.find((s) => s.step === 'departures')!.state!.departures as { departures: unknown[]; headways: unknown[] };
           assert.equal(day.departures.length, fixed);
           assert.equal(day.headways.length, frequency);
           const words = scene
@@ -223,7 +230,7 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
       async frame() {},
       async stepEnd(scene, step) {
         if (step.name !== 'chosen') return;
-        const chosen = scene.state.chosen as { users: number; pie: { label: string; value: number }[] };
+        const chosen = scene.stateJson().chosen as { users: number; pie: { label: string; value: number }[] };
         assert.ok(chosen.users > fiveUsers, 'lower reserve must increase writable space');
         assert.equal(chosen.pie.find((x) => x.label === 'Metadata')!.value, 4495258, 'metadata matches the existing 1 TiB mkfs reference vector');
         assert.ok(chosen.pie.find((x) => x.label === 'Users can write')!.value > fiveUsers);
@@ -330,7 +337,7 @@ test('GNOME sample labels explain every participant outcome and retain the repor
   for (const selected of ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as const) {
     const sample = frames(selected)[1]!;
     assert.equal(sample.state.task, tasks[selected]);
-    const picture = sample.draw(sample.state, stage(new Scene(new NullSink())));
+    const picture = sample.draw(sample.state, stage(new Scene(new NullSink())).drawing);
     assert.equal(picture.children.length, 6);
     const outcomes = sample.state.outcomes as { participant: string; colour: string; meaning: string }[];
     assert.equal(outcomes.length, 6);

@@ -1,6 +1,6 @@
 import { Group, Line, Rectangle, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, STROKE, TICKET, TONE, TYPE, addAll, aiMark, barrier, padlock, codeSlip, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, label } from '../lib/poppy-kit.ts';
 import { AGENT, COMPANY, OPERATIONS, SID, THIEF, USER_IDS, ruleOf } from './model.ts';
@@ -32,6 +32,9 @@ const scopesOf = (scopes: readonly Scope[]) => scopes.join(' ');
 const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'read+write' : 'read only');
 /** The stage's palette: the series' own. */
 export const PALETTE = KIT_PALETTE;
+
+/** The request's wordless travel representation, shared with the lettering's clearance. */
+export const REQUEST_TOKEN_SCALE = 0.28;
 
 /** The lanes of the wire: the three channels a poppy.json lists, and the Company's sign-in page. */
 export const LANES = ['api', 'web', 'chat', 'sign-in'] as const;
@@ -105,14 +108,15 @@ const BUNDLE: Record<Lane, number> = { api: 0.33, web: 0.11, chat: -0.11, 'sign-
 export const STOP_X = 0.62;
 /** The counter's extent, under the shop's sign. */
 const COUNTER_TOP = 3.47, COUNTER_BOTTOM = -0.65;
-/** Where the lanes' names start, above their level runs. */
-const NAME_X = -4.2;
 /** The ledger's left edge, behind the counter, and its top. */
 const LEDGER_X = 1.62, LEDGER_TOP = 3.8;
 /** The bottom band: the agent's side starts at the margin, the Company's at the ledger. */
 const BAND_TOP = -1.15;
 /** The corners of a lane, from the station to its stop. */
 export const routeOf = (on: Lane): Vec[] => laneRoute({ from: stationExit(STATION, STATION_R, BUNDLE[on]), trunk: TRUNK_X, y: LANE_Y[on], to: STOP_X, fan: FAN });
+/** Start the lettering after every fan has reached its level run, including the
+ * travelling ticket's horizontal extent and a painted clearance at the bend. */
+const NAME_X = Math.max(...LANES.map(name => routeOf(name)[2]![0])) + TICKET.width * REQUEST_TOKEN_SCALE / 2 + 0.08;
 /** The barrier's place on a lane: just short of the counter. */
 const BARRIER_X = STOP_X - 0.45;
 /** Where a ticket rests on its lane: docked at its stop when delivered, before the barrier when refused. */
@@ -132,7 +136,7 @@ export const keyRoute = (): Vec[] => {
 };
 
 /** The poppy.json, as a sheet of paper, for the transition that carries it to the agent. */
-export function documentToken(s: Stage): Mobject {
+export function documentToken(s: DrawContext): Mobject {
   return sheet(s, { width: 0.9, height: 1.15, lines: 3 });
 }
 
@@ -141,7 +145,7 @@ export function documentToken(s: Stage): Mobject {
  * window behind each lane's stop, shuttered until the agent has read poppy.json, and the shop's
  * sign on top: "example.com" printed on an INK board that runs on over the ledger, which it heads.
  */
-function shopfront(s: Stage, open: boolean, lit: Lane | null): Mobject[] {
+function shopfront(s: DrawContext, open: boolean, lit: Lane | null): Mobject[] {
   const h = COUNTER_TOP - COUNTER_BOTTOM, cy = (COUNTER_TOP + COUNTER_BOTTOM) / 2;
   const name = label(s, COMPANY.domain, { mono: true, bold: true, color: TONE.print, align: 'start' });
   const boardW = name.width() + 0.56, boardY = LEDGER_TOP;
@@ -166,7 +170,7 @@ function shopfront(s: Stage, open: boolean, lit: Lane | null): Mobject[] {
 const keyedAs = <T extends Mobject>(m: T, k: string): T => keyed(m, k);
 
 /** What the step is about, set under the map on the agent's side: one object, its name and a gloss. */
-type Exhibit = { mark: (s: Stage, at: Vec) => Mobject; name: string; gloss: string; mono?: boolean };
+type Exhibit = { mark: (s: DrawContext, at: Vec) => Mobject; name: string; gloss: string; mono?: boolean };
 function exhibitOf(w: World): Exhibit {
   const last = w.last, teeth = w.approves.length;
   if (!last) return { mark: (s, at) => person(s, { at }), name: 'Your errand', gloss: 'swap the jacket' };
@@ -182,7 +186,7 @@ function exhibitOf(w: World): Exhibit {
 }
 
 /** The state as its picture: the line map, what was sent and why it matters, and the Company's answer. */
-export function drawWorld(w: World, s: Stage): Group {
+export function drawWorld(w: World, s: DrawContext): Group {
   const parts = keyedParts();
   const last = w.last, report = reportOf(w), request = last?.kind === 'request' ? last : null, teeth = w.approves.length;
 
@@ -247,4 +251,4 @@ export function drawWorld(w: World, s: Stage): Group {
 }
 
 /** The width of the shop's sign board. */
-const boardWidth = (s: Stage) => label(s, COMPANY.domain, { mono: true, bold: true, align: 'start' }).width() + 0.56;
+const boardWidth = (s: DrawContext) => label(s, COMPANY.domain, { mono: true, bold: true, align: 'start' }).width() + 0.56;

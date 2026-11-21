@@ -47,16 +47,16 @@ export default class Lamp extends Scene{
     await this.step('intro',{caption:'A lamp, off.'});
     await this.wait(0.2);
     await this.step('press',{caption:'Press the switch: the lamp is dim.'});
-    await this.play(machine.replay(['UP']));
+    await this.play(machine.sendSequence(['UP']));
   }
 }`;
 
 const options = { skip: process.env.EXPLAIN_BROWSER ? false : 'set EXPLAIN_BROWSER=1 for served live-state review checks' };
 
 test('the visited live states: every state one press away, then breadth first, then the farthest, at most LIVE_STATES', () => {
-  const scene = new Scene<any>(new NullSink());
+  const host = <S extends object>(state: S) => Object.assign(new Scene(new NullSink()), { state });
   // A counter from 0 to 9: one press away are 1 (UP) and nothing below 0; the farthest is 9.
-  const counter = new Machine<{ n: number }, 'UP' | 'DOWN' | 'STAY'>(scene, {
+  const counter = new Machine<{ n: number }, 'UP' | 'DOWN' | 'STAY'>(host({ n: 0 }), {
     start: { n: 0 }, events: ['UP', 'DOWN', 'STAY'], views: [],
     next: (s, e) => (e === 'UP' ? (s.n < 9 ? { n: s.n + 1 } : undefined) : e === 'DOWN' ? (s.n > 0 ? { n: s.n - 1 } : undefined) : s),
   });
@@ -66,13 +66,13 @@ test('the visited live states: every state one press away, then breadth first, t
   // From the middle, both neighbours are one press away; the start itself is never revisited.
   assert.deepEqual(liveVisits(counter as never, { n: 5 }).slice(0, 2), [['UP'], ['DOWN']]);
   // Every state one press away is visited, however many: ten events, ten neighbours.
-  const fan = new Machine<{ at: string }, string>(scene, {
+  const fan = new Machine<{ at: string }, string>(host({ at: '' }), {
     start: { at: '' }, events: Array.from({ length: 10 }, (_, i) => `go ${i}`), views: [],
     next: (s, e) => (s.at ? undefined : { at: e }),
   });
   assert.equal(liveVisits(fan as never, { at: '' }).length, 10);
   // A machine whose every event returns to where it is has its first such event pressed once.
-  const still = new Machine<{ k: number }, 'NO' | 'SAME'>(scene, { start: { k: 0 }, events: ['NO', 'SAME'], views: [], next: (s, e) => (e === 'SAME' ? s : undefined) });
+  const still = new Machine<{ k: number }, 'NO' | 'SAME'>(host({ k: 0 }), { start: { k: 0 }, events: ['NO', 'SAME'], views: [], next: (s, e) => (e === 'SAME' ? s : undefined) });
   assert.deepEqual(liveVisits(still as never, { k: 0 }), [['SAME']]);
 });
 

@@ -25,8 +25,8 @@ import type {TextShaping} from './text-context.ts';
 import type { Segment, Run } from '../vendor/glyph.js';
 
 export interface TextOptions {
-  /** Explicit per-object shaping; copied texts retain it. */
-  shaping?: TextShaping;
+  /** Explicit per-object shaping. null selects the embedded faces. Copies retain the selection. */
+  shaping?: TextShaping | null;
   /** Draw in the face's Italic cut (Bold Italic with `weight: 'bold'`); the scene asks for it with meta.lettering.styles. */
   italic?: boolean;
   fontSize?: number;
@@ -138,7 +138,7 @@ export class Text extends Group {
 
   constructor(text: string, { fontSize = 0.4, font = 'sans', color: given, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOptions = {}, formula?: {display: boolean}) {
     super();
-    this.shaping = shaping; this.italic = italic; this[formulaOf] = formula;
+    this.shaping = shaping ?? undefined; this.italic = italic; this[formulaOf] = formula;
     if (tabWidth != null) expandTabs('', tabWidth); // validates it
     this.tabWidth = tabWidth;
     this.text = text;
@@ -326,7 +326,7 @@ export class DecimalNumber extends Text {
 export interface ColorSpan { line: number; from: number; to: number; color: string }
 
 export interface CodeOptions {
-  shaping?: TextShaping;
+  shaping?: TextShaping | null;
   fontSize?: number;
   color?: string;
   lineHeight?: number;
