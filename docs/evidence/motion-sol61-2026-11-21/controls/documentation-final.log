@@ -1,0 +1,20 @@
+✔ relativeLinks finds file links and skips URLs, anchors and code (1.705248ms)
+✔ every relative link in a shipped Markdown file points at a shipped file (4082.874214ms)
+✔ every link to a file on the repository's main branch names a file in the checkout (436.704717ms)
+✔ every public name of every entry point has a live reason to be public (257.00896ms)
+✔ the engine features, examples, kept names and feature index tables are rendered from the ledger: run node tools/repo/public-names.ts --write (311.895083ms)
+✔ the rule rejects a name with no reason, a broken guide or test, and an entry for a name no longer exported (4524.417761ms)
+✔ what stays in the public API: a user or a written reason (5083.370328ms)
+✔ the tables cannot claim what their scenes do not do (1973.721854ms)
+✔ the feature index points each feature at a catalogued explainer that uses it, and at the file where it does (2145.062213ms)
+✔ every public value, type and member is documented in docs/, or listed as having no author purpose (5.853962ms)
+✔ the docs check rejects a public name no guide names, and a stale entry among the undocumented (1.127589ms)
+✔ no name is deprecated: one that loses its users is removed, and the changelog lists it (53.779357ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23160.029786

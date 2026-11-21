@@ -1,0 +1,1022 @@
+{
+  "date": "2026-11-21",
+  "metric": "Baseline-subtracted generic motion and explicitly declared author-guard rejection. Not general accuracy or a count of production bugs.",
+  "summary": {
+    "caught": 41,
+    "of": 59,
+    "byKind": {
+      "passes over": {
+        "caught": 20,
+        "of": 28
+      },
+      "result before cause": {
+        "caught": 4,
+        "of": 5
+      },
+      "layout motion": {
+        "caught": 2,
+        "of": 8
+      },
+      "two copies": {
+        "caught": 4,
+        "of": 4
+      },
+      "squeezed": {
+        "caught": 3,
+        "of": 3
+      },
+      "too long": {
+        "caught": 1,
+        "of": 3
+      },
+      "small label in flight": {
+        "caught": 3,
+        "of": 3
+      },
+      "glyph dissolve": {
+        "caught": 0,
+        "of": 1
+      },
+      "flicker": {
+        "caught": 4,
+        "of": 4
+      }
+    }
+  },
+  "previous": {
+    "caught": 37,
+    "of": 59
+  },
+  "gains": [
+    "refusals-lanes-gone-in-flight",
+    "sessions-too-long",
+    "sign-in-pages-overlap",
+    "sign-in-password-hand-and-flight"
+  ],
+  "noLongerRejected": [],
+  "guardOnly": [
+    "refusals-ticket-over-station",
+    "sessions-squeezed",
+    "sessions-too-long",
+    "sign-in-ask-squeezed",
+    "browser-message-across-stage",
+    "conversations-turn-over-seat-name",
+    "discovery-arm-over-register",
+    "discovery-fetch-squeezed"
+  ],
+  "reconstructionInventory": {
+    "adapted": 42,
+    "reverted": 17
+  },
+  "baselines": [
+    {
+      "id": "base-poppy",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-refusals",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-sessions",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-sign-in",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-browser",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-conversations",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-coverage",
+      "findings": 0,
+      "error": null
+    },
+    {
+      "id": "base-poppy-discovery",
+      "findings": 0,
+      "error": null
+    }
+  ],
+  "catalog": {
+    "completed": 45,
+    "errors": 0,
+    "findings": 0
+  },
+  "measurement": {
+    "fingerprint": "d813579496fd327986e9151564a176aada48a1a534b15d0688ecfa65de35d785",
+    "source": "measurement-sources.json.gz",
+    "findings": "corpus-findings.json.gz"
+  },
+  "cases": [
+    {
+      "id": "poppy-ticket-over-lane-names",
+      "chapter": "poppy",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 352,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"approve\":\"read-write\"}",
+        "line": "step \"seal\", play 1, event 1: covers: part “ticket:flight” at 0.933 s travels over “API” (part “lane:api:name”), covering 100% of it, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "poppy-key-over-station-name",
+      "chapter": "poppy",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "poppy-last-object-lingers",
+      "chapter": "poppy",
+      "kind": "result before cause",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 724,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"approve\":\"read-write\"}",
+        "line": "step \"discover\", event \"discover\": motion contract: during \"document\", subject \"exhibit:mark\" must be absent at +0.533 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "refusals-ticket-over-station",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"answer\"): authored transition lasts 3.450 s but the event allows 3.400 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "refusals-ticket-over-lane-name",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 215,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{}",
+        "line": "step \"turned-back\", play 2, event 1: covers: part “ticket:flight” at 0.500 s travels over “API” (part “lane:api:name”), covering 123% of it, for 0.60 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "refusals-lanes-slide",
+      "chapter": "poppy-refusals",
+      "kind": "layout motion",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "refusals-lanes-gone-in-flight",
+      "chapter": "poppy-refusals",
+      "kind": "layout motion",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 94,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{}",
+        "line": "step \"one-door\", event \"mcp\": motion contract: during \"ticket:flight\", subject \"lane:mcp-mcp:line\" must be present at +0.633 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "refusals-delegation-over-station",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 5,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{}",
+        "line": "step \"seal\", play 1, event 2: covers: part “delegation” at 0.800 s travels over “your agent” (part “agent:name”), covering 42% of it, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "secondary-only"
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sessions-ticket-from-under-stamp",
+      "chapter": "poppy-sessions",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 48,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"remembers\"}",
+        "line": "step \"send\", play 1, event 1: covers: part “ticket:flight” at 0.467 s travels over “until 06:00” (part “chain:until”), covering 60% of it, for 0.30 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sessions-key-to-wax-after-check",
+      "chapter": "poppy-sessions",
+      "kind": "result before cause",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 230,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"remembers\"}",
+        "line": "step \"signer\", event \"published\": motion contract: during \"chain:ring:on-wax:flight\", the declared travel was never constructed"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sessions-key-in-two-places",
+      "chapter": "poppy-sessions",
+      "kind": "two copies",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 100,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"remembers\"}",
+        "line": "step \"signer\", event \"published\": motion contract: during \"chain:ring:on-wax:flight\", subject \"chain:ring\" must be absent at +0.700 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sessions-squeezed",
+      "chapter": "poppy-sessions",
+      "kind": "squeezed",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"send\"): authored transition lasts 3.060 s but the event allows 2.600 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "blocked-before-paint"
+    },
+    {
+      "id": "sessions-too-long",
+      "chapter": "poppy-sessions",
+      "kind": "too long",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": {
+        "name": "Error",
+        "kind": "authored pacing guard",
+        "message": {
+          "pattern": "^Sessions tamper pacing: (?:3\\.100 s exceeds this ticket-check sequence's 2\\.850|4\\.350 s exceeds this key-transfer sequence's 3\\.900) s budget$",
+          "flags": ""
+        }
+      },
+      "example": {
+        "scenario": "during authored replay",
+        "line": "authored pacing guard: Sessions tamper pacing: 3.100 s exceeds this ticket-check sequence's 2.850 s budget"
+      },
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "sign-in-ask-people-slide",
+      "chapter": "poppy-sign-in",
+      "kind": "layout motion",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 39,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "line": "step \"reask\", play 1, event 1: occluded words: part “page:hint” at 3.433 s “password” stays readable by opacity but “agent:station”, an opaque foreground shape, covers at least 90% of 3 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+      },
+      "frozenVisualVerdict": "secondary-only"
+    },
+    {
+      "id": "sign-in-collect-people-slide",
+      "chapter": "poppy-sign-in",
+      "kind": "layout motion",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "sign-in-collect-too-long",
+      "chapter": "poppy-sign-in",
+      "kind": "too long",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "sign-in-tokens-over-labels",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "secondary-only"
+    },
+    {
+      "id": "sign-in-password-before-card",
+      "chapter": "poppy-sign-in",
+      "kind": "result before cause",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "unreproduced"
+    },
+    {
+      "id": "sign-in-ask-squeezed",
+      "chapter": "poppy-sign-in",
+      "kind": "squeezed",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"ask\"): authored transition lasts 2.800 s but the event allows 2.200 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "blocked-before-paint"
+    },
+    {
+      "id": "sign-in-pages-overlap",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 3,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"flow\":\"device\"}",
+        "line": "step \"ask\", event \"ask\": motion contract: during \"request\", subject \"window:frame\" must be absent at +1.200 s"
+      },
+      "frozenVisualVerdict": "secondary-only"
+    },
+    {
+      "id": "sign-in-card-from-desk",
+      "chapter": "poppy-sign-in",
+      "kind": "layout motion",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 7,
+      "attributed": 7,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"flow\":\"device\"}",
+        "line": "step \"ask\", play 1, event 2: occluded words: part “card” at 0.900 s “Example Company” stays readable by opacity but “poll”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sign-in-password-hand-and-flight",
+      "chapter": "poppy-sign-in",
+      "kind": "two copies",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 52,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "line": "step \"approve\", event \"approve-read\": motion contract: during \"page:password:flight\", subject \"you:password\" must be absent at +0.533 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sign-in-code-tiny-words",
+      "chapter": "poppy-sign-in",
+      "kind": "small label in flight",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 26,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "line": "step \"key\", play 1, event 1: small words: part “code” at 1.067 s carries “c_5Rm2” 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "sign-in-password-route",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "inconclusive"
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 244,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "line": "step \"sign-out\", event \"sign-out\": motion contract: during \"tag:return\", subject \"agent:key\" must be absent at +0.567 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-ticket-over-road-name",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 129,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"fetch\", play 2, event 1: covers: part “ticket:flight” at 0.800 s travels over “agent’s requests” (part “lane:agent:name”), covering 48% of it, for 0.53 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-halves-together",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 17,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"load\", play 1, event 1: covers: part “shelf:join:flight” at 2.067 s travels over “Vn3q” (part “page:stub:flight”), covering 74% of it, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-read-across-page",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-forge-across-stage",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 39,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering 70% of it, for 0.27 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-message-across-stage",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"phish\"): authored transition lasts 3.450 s but the event allows 3.350 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "blocked-before-paint"
+    },
+    {
+      "id": "browser-message-lingers",
+      "chapter": "poppy-browser",
+      "kind": "result before cause",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 45,
+      "attributed": 2,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"load\", event \"load\": motion contract: during \"request\", subject \"rack:none\" must be absent at +0.533 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-submit-meet-on-top",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 32,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"submit\", play 1, event 1: covers: part “carried:half” at 1.167 s travels over “Vn3q” (part “carried”), covering 74% of it, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-forge-ends-on-stop",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-record-after-halves",
+      "chapter": "poppy-browser",
+      "kind": "result before cause",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 68,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"load\", event \"load\": motion contract: during \"page:stub:flight\", subject \"row:Vn3q:stub\" must be present at +1.433 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-read-over-its-copy",
+      "chapter": "poppy-browser",
+      "kind": "two copies",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 42,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"authorize\", play 1, event 1: duplicate words: part “read” at 0.400 s travelling text overlaps another visible copy of the same words; fix: hide the resting copy until the travelling copy has landed"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-legend-moves",
+      "chapter": "poppy-browser",
+      "kind": "layout motion",
+      "method": "reverted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "unreproduced"
+    },
+    {
+      "id": "browser-attacker-over-shelf",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 36,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "after load, submit, load, authorize, submit, forge: covers: part “forged” at 0.967 s travels over “R5ty” (part “row:R5ty:stub”), covering 53% of it, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-read-tiny-words",
+      "chapter": "poppy-browser",
+      "kind": "small label in flight",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 21,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"authorize\", play 1, event 1: small words: part “read” at 1.267 s carries “Vn3q” 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "browser-forge-tiny-words",
+      "chapter": "poppy-browser",
+      "kind": "small label in flight",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 39,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "line": "step \"forge\", play 3, event 1: small words: part “forged” at 0.700 s carries “K9wd” 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "conversations-layout-slides",
+      "chapter": "poppy-conversations",
+      "kind": "layout motion",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "conversations-turn-over-seat-name",
+      "chapter": "poppy-conversations",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during guarded execution",
+        "line": "duration guard: machine.send(\"ask\"): authored transition lasts 2.000 s but the event allows 1.800 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "secondary-only"
+    },
+    {
+      "id": "conversations-words-dissolve",
+      "chapter": "poppy-conversations",
+      "kind": "glyph dissolve",
+      "method": "reverted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "unreproduced"
+    },
+    {
+      "id": "conversations-person-over-ledger",
+      "chapter": "poppy-conversations",
+      "kind": "passes over",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 9,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{}",
+        "line": "step \"direct\", play 1, event 2: covers: part “specialist:mark:flight” at 0.633 s travels over “none” (part “written:role:value”), covering 30% of it, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "conversations-table-block-blinks",
+      "chapter": "poppy-conversations",
+      "kind": "flicker",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 1496,
+      "attributed": 1,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{}",
+        "line": "step \"open\", event \"ask\": motion contract: during \"turn:flight\", subject \"written:title:0\" must be present at +0.533 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "conversations-block-crossfades",
+      "chapter": "poppy-conversations",
+      "kind": "flicker",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 110,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{}",
+        "line": "step \"direct\", play 1, event 1: flicker: part “written:title:0” at 0.233 s went from alpha 0.50 to 0.16 and came back 1.30 s later, unchanged and in the same place (“On the table”); fix: leave it alone: a part that ends as it began should stay (only words that change are replaced; drop it from beats' fresh unless the event makes it new)"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "coverage-strips-cross",
+      "chapter": "poppy-coverage",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 30,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"sort\", play 1, event 1: covers: part “strip:aside:0:flight” at 0.567 s travels over “checkout page” (part “strip:used:1:flight”), covering 54% of it, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "coverage-report-too-long",
+      "chapter": "poppy-coverage",
+      "kind": "too long",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "editorial"
+    },
+    {
+      "id": "coverage-skill-card-twice",
+      "chapter": "poppy-coverage",
+      "kind": "two copies",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 72,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"skill\", event \"use skill\": motion contract: during \"skill:read\", subject \"skill:card\" must be absent at +0.533 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "coverage-reach-over-strips",
+      "chapter": "poppy-coverage",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 36,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"skill\", play 1, event 1: long transition: part “transition” at 0.000 s keeps changing for 5.13 s, over the 5 s ceiling; fix: shorten or split the authored transition; leave caption reading time as a hold"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "coverage-desk-blinks",
+      "chapter": "poppy-coverage",
+      "kind": "flicker",
+      "method": "reverted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 42,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"board\", event \"read tasks\": motion contract: during \"list\", subject \"desk:head\" must be present at +0.467 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "coverage-user-line-blinks",
+      "chapter": "poppy-coverage",
+      "kind": "flicker",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 10,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"board\", event \"read tasks\": motion contract: during \"list\", subject \"tray:user:close\" must be present at +0.467 s"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "coverage-list-over-labels",
+      "chapter": "poppy-coverage",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": false,
+      "freshFindings": 18,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "{\"company\":\"hostile\"}",
+        "line": "step \"board\", play 1, event 1: covers: part “list” at 0.767 s travels over “feedback” (part “feedback:name”), covering 36% of it, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way"
+      },
+      "frozenVisualVerdict": "confirmed"
+    },
+    {
+      "id": "discovery-arm-over-register",
+      "chapter": "poppy-discovery",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"check\"): authored transition lasts 1.850 s but the event allows 1.550 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "blocked-before-paint"
+    },
+    {
+      "id": "discovery-sheet-over-shop",
+      "chapter": "poppy-discovery",
+      "kind": "passes over",
+      "method": "adapted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "secondary-only"
+    },
+    {
+      "id": "discovery-fetch-squeezed",
+      "chapter": "poppy-discovery",
+      "kind": "squeezed",
+      "method": "adapted",
+      "rejected": true,
+      "guardOnly": true,
+      "freshFindings": 1,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": {
+        "scenario": "during authored replay",
+        "line": "duration guard: machine.send(\"check\"): authored transition lasts 1.750 s but the event allows 1.300 s; increase the machine runTime or shorten the transition instead of compressing its fades"
+      },
+      "frozenVisualVerdict": "blocked-before-paint"
+    },
+    {
+      "id": "discovery-path-slides",
+      "chapter": "poppy-discovery",
+      "kind": "layout motion",
+      "method": "reverted",
+      "rejected": false,
+      "guardOnly": false,
+      "freshFindings": 0,
+      "attributed": null,
+      "expectedRefusal": null,
+      "example": null,
+      "frozenVisualVerdict": "confirmed"
+    }
+  ]
+}

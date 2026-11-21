@@ -1,0 +1,74 @@
+{
+  "scratch": "/tmp/refusals-native-poisons-L09Mmm",
+  "results": [
+    {
+      "id": "refusals-ticket-over-station",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "RangeError: machine.send(\"answer\"): authored transition lasts 3.450 s but the event allows 3.400 s"
+      ],
+      "classification": "unrelated answer duration guard; station visual credit comes only from legal-duration control"
+    },
+    {
+      "id": "refusals-ticket-over-lane-name",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: ticket beside the lane names hides 409 painted text pixels at turned-back, frame 44, your agent / API"
+      ],
+      "independentVictimRerun": true,
+      "priorUnattributedTermination": "Previous late-assertion rerun terminated without a semantic finding; not credited. Current test rejects immediately on measured ink loss."
+    },
+    {
+      "id": "refusals-lanes-slide",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: lane sign lane:api:name slides between layouts"
+      ],
+      "independentVictimRerun": true
+    },
+    {
+      "id": "refusals-lanes-gone-in-flight",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: mcp-mcp: the request lost its road"
+      ]
+    },
+    {
+      "id": "refusals-delegation-over-station",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: delegation hides 440 painted text pixels at seal, frame 2237, your agent"
+      ]
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: MCP key hides 200 painted text pixels at one-door, frame 5118, MCP"
+      ]
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: API key hides 142 painted text pixels at slip, frame 702, API"
+      ]
+    },
+    {
+      "id": "station-launch-legal-duration",
+      "exit": 1,
+      "expectedRejection": true,
+      "failures": [
+        "  AssertionError [ERR_ASSERTION]: ticket at the station hides 3633 painted drawing pixels at turned-back, frame 57, agent:station"
+      ],
+      "independentVictimRerun": true
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+✖ the tasks list passes the desk headings while the shop and agent readouts stay legible (3314.911603ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3648.770333
+
+✖ failing tests:
+
+test at ../../tmp/coverage-controls/list-over-labels/scene.test.ts:38:1
+✖ the tasks list passes the desk headings while the shop and agent readouts stay legible (3314.911603ms)
+  AssertionError [ERR_ASSERTION]: hostile shop task list hides 654 painted text pixels at board, frame 680, feedback / the shop sees
+  
+  654 !== 0
+  
+      at Object.assertClear (file:///workspace/rayner/scenes/explainers/lib/route-ink/fidelity.ts:112:14)
+      at TestContext.<anonymous> (file:///tmp/coverage-controls/list-over-labels/scene.test.ts:52:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 654,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

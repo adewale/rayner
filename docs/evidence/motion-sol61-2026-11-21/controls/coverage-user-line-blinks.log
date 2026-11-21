@@ -1,0 +1,32 @@
+✖ the list keeps the unchanged desk heading and user request painted throughout its journey (531.544679ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1013.40898
+
+✖ failing tests:
+
+test at ../../tmp/coverage-controls/user-line-blinks/motion.test.ts:59:1
+✖ the list keeps the unchanged desk heading and user request painted throughout its journey (531.544679ms)
+  AssertionError [ERR_ASSERTION]: Close my account must keep painting while the list travels
+      at Object.frame (file:///tmp/coverage-controls/user-line-blinks/motion.test.ts:70:16)
+      at file:///workspace/rayner/src/scene.ts:857:47
+      at #toSink (file:///workspace/rayner/src/scene.ts:487:17)
+      at #emitFrame (file:///workspace/rayner/src/scene.ts:857:29)
+      at #playFrames (file:///workspace/rayner/src/scene.ts:948:28)
+      at async #play (file:///workspace/rayner/src/scene.ts:902:11)
+      at async #exclusive (file:///workspace/rayner/src/scene.ts:503:18)
+      at async Bound.play (file:///workspace/rayner/src/scene.ts:864:5)
+      at async Bound.construct (file:///tmp/coverage-controls/user-line-blinks/scene.ts:181:5)
+      at async file:///workspace/rayner/src/scene.ts:615:9 {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

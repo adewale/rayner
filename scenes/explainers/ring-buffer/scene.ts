@@ -291,15 +291,20 @@ export default class RingBufferExplainer extends Scene {
         pop: (t) => {
           const { before, after } = t, c = t.choreograph(ring);
           const slot = before.head, k = after.tray!.values.length - 1;
+          const first = arrive(c, before, after, before.operation === 'pop'), tray = newTray(c, before, after);
+          // Build the proxy before claiming its source, then retire that source exactly
+          // as the identical proxy takes its place. Pop transfers ownership of this value.
+          const delivered = c.enter(`ring:tray:${k}`, { from: `ring:value:${slot}` }, { runTime: 0.6 });
+          const retired = c.leave(`ring:value:${slot}`, {runTime: 0});
           // The value at head is copied out to the tray, its slot empties, and head moves on.
           return new Succession([
-            arrive(c, before, after, before.operation === 'pop'),
-            ...newTray(c, before, after),
+            first,
+            ...tray,
             together([
               ...outline(c, slot, 0.4),
-              c.enter(`ring:tray:${k}`, { from: `ring:value:${slot}` }, { runTime: 0.6 }),
+              together([retired, delivered]),
             ]),
-            together([c.morph(`ring:slot:${slot}`, { runTime: 0.35 }), c.leave(`ring:value:${slot}`, { runTime: 0.35 })]),
+            c.morph(`ring:slot:${slot}`, { runTime: 0.35 }),
             together([turn(c, 'head', before.head, after.head), fields(), c.rest({ runTime: 0.45 })]),
           ]);
         },

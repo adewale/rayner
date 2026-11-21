@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
-import { againstBaseline, authoredRefusal, type EntryResult, type Found } from '../tools/repo/motion-corpus-lib.ts';
+import { againstBaseline, authoredRefusal, guardRefusal, type EntryResult, type Found } from '../tools/repo/motion-corpus-lib.ts';
 import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 
 const observation = (segment: string, path: string, t: number): Found => ({
@@ -12,6 +12,18 @@ const observation = (segment: string, path: string, t: number): Found => ({
 function result(id: string, findings: Found[] = []): EntryResult {
   return { id, caught: findings.length > 0, findings, fresh: findings, ms: 0 };
 }
+
+test('reader context wrappers retain typed duration refusals without crediting lookalike errors', () => {
+  const entry = CORPUS.find(e => e.id === 'conversations-turn-over-seat-name')!;
+  const message = 'machine.send("ask"): authored transition lasts 2.000 s but the event allows 1.800 s; increase the machine runTime';
+  const refusal = new RangeError(message);
+  assert.equal(guardRefusal(entry, new Error('Machine 1 at step "close"', {cause: refusal}))?.line, 'duration guard: ' + message);
+  assert.equal(guardRefusal(entry, new Error(message)), undefined);
+  assert.equal(guardRefusal(entry, new Error('wrapper', {cause: new TypeError(message)})), undefined);
+  assert.equal(guardRefusal(entry, new Error('wrapper', {cause: new RangeError('unrelated range failure')})), undefined);
+  const cycle = new Error('cycle'); cycle.cause = cycle;
+  assert.equal(guardRefusal(entry, cycle), undefined);
+});
 
 test('the Sessions pacing refusal credits only its declared historical budget violation', () => {
   const entry = CORPUS.find(e => e.id === 'sessions-too-long')!;
@@ -143,8 +155,11 @@ test('each new semantic gain requires its observed event, trip, subject and requ
     ['browser-record-after-halves', '{"signin":"signed-in"}', 'step "load", event "load"', 'page:stub:flight', 'row:Vn3q:stub', 'present'],
     ['browser-message-lingers', '{"signin":"signed-in"}', 'after load, authorize, submit, phish, forge', 'forged', 'message', 'absent'],
     ['conversations-table-block-blinks', '{}', 'step "read", event "read"', 'turn:flight', 'written:title:0', 'present'],
+    ['refusals-lanes-gone-in-flight', '{}', 'step "one-door", event "mcp"', 'ticket:flight', 'lane:mcp-mcp:line', 'present'],
+    ['sign-in-pages-overlap', '{"flow":"device"}', 'step "ask", event "ask"', 'request', 'window:frame', 'absent'],
+    ['sign-in-password-hand-and-flight', '{"flow":"direct"}', 'step "approve", event "approve-read"', 'page:password:flight', 'you:password', 'absent'],
   ] as const;
-  assert.equal(rows.length, 6);
+  assert.equal(rows.length, 9);
   for (const [id, scenario, event, trip, subject, requirement] of rows) {
     const entry = CORPUS.find(e => e.id === id)!;
     assert.ok(entry.expectedFinding);

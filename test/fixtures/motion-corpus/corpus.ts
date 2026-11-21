@@ -117,6 +117,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   },
   {
     id: 'refusals-lanes-gone-in-flight', chapter: 'poppy-refusals', kind: 'layout motion', commit: '82eb9c03', method: 'adapted', events: ['expire', 'read-only', 'delegation', 'end', 'old-copy', 'too-fast', 'mcp', 'answer'],
+    expectedFinding: {scenario: '{}', transition: /^step "one-door", event "mcp"$/, kind: 'motion contract', path: 'ticket:flight', subjects: ['lane:mcp-mcp:line'], requirement: 'present'},
     what: 'The first fix for the sliding lanes listed them in beats’ fresh: they faded out and came back only after the ticket had travelled, so it flew on no lane; the second cross-faded them before it set off.',
     edits: [
       { file: 'poppy-refusals/scene.ts', find: 'return beats(c, () => [...relay(), ...go()], { fresh, then: [\'barrier\'], lead: [...LANE_PARTS, ...RAIL_PARTS] });', replace: 'return beats(c, go, { fresh: relaid ? [...fresh, \'lane\'] : fresh, then: [\'barrier\'], lead: relaid ? RAIL_PARTS : [...LANE_PARTS, ...RAIL_PARTS] });' },
@@ -251,6 +252,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   },
   {
     id: 'sign-in-pages-overlap', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['ask'],
+    expectedFinding: {scenario: '{"flow":"device"}', transition: /^step "ask", event "ask"$/, kind: 'motion contract', path: 'request', subjects: ['window:frame'], requirement: 'absent'},
     what: 'A page of another shape (the website before the phone) was still there while the new one faded in over it; the fix takes the old page away first.',
     edits: [
       { file: 'poppy-sign-in/scene.ts', find: 'const reopen = stale.filter((k) => c.has(k, \'to\'));', replace: 'const reopen: string[] = [];' },
@@ -277,6 +279,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   },
   {
     id: 'sign-in-password-hand-and-flight', chapter: 'poppy-sign-in', kind: 'two copies', commit: 'd99c9195', method: 'adapted', events: ['approve-all', 'approve-read'],
+    expectedFinding: {scenario: '{"flow":"direct"}', transition: /^step "approve", event "approve-read"$/, kind: 'motion contract', path: 'page:password:flight', subjects: ['you:password'], requirement: 'absent'},
     what: 'Your password card flew into the page while it was still in your hand, and across the page’s lines; the fix takes it from your hand as it sets off, round the page.',
     edits: [
       { file: 'poppy-sign-in/scene.ts', find: '        const halfCard = c.from(\'you:password\').width() / 2 + 0.05;\n        const passX = device\n          ? c.to(\'page:orders:read:box\').box()![0] - halfCard\n          : Math.max(c.from(\'page:orders:read:line\').box()![2], c.from(\'page:orders:write:line\').box()![2]) + halfCard;\n        const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];\n        const card = pass(c, \'page:password:flight\', c.from(\'you:password\').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'you:password\', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter(\'page:password\', {}, { runTime: 0.25 })])];', replace: '        return flight(c, \'page:password\', [from], { move: 0.8 })();' },

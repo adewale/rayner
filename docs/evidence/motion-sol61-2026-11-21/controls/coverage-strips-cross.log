@@ -1,0 +1,29 @@
+✖ competing paper groups and the secret reach preserve the other strips’ actual ink (5461.007475ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5943.606789
+
+✖ failing tests:
+
+test at ../../tmp/coverage-controls/strips-cross/motion.test.ts:108:1
+✖ competing paper groups and the secret reach preserve the other strips’ actual ink (5461.007475ms)
+  AssertionError [ERR_ASSERTION]: set-aside note strips hides 1040 painted text pixels at sort, frame 2966, checkout page
+  
+  1040 !== 0
+  
+      at Object.assertClear (file:///workspace/rayner/scenes/explainers/lib/route-ink/fidelity.ts:112:14)
+      at TestContext.<anonymous> (file:///tmp/coverage-controls/strips-cross/motion.test.ts:120:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1040,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

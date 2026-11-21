@@ -21,7 +21,7 @@ import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 import { ROOT } from '../tools/lib/roots.ts';
 import { analyzeKeyedMotion } from '../src/keyed-motion.ts';
 
-/** Retain measured rejections, including six exact authored-motion diagnoses.
+/** Retain measured rejections, including nine exact authored-motion diagnoses.
  * The held-token keeper below owns the old enlarged-poll hazard now prevented by its dock. */
 const CAUGHT: readonly string[] = [
   'poppy-ticket-over-lane-names',
@@ -61,6 +61,10 @@ const CAUGHT: readonly string[] = [
   'browser-message-lingers',
   'browser-record-after-halves',
   'conversations-table-block-blinks',
+  'refusals-lanes-gone-in-flight',
+  'sessions-too-long',
+  'sign-in-pages-overlap',
+  'sign-in-password-hand-and-flight',
 ];
 /**
  * The default run: covers, small words, flicker, attributed occlusion and authored context.
@@ -72,6 +76,7 @@ const SAMPLE = new Map([
   ['sign-in-poll-over-card', 'occluded words'],
   ['sign-in-ask-people-slide', 'occluded words'],
   ['conversations-table-block-blinks', 'motion contract'],
+  ['sign-in-password-hand-and-flight', 'motion contract'],
 ]);
 
 test('the credited poll mutation removes actual letter pixels and its fixed route preserves them', {

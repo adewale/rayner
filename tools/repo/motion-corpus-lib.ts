@@ -118,6 +118,19 @@ export function authoredRefusal(entry: Variant, error: unknown): Found | undefin
   if (!expected.message.test(error.message)) return;
   return {scenario: 'during authored replay', line: `${expected.kind}: ${error.message}`};
 }
+
+/** Reader exploration adds step context using Error.cause. Inspect that typed chain;
+ * a wrapper's message alone never establishes a production duration refusal. */
+export function guardRefusal(entry: Variant, error: unknown): Found | undefined {
+  const seen = new Set<Error>();
+  for (let current = error; current instanceof Error && !seen.has(current); current = current.cause) {
+    seen.add(current);
+    let found = authoredRefusal(entry, current);
+    if (!found && current instanceof RangeError && /^machine\.send\(".*"\): authored transition lasts [\d.]+ s but the event allows [\d.]+ s;/.test(current.message))
+      found = {scenario: 'during guarded execution', line: `duration guard: ${current.message}`};
+    if (found) return current === error ? found : {...found, scenario: 'during guarded execution'};
+  }
+}
 /** `full`: every event's transitions, as `rayner check`; otherwise only the entry's `events`. */
 export async function runEntry(entry: Variant, { full = false, root = ROOT }: { full?: boolean; root?: string } = {}): Promise<EntryResult> {
   const t = Date.now();
@@ -126,14 +139,8 @@ export async function runEntry(entry: Variant, { full = false, root = ROOT }: { 
     const findings = await keyedMotionFindings(file, full ? undefined : entry.events);
     return { id: entry.id, caught: findings.length > 0, findings, fresh: findings, ms: Date.now() - t };
   } catch (e) {
-    const refusal = authoredRefusal(entry, e);
+    const refusal = guardRefusal(entry, e);
     if (refusal) return {id: entry.id, caught: true, findings: [refusal], fresh: [refusal], ms: Date.now() - t};
-    // Compression defects now reject before a bad frame can be rendered. Count only
-    // this exact production duration guard; unrelated build/runtime exceptions remain errors.
-    if (e instanceof RangeError && /^machine\.send\(".*"\): authored transition lasts [\d.]+ s but the event allows [\d.]+ s;/.test(e.message)) {
-      const findings=[{scenario:'during authored replay',line:`duration guard: ${e.message}`}];
-      return {id:entry.id,caught:true,findings,fresh:findings,ms:Date.now()-t};
-    }
     return { id: entry.id, caught: false, findings: [], fresh: [], ms: Date.now() - t, error: String((e as Error)?.stack ?? e) };
   } finally {
     await rm(join(root, 'out', `motion-corpus-${entry.id}`), { recursive: true, force: true });
