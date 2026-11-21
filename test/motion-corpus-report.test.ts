@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { spawnSync } from 'node:child_process';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
 import { againstBaseline, authoredRefusal, guardRefusal, type EntryResult, type Found } from '../tools/repo/motion-corpus-lib.ts';
-import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
+import { recall, runCorpus, workerResult } from '../tools/repo/motion-corpus.ts';
 
 const observation = (segment: string, path: string, t: number): Found => ({
   scenario: '{}',
@@ -10,7 +11,7 @@ const observation = (segment: string, path: string, t: number): Found => ({
 });
 
 function result(id: string, findings: Found[] = []): EntryResult {
-  return { id, caught: findings.length > 0, findings, fresh: findings, ms: 0 };
+  return { id, caught: findings.length > 0, findings, fresh: findings, ms: 0, status: 'complete' };
 }
 
 test('reader context wrappers retain typed duration refusals without crediting lookalike errors', () => {
@@ -44,6 +45,102 @@ test('the Sessions pacing refusal credits only its declared historical budget vi
   ]) assert.equal(authoredRefusal(entry, new Error(reason)), undefined);
   const base = result('base-poppy-sessions', [authoredRefusal(entry, new Error(reasons[0]!))!]);
   assert.match(againstBaseline(result(entry.id, [observation('check', 'stamp', 0.2)]), base).error!, /base-poppy-sessions/);
+  const warning = result(entry.id, [observation('check', 'stamp', 0.2)]);
+  assert.equal(againstBaseline(warning, result('base'), entry.expectedFinding, entry.expectedRefusal).caught, false);
+  assert.equal(recall([entry], [warning]).caught, 0, 'an unrelated rejection cannot satisfy a declared refusal');
+  const expected = authoredRefusal(entry, new Error(reasons[0]!))!;
+  const matched = againstBaseline(result(entry.id, [expected]), result('base'), entry.expectedFinding, entry.expectedRefusal);
+  assert.equal(recall([entry], [matched]).caught, 1);
+  assert.equal(recall([entry], [matched]).evidence.declaredRefusals, 1);
+  const lookalike = {...expected, observation: undefined};
+  assert.equal(recall([entry], [result(entry.id, [lookalike])]).caught, 0, 'exception prose alone does not prove its type');
+});
+
+test('baseline subtraction preserves a different covered victim, label or foreground mask', () => {
+  const covered = (text: string, victim: string, mask = 'ticket'): Found => ({scenario: '{}',
+    line: `send: covers: part “${mask}” at 0.2 s travels over “${text}” (part “${victim}”), covering 40% of it, for 0.2 s before it lands; fix: a route`});
+  const original = covered('API', 'lane:api');
+  const other = [covered('Chat', 'lane:chat'), covered('API', 'other:api'), covered('API', 'lane:api', 'parcel')];
+  const difference = againstBaseline(result('variant', [original, ...other]), result('base', [original]));
+  assert.deepEqual(difference.fresh, other);
+});
+
+test('corpus scoring derives evidence rather than trusting caught, and separates rejection from exact targets', () => {
+  const entry = CORPUS.find(e => !e.expectedFinding && !e.expectedRefusal)!;
+  assert.equal(recall([entry], [{...result(entry.id), caught: true}]).caught, 0);
+  const score = recall([entry], [{...result(entry.id, [observation('send', 'word', 0.4)]), caught: false}]);
+  assert.equal(score.caught, 1);
+  assert.equal(score.evidence.rejected, 1);
+  assert.equal(score.evidence.unattributedWarnings, 1);
+  assert.equal(score.evidence.exactMatches, 0);
+});
+
+test('worker completion requires a successful process and a complete typed result with its expected identity', () => {
+  const row = result('probe', [observation('send', 'word', 0.4)]);
+  const bytes = JSON.stringify(row);
+  for (const code of [0, 17]) {
+    const child = spawnSync(process.execPath, ['--max-old-space-size=128', '-e', `process.stdout.write(${JSON.stringify(bytes)},()=>process.exit(${code}))`], {encoding: 'utf8', timeout: 10_000});
+    assert.equal(child.status, code);
+    const read = workerResult('probe', child.stdout, child.status, child.signal, child.stderr);
+    if (code === 0) assert.deepEqual(read, row);
+    else {
+      assert.match(read.error!, /exit 17/);
+      assert.deepEqual(read.findings, row.findings, 'failed workers retain partial observations without credit');
+      assert.equal(read.caught, false);
+      assert.deepEqual(read.fresh, []);
+    }
+  }
+  for (const damaged of [
+    {...row, id: 'another'}, {...row, status: undefined}, {...row, status: 'refused'},
+    {...row, findings: [{}]}, {...row, fresh: [observation('other', 'word', 1)]}, {...row, ms: -1},
+  ]) assert.match(workerResult('probe', JSON.stringify(damaged), 0, null).error!, /worker probe:/);
+  assert.match(workerResult('probe', bytes, null, 'SIGTERM').error!, /SIGTERM/);
+  // Exercise the actual runInChild boundary in an isolated parent. Its spawn is redirected
+  // to a real child with controlled stdout/exit, so reverting its exit handling breaks this.
+  const runner = new URL('../tools/repo/motion-corpus.ts', import.meta.url).href;
+  const parent = `import cp from 'node:child_process';import{syncBuiltinESMExports}from'node:module';
+const spawn=cp.spawn;cp.spawn=(exe,args,options)=>spawn(exe,['-e',${JSON.stringify(`process.stdout.write(${JSON.stringify(bytes)},()=>process.exit(17))`)}],options);
+syncBuiltinESMExports();const{runInChild}=await import(${JSON.stringify(runner)});process.stdout.write(JSON.stringify(await runInChild('probe')));`;
+  const processResult = spawnSync(process.execPath, ['--max-old-space-size=512', '--input-type=module', '-e', parent], {encoding: 'utf8', timeout: 15_000});
+  assert.equal(processResult.status, 0, processResult.stderr);
+  const failed = JSON.parse(processResult.stdout) as EntryResult;
+  assert.match(failed.error!, /exit 17/);
+  assert.deepEqual(failed.findings, row.findings);
+  assert.deepEqual(failed.fresh, []);
+});
+
+test('worker pipes preserve split UTF-8 observations and diagnostics without crediting failed workers', () => {
+  const row = result('probe', [observation('send', 'word 🧭', 0.4)]), bytes = JSON.stringify(row);
+  const fresh = bytes.indexOf('"fresh":');
+  const split = Buffer.byteLength(bytes.slice(0, bytes.indexOf('“', fresh))) + 1;
+  assert.equal(Buffer.from(bytes)[split - 1], 0xe2, 'split a three-byte quote inside the fresh copy');
+  const diagnostic = 'worker “diagnostic” 🧭';
+  const errorSplit = Buffer.byteLength(diagnostic.slice(0, diagnostic.indexOf('“'))) + 1;
+  const runner = new URL('../tools/repo/motion-corpus.ts', import.meta.url).href;
+  for (const code of [0, 17]) {
+    const childSource = `const out=Buffer.from(${JSON.stringify(Buffer.from(bytes).toString('base64'))},'base64');
+const err=Buffer.from(${JSON.stringify(Buffer.from(diagnostic).toString('base64'))},'base64');
+process.stdin.once('data',()=>{let pending=2;const done=()=>{if(!--pending)process.exit(${code})};
+process.stdout.write(out.subarray(${split}),done);process.stderr.write(err.subarray(${errorSplit}),done)});
+process.stderr.write(err.subarray(0,${errorSplit}));process.stdout.write(out.subarray(0,${split}));`;
+    // The child waits until its first stdout chunk has reached the real parent pipe.
+    // This handshake forces the byte boundary without timing or scheduler assumptions.
+    const parent = `import cp from 'node:child_process';import{syncBuiltinESMExports}from'node:module';
+const spawn=cp.spawn;cp.spawn=(exe,args,options)=>{const child=spawn(exe,['--max-old-space-size=128','-e',${JSON.stringify(childSource)}],{...options,stdio:['pipe','pipe','pipe']});
+child.stdout.once('data',()=>child.stdin.end('continue'));return child};
+syncBuiltinESMExports();const{runInChild}=await import(${JSON.stringify(runner)});process.stdout.write(JSON.stringify(await runInChild('probe')));`;
+    const run = spawnSync(process.execPath, ['--max-old-space-size=512', '--input-type=module', '-e', parent], {encoding: 'utf8', timeout: 15_000});
+    assert.equal(run.status, 0, run.stderr);
+    const read = JSON.parse(run.stdout) as EntryResult;
+    if (code === 0) assert.deepEqual(read, row);
+    else {
+      assert.match(read.error!, /exit 17/);
+      assert.ok(read.error!.includes(diagnostic), 'stderr keeps its split Unicode diagnostic');
+      assert.deepEqual(read.findings, row.findings);
+      assert.deepEqual(read.fresh, []);
+      assert.equal(read.caught, false);
+    }
+  }
 });
 
 test('the baseline removes a shifted finding on the same part and retains findings in another transition or part', () => {

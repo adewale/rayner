@@ -55,6 +55,8 @@ export function workerResult(id: string, stdout: string, code: number | null, si
 export function runInChild(id: string, full = false): Promise<EntryResult> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, ['--max-old-space-size=2048', SELF, '--entry', id, ...(full ? ['--full'] : [])], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: 20 * 60_000 });
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     let out = '', err = '';
     child.stdout.on('data', (d) => { out += d; if (out.length > 64 * 1024 * 1024) child.kill(); });
     child.stderr.on('data', (d) => { err = (err + d).slice(-4000); });
