@@ -1,4 +1,5 @@
-import { AnimationGroup, Group, Rectangle, Scene } from '../../../src/index.ts';
+import { clearRoute } from '../lib/clear-route.ts';
+import { AnimationGroup, Group, Rectangle, Scene, Text } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, DrawContext, Transition } from '../../../explain/index.ts';
@@ -7,8 +8,8 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
 import type { JoinEvent, SignIn, World } from './model.ts';
 import {
-  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, EVIL_SIDE_X, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, READ_FROM, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_LEFT, WIN_RIGHT,
-  drawLogins, drawWorld, sayLogins, sayWorld, shortCode,
+  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, EVIL_SIDE_X, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_RIGHT,
+  drawLogins, drawWorld, readingPort, sayLogins, sayWorld, shortCode,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -32,8 +33,9 @@ const browserRequest = (s?: DrawContext, withCookie = false) => new Group(
   new Rectangle({ width: 0.35, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([-0.15, -0.1]),
   ...(withCookie && s ? [cookie(s, { at: [0.62, 0], r: 0.24 })] : []),
 );
-/** Parts of the last event, which leave before the next one's flight: its ticket, barrier and answer, the declined message, and the rack's empty notice. */
-const FRESH = ['answer:', 'ticket', 'barrier', 'message', 'rack:none'];
+/** Event output retires at the next event. The empty rack belongs to issuance. */
+const FRESH = ['answer:', 'ticket', 'barrier', 'message'];
+const ISSUE_FRESH = [...FRESH, 'rack:none'];
 
 // The agent's browser joining the Session, as a machine: each step of section 6 and each of the
 // attacker's tries is an event of the model; the picture is a view of its state; the last step is
@@ -149,15 +151,18 @@ export default class PoppyBrowser extends Scene {
             ...flight(c, 'page:stub', [[COUNTER_X - 1.2, ROAD_B], PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
             ...flight(c, 'shelf:join', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
             // A failed form's error page goes before the new code comes into the page, not under it.
-          ], { fresh: [...FRESH, 'page:error'], lead: [...BROWSER_ROAD, 'row:'] });
+          ], { fresh: [...ISSUE_FRESH, 'page:error'], lead: [...BROWSER_ROAD, 'row:'] });
         },
         // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
         // pressed on the Company's stub only once the ticket lands, and covers the ring.
         authorize: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
           const read = codeSlip(s.drawing, { code: shortCode(t.after.page ?? '') });
+          const labels = [c.from('browser'), c.from('page:stub'), c.from('agent:name')].flatMap(part => part.family().filter((m): m is Text => m instanceof Text));
+          const from = readingPort(c.from('browser'), c.from('page:stub'), c.from('agent:name'), read);
+          const reading = clearRoute(from, SEAL_AT, read, labels, this.frame.box()!);
           return beats(c, () => [
-            ...pass(c, 'read', read, [[WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
+            ...pass(c, 'read', read, reading, { appear: 0.2, move: 0.75, leave: 0.2 }),
             ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM], { appear: 0.2, move: 0.9, leave: 0.2 })(),
           ], { fresh: FRESH, lead: AGENT_ROAD, then: ['barrier', `row:${id}:stamp`, `row:${id}:key`] });
         },

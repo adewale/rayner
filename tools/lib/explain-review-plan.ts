@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {catalogEvidence} from './explain-artifacts.ts';
-import { buildInputs } from './build-inputs.ts';
+import { buildInputs, importClosure } from './build-inputs.ts';
 import { COMPILED } from './roots.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
 import type { ExplainerDescription } from '../../explain/testing.ts';
@@ -182,20 +182,9 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
   return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: sha256(raw) };
 }
 export async function reviewCodeHash(root: string, buildHash?: string) {
-  const files = [
-    'tools/repo/explain-review.ts',
-    'tools/repo/explain-review-merge.ts',
-    'tools/lib/explain-story-review.ts',
-    'tools/lib/explain-raster.ts',
-    'tools/lib/explain-review-scene.ts',
-    'tools/lib/explain-review-plan.ts',
-    'tools/lib/explain-live-review.ts',
-    'tools/lib/review-reader.ts',
-    'tools/lib/explain-embed-size.ts',
-    'tools/lib/explain-serve.ts',
-    'tools/lib/explain-reader-shell.ts',
-    'tools/lib/explain-check.ts',
-  ];
+  const files = COMPILED ? [] : await importClosure(root, [
+    'tools/repo/explain-review.ts', 'tools/repo/explain-review-merge.ts', 'tools/lib/explain-check.ts',
+  ]);
   if (COMPILED) {
     // Installed tools are bundled; individual source module paths do not exist.
     files.length = 0;

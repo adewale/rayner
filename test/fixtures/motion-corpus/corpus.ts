@@ -327,7 +327,8 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'browser-read-across-page', chapter: 'poppy-browser', kind: 'passes over', commit: '0a887ad4', method: 'adapted', events: ['authorize'],
     what: 'The code the agent reads went diagonally across the page to the seal, over the window’s content; the fix sends it along the agent’s dotted reading line.',
     edits: [
-      { file: 'poppy-browser/scene.ts', find: '[[WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT]', replace: '[[WIN_LEFT + 1.0, PAGE_AT[1]], [PAGE_AT[0] - 2.2, 1.95], SEAL_AT]' },
+      { file: 'poppy-browser/scene.ts', find: 'SIDE_X, WIN_RIGHT,', replace: 'SIDE_X, WIN_LEFT, WIN_RIGHT,' },
+      { file: 'poppy-browser/scene.ts', find: 'clearRoute(from, SEAL_AT, read, labels, this.frame.box()!)', replace: '[[WIN_LEFT + 1.0, PAGE_AT[1]], [PAGE_AT[0] - 2.2, 1.95], SEAL_AT]' },
     ],
   },
   {
@@ -349,7 +350,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'The declined message and the rack’s “no codes yet” were not listed in beats’ fresh, so they stayed through the next event’s flight; the fix lists them.',
     expectedFinding: { scenario: '{"signin":"signed-in"}', transition: /^(?:from the state at "phish", )?after .*phish, forge$/, kind: 'motion contract', path: 'forged', subjects: ['message'], requirement: 'absent' },
     edits: [
-      { file: 'poppy-browser/scene.ts', find: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\', \'message\', \'rack:none\'];', replace: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\'];' },
+      { file: 'poppy-browser/scene.ts', find: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\', \'message\'];', replace: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\'];' },
     ],
   },
   {
@@ -374,14 +375,16 @@ export const CORPUS: readonly CorpusEntry[] = [
     expectedFinding: { scenario: '{"signin":"signed-in"}', transition: /^step "load", event "load"$/, kind: 'motion contract', path: 'page:stub:flight', subjects: ['row:Vn3q:stub'], requirement: 'present' },
     edits: [
       { file: 'poppy-browser/scene.ts', find: '            // The Company keeps its record of the new code before handing out the two halves.\n            new AnimationGroup([c.enter(`row:${id}:stub`, {}, { runTime: 0.3 }), c.enter(`row:${id}:ring`, {}, { runTime: 0.3 })]),\n', replace: '' },
-      { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'] });', replace: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'], then: [`row:${id}:stub`, `row:${id}:ring`] });' },
+      { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...ISSUE_FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'] });', replace: '          ], { fresh: [...ISSUE_FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'], then: [`row:${id}:stub`, `row:${id}:ring`] });' },
     ],
   },
   {
     id: 'browser-read-over-its-copy', chapter: 'poppy-browser', kind: 'two copies', commit: 'd99c9195', method: 'adapted', events: ['authorize'],
     what: 'The code the agent reads set off from the page’s stub, over it, so the code showed twice at once (“Vn3q3q”); the fix starts it beside the page.',
     edits: [
-      { file: 'poppy-browser/scene.ts', find: '[[WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT]', replace: '[PAGE_AT, [WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT]' },
+      { file: 'poppy-browser/scene.ts', find: 'SIDE_X, WIN_RIGHT,', replace: 'SIDE_X, WIN_LEFT, WIN_RIGHT,' },
+      { file: 'poppy-browser/scene.ts', find: 'PALETTE, ROAD_A_FROM', replace: 'PALETTE, READ_FROM, ROAD_A_FROM' },
+      { file: 'poppy-browser/scene.ts', find: 'clearRoute(from, SEAL_AT, read, labels, this.frame.box()!)', replace: '[PAGE_AT, [WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT]' },
     ],
   },
   {
@@ -413,7 +416,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'browser-forge-tiny-words', chapter: 'poppy-browser', kind: 'small label in flight', commit: 'cb20195a', method: 'adapted', events: ['forge'],
     what: 'The forged stub travelled as a stub at 0.6 scale, its code far under a phone’s legible size; the fix sends a code slip.',
     edits: [
-      { file: 'poppy-browser/scene.ts', find: '  drawLogins, drawWorld, sayLogins, sayWorld, shortCode,\n', replace: '  drawLogins, drawWorld, sayLogins, sayWorld, shortCode, stub,\n' },
+      { file: 'poppy-browser/scene.ts', find: '  drawLogins, drawWorld, readingPort, sayLogins, sayWorld, shortCode,\n', replace: '  drawLogins, drawWorld, readingPort, sayLogins, sayWorld, shortCode, stub,\n' },
       { file: 'poppy-browser/scene.ts', find: 'const token = codeSlip(s.drawing, { code: shortCode(ATTACK_CODE) });', replace: 'const token = stub(s.drawing, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);' },
     ],
   },
@@ -480,7 +483,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'A report went in three legs (to the station, to the slot, back to the desk) over a 4.0 s event; the fix drops the first leg and runs it in 2.75 s.',
     edits: [
       { file: 'poppy-coverage/scene.ts', find: '  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,\n', replace: '  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, slipToken, stripKeys, TRAY_AT,\n' },
-      { file: 'poppy-coverage/scene.ts', find: '            ...pass(c, \'report:sent\', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),', replace: '            ...pass(c, \'report:slip\', slipToken(s.drawing), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),\n            ...pass(c, \'report:sent\', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),' },
+      { file: 'poppy-coverage/scene.ts', find: '            ...pass(c, \'report:sent\', sent, outward, { appear: 0.15, move: 0.7, leave: 0.2 }),\n            ...pass(c, \'report:reply\', reply, returning, { appear: 0.15, move: 0.6, leave: 0.2 }),', replace: '            ...pass(c, \'report:slip\', slipToken(s.drawing), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),\n            ...pass(c, \'report:sent\', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),' },
       { file: 'poppy-coverage/scene.ts', find: 'read: 2.2, report: 2.75, sort', replace: 'read: 2.2, report: 4.0, sort' },
     ],
   },
@@ -488,7 +491,8 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'coverage-skill-card-twice', chapter: 'poppy-coverage', kind: 'two copies', commit: '0a887ad4', method: 'adapted', events: ['use skill'],
     what: 'A copy of the skill card was carried down to the desk while the card stayed on its hook, so it showed twice; the fix takes the card itself down and puts it back as the ticket lands.',
     edits: [
-      { file: 'poppy-coverage/scene.ts', find: 'const laid = carried.length ? [new AnimationGroup([c.leave(\'skill:card\', { runTime: 0.2 }), carried[0] as Animation]), ...carried.slice(1)] : [];', replace: 'const laid = carried;' },
+      { file: 'poppy-coverage/scene.ts', find: '      // The card itself is taken down to the desk to be read (so it is never shown twice), and goes back up as the ticket lands.', replace: '      // The card itself is taken down to the desk to be read (so it is never shown twice), and goes back up as the ticket lands.\n      const carried = card ? pass(c, \'skill:read\', cardToken(s.drawing), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];' },
+      { file: 'poppy-coverage/scene.ts', find: 'const laid = card ? carry(c, \'skill:read\', \'skill:card\', [SKILL_AT, NOTE_AT], { token: cardToken(s.drawing), appear: 0.2, move: 0.35, leave: 0.2 }) : [];', replace: 'const laid = carried;' },
       { file: 'poppy-coverage/scene.ts', find: 'const ticket = card ? [...sent.slice(0, -1), new AnimationGroup([sent.at(-1) as Animation, c.enter(\'skill:card\', {}, { runTime: 0.2 })])] : sent;', replace: 'const ticket = sent;' },
     ],
   },

@@ -54,7 +54,7 @@ export const TK = { left: -1.79, right: 7.85, top: 1.6, bottom: -4.42 } as const
 export const SEAL_AT: Vec = [COL.stamp, TK.top];
 /** The wax's irregular lip may meet the stamp's lowest 0.10 units at docking.
  * Above this port the stamp's handle and head must remain unobstructed. */
-export const TICKET_PORT = { ceiling: TK.top + 0.44 } as const;
+export const TICKET_PORT = { ceiling: TK.top + 0.44, left: COL.stamp - 0.85, right: COL.stamp + 0.85 } as const;
 /** The ticket's rows, in three pairs, and the check that punches each. */
 export type RowId = 'aud' | 'htu' | 'iat' | 'ath' | 'jti' | 'sub';
 const ROWS: readonly { id: RowId; word: string; y: number }[] = [

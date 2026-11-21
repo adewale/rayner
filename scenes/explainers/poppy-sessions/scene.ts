@@ -64,7 +64,8 @@ export default class Sessions extends Scene {
       const ticket = scene.familyMembers().find(part => part.key === 'ticket:flight');
       if (!ticket) return;
       const box = ticket.box();
-      return box && box[3] > TICKET_PORT.ceiling + 1e-6
+      return box && box[0] < TICKET_PORT.right && box[2] > TICKET_PORT.left &&
+        box[0] < scene.frame.box()![2] && box[2] > scene.frame.box()![0] && box[3] > TICKET_PORT.ceiling + 1e-6
         ? 'the ticket approaches above its wax docking port, through the stamp body' : true;
     });
 
@@ -135,16 +136,7 @@ export default class Sessions extends Scene {
       runTime: ({ before, after }) => {
         const toWax = after.last?.tamper === 'published' && before.last?.tamper !== 'published';
         const fromWax = before.last?.tamper === 'published' && after.last?.tamper !== 'published';
-        const allowance = (() => {
-          return 2.85 + (toWax || fromWax ? 1.05 : 0);
-        })();
-        // The approved retiming of this particular punch sequence is 2.85 s, plus
-        // 1.05 s for changing hands. This editorial budget is separate from the
-        // engine's lower-bound guard against compressing the authored beats.
-        const budget = toWax || fromWax ? 3.9 : 2.85;
-        if (allowance > budget + 1e-6)
-          throw new Error(`Sessions tamper pacing: ${allowance.toFixed(3)} s exceeds this ${toWax || fromWax ? 'key-transfer' : 'ticket-check'} sequence's ${budget.toFixed(3)} s budget`);
-        return allowance;
+        return 2.85 + (toWax || fromWax ? 1.05 : 0);
       },
       transition: Object.fromEntries(TAMPERS.map((t) => [t, check])),
     });

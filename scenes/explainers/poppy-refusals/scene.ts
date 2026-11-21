@@ -1,13 +1,14 @@
 import { AnimationGroup, Scene, Text, linear } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Transition } from '../../../explain/index.ts';
+import { clearRoute } from '../lib/clear-route.ts';
 import { beats, flight, pass, seal } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { REFUSAL_EVENTS, STORY, next, start, temptation } from './model.ts';
 import type { RefusalEvent, World } from './model.ts';
 import {
   DELEGATION_ROUTE, FIX_NAME, MCP_KEY_AT, PALETTE, RAIL,
-  delegationToken, documentRoute, launchAt, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
+  delegationToken, documentPorts, launchAt, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -108,8 +109,12 @@ export default class Refusals extends Scene {
             return pass(c, 'delegation', delegationToken(s.drawing), DELEGATION_ROUTE, { move: 0.7 });
           case 'new-session':
             return pass(c, 'fresh-seal', seal(s.drawing, { r: 0.42 }), DELEGATION_ROUTE, { move: 0.7 });
-          case 'reread':
-            return pass(c, 'document', documentToken(s.drawing), documentRoute(y), { move: 0.8 });
+          case 'reread': {
+            const document = documentToken(s.drawing).scale(0.75), ports = documentPorts(y);
+            const labels = ['agent:name', 'lane:api:name', 'lane:mcp-api:name', 'lane:mcp-mcp:name', 'agent:mcp-key:name']
+              .filter(key => c.has(key, 'from')).map(key => c.from(key));
+            return pass(c, 'document', document, clearRoute(ports[0], ports[1], document, labels, this.frame.box()!), { move: 0.8 });
+          }
           case 'wait':
             // Time passes: the Company's clock empties, one number followed from full to none, before the agent sends again.
             return [c.follow({ from: 1, to: 0, draw: (v: number) => [paceClock(s.drawing, v)] }, { targets: ['slip:clock'], runTime: 1.4, rateFunc: linear })];

@@ -76,8 +76,8 @@ export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {
   const halfWidth = key.width() / 2 + 0.08, below = bottom - key.height() / 2 - 0.08;
   return [[STOP_X, y], [right + halfWidth, y], [right + halfWidth, below], [left - halfWidth, below], KEY_AT];
 }
-/** A fresh poppy.json's way, from the counter to the agent, passing under the lane's name as a key does. */
-export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [NAME_X + 1.6, y], [NAME_X + 1.2, y - 0.95], [STATION[0] + STATION_R + 0.5, y - 0.95], [STATION[0] + 0.3, STATION[1] - 0.1]];
+/** Meaningful document ports; the scene reserves the carrier against intervening ink. */
+export const documentPorts = (y: number): [Vec, Vec] => [[STOP_X - 0.5, y], [STATION[0] + 0.3, STATION[1] - 0.1]];
 /** Where a new delegation (or a fresh seal) comes from: the agent's own systems, off the stage above its station. */
 export const DELEGATION_ROUTE: Vec[] = [[MARGIN.left, 4.3], SEAL_AT];
 

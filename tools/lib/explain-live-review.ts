@@ -7,7 +7,7 @@ import { openReviewReader } from './review-reader.ts';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import type { Frame, Page } from 'playwright-core';
-import { machinesOf, liveBase, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
+import { machinesOf, logStart, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import type { Machine } from '../../explain/index.ts';
 import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
@@ -20,6 +20,7 @@ import type { StoryFrame, StoryMemory, StoryView } from './explain-story-review.
 import type { Project } from './explain-project.ts';
 import { LIVE_STATES, readableOpeningLabel } from './explain-review-plan.ts';
 import type { LiveStateReview } from './explain-review-plan.ts';
+import { pictureInventory, picturePath } from './explain-picture-inventory.ts';
 
 type AnyMachine = Machine<object, string>;
 type Scenario = Project['scenarios'][number];
@@ -39,10 +40,17 @@ type Scenario = Project['scenarios'][number];
  * page's evidence for a sample of the same walk, at the two widths readers use. These visits do
  * not establish completeness when that walk was truncated.
  */
-export function liveVisits(machine: AnyMachine, start: object): string[][] {
-  const key = (state: object) => JSON.stringify(state);
-  const reached = machine.reachable(start).filter((r) => key(r.state) !== key(start));
+export function liveVisits(machine: AnyMachine, start: object, shown: Record<string, unknown> = {}): string[][] {
+  const inventory = pictureInventory(machine, [{state: start, shown}]);
+  const reached = inventory.origins.map(origin => ({origin, path: picturePath(origin)})).filter(r => r.path.length);
   const chosen = reached.filter((r) => r.path.length === 1);
+  // Clearing a transient result can return to the opening picture. It is still an immediate
+  // response distinct from the other events' replies, and must be exercised through its log.
+  if (machine.spec.result) {
+    const opening = inventory.origins[0];
+    const same = inventory.edges.find(edge => edge.from === opening && edge.to === opening && 'next' in edge.outcome);
+    if (same && opening) chosen.push({origin: opening, path: [same.event]});
+  }
   for (const r of reached) {
     if (chosen.length >= LIVE_STATES - 1) break;
     if (!chosen.includes(r)) chosen.push(r);
@@ -50,7 +58,7 @@ export function liveVisits(machine: AnyMachine, start: object): string[][] {
   const far = reached.at(-1);
   if (far && !chosen.includes(far)) chosen.push(far);
   if (!chosen.length) {
-    const event = machine.spec.events.find((e) => 'next' in machine.outcome(start, e));
+    const event = inventory.edges.find(e => e.from === inventory.origins[0] && 'next' in e.outcome)?.event;
     return event === undefined ? [] : [[event]];
   }
   return chosen.map((r) => [...r.path]);
@@ -86,9 +94,12 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
   const subjects: LiveSubject[] = [];
   for (const [step, live] of scenario.live ?? []) {
     assert.ok(scenario.trace.steps.some((s) => s.step === step), `live step ${step} is not in the trace`);
-    const { base } = await liveBase(scenario.Scene, step, live);
+    const resting = await runLive(scenario.Scene, step, live, []);
+    const base = logStart(resting.machine, resting.rest);
     if (!base) continue;
-    for (const sent of liveVisits(live.machine, base.state)) {
+    const shown = {...resting.shown};
+    if (base.from === 'start' && resting.machine.spec.result) delete shown.result;
+    for (const sent of liveVisits(resting.machine, base.state, shown)) {
       const name = `${step} after [${sent.join(', ')}]`;
       let memory: StoryMemory | undefined, frame: StoryFrame | undefined;
       const capture: Sink = {

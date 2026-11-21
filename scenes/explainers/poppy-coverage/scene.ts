@@ -1,8 +1,9 @@
-import { AnimationGroup, Scene } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Text } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { beats, flight, pass } from '../lib/poppy-kit.ts';
+import { clearRoute } from '../lib/clear-route.ts';
+import { beats, carry, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
 import type { CoverageEvent, World } from './model.ts';
@@ -89,8 +90,7 @@ export default class Coverage extends Scene {
      */
     const sort = (c: Choreography, w: World, card: boolean) => () => {
       // The card itself is taken down to the desk to be read (so it is never shown twice), and goes back up as the ticket lands.
-      const carried = card ? pass(c, 'skill:read', cardToken(s.drawing), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
-      const laid = carried.length ? [new AnimationGroup([c.leave('skill:card', { runTime: 0.2 }), carried[0] as Animation]), ...carried.slice(1)] : [];
+      const laid = card ? carry(c, 'skill:read', 'skill:card', [SKILL_AT, NOTE_AT], { token: cardToken(s.drawing), appear: 0.2, move: 0.35, leave: 0.2 }) : [];
       const torn = stripKeys(w), group = (keep: (x: (typeof torn)[number]) => boolean) => together(torn.filter(keep).map((x) => flight(c, x.key, [noteLineAt(x.line)], T)()));
       const kept = group((x) => x.key.startsWith('strip:used:'));
       const left = group((x) => x.key.startsWith('strip:aside:') && !x.reveal);
@@ -122,12 +122,20 @@ export default class Coverage extends Scene {
           const trayEdge = c.from('rule:agent').box()![2];
           return beats(c, () => pass(c, 'list', list, [[dropX, 2.0], [dropX, acrossY], [trayEdge, acrossY]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
         }
-        case 'report':
-          // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
+        case 'report': {
+          // Reserve both wordless carriers against the actual stable lettering. The
+          // old search readout leaves before its space receives the shop's reply.
+          const fresh = [...FRESH, 'desk:seen', 'desk:why'];
+          const labels = c.keys('from').filter(key => !fresh.some(prefix => key.startsWith(prefix)))
+            .flatMap(key => c.from(key).family().filter((part): part is Text => part instanceof Text));
+          const sent = requestToken(s.drawing).scale(0.28), reply = noteToken(s.drawing).scale(0.45);
+          const outward = clearRoute(SEAL_AT, SLOT_AT, sent, labels, this.frame.box()!);
+          const returning = clearRoute(SLOT_AT, NOTE_AT, reply, labels, this.frame.box()!);
           return beats(c, () => [
-            ...pass(c, 'report:sent', requestToken(s.drawing).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
-            ...pass(c, 'report:reply', noteToken(s.drawing), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),
-          ], { fresh: FRESH });
+            ...pass(c, 'report:sent', sent, outward, { appear: 0.15, move: 0.7, leave: 0.2 }),
+            ...pass(c, 'report:reply', reply, returning, { appear: 0.15, move: 0.6, leave: 0.2 }),
+          ], { fresh });
+        }
         case 'sort':
           // A note lying on the desk is torn into strips where it lies; the skill card is laid there first.
           // What the shop's desk and the User's words showed goes first: the strips settle where they were.
@@ -168,10 +176,11 @@ export default class Coverage extends Scene {
       title: 'The agent looks everywhere',
       line: 'No way to close the account. Predict: now what?',
       caption:
-        'You ask your agent to close your account at example.com. It tries the API, the website and the shop’s own agent, finds no way, and gives up. The shop sees only a visitor who left. Poppy tells an agent to read the shop’s task list before it starts; this one skipped it. What would the list have said?',
+        'You ask your agent to close your account at example.com. It tries the API, the website and the shop’s own agent, finds no way, and gives up. The shop sees only a visitor who left. Poppy tells an agent to read the shop’s task list before it starts; this one skipped it. What would the list have said? Try “Read the shop’s list” here, or continue through the explanation.',
     });
     await s.enter(world, { describe: () => sayWorld(this.state) });
     await this.play(machine.sendSequence(STORY.slice(0, 1)));
+    machine.offer();
 
     await this.step('board', {
       title: 'The shop posts what it won’t do',
@@ -212,5 +221,6 @@ export default class Coverage extends Scene {
         : `The shop’s skill card says how to exchange: find the order, then post the exchange. Its digest ${skill.verified ? 'matches' : 'fails'}, so these are the bytes the shop published. The agent follows both steps on the API under its own seal and key, and gets ${skill.answer.status}. A skill says how; it grants no scope and approves nothing for you. Press “Close my account”: now the list answers at once.`,
     });
     await this.play(machine.sendSequence(STORY.slice(5, 6)));
+    machine.offer();
   }
 }

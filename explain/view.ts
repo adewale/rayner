@@ -311,25 +311,27 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   }
 }
 
-/** Fade only the roots, preserving child dimming, geometry and the View's identity. */
+/** Fade each drawable family member by the same envelope, preserving its original dimming. */
 class PictureFade extends BaseAnimation {
-  private readonly opacity: [number, number];
+  private readonly opacity: [Mobject, number][][];
   private readonly view: View;
-  private readonly old: Mobject;
   private readonly next: Mobject;
   constructor(view: View, old: Mobject, next: Mobject) {
     super(view, { rateFunc: linear });
-    this.view = view; this.old = old; this.next = next;
-    this.opacity = [old.style.opacity ?? 1, next.style.opacity ?? 1];
+    this.view = view; this.next = next;
+    this.opacity = [old, next].map(root => root.family().map(member => [member, member.style.opacity ?? 1]));
   }
-  protected override doBegin(): void { this.next.setStyle({ opacity: 0 }, false); this.view.add(this.next); }
+  protected override doBegin(): void { this.view.add(this.next); this.doInterpolate(0); }
   protected override doInterpolate(t: number): void {
-    this.old.setStyle({ opacity: this.opacity[0] * Math.max(0, 1 - 2 * t) }, false);
-    this.next.setStyle({ opacity: this.opacity[1] * Math.max(0, 2 * t - 1) }, false);
+    for (const [i, family] of this.opacity.entries()) for (const [member, alpha] of family)
+      member.setStyle({ opacity: alpha * Math.max(0, i ? 2 * t - 1 : 1 - 2 * t) }, false);
   }
   protected override doFinish(end = 1): void {
     this.doInterpolate(end);
-    if (end !== 1) { this.view.remove(this.next); this.old.setStyle({ opacity: this.opacity[0] }, false); }
+    if (end !== 1) {
+      this.view.remove(this.next);
+      for (const family of this.opacity) for (const [member, alpha] of family) member.setStyle({opacity: alpha}, false);
+    }
   }
 }
 

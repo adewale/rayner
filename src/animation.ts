@@ -10,6 +10,7 @@ import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import { beginWhenReady, afterHeld, beginAnimations, inTurn } from './scene.ts';
 import * as V from './vec.ts';
+import { placeTargetSlots, targetClip } from './target-slots.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
 import { center, pointsBox } from './box.ts';
@@ -2087,6 +2088,8 @@ function pairParts(self: Transform, key: MatchKey, m: Matching): void {
   // under it while it fades in too, not over it until the morph ends.
   const newFrame = new Set(tFrames.filter((ft) => !toSource.has(ft))), adding = new Set(self.added);
   const fadeRows = new Map<Mobject, FadeRow>();
+  const targetMembers = new Map<Mobject, Mobject>([...toSource, ...linked.map(([s, t]) => [t, s] as const)]);
+  const admissions = new Set<Mobject>();
   // Point-free groups are deliberately absent from the temporary matching tree.
   // Retain diagnostic ownership and inherited paint clips without reparenting
   // the rendered tree, changing its order or manufacturing public keys.
@@ -2094,17 +2097,10 @@ function pairParts(self: Transform, key: MatchKey, m: Matching): void {
     const sub = bare(t), owner = frameOfT(t), keys: string[] = [];
     for (let p = t.parent; p && p !== owner; p = p.parent) {
       if (p.key !== undefined) keys.unshift(p.key);
-      // These groups also own real world-coordinate paint clips. Unlike
-      // diagnostic ancestry, their omitted clips must affect the rendered child.
-      if (p.clipBox) {
-        const a = sub.clipBox, b = p.clipBox;
-        if (!a) sub.clipBox = [...b];
-        else {
-          const x = Math.max(a[0], b[0]), y = Math.max(a[1], b[1]);
-          sub.clipBox = [x, y, Math.max(x, Math.min(a[2], b[2])), Math.max(y, Math.min(a[3], b[3]))];
-        }
-      }
     }
+    // A mapped source owner can have a different clip. Entering ink belongs to
+    // the complete target viewport from its first frame, including that owner.
+    targetClip(sub, t, tgt);
     if (keys.length) sub[matchingAncestors] = Object.freeze(keys);
     return sub;
   };
@@ -2113,12 +2109,16 @@ function pairParts(self: Transform, key: MatchKey, m: Matching): void {
       const stage = admitted(t);
       toSource.get(frameOfT(t))!.add(stage);
       toSource.set(t, stage);
+      targetMembers.set(t, stage); admissions.add(stage);
     } else if (adding.has(t)) {
       const sub = admitted(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
       home.add(sub);
+      targetMembers.set(t, sub); admissions.add(sub);
       fadeRows.set(t, { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k });
     }
   }
+  for (const [targetFrame, sourceFrame] of toSource)
+    placeTargetSlots(sourceFrame, targetFrame, targetMembers, admissions);
   const fadesIn = self.added.map((t) => fadeRows.get(t)!);
   self[matchRows] = { moves, fadesOut, fadesIn, frames, touched: src.family() };
   interpolateMatching(self, 0);

@@ -175,9 +175,10 @@ export default class Conversations extends Scene {
     await this.step('read', {
       title: 'Replies are read, not returned',
       line: 'Read until working is false.',
-      caption: `The agent reads the conversation’s events from where it last stopped, or holds the read open, or streams it. The reply is an event, and it says who wrote it: here an AI. ${answerOf(this)}. A request lost on the way is safe to send again with the same request ID: the Company acts on it once.`,
+      caption: `The agent reads the conversation’s events from where it last stopped, or holds the read open, or streams it. The reply is an event, and it says who wrote it: here an AI. ${answerOf(this)}. A request lost on the way is safe to send again with the same request ID: the Company acts on it once. Try the controls here to request a person, invite the User and open a Direct Conversation.`,
     });
     await this.play(machine.sendSequence(STORY.slice(1, 2)));
+    machine.offer();
 
     await this.step('person', {
       title: 'A person takes the empty seat',
@@ -224,10 +225,11 @@ export default class Conversations extends Scene {
       title: 'The small table closes, the big one listens',
       line: 'Now drive both sides yourself: refusals say why.',
       caption:
-        'You are done, so your agent closes the Direct Conversation, and the first conversation takes messages again. A close does not wait its turn: the Company may drop anything it has not acted on yet, so the agent reads until working is false before it closes. Closing does not cancel the exchange itself. Now press the events, for both sides, and read why a refused press is refused.',
+        'You are done, so your agent closes the Direct Conversation, and the first conversation takes messages again. A close does not wait its turn: the Company may drop anything it has not acted on yet, so the agent reads until working is false before it closes. Closing does not cancel the exchange itself. Now press the events, for both sides, and read why a refused press is refused. To repeat the handoff and invitation, return to “Replies are read, not returned”.',
     });
     this.shown = {};
     await this.play(world.sync({ runTime: 0.6, match: { by: 'key', text: 'whole' } }));
     await this.play(machine.sendSequence(STORY.slice(11, 12)));
+    machine.offer();
   }
 }

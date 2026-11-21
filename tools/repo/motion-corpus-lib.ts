@@ -16,7 +16,10 @@ import type { CorpusEntry, Edit } from '../../test/fixtures/motion-corpus/corpus
 export const POPPY_FOLDERS = ['lib', 'poppy', 'poppy-browser', 'poppy-conversations', 'poppy-coverage', 'poppy-discovery', 'poppy-refusals', 'poppy-sessions', 'poppy-sign-in'] as const;
 
 /** One finding: the scenario's settings, and the line `rayner check` prints for it (`<transition>: <kind>: part “key” …`). */
-export interface Found { scenario: string; line: string }
+export type Observation =
+  | { type: 'finding'; transition: string; kind: string; path: string; subjects: string[]; detail: string; requirement?: 'present' | 'absent'; victim?: string; masks?: string[] }
+  | { type: 'refusal'; kind: 'duration guard' | 'authored pacing guard'; name: string; message: string; event?: string };
+export interface Found { scenario: string; line: string; observation?: Observation }
 
 let fonts: ReturnType<typeof loadFonts> | undefined;
 /**
@@ -25,18 +28,22 @@ let fonts: ReturnType<typeof loadFonts> | undefined;
  * transition a reader can press from every reachable state; with `events`, only those events'
  * transitions (a subset of the check's findings, so what it catches the check catches).
  */
-export async function keyedMotionFindings(file: string, events?: readonly string[]): Promise<Found[]> {
+export async function keyedMotionFindings(file: string, events?: readonly string[], observed: Found[] = []): Promise<Found[]> {
   await (fonts ??= loadFonts());
   const project = await collectProject(file, { write: false });
-  const out: Found[] = [];
+  const out = observed;
   for (const v of project.scenarios) {
     const scenario = JSON.stringify(v.values);
     const sink = keyedMotionSink();
     const playback = new v.Scene(sink);
-    const ran = await sink.rules.during(playback, () => playback.run());
-    for (const line of sink.rules.findings) out.push({scenario, line});
-    for (const f of sink.finish()) out.push({ scenario, line: `${f.segment}: ${keyedMotionLine(f)}` });
-    for (const m of await exploreMachines(ran, v.Scene, undefined, { events })) for (const line of m.motion) out.push({ scenario, line });
+    const keep = (line: string, finding?: Parameters<typeof keyedMotionLine>[0]) => out.push(found(scenario, line, finding));
+    let ran;
+    try { ran = await sink.rules.during(playback, () => playback.run()); }
+    finally {
+      for (const line of sink.rules.findings) keep(line);
+      for (const f of sink.finish()) keep(`${f.segment}: ${keyedMotionLine(f)}`, f);
+    }
+    await exploreMachines(ran, v.Scene, undefined, { events, onMotion: keep });
   }
   return out;
 }
@@ -75,32 +82,67 @@ export async function buildVariant(entry: Variant, root = ROOT): Promise<string>
   return join(dir, entry.chapter, 'scene.ts');
 }
 
-function parseFinding(line: string) {
-  const contract = /^(.*): motion contract: during "([^"]+)", (.*)$/.exec(line);
-  if (contract) return { transition: contract[1]!, kind: 'motion contract', path: contract[2]!, observation: contract[3]!.replace(/ at \+[\d.]+ s$/, '') };
-  const m = /^(.*?): ([a-z ]+): part “(.*?)”(?: \((.*?)\))? at [\d.]+ s (.*)$/.exec(line);
+/** Normalize older textual receipts at ingestion; new results carry these fields as JSON. */
+export function observationOf(f: Found): Observation | undefined {
+  if (f.observation) return f.observation;
+  const contract = /^(.*): motion contract: during "([^"]+)", (.*)$/.exec(f.line);
+  if (contract) {
+    const detail = contract[3]!.replace(/ at \+[\d.]+ s$/, '');
+    const requirement = /must be (present|absent)(?: |$)/.exec(detail)?.[1] as 'present' | 'absent' | undefined;
+    return {type: 'finding', transition: contract[1]!, kind: 'motion contract', path: contract[2]!, detail,
+      subjects: [...detail.matchAll(/"([^"]*)"/g)].map(m => m[1]!), ...(requirement ? {requirement} : {})};
+  }
+  const m = /^(.*?): ([a-z ]+): part “(.*?)”(?: \((.*?)\))? at [\d.]+ s (.*)$/.exec(f.line);
   if (!m) return undefined;
-  return { transition: m[1]!, kind: m[2]!, path: m[4] ?? m[3]!, observation: m[5]!.split('; fix: ')[0]! };
+  const detail = m[5]!.split('; fix: ')[0]!;
+  return {type: 'finding', transition: m[1]!, kind: m[2]!, path: m[4] ?? m[3]!, detail,
+    subjects: [...detail.matchAll(/“([^”]*)”/g)].map(m => m[1]!)};
+}
+function found(scenario: string, line: string, finding?: Parameters<typeof keyedMotionLine>[0]): Found {
+  const observation = observationOf({scenario, line});
+  if (observation?.type === 'finding' && finding) {
+    if (finding.victim) observation.victim = finding.victim;
+    if (finding.masks) observation.masks = [...finding.masks];
+    if (finding.text && !observation.subjects.includes(finding.text)) observation.subjects.push(finding.text);
+  }
+  return {scenario, line, ...(observation ? {observation} : {})};
 }
 
-/** A finding's identity across two variants, without its time and changing measurements. */
+/** Identity keeps both the covered subject and foreground, while omitting timing/measurements. */
 export function findingId(f: Found): string {
-  const item = parseFinding(f.line);
+  const item = observationOf(f);
   if (!item) return JSON.stringify([f.scenario, f.line]);
-  if (item.kind === 'motion contract') return JSON.stringify([f.scenario, item.transition, item.kind, item.path, item.observation]);
-  // Different foreground shapes can hide different words on the same keyed card.
-  const subjects = item.kind === 'occluded words' ? item.observation.match(/“[^”]*”/g) : undefined;
-  return JSON.stringify([f.scenario, item.transition, item.kind, item.path, subjects]);
+  if (item.type === 'refusal') return JSON.stringify([f.scenario, item]);
+  return JSON.stringify([f.scenario, item.transition, item.kind, item.path, item.subjects, item.victim, item.masks,
+    ...(item.kind === 'motion contract' ? [item.detail] : [])]);
 }
 
+const matches = (pattern: RegExp, text: string) => { pattern.lastIndex = 0; return pattern.test(text); };
 /** Fresh evidence for entries with a filmed, attributed observation. */
 export function attributedFindings(fresh: readonly Found[], expected: NonNullable<CorpusEntry['expectedFinding']>): Found[] {
   return fresh.filter(f => {
-    const item = parseFinding(f.line);
-    return item && f.scenario === expected.scenario && item.kind === expected.kind && item.path === expected.path &&
-      expected.transition.test(item.transition) && expected.subjects.every(name => item.observation.includes(item.kind === 'motion contract' ? `"${name}"` : `“${name}”`)) &&
-      (expected.requirement === undefined || item.observation.includes(`must be ${expected.requirement}`));
+    const item = observationOf(f);
+    return item?.type === 'finding' && f.scenario === expected.scenario && item.kind === expected.kind && item.path === expected.path &&
+      matches(expected.transition, item.transition) && expected.subjects.every(name => item.subjects.includes(name)) &&
+      (expected.requirement === undefined || item.requirement === expected.requirement);
   });
+}
+export function expectedRefusals(fresh: readonly Found[], expected: NonNullable<CorpusEntry['expectedRefusal']>): Found[] {
+  return fresh.filter(f => {
+    const item = observationOf(f);
+    return item?.type === 'refusal' && item.kind === expected.kind && item.name === expected.name && matches(expected.message, item.message);
+  });
+}
+/** The legacy rejection count is separate from the cases with a predeclared exact target. */
+export function entryEvidence(entry: Pick<CorpusEntry, 'expectedFinding' | 'expectedRefusal'>, fresh: readonly Found[]) {
+  const warnings = fresh.filter(f => observationOf(f)?.type === 'finding');
+  const refusals = fresh.filter(f => observationOf(f)?.type === 'refusal');
+  const attributed = entry.expectedFinding ? attributedFindings(warnings, entry.expectedFinding) : [];
+  const declared = entry.expectedRefusal ? expectedRefusals(refusals, entry.expectedRefusal) : [];
+  const rejected = warnings.length + refusals.length > 0;
+  const expected = !!(entry.expectedFinding || entry.expectedRefusal);
+  return {rejected, expected, caught: expected ? attributed.length + declared.length > 0 : rejected,
+    attributed, declared, warnings: warnings.length > 0, guardOnly: refusals.length > 0 && warnings.length === 0};
 }
 
 /**
@@ -108,7 +150,14 @@ export function attributedFindings(fresh: readonly Found[], expected: NonNullabl
  * baseline does not have (`fresh`). Entries with an expected observation count only
  * matches in `attributed`; the historical metric counts any fresh finding.
  */
-export interface EntryResult { id: string; caught: boolean; findings: Found[]; fresh: Found[]; attributed?: Found[]; ms: number; error?: string }
+export interface EntryResult {
+  id: string;
+  /** Derived display field; scoring always recomputes from observations and expectations. */
+  caught: boolean;
+  findings: Found[]; fresh: Found[]; attributed?: Found[]; ms: number; error?: string;
+  /** New worker results distinguish an exhausted run from a typed early refusal. */
+  status?: 'complete' | 'refused' | 'error';
+}
 
 /** Only a declared error type and exact authored reason establish this refusal. */
 export function authoredRefusal(entry: Variant, error: unknown): Found | undefined {
@@ -116,7 +165,7 @@ export function authoredRefusal(entry: Variant, error: unknown): Found | undefin
   if (!expected || !(error instanceof Error) || error.name !== expected.name) return;
   expected.message.lastIndex = 0;
   if (!expected.message.test(error.message)) return;
-  return {scenario: 'during authored replay', line: `${expected.kind}: ${error.message}`};
+  return {scenario: 'during authored replay', line: `${expected.kind}: ${error.message}`, observation: {type: 'refusal', kind: expected.kind, name: error.name, message: error.message}};
 }
 
 /** Reader exploration adds step context using Error.cause. Inspect that typed chain;
@@ -127,38 +176,40 @@ export function guardRefusal(entry: Variant, error: unknown): Found | undefined 
     seen.add(current);
     let found = authoredRefusal(entry, current);
     if (!found && current instanceof RangeError && /^machine\.send\(".*"\): authored transition lasts [\d.]+ s but the event allows [\d.]+ s;/.test(current.message))
-      found = {scenario: 'during guarded execution', line: `duration guard: ${current.message}`};
+      found = {scenario: 'during guarded execution', line: `duration guard: ${current.message}`, observation: {type: 'refusal', kind: 'duration guard', name: current.name, message: current.message, event: /^machine\.send\("(.*)"\)/.exec(current.message)?.[1]}};
     if (found) return current === error ? found : {...found, scenario: 'during guarded execution'};
   }
 }
 /** `full`: every event's transitions, as `rayner check`; otherwise only the entry's `events`. */
 export async function runEntry(entry: Variant, { full = false, root = ROOT }: { full?: boolean; root?: string } = {}): Promise<EntryResult> {
-  const t = Date.now();
+  const t = Date.now(), observations: Found[] = [];
   try {
     const file = await buildVariant(entry, root);
-    const findings = await keyedMotionFindings(file, full ? undefined : entry.events);
-    return { id: entry.id, caught: findings.length > 0, findings, fresh: findings, ms: Date.now() - t };
+    const findings = await keyedMotionFindings(file, full ? undefined : entry.events, observations);
+    return { id: entry.id, status: 'complete', caught: findings.length > 0, findings, fresh: findings, ms: Date.now() - t };
   } catch (e) {
     const refusal = guardRefusal(entry, e);
-    if (refusal) return {id: entry.id, caught: true, findings: [refusal], fresh: [refusal], ms: Date.now() - t};
-    return { id: entry.id, caught: false, findings: [], fresh: [], ms: Date.now() - t, error: String((e as Error)?.stack ?? e) };
+    if (refusal) {
+      const findings = [...observations, refusal];
+      return {id: entry.id, status: 'refused', caught: true, findings, fresh: findings, ms: Date.now() - t};
+    }
+    return { id: entry.id, status: 'error', caught: false, findings: observations, fresh: [], ms: Date.now() - t, error: String((e as Error)?.stack ?? e) };
   } finally {
     await rm(join(root, 'out', `motion-corpus-${entry.id}`), { recursive: true, force: true });
   }
 }
 
 /** `result` with the findings its chapter's baseline (run with every event) also has taken out of `fresh`. */
-export function againstBaseline(result: EntryResult, base: EntryResult | undefined, expected?: CorpusEntry['expectedFinding']): EntryResult {
+export function againstBaseline(result: EntryResult, base: EntryResult | undefined, expected?: CorpusEntry['expectedFinding'], refusal?: CorpusEntry['expectedRefusal']): EntryResult {
   // A failed baseline (including a duration guard that ended its replay early)
   // cannot establish which findings are new. Keep the observations for diagnosis.
-  if (base?.error || base?.findings.some(f => /^(?:duration guard|authored pacing guard): /.test(f.line))) {
+  if (base?.error || base?.status === 'refused' || base?.findings.some(f => observationOf(f)?.type === 'refusal' || /^(?:duration guard|authored pacing guard): /.test(f.line))) {
     const why = base.error ?? 'a duration guard stopped its replay';
     return { ...result, fresh: [], caught: false, error: [result.error, `${base.id}: ${why}`].filter(Boolean).join('\n') };
   }
   if (result.error) return { ...result, fresh: [], caught: false };
   const known = new Set(base?.findings.map(findingId));
   const fresh = base ? result.findings.filter(f => !known.has(findingId(f))) : result.findings;
-  if (!expected) return { ...result, fresh, caught: fresh.length > 0 };
-  const attributed = attributedFindings(fresh, expected);
-  return { ...result, fresh, attributed, caught: attributed.length > 0 };
+  const evidence = entryEvidence({expectedFinding: expected, expectedRefusal: refusal}, fresh);
+  return { ...result, fresh, ...(evidence.expected ? {attributed: [...evidence.attributed, ...evidence.declared]} : {}), caught: evidence.caught };
 }

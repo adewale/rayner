@@ -5,7 +5,7 @@ import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, addAll, barrier, codeSlip, counter, key, person, phone, seal, station, ticket, label } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
 import { SID, USER_IDS } from '../poppy/model.ts';
-import { CARDS, DEVICE, OTHER, ruleOf } from './model.ts';
+import { CARDS, DEVICE, ORGANIZATION, OTHER, ruleOf } from './model.ts';
 import type { Flow, OfferedScope, Scope, World } from './model.ts';
 
 // One state as a picture, on the series' kit. The idea is a hatch in the Company's counter. While a
@@ -60,7 +60,7 @@ export const SLIP_AT: Vec = [-2.75, STRIP_Y];
 type Place = { you: Vec; size: number; card: Vec };
 const YOU: { direct: Place; device: Place; closed: Place } = {
   direct: { you: [-7.0, STRIP_Y], size: 1.1, card: [-5.3, STRIP_Y] },
-  device: { you: [-6.5, 2.55], size: 1.3, card: [-6.2, 0.75] },
+  device: { you: [-6.5, 2.55], size: 1.3, card: [-6.2, 1.1] },
   closed: { you: [-6.9, -2.6], size: 1.2, card: [-5.0, -2.65] },
 };
 /** The agent's station and keyring in each layout: small at the bottom, or the hero at the top. */
@@ -209,8 +209,10 @@ function box(at: Vec, ticked: boolean): Mobject {
 
 /** The display card the agent shows for Device Sign-In: the code, and the Company's name, its right edge at `at`; or a card someone else's, face down, centred at `at`. */
 function deviceCard(s: DrawContext, at: Vec, foreign: boolean): Group {
-  const code = label(s, DEVICE.user_code, { mono: true, bold: true, align: 'start' }), name = label(s, 'Example Company', { align: 'start' });
-  const w = foreign ? 3.4 : Math.max(code.width(), name.width()) + 0.7, h = 1.5, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
+  const code = label(s, DEVICE.user_code, { mono: true, bold: true, align: 'start' });
+  const name = label(s, ORGANIZATION.name, { align: 'start' }), domain = label(s, ORGANIZATION.domain, { align: 'start' });
+  const gap = 0.64;
+  const w = foreign ? 3.4 : Math.max(code.width(), name.width(), domain.width()) + 0.7, h = foreign ? 1.5 : 3 * gap + 0.26, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
   if (foreign)
     return new Group(
       new Rectangle({ width: w, height: h, fill: TONE.pewterDeep, stroke: TONE.pewter, strokeWidth: STROKE.fine, cornerRadius: RADIUS.ticket }).moveTo([x, y]),
@@ -218,8 +220,9 @@ function deviceCard(s: DrawContext, at: Vec, foreign: boolean): Group {
     );
   return new Group(
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo([x, y]),
-    label(s, DEVICE.user_code, { at: [x, y + 0.33], mono: true, bold: true, color: TONE.print }),
-    label(s, 'Example Company', { at: [x, y - 0.37], color: TONE.print }),
+    code.moveTo([x, y + gap]).setColor(TONE.print),
+    name.moveTo([x, y]).setColor(TONE.print),
+    domain.moveTo([x, y - gap]).setColor(TONE.print),
   );
 }
 
@@ -355,8 +358,9 @@ export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
   // What lies between: the code the agent shows you, a swapped code stopped short of the agent, a lookalike link kept from you.
   if (showsCard) {
     const card = deviceCard(s, [FACE - 0.15, STRIP_Y - 0.12], false);
-    const key = ring.find(part => part.key === 'agent:key');
-    if (key) card.shift([0, Math.max(0, key.box()![3] + 0.06 - card.box()![1])]);
+    const held = ring.filter(part => part.key === 'agent:key' || part.key === 'agent:ring');
+    const edge = Math.max(...held.map(part => part.box()![3]));
+    card.shift([0, Math.max(0, edge + 0.06 - card.box()![1])]);
     parts.add(card, 'card');
   }
   if (last?.kind === 'trick') {

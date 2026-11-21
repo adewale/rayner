@@ -15,6 +15,7 @@ import type { Mobject } from '../src/mobject.ts';
 import type { VMobject } from '../src/vmobject.ts';
 import { linear } from '../src/rate.ts';
 import { keyed } from '../src/index.ts';
+import { TargetSlots } from '../src/target-slots.ts';
 
 /**
  * An animation for a part that is already in the picture but unseen: it shows the part as it was
@@ -103,39 +104,11 @@ export function choreograph(current: Mobject, target: Mobject, registerTrip?: (k
   const now = keyedParts(current), want = keyedParts(target);
   const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
   const replacements = new Map<string, Mobject>();
-  const originals = new Map(now), entrants = new Map<string, Mobject>(), tokens = new Set<Mobject>();
-  /** Keep entrants at the current root: an arbitrary unkeyed wrapper may carry its own clip. */
-  function rootChild(part: Mobject | undefined): Mobject | undefined {
-    while (part?.parent && part.parent !== current) part = part.parent;
-    return part?.parent === current ? part : undefined;
-  }
-  /** Place a run of new target layers before the next surviving layer, or after the final one. */
-  function place(parts: Mobject[], anchor: Mobject | undefined, after: boolean): void {
-    if (!parts.length) return;
-    const moving = new Set(parts);
-    const staying = current.children.filter(m => !moving.has(m));
-    const boundary = anchor ?? staying.find(m => tokens.has(m));
-    const index = boundary ? staying.indexOf(boundary) + (anchor && after ? 1 : 0) : staying.length;
-    if (parts.some((m, i) => current.children[index + i] !== m)) current.insert(index, ...parts);
-  }
+  const tokens = new Set<Mobject>();
+  const slots = new TargetSlots(current, target, new Map([...want].flatMap(([key, part]) => now.has(key) ? [[part, now.get(key)!] as const] : [])), tokens);
   function admit(key: string, part: Mobject): void {
     if (!want.has(key)) { current.add(part); tokens.add(part); return; }
-    entrants.set(key, part);
-    // A replacement can be built before its old part leaves. Once its new copy is
-    // admitted the old one is no longer an ordering anchor. Re-evaluate the runs of
-    // entrants so construction order cannot strand paper above its words. No original
-    // child moves, including unkeyed groups; several keys in one group share its slot.
-    let pending: Mobject[] = [], last: Mobject | undefined;
-    for (const name of want.keys()) {
-      const entering = entrants.get(name);
-      if (entering) { pending.push(entering); continue; }
-      const anchor = rootChild(originals.get(name));
-      if (anchor) {
-        if (pending.length) { place(pending, anchor, false); pending = []; }
-        last = anchor;
-      }
-    }
-    place(pending, last, true);
+    slots.add(want.get(key)!, part);
   }
   // A part that has left may enter again, once: replacing a part in place with a new one.
   const claim = (key: string, entering = false) => {
@@ -159,9 +132,9 @@ export function choreograph(current: Mobject, target: Mobject, registerTrip?: (k
     if (now.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already in the current picture; morph it`);
     const part = like.copy();
     keyed(part, key);
+    admit(key, part);
     part.saveState();
     part.setOpacity(0);
-    admit(key, part);
     now.set(key, part);
     return part;
   };
@@ -188,7 +161,7 @@ export function choreograph(current: Mobject, target: Mobject, registerTrip?: (k
       if (now.has(key)) {
         claim(key);
         const old = from(key), part = target.copy();
-        part.saveState(); part.setOpacity(0); admit(key, part);
+        admit(key, part); part.saveState(); part.setOpacity(0);
         replacements.set(key, part);
         return new Joining(part, new FadeIn(part, opts), opts, () => {
           if (current.family().includes(old)) throw new Error(`t.choreograph(): leave ${JSON.stringify(key)} must play before its replacement enters`);

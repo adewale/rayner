@@ -5,7 +5,7 @@
 import { VMobject, pathData } from './vmobject.ts';
 import type { PathData } from './vmobject.ts';
 import type { Box, Mobject, StyleRecord } from './mobject.ts';
-import { mergeLeaves, mobjectId } from './mobject.ts';
+import { mergeLeaves, mobjectId, paintsStroke } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { perf } from './perf.ts';
 import { isHex } from './color.ts';
@@ -88,7 +88,7 @@ export interface RenderOptions {
    * the state, like everything else here: seeks are unaffected.
    */
   cull?: boolean;
-  /** Pixel width of the output the cull is for (default 1280): it keeps anything showing 2 or more of its pixels. */
+  /** Pixel width of the output the cull is for (default 1280), for conservative antialiasing bounds. */
   width?: number;
 }
 
@@ -99,20 +99,32 @@ export function renderElements(scene: Pick<Scene, 'mobjects' | 'frame'>, { relat
 function renderElementsImpl(scene: Pick<Scene, 'mobjects' | 'frame'>, relative: boolean, cull: boolean, width: number): ElementRecord[] {
   const out: ElementRecord[] = [];
   const view = cull ? scene.frame.box()! : null;
-  // Culled: the mobject's box, grown by its stroke, leaves less than 2 output pixels
-  // of the view in some direction. That drops everything the camera has left (the
-  // empty visible box resvg aborts on) and, at most, a strip under 2 px at the
-  // frame's edge (resvg would paint it, faintly). A group is skipped whole only
-  // when it clears the view by a generous margin, since its stroke widths are its leaves'.
-  const unseen = (m: Mobject, margin: number): boolean => {
+  // Reject only a definitely empty painted intersection. Descendant stroke, square caps,
+  // miter joins, SVG rounding and the next antialiased pixel all enlarge the bounds.
+  // A visible edge strip is evidence even when it is narrower than a pixel.
+  const reaches = new Map<Mobject, number>();
+  const reach = (m: Mobject): number => {
+    const old = reaches.get(m);
+    if (old !== undefined) return old;
+    const s = m.style;
+    const miter = Number.isFinite(s.miterLimit) ? Math.max(4, s.miterLimit!) : 4;
+    const join = s.lineJoin ?? 'round';
+    let r = paintsStroke(s) ? (s.strokeWidth + 1 / UNITS) *
+      Math.max(Math.SQRT2, join === 'round' || join === 'bevel' ? 1 : miter) / 2 : 0;
+    for (const child of m.children) r = Math.max(r, reach(child));
+    reaches.set(m, r); return r;
+  };
+  const unseen = (m: Mobject, viewport: Box): boolean => {
     const b = m.box();
-    if (!b || !view) return false;
-    const px = 2 * (view[2] - view[0]) / width;
-    return b[2] + margin - view[0] < px || view[2] - (b[0] - margin) < px || b[3] + margin - view[1] < px || view[3] - (b[1] - margin) < px;
+    if (viewport[0] >= viewport[2] || viewport[1] >= viewport[3]) return true;
+    if (!b) return false;
+    const margin = reach(m) + 1 / UNITS + (view ? (view[2] - view[0]) / width : 0);
+    return b[2] + margin < viewport[0] || b[0] - margin > viewport[2] || b[3] + margin < viewport[1] || b[1] - margin > viewport[3];
   };
   const walk = (m: Mobject, inherited?: Clip): void => {
-    if (view && unseen(m, m.children.length ? 0.5 : m.style.stroke === 'none' ? 0 : m.style.strokeWidth / 2)) return;
+    if (view && unseen(m, view)) return;
     const clip = m.clipBox ? clipFor(m.clipBox, inherited?.box) : inherited;
+    if (clip && unseen(m, clip.box)) return;
     const emit = (rec: ElementRecord): void => { out.push(clip ? clippedRecord(rec, clip) : rec); };
     // A child-specific viewport cannot be lost by merging its parent.
     if (!relative && m[mergeLeaves] && !m.children.some((c) => c.clipBox)) {
@@ -121,10 +133,6 @@ function renderElementsImpl(scene: Pick<Scene, 'mobjects' | 'frame'>, relative: 
     }
     // A leaf wholly outside its clip draws nothing, so it is not written. Some rasterizers
     // (resvg 2.6) abort on a translucent element whose clip leaves it no area at all.
-    if (clip && !m.children.length) {
-      const b = m.box(), w = m.style.strokeWidth, c = clip.box;
-      if (b && (b[2] + w < c[0] || b[0] - w > c[2] || b[3] + w < c[1] || b[1] - w > c[3])) return;
-    }
     // A translated path would translate its userSpaceOnUse clip as well.
     const rec = elementFor(m, clip ? false : relative);
     if (rec) emit(rec);

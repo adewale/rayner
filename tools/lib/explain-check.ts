@@ -7,6 +7,8 @@ import type { LiveExplore } from '../../explain/internal.ts';
 import { liveSteps, logStart, machineSteps } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { MachineMotionCheck } from './explain-motion-rules.ts';
+import { rasterize } from './explain-raster.ts';
+import { pictureInventory, picturePath } from './explain-picture-inventory.ts';
 import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -652,8 +654,8 @@ export async function exploreMachines(
   scene: Scene,
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
-  only?: { events?: readonly string[] },
-): Promise<{ step?: string; events: string[]; states: number; observations: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[]; phoneWarnings: string[] }[]> {
+  only?: { events?: readonly string[]; onMotion?: (line: string, finding?: Parameters<typeof keyedMotionLine>[0]) => void },
+): Promise<{ step?: string; events: string[]; states: number; presentations: number; transitions: number; observations: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[]; phoneWarnings: string[] }[]> {
   const explored: Awaited<ReturnType<typeof exploreMachines>> = [];
   const controls = liveSteps(scene);
   if (!layouts && controls.size) layouts = await stepLayouts(Source);
@@ -664,7 +666,7 @@ export async function exploreMachines(
       const place = active ? live : { index, identity: made.identity };
       const explore: LiveExplore = async (host, machine, draw) => {
         try {
-          const checked = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events);
+          const checked = await exploreMachine(host, machine, step, active, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events, only?.onMotion);
           explored.push(step !== null && live?.offered && active ? { ...checked, step } : checked);
         } catch (error) {
           throw new Error(`Machine ${index + 1}${step === null ? '' : ` at step "${step}"`}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
@@ -682,65 +684,26 @@ export async function exploreMachines(
 }
 
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
-async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, active: boolean, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
+async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, active: boolean, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[], onMotion?: (line: string, finding?: Parameters<typeof keyedMotionLine>[0]) => void) {
   const diagramsBefore = diagramsOn(host);
   const problems: string[] = [], motion: string[] = [], phoneWarnings: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
   if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
-  // From the start, as exploration always has; and from the state the reader finds at the step
-  // where the machine is live, since the player lets the reader send events from there too.
-  const startWalk = machine.explore();
-  const fromStart = startWalk.states.map((r) => ({ ...r, origin: '' }));
-  const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
-  const live = active ? logStart(machine, jsonObject(host.state, 'machine state')) : null;
-  // Each distinct origin gets its own budget, even if the live origin is in the start's capped
-  // prefix. Retain completeness before removing states already checked from the other origin.
-  const liveWalk = live === null || canonicalJson(live.state) === canonicalJson(machine.spec.start)
-    ? undefined : machine.explore(live.state);
-  const fromStep = (liveWalk?.states ?? []).filter((r) => !seen.has(canonicalJson(r.state)))
-    .map((r) => ({ ...r, origin: `from the state at "${step}", ` }));
-  const reached = [...fromStart, ...fromStep];
   const shownThen = host.shown;
-  // runLive already chose the shown state for this historical step. A play outside any step has its own shown state.
+  // runLive chose the historical step presentation; an unplayed machine uses its last context.
   if (step === null) host.shown = machine.playedUnder ?? shownThen;
-  // Results are presentation, not model identity. A self-loop can still change the picture
-  // from which the next event starts. Check every distinct incoming result as a source, while
-  // retaining the durable-state exploration budget and reported state count.
   const baseline = jsonObject(host.shown, 'machine presentation');
-  const presentation = (path: readonly string[], origin: string) => {
-    const shown = jsonObject(baseline, 'machine presentation');
-    if (!origin || live?.from === 'start') delete shown.result;
-    host.shown = shown;
-    let before = origin ? live!.state : machine.spec.start;
-    for (const event of path) {
-      const after = machine.after(before, event)!;
-      machine.present(event, before, after);
-      before = after;
-    }
-    return jsonObject(host.shown, 'machine presentation');
-  };
-  const contexts = reached.map(r => ({...r, shown: machine.spec.result ? presentation(r.path, r.origin) : baseline}));
-  if (machine.spec.result) {
-    const admitted = new Set(reached.map(r => canonicalJson(r.state)));
-    const liveSources = live?.from === 'rest' ? (liveWalk?.states ?? startWalk.states)
-      .map(r => ({...r, origin: `from the state at "${step}", `})) : [];
-    const sources = [...fromStart, ...liveSources];
-    for (const source of sources) {
-      contexts.push({...source, shown: presentation(source.path, source.origin)});
-      for (const event of machine.spec.events) {
-        const state = machine.after(source.state, event);
-        if (state === undefined || !admitted.has(canonicalJson(state))) continue;
-        const path = [...source.path, event];
-        contexts.push({state, path, origin: source.origin, shown: presentation(path, source.origin)});
-      }
-    }
-  }
-  const checkedContexts = new Set<string>();
+  const startShown = jsonObject(baseline, 'machine presentation');
+  if (machine.spec.result) delete startShown.result;
+  const live = active ? logStart(machine, jsonObject(host.state, 'machine state')) : null;
+  const inventory = pictureInventory(machine, [
+    {state: machine.spec.start, shown: startShown},
+    ...(live ? [{state: live.state, shown: live.from === 'start' ? startShown : baseline,
+      origin: `from the state at "${step}", `}] : []),
+  ]);
   const said = new Map<string, { observation: string; at: string }>(), observations = new Set<string>();
-  for (const { state, path, origin, shown } of contexts) {
-    const contextKey = canonicalJson({state, shown});
-    if (checkedContexts.has(contextKey)) continue;
-    checkedContexts.add(contextKey);
+  for (const context of inventory.origins) {
+    const {state, shown, origin} = context, path = picturePath(context);
     host.shown = shown;
     const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
     const model = jsonObject(state, 'machine state');
@@ -770,13 +733,13 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     else if (said.has(words) && said.get(words)!.observation !== observation)
       problems.push(`${at}: the picture is described exactly as ${said.get(words)!.at}, a different observation`);
     else if (!said.has(words)) said.set(words, { observation, at });
-    const played = await transitionProblems(host, machine, state, path, origin, draw, only);
+    const played = await transitionProblems(host, machine, state, path, origin, draw, only, onMotion);
     problems.push(...played.problems);
     motion.push(...played.motion);
   }
   host.shown = shownThen;
-  const sampled = !startWalk.complete || liveWalk?.complete === false;
-  return { events: [...machine.spec.events], states: reached.length, observations: observations.size, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion, phoneWarnings };
+  const sampled = !inventory.complete;
+  return { events: [...machine.spec.events], states: inventory.states, presentations: inventory.origins.length, transitions: inventory.edges.filter(e => 'next' in e.outcome && (!only || only.includes(e.event))).length, observations: observations.size, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion, phoneWarnings };
 }
 
 /**
@@ -847,12 +810,13 @@ export function viewIgnoresState(view: View, state: Record<string, unknown>, sho
 }
 
 
-/**
- * A rendered frame's marks in any stacking order: a part a transition brought in is added last,
- * so it may sit above parts it sits below in the target picture; the views taking the state's
- * pictures put it back a frame later. Every mark must still be there, drawn the same.
- */
-const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
+/** Paint order is observable. Different structural encodings (for example merged glyph paths)
+ * can still draw the same endpoint, so confirm only structural differences natively. */
+async function samePaint(a: string, b: string): Promise<boolean> {
+  if (a === b) return true;
+  const [left, right] = await Promise.all([rasterize(a), rasterize(b)]);
+  return left.width === right.width && left.height === right.height && left.pixels.equals(right.pixels);
+}
 
 /**
  * Each authored transition from `state`, played on the explored scene as a reader's event plays it:
@@ -861,9 +825,16 @@ const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
  * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
  * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
  */
-async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[]): Promise<{ problems: string[]; motion: string[] }> {
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[], onMotion?: (line: string, finding?: Parameters<typeof keyedMotionLine>[0]) => void): Promise<{ problems: string[]; motion: string[] }> {
   const problems: string[] = [], motionProblems: string[] = [];
   const { views, events } = machine.spec;
+  const recordMotion = (sink: ReturnType<typeof keyedMotionSink>, at: string) => {
+    for (const finding of sink.finish()) {
+      const line = `${at}: ${keyedMotionLine(finding)}`;
+      motionProblems.push(line); onMotion?.(line, finding);
+    }
+    for (const line of sink.rules.findings) { motionProblems.push(line); onMotion?.(line); }
+  };
   for (const event of events) {
     if (only && !only.includes(event)) continue;
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
@@ -884,8 +855,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
       const keyedMotion = keyedMotionSink(() => at);
       await keyedMotion.frame(scene, 0);
       draw(keyedMotion);
-      try { await keyedMotion.rules.during(scene, () => scene.play(machine.defaultPlay(event, state, after))); } finally { draw(); }
-      motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`), ...keyedMotion.rules.findings);
+      try { await keyedMotion.rules.during(scene, () => scene.play(machine.defaultPlay(event, state, after))); } finally { draw(); recordMotion(keyedMotion, at); }
       if (machine.spec.result) problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(p => `${at}: ${p}`));
       scene.state = jsonObject(state, 'machine state');
       scene.shown = beforeShown;
@@ -897,7 +867,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     scene.state = jsonObject(after, 'machine state');
     machine.present(event, state, after);
     for (const v of views) v.rebuild();
-    const expected = marksOf(toSvgString(scene));
+    const expected = toSvgString(scene, {width: 800, cull: true});
     if (machine.spec.result) problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(p => `${at}: ${p}`));
     scene.state = jsonObject(state, 'machine state');
     scene.shown = beforeShown;
@@ -912,8 +882,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     await keyedMotion.frame(scene, 0);
     const t0 = scene.time;
     draw(new FanSink([frames, keyedMotion]));
-    try { await keyedMotion.rules.during(scene, () => scene.play(motion)); } finally { draw(); }
-    motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`), ...keyedMotion.rules.findings);
+    try { await keyedMotion.rules.during(scene, () => scene.play(motion)); } finally { draw(); recordMotion(keyedMotion, at); }
     // Each invariant's first failing frame, by how far through the transition it is.
     const failed = new Set<string>();
     for (const f of frames.failures) {
@@ -924,7 +893,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     }
     // Compared as rendered marks, since a morph finishes on glyphs without retyping a Text. A transition that
     // ends elsewhere would leave the views there: their next rebuild keeps the place it left them.
-    if (marksOf(toSvgString(scene)) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
+    if (!await samePaint(toSvgString(scene, {width: 800, cull: true}), expected)) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
     scene.state = jsonObject(after, 'machine state');
     for (const v of views) v.rebuild();
     if (machine.spec.result) {
@@ -1134,7 +1103,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
-      ...(machines.length ? { machines: machines.map(({ step, events, states, observations, sampled, phoneWarnings }) => ({ ...(step ? { step } : {}), events, states, observations, ...(sampled ? { sampled } : {}), ...(phoneWarnings.length ? { phoneWarnings } : {}) })) } : {}),
+      ...(machines.length ? { machines: machines.map(({ step, events, states, presentations, transitions, observations, sampled, phoneWarnings }) => ({ ...(step ? { step } : {}), events, states, presentations, transitions, observations, ...(sampled ? { sampled } : {}), ...(phoneWarnings.length ? { phoneWarnings } : {}) })) } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,

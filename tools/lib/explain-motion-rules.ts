@@ -6,7 +6,9 @@ import { clipPathOf, intersect, isHex, mobjectId, pad, renderElements, serialize
 import type { Animation, Box, Mobject, Scene, Sink, Vec } from '../../src/index.ts';
 import { rasterize } from './explain-raster.ts';
 
-type Trip = { move: Animation; first?: { world: Vec; screen: Vec }; worldMoved: boolean; screenMoved: boolean };
+type Occluder = {svg: string; box?: Box};
+type VisiblePaint = { screen: Vec; pixels: Uint8Array; support: Uint8Array; foreground: Occluder[] };
+type Trip = { move: Animation; first?: { world: Vec; paint: VisiblePaint }; proved: boolean };
 type Check = { rule: MotionRule; trips: Trip[]; issues: Set<string>; where: string; start: number };
 type Painted = { svg: string; visible: boolean };
 
@@ -56,15 +58,21 @@ async function paintsOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject
 /** Locate the family in the composited picture. Every other paint record, including later views,
  * keeps its place when the traveller alone is omitted. A mask, the background, or an equal-colour
  * copy may therefore leave no visible contribution. Measure the centre of the actual RGB change. */
-async function visiblePosition(scene: Scene, part: Mobject): Promise<Vec | null> {
+async function visiblePosition(scene: Scene, part: Mobject): Promise<VisiblePaint | null> {
   const ids = new Set(part.family().map(mobjectId));
   const width = 800, height = 450;
+  // Native culling rejects only definitely empty paint bounds, including descendant
+  // strokes and subpixel edge ink. This avoids Resvg's empty-opacity panic.
   const records = renderElements(scene, {width, cull: true});
   if (!records.some(record => ids.has(record.id))) return null;
   const [left, top, right, bottom] = userBox(scene.frame.box()!);
   const rect = [left, top, right - left, bottom - top].map(Math.round);
   const clips = new Map<string, string>();
-  const all: string[] = [], without: string[] = [];
+  const all: string[] = [], without: string[] = [], black: string[] = [], white: string[] = [];
+  const objects = new Map(scene.familyMembers().map(m => [mobjectId(m), m]));
+  const camera = scene.frame.box()!, scale = width / (camera[2] - camera[0]);
+  const foreground: Occluder[] = [];
+  let afterSubject = false;
   for (const record of records) {
     if (record.clipBox) {
       const clip = clipPathOf(record.clipBox);
@@ -72,7 +80,24 @@ async function visiblePosition(scene: Scene, part: Mobject): Promise<Vec | null>
     }
     const svg = record.svg ??= serializeElement(record);
     all.push(svg);
-    if (!ids.has(record.id)) without.push(svg);
+    if (!ids.has(record.id)) {
+      without.push(svg); black.push(svg); white.push(svg);
+      if (afterSubject) {
+        const object = objects.get(record.id), bounds = object?.box();
+        const stroke = object ? Math.max(0, ...object.family().map(m => m.style.stroke === 'none' ? 0 : m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4))) : 0;
+        const box: Box | undefined = bounds ? [(bounds[0] - stroke - camera[0]) * scale, (camera[3] - bounds[3] - stroke) * scale,
+          (bounds[2] + stroke - camera[0]) * scale, (camera[3] - bounds[1] + stroke) * scale] : undefined;
+        foreground.push({svg, box});
+      }
+    } else {
+      afterSubject = true;
+      for (const [paths, color] of [[black, '#000'], [white, '#fff']] as const) {
+      const attrs = {...record.attrs};
+      if (attrs.fill !== 'none') attrs.fill = color;
+      if (attrs.stroke && attrs.stroke !== 'none') attrs.stroke = color;
+      paths.push(serializeElement({...record, attrs, svg: undefined}));
+      }
+    }
   }
   const paper = scene.colors.paper;
   if (!isHex(paper)) throw new TypeError('Scene paper must be a #rgb or #rrggbb colour');
@@ -80,21 +105,50 @@ async function visiblePosition(scene: Scene, part: Mobject): Promise<Vec | null>
   const render = (paths: string[]) => rasterize(start + paths.join('') + '</svg>');
   const [drawn, omitted] = await Promise.all([render(all), render(without)]);
   const a = drawn.pixels, b = omitted.pixels;
+  if (!a.some((value, i) => i % 4 !== 3 && Math.abs(value - b[i]!) > 0)) return null;
+  // A black/white matte identifies support independently of hidden background colours.
+  // Knockout contrast alone can move while the complete painted picture stays frozen.
+  const [dark, light] = await Promise.all([render(black), render(white)]);
+  const darkPixels = dark.pixels, lightPixels = light.pixels;
+  const support = new Uint8Array(width * height);
   let weight = 0, x = 0, y = 0;
   for (let i = 0; i < a.length; i += 4) {
-    const delta = Math.max(Math.abs(a[i]! - b[i]!), Math.abs(a[i + 1]! - b[i + 1]!), Math.abs(a[i + 2]! - b[i + 2]!));
+    const delta = Math.max(Math.abs(darkPixels[i]! - lightPixels[i]!), Math.abs(darkPixels[i + 1]! - lightPixels[i + 1]!), Math.abs(darkPixels[i + 2]! - lightPixels[i + 2]!));
     if (delta) {
       const pixel = i / 4;
+      support[pixel] = delta;
       weight += delta;
       x += delta * (pixel % width);
       y += delta * Math.floor(pixel / width);
     }
   }
-  return weight ? [x / weight, y / weight] : null;
+  return weight ? {screen: [x / weight, y / weight], pixels: a, support, foreground} : null;
 }
 
 function displaced(first: Vec, now: Vec): boolean {
   return first[0] !== now[0] || first[1] !== now[1];
+}
+
+/** Actual pixels must change where this traveller's visible support changed. A moving hidden
+ * underlay, changing colours in a fixed aperture, or motion elsewhere cannot supply that proof. */
+function movedPaint(first: VisiblePaint, now: VisiblePaint): boolean {
+  if (!displaced(first.screen, now.screen)) return false;
+  // A moving opaque paper aperture can move the matte without any traveller edge
+  // reaching it. Abstain if changing foreground paint touches either support.
+  for (const [a, b] of [[first, now], [now, first]]) {
+    const unchanged = new Set(b!.foreground.map(record => record.svg));
+    for (const record of a!.foreground) if (!unchanged.has(record.svg)) {
+      const box = record.box ?? [0, 0, 800, 450];
+      for (let y = Math.max(0, Math.floor(box[1]!)); y < Math.min(450, Math.ceil(box[3]!)); y++)
+        for (let x = Math.max(0, Math.floor(box[0]!)); x < Math.min(800, Math.ceil(box[2]!)); x++)
+          if (first.support[y * 800 + x] || now.support[y * 800 + x]) return false;
+    }
+  }
+  for (let p = 0; p < first.support.length; p++) if (first.support[p] !== now.support[p]) {
+    const i = 4 * p;
+    if ([0, 1, 2].some(c => first.pixels[i + c] !== now.pixels[i + c])) return true;
+  }
+  return false;
 }
 
 export class MachineMotionCheck implements Sink {
@@ -128,7 +182,7 @@ export class MachineMotionCheck implements Sink {
       this.#active.set(machine, checks);
       return (view, key, move) => {
         for (const check of checks) if (check.rule.view === view && check.rule.during === key)
-          check.trips.push({move, worldMoved: false, screenMoved: false});
+          check.trips.push({move, proved: false});
       };
     };
     motionObservers.set(scene, observe);
@@ -141,22 +195,23 @@ export class MachineMotionCheck implements Sink {
   }
 
   async frame(scene: Scene): Promise<void> {
-    const positions = new Map<Mobject, Vec | null>();
+    const positions = new Map<Mobject, VisiblePaint | null>();
     for (const checks of this.#active.values()) for (const check of checks) {
       const {rule, trips, issues} = check;
       const active = trips.filter(({move}) => move.phase === 'begun');
       if (!active.length) continue;
       if (active.length > 1) issues.add('more than one trip with this key is active');
       for (const trip of active) {
-        if (trip.worldMoved && trip.screenMoved) continue;
+        if (trip.proved) continue;
         const part = trip.move.mobject;
         if (!positions.has(part)) positions.set(part, await visiblePosition(scene, part));
-        const screen = positions.get(part);
-        if (screen) {
+        const paint = positions.get(part);
+        if (paint) {
           const world = part.center();
-          trip.first ??= {world, screen};
-          trip.worldMoved ||= displaced(trip.first.world, world);
-          trip.screenMoved ||= displaced(trip.first.screen, screen);
+          trip.first ??= {world, paint};
+          trip.proved = displaced(trip.first.world, world) && movedPaint(trip.first.paint, paint);
+          if (trip.proved) delete trip.first;
+          else trip.first = {world, paint};
         }
       }
       // Context belongs to the whole begun move, even while its traveller is hidden or offstage.
@@ -175,7 +230,7 @@ export class MachineMotionCheck implements Sink {
   #close(machine: object): void {
     for (const {rule, trips, issues, where} of this.#active.get(machine) ?? []) {
       if (!trips.length) issues.add('the declared travel was never constructed');
-      else if (trips.some(t => !t.worldMoved || !t.screenMoved)) issues.add('a declared travel did not paint at two distinct screen positions during its move');
+      else if (trips.some(t => !t.proved)) issues.add('a declared travel did not paint at two distinct screen positions during its move');
       for (const issue of issues) this.findings.push(`${where}: motion contract: during "${rule.during}", ${issue}`);
     }
     this.#active.delete(machine);

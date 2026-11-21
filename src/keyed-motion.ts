@@ -40,7 +40,7 @@
 
 import { VMobject } from './vmobject.ts';
 import type { Box, Mobject } from './mobject.ts';
-import { matchingAncestors, mergeLeaves, mobjectId, paintsFill, paintsStroke } from './mobject.ts';
+import { matchingAncestors, mergeLeaves, mobjectId, paintsFill, paintsStroke, pointsVersion } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { playsBegun } from './scene.ts';
 import { FRAME } from './units.ts';
@@ -62,6 +62,10 @@ export interface KeyedMotionFinding {
   detail: string;
   /** One line on how to fix it. */
   fix: string;
+  /** Structured attribution when the diagnostic observes another part's obscured glyphs. */
+  victim?: string;
+  text?: string;
+  masks?: readonly string[];
 }
 
 /** The thresholds, each one what a reader perceives, in stage units (16 wide) and seconds. */
@@ -159,14 +163,53 @@ class PartSample {
   }
 }
 /** One drawn leaf: the renderer's id for it, its box on screen, its alpha, the fill and stroke that show, and its words and their reading size on screen if it is a run of text. */
-interface Leaf { id: number; box: Box; a: number; paint: string; text?: string; em?: number; poly?: Float64Array[]; fillAlpha?: number; clip?: Box; glyphs?: Box[]; path?: string; hulls?: Box[]; fillPath?: Float64Array[]; fillRule?: 'nonzero' | 'evenodd' }
+interface Leaf { id: number; box: Box; a: number; paint: string; text?: string; em?: number; fillAlpha?: number; clip?: Box; glyphs?: Box[]; glyphSlots?: string[]; path?: string; hulls?: Box[]; fillPath?: Float64Array[]; fillRule?: 'nonzero' | 'evenodd' }
 interface Frame { t: number; parts: Map<string, PartSample>; leaves: Leaf[] }
+
+type FillGeometry = { hulls: Box[]; fillPath: Float64Array[] };
+const fillCache = new WeakMap<Mobject, {version: number | undefined; arrays: Float32Array[]; projection: number[]; geometry: FillGeometry}>();
+/** Snapshot only candidate masks. Static points and projection share immutable prepared curves. */
+function fillGeometry(m: Mobject, k: number, cx: number, cy: number): FillGeometry {
+  const arrays = m.pointArrays(), version = pointsVersion(m), projection = [k, cx, cy], old = fillCache.get(m);
+  if (old && old.version === version && old.arrays.length === arrays.length && old.arrays.every((a, i) => a === arrays[i]) &&
+    old.projection.every((v, i) => v === projection[i])) return old.geometry;
+  const screen = (b: Box): Box => [(b[0] - cx) * k, (b[1] - cy) * k, (b[2] - cx) * k, (b[3] - cy) * k];
+  const hulls: Box[] = [], fillPath: Float64Array[] = [];
+  let ring: number[] = [];
+  const boundary = (p: number[], depth = 0): void => {
+    const [x0, y0, x1, y1, x2, y2, x3, y3] = p as [number, number, number, number, number, number, number, number];
+    const chord = Math.hypot(x3 - x0, y3 - y0);
+    const bend = chord > 1e-9 ? Math.max(Math.abs((x1 - x0) * (y3 - y0) - (y1 - y0) * (x3 - x0)),
+      Math.abs((x2 - x0) * (y3 - y0) - (y2 - y0) * (x3 - x0))) / chord : Math.max(Math.hypot(x1 - x0, y1 - y0), Math.hypot(x2 - x0, y2 - y0));
+    if (bend * k > 0.01 && depth < 5) {
+      const a = [(x0 + x1) / 2, (y0 + y1) / 2], b = [(x1 + x2) / 2, (y1 + y2) / 2], c = [(x2 + x3) / 2, (y2 + y3) / 2];
+      const d = [(a[0]! + b[0]!) / 2, (a[1]! + b[1]!) / 2], e = [(b[0]! + c[0]!) / 2, (b[1]! + c[1]!) / 2];
+      const f = [(d[0]! + e[0]!) / 2, (d[1]! + e[1]!) / 2];
+      boundary([x0, y0, ...a, ...d, ...f], depth + 1); boundary([...f, ...e, ...c, x3, y3], depth + 1);
+    } else {
+      hulls.push(screen([Math.min(x0, x1, x2, x3), Math.min(y0, y1, y2, y3), Math.max(x0, x1, x2, x3), Math.max(y0, y1, y2, y3)]));
+      ring.push((x0 - cx) * k, (y0 - cy) * k);
+    }
+  };
+  for (const arr of arrays) {
+    ring = [];
+    for (let i = 0; i + 7 < arr.length; i += 6) boundary(Array.from(arr.subarray(i, i + 8)));
+    if (arr.length >= 2) ring.push((arr.at(-2)! - cx) * k, (arr.at(-1)! - cy) * k);
+    fillPath.push(new Float64Array(ring));
+    if (arr.length >= 2) hulls.push(screen([
+      Math.min(arr[0]!, arr.at(-2)!), Math.min(arr[1]!, arr.at(-1)!), Math.max(arr[0]!, arr.at(-2)!), Math.max(arr[1]!, arr.at(-1)!),
+    ]));
+  }
+  const geometry = {hulls, fillPath};
+  fillCache.set(m, {version, arrays: arrays.slice(), projection, geometry});
+  return geometry;
+}
 
 /** A leaf's alpha as MotionSink reads it: opacity times the paint that shows, times how far it is drawn. */
 function alphaOf(m: Mobject): number {
   const s = m.style;
-  const f = s.fill !== 'none' ? s.fillOpacity : 0;
-  const k = s.stroke !== 'none' ? s.strokeOpacity : 0;
+  const f = s.fill !== 'none' ? s.fillOpacity ?? 1 : 0;
+  const k = s.stroke !== 'none' ? s.strokeOpacity ?? 1 : 0;
   return (s.opacity ?? 1) * Math.max(f, k) * (s.drawFraction ?? 1);
 }
 /** Intrinsic alpha of a resolved solid hex paint; unsupported CSS paints cannot prove coverage. */
@@ -241,6 +284,7 @@ export class KeyedMotionSink implements Sink {
 function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSize?: (m: Mobject) => number | undefined): Frame {
   const [fx0, fy0, fx1, fy1] = scene.frame.box()!, k = FRAME.w / (fx1 - fx0), cx = (fx0 + fx1) / 2, cy = (fy0 + fy1) / 2;
   const parts = new Map<string, PartSample>(), leaves: Leaf[] = [];
+  const fills = new Map<Leaf, Mobject>();
   const screen = (b: Box): Box => [(b[0] - cx) * k, (b[1] - cy) * k, (b[2] - cx) * k, (b[3] - cy) * k];
   // Keep a zero-area intersection: an empty viewport must never turn back into no viewport.
   const clipped = (a: Box, b: Box): Box => {
@@ -270,53 +314,17 @@ function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSiz
         // opacity. Resolved engine paints are hex; include alpha from #rgba and #rrggbbaa.
         const leaf: Leaf = { id: mobjectId(m), box: screen(b), a, paint: `${paintsFill(st) ? st.fill : ''}/${paintsStroke(st) ? st.stroke : ''}`, clip, path: here || undefined,
           fillAlpha: paintsFill(st) && (st.drawFraction ?? 1) >= 1 ? (st.opacity ?? 1) * (st.fillOpacity ?? 1) * paintAlpha(st.fill) : 0 };
-        // A filled shape's outline, its anchors on screen, so what it covers is its ink, not its box (a speech
-        // bubble's long tail, a key's teeth): only read for covering, and only a filled leaf can cover.
-        if (text === undefined && !unit && paintsFill(st)) leaf.poly = m.pointArrays().map((arr) => {
-          const n = Math.floor(arr.length / 6) + 1, out = new Float64Array(2 * n);
-          for (let i = 0; i < n; i++) { out[2 * i] = (arr[6 * i]! - cx) * k; out[2 * i + 1] = (arr[6 * i + 1]! - cy) * k; }
-          return out;
-        });
-        if (leaf.poly) {
-          leaf.fillRule = st.fillRule;
-          leaf.hulls = [];
-          leaf.fillPath = [];
-          const hulls = leaf.hulls;
-          let ring: number[] = [];
-          const boundary = (p: number[], depth = 0): void => {
-            const [x0, y0, x1, y1, x2, y2, x3, y3] = p as [number, number, number, number, number, number, number, number];
-            const chord = Math.hypot(x3 - x0, y3 - y0);
-            const bend = chord > 1e-9 ? Math.max(Math.abs((x1 - x0) * (y3 - y0) - (y1 - y0) * (x3 - x0)),
-              Math.abs((x2 - x0) * (y3 - y0) - (y2 - y0) * (x3 - x0))) / chord : Math.max(Math.hypot(x1 - x0, y1 - y0), Math.hypot(x2 - x0, y2 - y0));
-            if (bend * k > 0.01 && depth < 5) {
-              const a = [(x0 + x1) / 2, (y0 + y1) / 2], b = [(x1 + x2) / 2, (y1 + y2) / 2], c = [(x2 + x3) / 2, (y2 + y3) / 2];
-              const d = [(a[0]! + b[0]!) / 2, (a[1]! + b[1]!) / 2], e = [(b[0]! + c[0]!) / 2, (b[1]! + c[1]!) / 2];
-              const f = [(d[0]! + e[0]!) / 2, (d[1]! + e[1]!) / 2];
-              boundary([x0, y0, ...a, ...d, ...f], depth + 1); boundary([...f, ...e, ...c, x3, y3], depth + 1);
-            } else {
-              hulls.push(screen([Math.min(x0, x1, x2, x3), Math.min(y0, y1, y2, y3), Math.max(x0, x1, x2, x3), Math.max(y0, y1, y2, y3)]));
-              ring.push((x0 - cx) * k, (y0 - cy) * k);
-            }
-          };
-          for (const arr of m.pointArrays()) {
-            ring = [];
-            for (let i = 0; i + 7 < arr.length; i += 6) boundary(Array.from(arr.subarray(i, i + 8)));
-            if (arr.length >= 2) ring.push((arr.at(-2)! - cx) * k, (arr.at(-1)! - cy) * k);
-            leaf.fillPath.push(new Float64Array(ring));
-            // SVG fills an open subpath as if its final anchor were joined to its first.
-            if (arr.length >= 2) leaf.hulls.push(screen([
-              Math.min(arr[0]!, arr.at(-2)!), Math.min(arr[1]!, arr.at(-1)!), Math.max(arr[0]!, arr.at(-2)!), Math.max(arr[1]!, arr.at(-1)!),
-            ]));
-          }
-        }
+        if (text === undefined && !unit && paintsFill(st)) { fills.set(leaf, m); leaf.fillRule = st.fillRule; }
         if (text !== undefined) {
           leaf.text = text;
           // Glyph ink boxes exclude the run's empty ascent/descent and spaces. Descendant
           // clips still apply when Text is represented as a single motion leaf.
-          const glyphs: Box[] = [];
+          const glyphs: Box[] = [], glyphSlots: string[] = [];
+          let ordinal = 0;
           const ink = (g: Mobject, parent: Box): void => {
             const viewport = g.clipBox ? clipped(parent, screen(g.clipBox)) : parent;
             const s = g.style;
+            const index = ordinal++, cluster = (g as {cluster?: number}).cluster;
             const painted = Math.max(paintsFill(s) ? (s.fillOpacity ?? 1) * paintAlpha(s.fill) : 0,
               paintsStroke(s) ? (s.strokeOpacity ?? 1) * paintAlpha(s.stroke) : 0) * (s.opacity ?? 1);
             if (g instanceof VMobject && painted >= KEYED_MOTION_LIMITS.readable && (s.drawFraction ?? 1) >= 1) {
@@ -327,12 +335,15 @@ function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSiz
               const visible = b && screen([b[0] - margin, b[1] - margin, b[2] + margin, b[3] + margin]);
               // A clip through a glyph's empty counter is not visible ink. Certify only
               // whole glyph boxes; partial-glyph evidence needs actual outline clipping.
-              if (visible && area(visible) > 0 && visible[0] >= viewport[0] && visible[1] >= viewport[1] && visible[2] <= viewport[2] && visible[3] <= viewport[3]) glyphs.push(visible);
+              if (visible && area(visible) > 0 && visible[0] >= viewport[0] && visible[1] >= viewport[1] && visible[2] <= viewport[2] && visible[3] <= viewport[3]) {
+                glyphs.push(visible); glyphSlots.push(cluster === undefined ? `part:${index}` : `cluster:${cluster}`);
+              }
             }
             for (const child of g.children) ink(child, viewport);
           };
           if (unit) for (const child of m.children) ink(child, clip);
           leaf.glyphs = glyphs;
+          leaf.glyphSlots = glyphSlots;
           const em = labelSize?.(m);
           if (em !== undefined) leaf.em = em * k;
         }
@@ -356,6 +367,9 @@ function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSiz
     return alpha;
   };
   for (const top of scene.mobjects) walk(top, '', screen([fx0, fy0, fx1, fy1]));
+  const labels = leaves.filter(l => l.glyphs?.length);
+  for (const [leaf, source] of fills) if (labels.some(l => intersect(l.box, leaf.box)))
+    Object.assign(leaf, fillGeometry(source, k, cx, cy));
   return { t: scene.time, parts, leaves };
 }
 
@@ -419,30 +433,7 @@ function iou(a0: Box, b0: Box): number {
   const area = (r: Box) => (r[2] - r[0]) * (r[3] - r[1]), inter = ix * iy;
   return inter / (area(a) + area(b) - inter);
 }
-/** The area of the filled outline `poly` (subpaths of anchors, holes wound the other way) inside box `b`. */
-function inkIn(poly: readonly Float64Array[], b: Box): number {
-  let total = 0;
-  for (const ring of poly) {
-    let pts: number[] = Array.from(ring);
-    // Clip to each side of the box in turn (Sutherland-Hodgman), then take the shoelace area.
-    for (const [axis, bound, keepBelow] of [[0, b[0], false], [0, b[2], true], [1, b[1], false], [1, b[3], true]] as const) {
-      const out: number[] = [], n = pts.length / 2;
-      const inside = (i: number) => (keepBelow ? pts[2 * i + axis]! <= bound : pts[2 * i + axis]! >= bound);
-      for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n, a = inside(i), c = inside(j);
-        if (a) out.push(pts[2 * i]!, pts[2 * i + 1]!);
-        if (a !== c) {
-          const t = (bound - pts[2 * i + axis]!) / (pts[2 * j + axis]! - pts[2 * i + axis]!);
-          out.push(pts[2 * i]! + t * (pts[2 * j]! - pts[2 * i]!), pts[2 * i + 1]! + t * (pts[2 * j + 1]! - pts[2 * i + 1]!));
-        }
-      }
-      pts = out;
-      if (!pts.length) break;
-    }
-    for (let i = 0, n = pts.length / 2; i < n; i++) { const j = (i + 1) % n; total += pts[2 * i]! * pts[2 * j + 1]! - pts[2 * j]! * pts[2 * i + 1]!; }
-  }
-  return Math.abs(total) / 2;
-}
+const crossesBox = (mask: Leaf, box: Box) => mask.hulls?.some(h => h[0] < box[2] && h[2] > box[0] && h[1] < box[3] && h[3] > box[1]);
 
 /** Conservative fill proof. Every cubic lies in its control-point hull. If no hull
  * enters the box, the fill cannot change inside it; winding its centre against the
@@ -451,7 +442,7 @@ function inkIn(poly: readonly Float64Array[], b: Box): number {
 function fillsBox(mask: Leaf, box: Box): boolean {
   if (!mask.fillPath || !mask.hulls) return false;
   if (mask.clip && (mask.clip[0] > box[0] || mask.clip[1] > box[1] || mask.clip[2] < box[2] || mask.clip[3] < box[3])) return false;
-  if (mask.hulls.some(h => h[0] < box[2] && h[2] > box[0] && h[1] < box[3] && h[3] > box[1])) return false;
+  if (crossesBox(mask, box)) return false;
   const x = (box[0] + box[2]) / 2, y = (box[1] + box[3]) / 2;
   let winding = 0;
   for (const ring of mask.fillPath) for (let i = 0; i < ring.length; i += 2) {
@@ -462,6 +453,30 @@ function fillsBox(mask: Leaf, box: Box): boolean {
   }
   return mask.fillRule === 'evenodd' ? Math.abs(winding) % 2 === 1 : winding !== 0;
 }
+
+/** A lower bound on painted box area. Ambiguous boundary cells contribute nothing; winding
+ * and the effective clip decide every counted cell, so holes cannot count twice or exceed 100%. */
+function filledArea(mask: Leaf, box: Box, depth = 0): number {
+  const b = mask.clip ? intersect(box, mask.clip) : box;
+  if (!b || !mask.fillPath || !mask.hulls) return 0;
+  if (fillsBox(mask, b)) return area(b);
+  if (!crossesBox(mask, b) || depth >= 4) return 0;
+  const x = (b[0] + b[2]) / 2, y = (b[1] + b[3]) / 2;
+  return [[b[0], b[1], x, y], [x, b[1], b[2], y], [b[0], y, x, b[3]], [x, y, b[2], b[3]]]
+    .reduce((sum, cell) => sum + filledArea(mask, cell as Box, depth + 1), 0);
+}
+
+/** Glyph occurrences admitted by real opacity and clips, with no possible opaque fill above
+ * their box. Partial boundary intersections are unproved, not evidence of a visible duplicate. */
+function visibleGlyphs(frame: Frame, index: number, omitted?: ReadonlySet<number>): Box[] {
+  const label = frame.leaves[index]!;
+  return (label.glyphs ?? []).filter(glyph => !frame.leaves.some((mask, r) => {
+    if (r <= index || omitted?.has(r) || mask.text !== undefined || (mask.fillAlpha ?? 0) < 0.99) return false;
+    const clipped = mask.clip ? intersect(glyph, mask.clip) : glyph;
+    return !!clipped && !!intersect(mask.box, clipped) && (fillsBox(mask, clipped) || !!crossesBox(mask, clipped));
+  }));
+}
+const registeredGlyphs = (a: readonly Box[], b: readonly Box[]) => a.length > 0 && a.length === b.length && a.every((box, i) => samePlace(box, b[i]!, 0.025));
 
 /** A key's short form for messages: the part's own key, with the address when keys repeat inside it. */
 const named = (path: string) => path.split('/').at(-1)!;
@@ -555,19 +570,21 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       if (part) for (let a = part.from; a < part.to && !duplicate; a++) {
         const moving = leaves[a]!;
         if (!moving.text?.trim() || moving.a < L.readable) continue;
+        const movingInk = visibleGlyphs(frames[i]!, a);
+        if (!movingInk.length) continue;
         for (let b = 0; b < leaves.length; b++) {
           if (b >= part.from && b < part.to) continue;
           const other = leaves[b]!;
           if (other.a < L.readable || other.text !== moving.text) continue;
+          const otherInk = visibleGlyphs(frames[i]!, b);
+          if (!otherInk.length || registeredGlyphs(movingInk, otherInk)) continue;
+          // The visible letters must meet too: uncut run boxes can overlap across
+          // a plate that hides every letter in their common area.
+          if (!movingInk.some(glyph => otherInk.some(other => intersect(glyph, other)))) continue;
           const overlap = intersect(moving.box, other.box);
           if (!overlap) continue;
           const overlapArea=area(overlap), share=overlapArea/Math.max(1e-9,Math.min(area(moving.box),area(other.box)));
-          if(share<=L.cover||share>=0.999)continue;
-          // Both words need visible ink. An opaque foreground plate can mask the
-          // moving copy before the fixed label, as a value arrives behind its tray.
-          const masked = a < b && leaves.some((mask, index) => index > a && index < b && !mask.text &&
-            (mask.fillAlpha ?? 0) >= 0.99 && fillsBox(mask, overlap));
-          if (masked) continue;
+          if(share<=L.cover)continue;
           duplicate = true; break;
         }
       }
@@ -698,7 +715,6 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   // and than every label at rest in the transition's first and last frames: a label scaled down to travel.
   if (travel.length) {
     const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
-    const overlap = (a: Box, b: Box) => area([Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])]);
     const run = Math.max(2, Math.round(L.covering / dt - 1e-9));
     // The smallest readable words at rest: in the transition's first and last frames.
     let rest = Infinity;
@@ -729,18 +745,15 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
           for (let q = 0; q < T.from && tr.left[j]! > L.landed; q++) {
             const l = f.leaves[q]!;
             if (!l.text || l.a < L.readable) continue;
-            const whole = area(l.box);
+            const traveller = new Set(Array.from({length: T.to - T.from}, (_, i) => T.from + i));
+            const glyphs = visibleGlyphs(f, q, traveller), whole = glyphs.reduce((sum, glyph) => sum + area(glyph), 0);
             if (whole <= 0) continue;
             let most = 0;
             // A leaf with a fill covers its box; an outline alone (a ring round a label, a line) covers almost none of it.
             for (let r = T.from; r < T.to; r++) {
               const t = f.leaves[r]!;
-              if ((t.fillAlpha ?? 0) < L.readable || overlap(t.box, l.box) < L.cover * whole) continue;
-              // A traveller's omitted ancestors can still clip its real fill. Its
-              // uncut path box cannot prove it paints over words outside that clip.
-              const visible = t.clip ? intersect(l.box, t.clip) : l.box;
-              if (!visible) continue;
-              most = Math.max(most, (t.poly ? inkIn(t.poly, visible) : overlap(t.box, visible)) / whole);
+              if ((t.fillAlpha ?? 0) < L.readable || !intersect(t.box, l.box)) continue;
+              most = Math.max(most, glyphs.reduce((sum, glyph) => sum + filledArea(t, glyph), 0) / whole);
             }
             if (most < L.cover) continue;
             now.add(l.id);
@@ -757,10 +770,10 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       if (longest) {
         const { n, first, most, text, key } = longest, twin = own.has(text), words = text.length > 40 ? text.slice(0, 39) + '…' : text;
         reportedCovers.push({ mask: tr.p, victim: longest.path, text, first, last: first + n - 1 });
-        out.push({ kind: 'covers', segment, key: named(tr.p), path: tr.p, t: ms(frames[first]!.t - t0), value: +fmt(n * dt, 3),
+        out.push({ kind: 'covers', segment, key: named(tr.p), path: tr.p, victim: longest.path, text, masks: [tr.p], t: ms(frames[first]!.t - t0), value: +fmt(n * dt, 3),
           detail: twin
             ? `travels over “${words}” (part “${key}”), the same words as its own, for ${fmt(n * dt)} s: two copies at once, one over the other`
-            : `travels over “${words}” (part “${key}”), covering ${(100 * most).toFixed(0)}% of it, for ${fmt(n * dt)} s before it lands`,
+            : `travels over “${words}” (part “${key}”), covering at least ${(100 * Math.min(1, most)).toFixed(0)}% of its visible glyph boxes, for ${fmt(n * dt)} s before it lands`,
           fix: twin
             ? 'take the resting copy away as the travelling one sets off (leave it as the flight appears), or start the flight beside it'
             : 'route it round the label (or under it, scaled down), or move the label off its way' });
@@ -777,21 +790,17 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   // copy of these same words in this transition. Permanent background replacement is not a blink.
   type MaskSpan = { first: number; last: number; source: string; by: string };
   type HiddenRun = { first: number; last: number; glyphs: number; text: string; path: string; masks: MaskSpan[] };
-  const obscured = new Map<string, { clear: boolean; active?: HiddenRun; longest?: HiddenRun }>();
-  const closeHidden = (record: { active?: HiddenRun; longest?: HiddenRun }) => {
+  type Occurrence = {clear: boolean; active?: HiddenRun; runs: HiddenRun[]; last: Leaf; seen: number};
+  const obscured = new Set<Occurrence>(), identities = new Map<number, Occurrence>();
+  const closeHidden = (record: Occurrence) => {
     const run = record.active;
-    if (run && frames[run.last]!.t - frames[run.first]!.t >= L.covering - 1e-8 &&
-      (!record.longest || run.last - run.first > record.longest.last - record.longest.first)) {
-      // A terminal wipe may intentionally remove old contents behind the new page. Keep
-      // emergence/return defects and wrong stacking that persists in the resting picture.
-      const visibleLater = frames.slice(Math.min(run.last + 1, frames.length - 1)).some(f => f.leaves.some(l => l.path === run.path && l.text === run.text && l.a >= L.readable && l.glyphs?.length));
-      if (visibleLater) record.longest = { ...run, masks: run.masks.map(mask => ({ ...mask })) };
-    }
+    if (run && frames[run.last]!.t - frames[run.first]!.t >= L.covering - 1e-8)
+      record.runs.push({ ...run, masks: run.masks.map(mask => ({ ...mask })) });
     delete record.active;
   };
   for (let j = 0; j < frames.length; j++) {
     const f = frames[j]!;
-    const now = new Map<string, { path: string; text: string; copies: { box: Box; covered: number; source: string; by: string }[] }>();
+    const now: {label: Leaf; covered: number; source: string; by: string}[] = [];
     for (let q = 0; q < f.leaves.length; q++) {
       const label = f.leaves[q]!;
       if (!label.text?.trim() || label.a < L.readable || !label.glyphs?.length) continue;
@@ -802,54 +811,69 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       let source = '';
       for (let r = q + 1; r < f.leaves.length; r++) {
         const mask = f.leaves[r]!;
-        if (mask.text !== undefined || !mask.poly || (mask.fillAlpha ?? 0) < 0.95 || !intersect(mask.box, label.box)) continue;
+        if (mask.text !== undefined || !mask.fillPath || (mask.fillAlpha ?? 0) < 0.95 || !intersect(mask.box, label.box)) continue;
         const maskPath = mask.path;
         // Deduplicate only this victim and this interval. One traveller's longest
         // covers finding must not silence another label it hides later.
         if (maskPath && reportedCovers.some(c => c.victim === path && c.text === label.text && j >= c.first && j <= c.last &&
           (maskPath === c.mask || maskPath.startsWith(`${c.mask}/`)))) continue;
-        let covered = 0;
+        const covered: Box[] = [];
         for (const glyph of label.glyphs) {
           const inset = (1 - Math.sqrt(L.glyphCover)) / 2;
           const dx = (glyph[2] - glyph[0]) * inset, dy = (glyph[3] - glyph[1]) * inset;
-          if (fillsBox(mask, [glyph[0] + dx, glyph[1] + dy, glyph[2] - dx, glyph[3] - dy])) covered++;
+          if (fillsBox(mask, [glyph[0] + dx, glyph[1] + dy, glyph[2] - dx, glyph[3] - dy])) covered.push(glyph);
         }
-        if (covered >= Math.min(2, label.glyphs.length) && covered > most) {
-          most = covered;
+        // A handoff supplies these particular missing glyphs. A one-letter clipped
+        // copy cannot stand in for the rest of a hidden word with the same text.
+        const supplied = f.leaves.flatMap((other, index) => other !== label && other.text === label.text && other.a >= L.readable
+          ? visibleGlyphs(f, index).map(box => ({box, slot: other.glyphSlots?.[other.glyphs!.indexOf(box)]})) : []);
+        const missing = covered.filter(glyph => !supplied.some(other => other.slot === label.glyphSlots?.[label.glyphs!.indexOf(glyph)] && samePlace(glyph, other.box, 0.025))).length;
+        if (missing >= Math.min(2, label.glyphs.length) && missing > most) {
+          most = missing;
           by = maskPath ? named(maskPath) : 'unkeyed shape';
           // Draw-order position also identifies anonymous masks in independently rebuilt
           // seek frames; renderer ids would change on every such frame.
           source = maskPath ?? `\0${r}`;
         }
       }
-      const id = `${path}\0${label.text}`;
-      const had = now.get(id);
-      const copy = { box: label.box, covered: most, source, by };
-      if (had) had.copies.push(copy);
-      else now.set(id, { path, text: label.text, copies: [copy] });
+      now.push({label, covered: most, source, by});
     }
-    for (const [id, entry] of now) {
-      const record = obscured.get(id) ?? { clear: false };
-      // A foreground copy in the same place keeps a seamless handoff readable. A remote
-      // repeated label does not excuse hidden letters at the original location.
-      const hidden = entry.copies.find(c => c.covered && !entry.copies.some(other => !other.covered && samePlace(c.box, other.box, L.same)));
-      if (!hidden) { record.clear = true; closeHidden(record); }
-      else {
-        record.active ??= { first: j, last: j, glyphs: hidden.covered, text: entry.text, path: entry.path, masks: [] };
-        record.active.last = j;
-        record.active.glyphs = Math.min(record.active.glyphs, hidden.covered);
-        const mask = record.active.masks.at(-1);
-        if (mask?.source === hidden.source) mask.last = j;
-        else record.active.masks.push({ first: j, last: j, source: hidden.source, by: hidden.by });
+    const used = new Set<Occurrence>();
+    const compatible = (label: Leaf, record: Occurrence) => record.seen === j - 1 && record.last.path === label.path &&
+      record.last.text === label.text && registeredGlyphs(record.last.glyphs ?? [], label.glyphs ?? []);
+    for (const entry of now) {
+      const {label} = entry;
+      let record = identities.get(label.id);
+      if (record && (used.has(record) || (record.last.id !== label.id && now.some(e => e.label.id === record!.last.id)))) record = undefined;
+      if (!record) {
+        const candidates = [...obscured].filter(r => !used.has(r) && compatible(label, r));
+        // Retained physical identity wins. Rebuilt seek frames join only a unique
+        // reciprocal glyph/position match; ambiguous twins end the old interval.
+        if (candidates.length === 1 && now.filter(e => compatible(e.label, candidates[0]!)).length === 1) record = candidates[0];
       }
-      obscured.set(id, record);
+      record ??= {clear: false, runs: [], last: label, seen: j};
+      identities.set(label.id, record); obscured.add(record); used.add(record);
+      record.last = label; record.seen = j;
+      if (!entry.covered) { record.clear = true; closeHidden(record); }
+      else {
+        record.active ??= { first: j, last: j, glyphs: entry.covered, text: label.text!, path: label.path!, masks: [] };
+        record.active.last = j;
+        record.active.glyphs = Math.min(record.active.glyphs, entry.covered);
+        const mask = record.active.masks.at(-1);
+        if (mask?.source === entry.source) mask.last = j;
+        else record.active.masks.push({ first: j, last: j, source: entry.source, by: entry.by });
+      }
     }
-    for (const [id, record] of obscured) if (!now.has(id)) closeHidden(record);
+    for (const record of obscured) if (!used.has(record)) closeHidden(record);
   }
   for (const record of obscured.values()) {
     closeHidden(record);
-    if (!record.clear || !record.longest) continue;
-    const { first, last, glyphs, text, path, masks } = record.longest;
+    // A removed old page is a terminal wipe; a returning occurrence or a hidden
+    // label still present in the final picture is a continuing reading surface.
+    const longest = record.runs.filter(run => record.seen > run.last || run.last === frames.length - 1)
+      .sort((a, b) => (b.last - b.first) - (a.last - a.first))[0];
+    if (!record.clear || !longest) continue;
+    const { first, last, glyphs, text, path, masks } = longest;
     const duration = frames[last]!.t - frames[first]!.t;
     // The threshold belongs to the victim's continuous loss of readability, even if
     // several short-lived masks take turns. Attribute each mask only to its sampled
@@ -860,7 +884,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
         const end = masks[i + 1]?.first ?? mask.last;
         return `“${mask.by}” (${fmt(frames[mask.first]!.t - t0, 3)}–${fmt(frames[end]!.t - t0, 3)} s)`;
       }).join(', ')} cover`;
-    out.push({ kind: 'occluded words', segment, key: named(path), path, t: ms(frames[first]!.t - t0), value: ms(duration),
+    out.push({ kind: 'occluded words', segment, key: named(path), path, victim: path, text, masks: masks.map(m => m.source), t: ms(frames[first]!.t - t0), value: ms(duration),
       detail: `“${text.length > 40 ? text.slice(0, 39) + '…' : text}” stays readable by opacity but ${attribution} at least ${100 * L.glyphCover}% of ${glyphs} glyph ${glyphs === 1 ? 'box' : 'boxes'} for ${fmt(duration)} s`,
       fix: 'draw the words above their paper, route the foreground shape round them, or take the old words away before covering them' });
   }

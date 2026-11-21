@@ -111,7 +111,7 @@ export async function main(args: string[], io: CommandIO): Promise<void> {
     const directory = flags.out ?? resolve('out/checks', slug);
     const report = await checkProject(project, directory);
     if (flags.json) print(JSON.stringify(report, null, 2));
-    const scenarios = report.scenarios as {steps: number; machines?: {states: number; phoneWarnings?: string[]}[]; legibility: {minLabelPx1280: number | null; minLabelPx390: number | null; minLabelPx390WholeStage: number | null}}[];
+    const scenarios = report.scenarios as {steps: number; machines?: {states: number; sampled?: boolean; phoneWarnings?: string[]}[]; legibility: {minLabelPx1280: number | null; minLabelPx390: number | null; minLabelPx390WholeStage: number | null}}[];
     const warnings = scenarios.flatMap(s => (s.machines ?? []).flatMap(m => m.phoneWarnings ?? []));
     for (const warning of [...new Set(warnings)].slice(0, 5)) warn(`Phone warning: ${warning}`);
     const min = (key: keyof typeof scenarios[number]['legibility']) => {
@@ -125,8 +125,9 @@ export async function main(args: string[], io: CommandIO): Promise<void> {
       for (const layout of layouts.values()) views = Math.max(views, closeUps(layout, 358, height).length);
     }
     const states = scenarios.reduce((n, s) => n + (s.machines ?? []).reduce((m, machine) => m + machine.states, 0), 0);
+    const sampled = scenarios.some(s => s.machines?.some(machine => machine.sampled));
     const tests = (report.model as {passed?: number} | undefined)?.passed ?? 0;
-    (flags.json ? (text: string) => io.stderr(text + '\n') : print)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} reachable states, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
+    (flags.json ? (text: string) => io.stderr(text + '\n') : print)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} checked states${sampled ? ' (bounded sample)' : ''}, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
     return;
   }
   /** The scenario every --scenario id=value chooses, other settings at their defaults. */

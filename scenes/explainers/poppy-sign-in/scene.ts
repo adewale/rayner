@@ -110,6 +110,9 @@ export default class SignIn extends Scene {
     });
     const fadeOut = (c: C, keys: readonly string[]) => keys.map((k) => c.leave(k, { runTime: 0.3 }));
     const fadeIn = (c: C, keys: readonly string[]) => keys.map((k) => c.enter(k, {}, { runTime: 0.3 }));
+    // A durable approved field belongs to its sign-in, not to an unrelated attack.
+    const fresh = (t: Transition<World, SignInEvent>) => FRESH.filter(key => key !== 'page:password' ||
+      !t.before.sign?.approved || JSON.stringify(t.before.sign) !== JSON.stringify(t.after.sign));
     const transition = {
       // You and the agent take your places by the page (a cross-fade); the request leaves the agent's seal; the page opens.
       ask: (t: Transition<World, SignInEvent>) => {
@@ -126,9 +129,9 @@ export default class SignIn extends Scene {
           const card = c.to('card');
           const present: Pt = [Math.max(MARGIN.left + card.width() / 2 + 0.06, seal[0]),
             c.to('agent:key:slot').box()![3] + card.height() / 2 + 0.06];
-          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...fly(c, 'card', [present]), ...frame()], { fresh: FRESH, then: opens });
+          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...fly(c, 'card', [present]), ...frame()], { fresh: fresh(t), then: opens });
         }
-        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 }), ...frame()], { fresh: FRESH, then: opens });
+        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 }), ...frame()], { fresh: fresh(t), then: opens });
       },
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
       'approve-read': (t: Transition<World, SignInEvent>) => approve(t),
@@ -156,24 +159,26 @@ export default class SignIn extends Scene {
           const old = ['agent:key', 'tag'].filter((k) => c.has(k, 'from'));
           const out: Pt = [FACE_LEFT, DESK[1]];
           const gone = new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved, ...old])]);
-          const key = fly(c, 'agent:key', [out]), tag = fly(c, 'tag', [out]);
+          const targetKey = c.to('agent:key'), name = c.to('agent:name').box()!;
+          const clearX = Math.max(out[0], name[2] + targetKey.width() / 2 + 0.08);
+          const key = fly(c, 'agent:key', [out, [clearX, out[1]], [clearX, targetKey.center()[1]]]), tag = fly(c, 'tag', [out]);
           return [
             run[0]!, run[1]!, gone,
             new AnimationGroup([...fadeIn(c, moved), key[0]!]),
             key[1]!, new AnimationGroup([key[2]!, tag[0]!]), tag[1]!, tag[2]!,
           ];
-        }, { fresh: FRESH, then: got ? ['tag:cord'].filter((k) => c.has(k, 'to') && !c.has(k, 'from')) : [] });
+        }, { fresh: fresh(t), then: got ? ['tag:cord'].filter((k) => c.has(k, 'to') && !c.has(k, 'from')) : [] });
       },
       trick: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
         // Up from below the stage beside the counter, clear of the agent's tag, then across to where it is stopped.
-        return beats(c, flight(c, 'trick', [[2.2, -4.6], [2.2, -2.0]], { move: 0.8 }), { fresh: FRESH, then: ['barrier'] });
+        return beats(c, flight(c, 'trick', [[2.2, -4.6], [2.2, -2.0]], { move: 0.8 }), { fresh: fresh(t), then: ['barrier'] });
       },
       thief: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
         // The agent may still hold a printed tag below the counter when another sign-in is open.
         const entryX = THIEF_AT[0] + 1.6;
-        return beats(c, flight(c, 'thief', [[entryX, -4.6], [entryX, THIEF_AT[1]]], { move: 0.7 }), { fresh: FRESH });
+        return beats(c, flight(c, 'thief', [[entryX, -4.6], [entryX, THIEF_AT[1]]], { move: 0.7 }), { fresh: fresh(t) });
       },
       'sign-out': (t: Transition<World, SignInEvent>) => giveBack(t),
       disconnect: (t: Transition<World, SignInEvent>) => giveBack(t),
@@ -191,7 +196,7 @@ export default class SignIn extends Scene {
         const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];
         const card = pass(c, 'page:password:flight', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
         return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];
-      }, { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });
+      }, { fresh: fresh(t), then: ['page:orders:read:box', 'page:orders:write:box'] });
     };
     /** The tag goes back to the Company's desk, and the key with it. */
     const giveBack = (t: Transition<World, SignInEvent>) => {
@@ -214,7 +219,7 @@ export default class SignIn extends Scene {
         const shift = moved.length ? [new Succession([new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))])] : [];
         return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]),
           new AnimationGroup([back[1]!, ...shift]), back[2]!];
-      }, { fresh: FRESH });
+      }, { fresh: fresh(t) });
     };
 
     const machine = new Machine<World, SignInEvent>(this, {
