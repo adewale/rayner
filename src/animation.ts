@@ -5,7 +5,7 @@
 import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState, followScene, mobjectName, savedState, withArticle, alignFamily, alignData, matchingFrameFor, interpolateData, dropBox, copyAlone } from './mobject.ts';
+import { Group, adoptState, followScene, mobjectName, savedState, withArticle, alignFamily, alignData, matchingFrameFor, matchingAncestors, interpolateData, dropBox, copyAlone } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import { beginWhenReady, afterHeld, beginAnimations, inTurn } from './scene.ts';
@@ -2063,13 +2063,34 @@ function pairParts(self: Transform, key: MatchKey, m: Matching): void {
   // under it while it fades in too, not over it until the morph ends.
   const newFrame = new Set(tFrames.filter((ft) => !toSource.has(ft))), adding = new Set(self.added);
   const fadeRows = new Map<Mobject, FadeRow>();
+  // Point-free groups are deliberately absent from the temporary matching tree.
+  // Retain diagnostic ownership and inherited paint clips without reparenting
+  // the rendered tree, changing its order or manufacturing public keys.
+  const admitted = (t: Mobject): Mobject => {
+    const sub = bare(t), owner = frameOfT(t), keys: string[] = [];
+    for (let p = t.parent; p && p !== owner; p = p.parent) {
+      if (p.key !== undefined) keys.unshift(p.key);
+      // These groups also own real world-coordinate paint clips. Unlike
+      // diagnostic ancestry, their omitted clips must affect the rendered child.
+      if (p.clipBox) {
+        const a = sub.clipBox, b = p.clipBox;
+        if (!a) sub.clipBox = [...b];
+        else {
+          const x = Math.max(a[0], b[0]), y = Math.max(a[1], b[1]);
+          sub.clipBox = [x, y, Math.max(x, Math.min(a[2], b[2])), Math.max(y, Math.min(a[3], b[3]))];
+        }
+      }
+    }
+    if (keys.length) sub[matchingAncestors] = Object.freeze(keys);
+    return sub;
+  };
   for (const t of tgt.family()) {
     if (newFrame.has(t)) {
-      const stage = bare(t);
+      const stage = admitted(t);
       toSource.get(frameOfT(t))!.add(stage);
       toSource.set(t, stage);
     } else if (adding.has(t)) {
-      const sub = bare(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
+      const sub = admitted(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
       home.add(sub);
       fadeRows.set(t, { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k });
     }

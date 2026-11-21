@@ -1,4 +1,4 @@
-import { AnimationGroup, Scene, Text } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
 import { beats, flight, pass, route } from '../lib/poppy-kit.ts';
@@ -7,7 +7,7 @@ import { CARDS, SIGN_IN_EVENTS, STORY, next, start } from './model.ts';
 import type { Flow, SignInEvent, World } from './model.ts';
 import {
   ADDRESS_AT, DESK, PALETTE, THIEF_AT,
-  codeToken, drawWorld, requestToken, sayWorld,
+  codeToken, drawWorld, requestToken, sayWorld, tag as keyTag,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -122,8 +122,12 @@ export default class SignIn extends Scene<World, Shown> {
         const reopen = stale.filter((k) => c.has(k, 'to'));
         const swap = (): Beat[] => [new AnimationGroup([...fadeOut(c, moved), ...fadeOut(c, stale)]), ...(moved.length ? [new AnimationGroup(fadeIn(c, moved))] : [])];
         const opens = pageIn(c), frame = (): Beat[] => (reopen.length ? [new AnimationGroup(fadeIn(c, reopen))] : []);
-        if (device)
-          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...fly(c, 'card', [seal]), ...frame()], { fresh: FRESH, then: opens });
+        if (device) {
+          // A full-width code card is presented above the agent's held key.
+          const present: Pt = c.has('tag', 'to')
+            ? [seal[0], c.to('agent:key').box()![3] + c.to('card').height() / 2 + 0.06] : seal;
+          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...fly(c, 'card', [present]), ...frame()], { fresh: FRESH, then: opens });
+        }
         return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 }), ...frame()], { fresh: FRESH, then: opens });
       },
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
@@ -136,11 +140,16 @@ export default class SignIn extends Scene<World, Shown> {
         // agent's signature, to the desk. Device: a poll runs to the desk. If tokens come back, the page
         // closes and the layout cross-fades (an old key and tag fade with it: they are replaced), then the
         // key comes from the desk to the agent's ring, and the tag after it.
-        const low = (p: Pt): Pt[] => [p, [p[0] + 0.9, p[1]], [DESK[0] - 0.4, p[1]], DESK];
-        const poll = (p: Pt) => (c.has('card', 'from') ? low(p) : toDesk(p));
+        const token = device ? request() : code();
+        const poll = (p: Pt): Pt[] => {
+          // Leave the key slot clear, then turn up into the accessible edge of the counter.
+          const acrossY = Math.min(p[1], c.from('agent:key:slot').box()![1] - token.height() / 2 - 0.06);
+          const dockX = c.has('card', 'from') ? c.from('card').box()![2] + token.width() / 2 + 0.08 : DESK[0];
+          return [p, [p[0], acrossY], [dockX, acrossY], [dockX, DESK[1]]];
+        };
         const route: Pt[] = device ? poll(seal) : [[-2.4, -0.62], [-3.9, LANE], [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
         return beats(c, () => {
-          const run = pass(c, device ? 'poll' : 'code', device ? request() : code(), route, { appear: 0.25, move: device ? 0.6 : 0.9, leave: 0.25 });
+          const run = pass(c, device ? 'poll' : 'code', token, route, { appear: 0.25, move: device ? 0.6 : 0.9, leave: 0.25 });
           if (!got) return [...run, ...pass(c, 'poll:back', request(), [...poll(seal)].reverse(), { appear: 0.25, move: 0.5, leave: 0.25 })];
           const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
           const moved = relaid(c, ['agent:key', 'tag']);
@@ -162,7 +171,9 @@ export default class SignIn extends Scene<World, Shown> {
       },
       thief: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world);
-        return beats(c, flight(c, 'thief', [[THIEF_AT[0], -4.6]], { move: 0.7 }), { fresh: FRESH });
+        // The agent may still hold a printed tag below the counter when another sign-in is open.
+        const entryX = THIEF_AT[0] + 1.6;
+        return beats(c, flight(c, 'thief', [[entryX, -4.6], [entryX, THIEF_AT[1]]], { move: 0.7 }), { fresh: FRESH });
       },
       'sign-out': (t: Transition<World, SignInEvent>) => giveBack(t),
       disconnect: (t: Transition<World, SignInEvent>) => giveBack(t),
@@ -171,23 +182,38 @@ export default class SignIn extends Scene<World, Shown> {
     const approve = (t: Transition<World, SignInEvent>) => {
       const c = t.choreograph(world), from = centre(c, 'you:password', 'from'), to = centre(c, 'page:password', 'to');
       return beats(c, () => {
-        // Round the page's lines, not over them: out to the right of the window, up, and into the field.
-        const side = device ? [from, to] as Pt[] : [from, [-1.7, from[1]], [-1.7, to[1]], to] as Pt[];
+        // Rise beside the scope rows before entering the field. The person's
+        // card approaches the phone on its left and the browser rows on their right.
+        const halfCard = c.from('you:password').width() / 2 + 0.05;
+        const passX = device
+          ? c.to('page:orders:read:box').box()![0] - halfCard
+          : Math.max(c.from('page:orders:read:line').box()![2], c.from('page:orders:write:line').box()![2]) + halfCard;
+        const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];
         const card = pass(c, 'password:travel', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
         return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];
       }, { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });
     };
     /** The tag goes back to the Company's desk, and the key with it. */
     const giveBack = (t: Transition<World, SignInEvent>) => {
-      // With Device Sign-In's card lying along the strip at the desk, the tag stops under the card, not on it.
-      const c = t.choreograph(world), from = centre(c, 'tag', 'from'), to: Pt = [FACE_LEFT, c.has('card', 'from') ? -2.25 : DESK[1]];
-      // The tag goes back to the Company, stopping with its edge at the counter rather than over the scopes;
-      // the key and the cord fade as it sets off: without the tag the agent can get no more keys.
+      const c = t.choreograph(world), from = centre(c, 'tag', 'from');
+      const heldDevice = device && !!t.before.sign;
+      // In the open device layout the station is between the held tag and the desk.
+      // Release the printed original into the same punched tag, seen in transit.
+      const token = heldDevice ? keyTag(s, { at: from, value: null }) : c.from('tag').copy();
+      const halfHeight = token.height() / 2 + 0.06;
+      const acrossY = heldDevice ? Math.max(from[1], c.from('agent:name').box()![3] + halfHeight) : from[1];
+      const dockX = heldDevice ? DESK[0] - token.width() / 2 : FACE_LEFT;
+      const dockY = c.has('card', 'from') ? Math.min(-2.25, c.from('card').box()![1] - halfHeight) : DESK[1];
+      const to: Pt = [dockX, dockY];
+      const via: Pt[] = heldDevice ? [from, [from[0], acrossY], [dockX, acrossY], to] : [from, [dockX, from[1]], to];
       const going = ['agent:key', 'tag:cord'].filter((k) => c.has(k, 'from') && !c.has(k, 'to'));
+      const moved = heldDevice ? relaid(c) : [];
       return beats(c, () => {
-        // Across, then up: clear of the device card standing at the desk.
-        const back = pass(c, 'tag:return', c.from('tag').copy(), [from, [to[0], from[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });
-        return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];
+        const back = pass(c, 'tag:return', token, via, { appear: 0.25, move: 0.7, leave: 0.25 });
+        // The agent returns to its empty-key layout as the detached tag crosses.
+        const shift = moved.length ? [new Succession([new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))])] : [];
+        return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]),
+          new AnimationGroup([back[1]!, ...shift]), back[2]!];
       }, { fresh: FRESH });
     };
 

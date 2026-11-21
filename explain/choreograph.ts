@@ -99,10 +99,44 @@ export interface Choreography {
  * a call brings in is added to the current picture, and a part a call takes out leaves it, so when
  * every part has finished the current picture shows the target's parts.
  */
-export function choreograph(current: Mobject, target: Mobject): Choreography {
+export function choreograph(current: Mobject, target: Mobject, registerTrip?: (key: string, move: Animation) => void): Choreography {
   const now = keyedParts(current), want = keyedParts(target);
   const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
   const replacements = new Map<string, Mobject>();
+  const originals = new Map(now), entrants = new Map<string, Mobject>(), tokens = new Set<Mobject>();
+  /** Keep entrants at the current root: an arbitrary unkeyed wrapper may carry its own clip. */
+  function rootChild(part: Mobject | undefined): Mobject | undefined {
+    while (part?.parent && part.parent !== current) part = part.parent;
+    return part?.parent === current ? part : undefined;
+  }
+  /** Place a run of new target layers before the next surviving layer, or after the final one. */
+  function place(parts: Mobject[], anchor: Mobject | undefined, after: boolean): void {
+    if (!parts.length) return;
+    const moving = new Set(parts);
+    const staying = current.children.filter(m => !moving.has(m));
+    const boundary = anchor ?? staying.find(m => tokens.has(m));
+    const index = boundary ? staying.indexOf(boundary) + (anchor && after ? 1 : 0) : staying.length;
+    if (parts.some((m, i) => current.children[index + i] !== m)) current.insert(index, ...parts);
+  }
+  function admit(key: string, part: Mobject): void {
+    if (!want.has(key)) { current.add(part); tokens.add(part); return; }
+    entrants.set(key, part);
+    // A replacement can be built before its old part leaves. Once its new copy is
+    // admitted the old one is no longer an ordering anchor. Re-evaluate the runs of
+    // entrants so construction order cannot strand paper above its words. No original
+    // child moves, including unkeyed groups; several keys in one group share its slot.
+    let pending: Mobject[] = [], last: Mobject | undefined;
+    for (const name of want.keys()) {
+      const entering = entrants.get(name);
+      if (entering) { pending.push(entering); continue; }
+      const anchor = rootChild(originals.get(name));
+      if (anchor) {
+        if (pending.length) { place(pending, anchor, false); pending = []; }
+        last = anchor;
+      }
+    }
+    place(pending, last, true);
+  }
   // A part that has left may enter again, once: replacing a part in place with a new one.
   const claim = (key: string, entering = false) => {
     if (done.has(key) && !(entering && left.has(key))) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already animated; name each part in one call`);
@@ -127,7 +161,7 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
     keyed(part, key);
     part.saveState();
     part.setOpacity(0);
-    current.add(part);
+    admit(key, part);
     now.set(key, part);
     return part;
   };
@@ -154,7 +188,7 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       if (now.has(key)) {
         claim(key);
         const old = from(key), part = target.copy();
-        part.saveState(); part.setOpacity(0); current.add(part);
+        part.saveState(); part.setOpacity(0); admit(key, part);
         replacements.set(key, part);
         return new Joining(part, new FadeIn(part, opts), opts, () => {
           if (current.family().includes(old)) throw new Error(`t.choreograph(): leave ${JSON.stringify(key)} must play before its replacement enters`);
@@ -204,9 +238,11 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       if (want.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is in the target picture, and a travelling token only passes through; travel a key the target does not have`);
       const start = path.pointFromProportion(0);
       const part = insert(key, token.copy().moveTo(start));
+      const movement = new MoveAlongPath(part, path, { runTime: move, rateFunc: linear });
+      registerTrip?.(key, movement);
       return {
         appear: new Transform(part, token.copy().moveTo(start), { runTime: appear }),
-        move: new MoveAlongPath(part, path, { runTime: move, rateFunc: linear }),
+        move: movement,
         leave: self.leave(key, { runTime: leave }),
       };
     },

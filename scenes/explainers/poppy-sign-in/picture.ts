@@ -65,8 +65,12 @@ const YOU: { direct: Place; device: Place; closed: Place } = {
 };
 /** The agent's station and keyring in each layout: small at the bottom, or the hero at the top. */
 type Ring = { station: Vec; ring: Vec; key: Vec; size: number; tag: Vec };
-const AGENT_AT: { open: Ring; closed: Ring } = {
+const AGENT_AT: { open: Ring; deviceHeld: Ring; closed: Ring } = {
   open: { station: [-6.3, -2.86], ring: [-5.22, -2.2], key: [-3.86, -2.2], size: 1.15, tag: [-2.3, -3.48] },
+  // Keep the station beside the counter while the open device flow shows an
+  // earlier grant. The readable tag and its full-size key hang away from
+  // the seal's route to the counter.
+  deviceHeld: { station: [-1.94, -2.86], ring: [-3.02, -2.2], key: [-4.38, -2.2], size: 1.15, tag: [-5.54, -3.48] },
   closed: { station: [-6.3, 2.3], ring: [-5.22, 2.6], key: [-3.02, 2.6], size: 2.0, tag: [-2.8, 0.15] },
 };
 const STATION_R = 0.72;
@@ -160,7 +164,7 @@ const outline = (points: Vec[], fill: string) => new Polygon(points, { fill, str
  * hole ringed in brass, "refresh token" and its value printed on it. Blank (a copy seen from afar)
  * with `value` null, stamped with another's seal when `foreign`. One unkeyed Group.
  */
-export function tag(s: Stage, { at, value, foreign = false }: { at: Vec; value: string | null; foreign?: boolean }): Group {
+export function tag(s: Stage, { at, value, foreign = false, holeRight = false }: { at: Vec; value: string | null; foreign?: boolean; holeRight?: boolean }): Group {
   const text = value ? label(s, value, { mono: true, bold: true, color: TONE.print, align: 'start' }) : null;
   const name = value ? label(s, 'refresh token', { color: TONE.print, align: 'start' }) : null;
   const w = text && name ? Math.max(text.width(), name.width()) + 0.85 : 1.0, h = value ? 1.44 : 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
@@ -168,8 +172,10 @@ export function tag(s: Stage, { at, value, foreign = false }: { at: Vec; value: 
     outline([[l + cut, t], [r - RADIUS.ticket, t], [r, t - RADIUS.ticket], [r, b + RADIUS.ticket], [r - RADIUS.ticket, b], [l + cut, b], [l, y - 0.12], [l, y + 0.12]], TONE.paper),
     new Circle({ radius: 0.12, fill: TONE.ground, stroke: foreign ? TONE.pewterDeep : TONE.brassDeep, strokeWidth: STROKE.fine }).moveTo([l + 0.3, value ? t - 0.3 : y]),
   ];
-  if (text && name) parts.push(name.moveTo([l + 0.55, y + 0.36], [-1, 0]), text.moveTo([l + 0.55, y - 0.36], [-1, 0]));
-  if (foreign) parts.push(seal(s, { at: [r - 0.38, y], r: 0.26, foreign: true }));
+  if (holeRight) for (const part of parts) part.stretch(-1, 0, {aboutPoint: at});
+  const printedLeft = l + (holeRight ? 0.3 : 0.55);
+  if (text && name) parts.push(name.moveTo([printedLeft, y + 0.36], [-1, 0]), text.moveTo([printedLeft, y - 0.36], [-1, 0]));
+  if (foreign) parts.push(seal(s, { at: [holeRight ? l + 0.38 : r - 0.38, y], r: 0.26, foreign: true }));
   return new Group(...parts);
 }
 
@@ -268,15 +274,19 @@ function handset(s: Parts, st: Stage, rows: Rows) {
 function agentWith(s: Stage, at: Ring, teeth: number, card: string | null, slot = true): Mobject[] {
   const out = [...station(s, { at: at.station, r: STATION_R })];
   const keyed = <T extends Mobject>(m: T, k: string): T => keyedAs(m, k);
-  const edge = at.station[0] + Math.sqrt(Math.max(0, STATION_R ** 2 - (at.ring[1] - at.station[1]) ** 2)) - 0.04;
+  const direction = at.ring[0] < at.station[0] ? -1 : 1;
+  const edge = at.station[0] + direction * (Math.sqrt(Math.max(0, STATION_R ** 2 - (at.ring[1] - at.station[1]) ** 2)) - 0.04);
+  const ringEdge = at.ring[0] - direction * 0.2;
+  const facing = direction === 1 ? 'left' : 'right';
   out.push(keyed(new Group(
-    new Rectangle({ width: at.ring[0] - 0.2 - edge + 0.04, height: 0.08, fill: TONE.brassDeep, stroke: 'none' }).moveTo([(at.ring[0] - 0.2 + edge) / 2, at.ring[1]]),
+    new Rectangle({ width: Math.abs(ringEdge - edge) + 0.04, height: 0.08, fill: TONE.brassDeep, stroke: 'none' }).moveTo([(ringEdge + edge) / 2, at.ring[1]]),
     new Circle({ radius: 0.2, fill: 'none', stroke: TONE.brass, strokeWidth: STROKE.line }).moveTo(at.ring),
   ), 'agent:ring'));
-  if (slot) out.push(keyed(key(s, { at: at.key, size: at.size, teeth: Math.max(1, teeth), ghost: true }), 'agent:key:slot'));
-  if (teeth > 0) out.push(keyed(key(s, { at: at.key, size: at.size, teeth }), 'agent:key'));
+  if (slot) out.push(keyed(key(s, { at: at.key, size: at.size, teeth: Math.max(1, teeth), facing, ghost: true }), 'agent:key:slot'));
+  if (teeth > 0) out.push(keyed(key(s, { at: at.key, size: at.size, teeth, facing }), 'agent:key'));
   if (card) {
-    const t = tag(s, { at: at.tag, value: card }), hole: Vec = [at.tag[0] - t.width() / 2 + 0.3, at.tag[1] + 0.72 - 0.3];
+    const t = tag(s, { at: at.tag, value: card, holeRight: direction < 0 });
+    const hole: Vec = [at.tag[0] - direction * (t.width() / 2 - 0.3), at.tag[1] + 0.72 - 0.3];
     const from: Vec = [at.ring[0], at.ring[1] - 0.2];
     const dx = hole[0] - from[0], dy = hole[1] - from[1], len = Math.hypot(dx, dy), nx = (-dy / len) * 0.035, ny = (dx / len) * 0.035;
     out.push(keyed(outline([[from[0] + nx, from[1] + ny], [hole[0] + nx, hole[1] + ny], [hole[0] - nx, hole[1] - ny], [from[0] - nx, from[1] - ny]], TONE.brassDeep), 'tag:cord'));
@@ -336,8 +346,19 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   const place = open ? YOU[w.flow] : YOU.closed;
   parts.add(person(s, { at: place.you, size: place.size }), 'you');
   if (!w.sign?.approved) parts.add(passwordCard(s, { at: place.card }), 'you:password');
+  const ringLayout = !open ? AGENT_AT.closed : device && w.holds ? AGENT_AT.deviceHeld : AGENT_AT.open;
+  const ring = agentWith(s, ringLayout, w.holds ? w.holds.scopes.length : 0, w.holds ? CARDS[w.holds.card] : null);
+  const showsCard = device && open && !w.sign?.approved;
+  // The dashed empty-key slot is a background guide beneath the printed device card.
+  const slotBehindCard = showsCard ? ring.find(part => part.key === 'agent:key:slot') : undefined;
+  if (slotBehindCard) addAll(parts, [slotBehindCard]);
   // What lies between: the code the agent shows you, a swapped code stopped short of the agent, a lookalike link kept from you.
-  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, [FACE - 0.15, STRIP_Y - 0.12], false), 'card');
+  if (showsCard) {
+    const card = deviceCard(s, [FACE - 0.15, STRIP_Y - 0.12], false);
+    const key = ring.find(part => part.key === 'agent:key');
+    if (key) card.shift([0, Math.max(0, key.box()![3] + 0.06 - card.box()![1])]);
+    parts.add(card, 'card');
+  }
   if (last?.kind === 'trick') {
     if (device) {
       parts.add(deviceCard(s, [-2.6, -1.42], true), 'trick');
@@ -349,10 +370,9 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   }
 
   // The agent, with its keyring: small while a page is open, the hero when none is.
-  const ring = agentWith(s, open ? AGENT_AT.open : AGENT_AT.closed, w.holds ? w.holds.scopes.length : 0, w.holds ? CARDS[w.holds.card] : null);
   const held = ring.find((m) => m.key === 'agent:key');
   if (held && last?.kind === 'tokens') emphasised(held, `changed: the agent holds a key with ${w.holds!.scopes.length === 1 ? 'one tooth' : 'two teeth'}`);
-  addAll(parts, ring);
+  addAll(parts, ring.filter(part => part !== slotBehindCard));
   if (last?.kind === 'thief') parts.add(tag(s, { at: THIEF_AT, value: null, foreign: true }), 'thief');
 
   readout(s, parts, report);

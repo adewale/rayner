@@ -1,0 +1,22 @@
+[
+  {
+    "values": {
+      "company": "hostile"
+    },
+    "seen": [
+      "report:slip",
+      "report:sent",
+      "report:reply"
+    ]
+  },
+  {
+    "values": {
+      "company": "honest"
+    },
+    "seen": [
+      "report:slip",
+      "report:sent",
+      "report:reply"
+    ]
+  }
+]

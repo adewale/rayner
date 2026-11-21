@@ -1,7 +1,7 @@
 // The motion defect corpus (test/fixtures/motion-corpus/corpus.ts): each entry brings back one motion
 // defect that filming the Poppy series found and `rayner check` passed (issue #101, item 14), as a few
 // text edits to the current Poppy scenes. This builds each variant on the fly, in a copy of the Poppy
-// folders under out/, and runs the keyed motion check alone on it, so the corpus costs the repository a
+// folders under out/, and checks keyed motion and authored travel rules, so the corpus costs the repository a
 // few kilobytes of edits rather than a copy of eight explainers per defect.
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -20,7 +20,7 @@ export interface Found { scenario: string; line: string }
 
 let fonts: ReturnType<typeof loadFonts> | undefined;
 /**
- * Every keyed motion finding in the scene at `file`, as `rayner check` would make them, without the
+ * Every keyed motion and authored travel finding in `file`, as `rayner check` would make them, without the
  * check's other gates and without its cap of eight: each play of each scenario's run, and every
  * transition a reader can press from every reachable state; with `events`, only those events'
  * transitions (a subset of the check's findings, so what it catches the check catches).
@@ -32,7 +32,9 @@ export async function keyedMotionFindings(file: string, events?: readonly string
   for (const v of project.scenarios) {
     const scenario = JSON.stringify(v.values);
     const sink = keyedMotionSink();
-    const ran = await new v.Scene(sink).run();
+    const playback = new v.Scene(sink);
+    const ran = await sink.rules.during(playback, () => playback.run());
+    for (const line of sink.rules.findings) out.push({scenario, line});
     for (const f of sink.finish()) out.push({ scenario, line: `${f.segment}: ${keyedMotionLine(f)}` });
     for (const m of await exploreMachines(ran, v.Scene, undefined, { events })) for (const line of m.motion) out.push({ scenario, line });
   }
@@ -73,20 +75,40 @@ export async function buildVariant(entry: Variant, root = ROOT): Promise<string>
   return join(dir, entry.chapter, 'scene.ts');
 }
 
-/**
- * A finding's identity across two variants of one scene: its scenario, transition, kind and part,
- * without what was measured (the time, the distance), which an edit elsewhere may shift.
- */
+function parseFinding(line: string) {
+  const contract = /^(.*): motion contract: during "([^"]+)", (.*)$/.exec(line);
+  if (contract) return { transition: contract[1]!, kind: 'motion contract', path: contract[2]!, observation: contract[3]!.replace(/ at \+[\d.]+ s$/, '') };
+  const m = /^(.*?): ([a-z ]+): part “(.*?)”(?: \((.*?)\))? at [\d.]+ s (.*)$/.exec(line);
+  if (!m) return undefined;
+  return { transition: m[1]!, kind: m[2]!, path: m[4] ?? m[3]!, observation: m[5]!.split('; fix: ')[0]! };
+}
+
+/** A finding's identity across two variants, without its time and changing measurements. */
 export function findingId(f: Found): string {
-  const m = /^(.*?): ([a-z ]+): (?:part “([^”]*)”( \(([^)]*)\))?)?/.exec(f.line);
-  return m ? `${f.scenario} | ${m[1]} | ${m[2]} | ${m[5] ?? m[3] ?? ''}` : `${f.scenario} | ${f.line}`;
+  const item = parseFinding(f.line);
+  if (!item) return JSON.stringify([f.scenario, f.line]);
+  if (item.kind === 'motion contract') return JSON.stringify([f.scenario, item.transition, item.kind, item.path, item.observation]);
+  // Different foreground shapes can hide different words on the same keyed card.
+  const subjects = item.kind === 'occluded words' ? item.observation.match(/“[^”]*”/g) : undefined;
+  return JSON.stringify([f.scenario, item.transition, item.kind, item.path, subjects]);
+}
+
+/** Fresh evidence for entries with a filmed, attributed observation. */
+export function attributedFindings(fresh: readonly Found[], expected: NonNullable<CorpusEntry['expectedFinding']>): Found[] {
+  return fresh.filter(f => {
+    const item = parseFinding(f.line);
+    return item && f.scenario === expected.scenario && item.kind === expected.kind && item.path === expected.path &&
+      expected.transition.test(item.transition) && expected.subjects.every(name => item.observation.includes(item.kind === 'motion contract' ? `"${name}"` : `“${name}”`)) &&
+      (expected.requirement === undefined || item.observation.includes(`must be ${expected.requirement}`));
+  });
 }
 
 /**
  * What the check makes of one variant: every finding in it, and of those the ones its chapter's
- * baseline does not have (`fresh`): the defect's. The entry is caught when any is fresh.
+ * baseline does not have (`fresh`). Entries with an expected observation count only
+ * matches in `attributed`; the historical metric counts any fresh finding.
  */
-export interface EntryResult { id: string; caught: boolean; findings: Found[]; fresh: Found[]; ms: number; error?: string }
+export interface EntryResult { id: string; caught: boolean; findings: Found[]; fresh: Found[]; attributed?: Found[]; ms: number; error?: string }
 /** `full`: every event's transitions, as `rayner check`; otherwise only the entry's `events`. */
 export async function runEntry(entry: Variant, { full = false, root = ROOT }: { full?: boolean; root?: string } = {}): Promise<EntryResult> {
   const t = Date.now();
@@ -108,9 +130,17 @@ export async function runEntry(entry: Variant, { full = false, root = ROOT }: { 
 }
 
 /** `result` with the findings its chapter's baseline (run with every event) also has taken out of `fresh`. */
-export function againstBaseline(result: EntryResult, base: EntryResult | undefined): EntryResult {
-  if (!base) return result;
-  const known = new Set(base.findings.map(findingId));
-  const fresh = result.findings.filter((f) => !known.has(findingId(f)));
-  return { ...result, fresh, caught: !result.error && fresh.length > 0 };
+export function againstBaseline(result: EntryResult, base: EntryResult | undefined, expected?: CorpusEntry['expectedFinding']): EntryResult {
+  // A failed baseline (including a duration guard that ended its replay early)
+  // cannot establish which findings are new. Keep the observations for diagnosis.
+  if (base?.error || base?.findings.some(f => f.line.startsWith('duration guard: '))) {
+    const why = base.error ?? 'a duration guard stopped its replay';
+    return { ...result, fresh: [], caught: false, error: [result.error, `${base.id}: ${why}`].filter(Boolean).join('\n') };
+  }
+  if (result.error) return { ...result, fresh: [], caught: false };
+  const known = new Set(base?.findings.map(findingId));
+  const fresh = base ? result.findings.filter(f => !known.has(findingId(f))) : result.findings;
+  if (!expected) return { ...result, fresh, caught: fresh.length > 0 };
+  const attributed = attributedFindings(fresh, expected);
+  return { ...result, fresh, attributed, caught: attributed.length > 0 };
 }

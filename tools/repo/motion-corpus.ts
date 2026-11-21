@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CORPUS } from '../../test/fixtures/motion-corpus/corpus.ts';
 import type { CorpusEntry } from '../../test/fixtures/motion-corpus/corpus.ts';
-import { againstBaseline, baseline, runEntry } from './motion-corpus-lib.ts';
+import { againstBaseline, attributedFindings, baseline, runEntry } from './motion-corpus-lib.ts';
 import type { EntryResult } from './motion-corpus-lib.ts';
 import { ROOT } from '../lib/roots.ts';
 
@@ -39,7 +39,8 @@ export function runInChild(id: string, full = false): Promise<EntryResult> {
  * baseline, run first with every event: a finding the scene as it is already has is not the entry's.
  * With `bases: false` (the catalog's gate keeps each baseline free of findings) none is run.
  */
-export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 4, full = false, bases = true, progress }: { jobs?: number; full?: boolean; bases?: boolean; progress?: (r: EntryResult) => void } = {}): Promise<{ results: EntryResult[]; baselines: EntryResult[] }> {
+export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 4, full = false, bases = true, progress }: { jobs?: number; full?: boolean; bases?: boolean; progress?: (r: EntryResult) => void } = {}) {
+  if (!Number.isSafeInteger(jobs) || jobs < 1) throw new RangeError('jobs must be a positive integer');
   const pool = async (ids: readonly string[], fullRun: boolean) => {
     const out = new Array<EntryResult>(ids.length);
     let next = 0;
@@ -55,21 +56,35 @@ export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 4, ful
   const chapters = bases ? [...new Set(entries.map((e) => e.chapter))] : [];
   const baselines = await pool(chapters.map((c) => baseline(c).id), true);
   const byChapter = new Map(chapters.map((c, i) => [c, baselines[i]!] as const));
-  const results = (await pool(entries.map((e) => e.id), full)).map((r, i) => againstBaseline(r, byChapter.get(entries[i]!.chapter)));
+  const results = (await pool(entries.map((e) => e.id), full)).map((r, i) => {
+    const entry = entries[i]!;
+    return againstBaseline(r, byChapter.get(entry.chapter), entry.expectedFinding);
+  });
   for (const r of results) progress?.(r);
-  return { results, baselines };
+  return { results, baselines, comparison: bases ? 'baseline-subtracted' as const : 'variants-only' as const };
 }
 
-/** Recall overall and by kind: entries whose variant the check fails, of those it ran on. */
+/** A score requires exactly one successful result per requested variant. Previously
+ * measured cases use the historical any-finding metric; attributed cases must match. */
 export function recall(entries: readonly CorpusEntry[], results: readonly EntryResult[]) {
+  if (entries.length !== results.length || new Set(entries.map(e => e.id)).size !== entries.length)
+    throw new Error('cannot score corpus: expected one result per unique entry');
+  const byId = new Map(results.map(r => [r.id, r]));
   const byKind = new Map<string, { caught: number; of: number }>();
-  for (const [i, e] of entries.entries()) {
+  let caught = 0;
+  for (const e of entries) {
+    const r = byId.get(e.id);
+    if (!r) throw new Error(`cannot score corpus: missing result for ${e.id}`);
+    if (r.error) throw new Error(`cannot score corpus: ${e.id}: ${r.error}`);
     const k = byKind.get(e.kind) ?? { caught: 0, of: 0 };
     k.of++;
-    if (results[i]!.caught) k.caught++;
+    if (e.expectedFinding ? attributedFindings(r.fresh, e.expectedFinding).length > 0 : r.caught) {
+      k.caught++;
+      caught++;
+    }
     byKind.set(e.kind, k);
   }
-  return { caught: results.filter((r) => r.caught).length, of: entries.length, byKind: Object.fromEntries(byKind) };
+  return { caught, of: entries.length, byKind: Object.fromEntries(byKind) };
 }
 
 if (process.argv[1] === SELF) {
@@ -87,15 +102,19 @@ async function main(values: { only?: string; jobs?: string; out?: string; full?:
   const only = values.only?.split(',');
   const entries = only ? CORPUS.filter((e) => only.includes(e.id)) : CORPUS;
   if (only && entries.length !== only.length) throw new RangeError(`no corpus entries ${only.filter((id) => !CORPUS.some((e) => e.id === id)).join(', ')}`);
-  const { results, baselines } = await runCorpus(entries, { jobs: Number(values.jobs ?? 4), full: values.full, progress: (r) => {
+  const { results, baselines, comparison } = await runCorpus(entries, { jobs: Number(values.jobs ?? 4), full: values.full, progress: (r) => {
     const e = CORPUS.find((x) => x.id === r.id)!;
     console.error(`${r.error ? 'ERROR ' : r.caught ? 'caught' : 'missed'}  ${e.kind.padEnd(22)} ${r.id} (${(r.ms / 1000).toFixed(1)} s, ${r.fresh.length} of ${r.findings.length} findings its own)${r.error ? `\n${r.error.split('\n').slice(0, 3).join('\n')}` : ''}`);
   } });
   for (const b of baselines) if (b.error || b.findings.length) console.error(`baseline ${b.id}: ${b.error ?? `${b.findings.length} findings in the scene as it is`}`);
-  const summary = recall(entries, results);
+  const summary = results.some(r => r.error) ? null : recall(entries, results);
   const out = values.out ?? join(ROOT, 'out', 'motion-corpus.json');
   await mkdir(dirname(out), { recursive: true });
-  await writeFile(out, JSON.stringify({ summary, baselines, results }, null, 1));
-  console.log(JSON.stringify(summary, null, 1));
+  await writeFile(out, JSON.stringify({ summary, comparison, baselines, results }, null, 1));
+  if (summary) console.log(JSON.stringify(summary, null, 1));
+  else {
+    console.error('Incomplete corpus run. The report contains the errors and observations for each entry.');
+    process.exitCode = 1;
+  }
   console.log(`Each entry's findings: ${out}`);
 }

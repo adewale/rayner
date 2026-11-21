@@ -20,9 +20,105 @@ node tools/repo/motion-corpus.ts --full         # every event's transitions, as 
 node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 ```
 
-`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs a sample by default (one entry each for covers, small words and flicker; 16 s), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry (14 minutes on four cores) and fails if one caught when recall was measured is missed. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
+`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs six sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. A separate FULL-only native pixel proof establishes the credited poll's visible defect independently of the detector. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
-## Latest measurement: 19 November 2026
+## Latest measurement and visual review: 21 November 2026
+
+The final baseline-subtracted run rejects **37 of 59** mutations, compared with 30 on November 19 and 32 on November 20. Six new gains diagnose exact authored relationships. The sole previous rejection no longer caught, `sign-in-tokens-over-labels`, now has a prevention keeper: normal and enlarged polls preserve all five independently painted words on the legal held-device route, in both directions. Its old warning is not required after that word hazard is removed. Other direct-route graphic crossings are outside that prevention claim. The intermediate 38/59 run, before this final baseline repair, is retained separately.
+
+| Mutation kind | Cases | November 20 | November 21 |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 20 | 19 |
+| result before cause | 5 | 0 | 4 |
+| layout motion | 8 | 1 | 1 |
+| two copies | 4 | 2 | 3 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 3 | 4 |
+| **all** | **59** | **32** | **37** |
+
+All eight every-event Poppy baselines are clean, all 59 variants completed without an error, and the other 44 catalog chapters have no findings. After the last two SignIn source files changed, its full baseline and all thirteen reconstructions were measured afresh; the other 46 cases and seven baselines retain byte-identical runtime dependencies. Nine reconstruction find contexts were mechanically rebased with their historical faulty replacements retained. The final edit inventory is 39 adapted and 20 reversed, compared with the frozen audit's 35/24. The default six-case test and both FULL-only native proof tests pass; the future full-corpus gate retains each of the 37 rejection IDs individually.
+
+Seven of the 37 remain duration-guard refusals, not direct diagnoses of the historical effect. The visual confirmation count below describes a different set of cases. Neither count is a general accuracy estimate. [All 59 final results, attribution and provenance](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-root-causes-2026-11-21/corpus.json).
+
+Two sequential, independent Astra 6.2 Max reviews examined all 59 reconstructions before implementation. The first reviewed 59 paired 30 fps recordings, native Chromium frames and 23 supplemental routes. It confirmed the intended effect in 37 cases; seven require editorial judgment, six show only a secondary effect, five stop before the intended effect paints, three were unreproduced and one historical comparison is inconclusive. A confirmed verdict can cover only part of a compound claim. These frozen observations describe the recorded settings and reader histories, not every possible interaction. [All 59 verdicts and visual proofs](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-all59-2026-11-21/audit.md).
+
+The second reviewer traced every entry to its repair history and grouped causes: route and footprint errors (26), context lifetime and causal order (11), unique-object handoffs (4), layout and text atomicity (9), duration and pacing (6), and travel lettering size (3). The implementation follows those groups: actual-extent corridors, explicit authored context rules, source-retiring `carry`, scene-owned URL and journey invariants, and retained duration and small-word checks. Matching now retains logical diagnostic ownership and inherited paint clips, and occlusion reports retain independent victims. [59-row causal analysis](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-all59-2026-11-21/root-causes.md) · [Implementation and adversarial controls](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-root-causes-2026-11-21/README.md).
+
+The six new semantic diagnoses require the exact scenario, transition, travel key, subject and present/absent requirement: stale Poppy result, Sessions key before wax, Sessions source surviving transfer, stale Browser message, Browser record after its receipt, and Conversations ledger disappearing during a turn. An unrelated rejection, missing anchor or guard cannot earn one of these gains. These rules run on the authored story and reachable reader events; they verify declared relationships rather than infer narrative intent from geometry.
+
+Causal declarations remain optional and require author knowledge. They check isolated subject ink with actual camera and clips; composited subject readability has separate occlusion and native trajectory checks. A declared traveller must itself contribute composited pixels at two distinct positions. Editorial movement and pacing still require visual review. A universally lower time or displacement threshold would also reject deliberate explanatory motion.
+
+## Previous measurement: 20 November 2026
+
+The complete focused run rejects **32 of 59** reconstructed mutations, up from
+30. All thirty previous rejection IDs remain caught. All eight full-event Poppy
+baselines are clean, no mutation errored, and the other 44 catalog chapters are
+also clean on the final detector and choreography.
+
+| Mutation kind | Cases | November 19 | November 20 |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 19 | 20 |
+| result before cause | 5 | 0 | 0 |
+| layout motion | 8 | 0 | 1 |
+| two copies | 4 | 2 | 2 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 3 | 3 |
+| **all** | **59** | **30** | **32** |
+
+The two gains have independently rendered, attributed evidence:
+
+- **`sign-in-poll-over-card`: intended occlusion.** The poll masks letters in
+  `Example Company`. Judging individual glyph boxes catches this partial name
+  even though the whole line's box did not meet the former coverage threshold.
+  Three frames on both routes, glyph-removal controls and named-poll removal
+  establish the actual lost ink. Pinned Chromium independently confirms the
+  middle frame's sixty SVG controls. A FULL-only regression reruns the native
+  pixel proof without using the detector's geometry.
+- **`sign-in-ask-people-slide`: secondary occlusion.** In the reconstructed
+  reflow, the moving tag hides seven letters of `Exchange items`; removing that
+  tag restores their ink. Its rejection explains the table's one layout-motion
+  hit. It detects a geometric consequence of this mutation, and does not judge
+  whether a smooth, unobscured movement helps the explanation.
+
+Both new entries require fresh findings on the observed scenario, transition,
+part, words and foreground shape. An unrelated warning or duration guard cannot
+substitute. Historical entries retain the earlier rejection metric: seven are
+guard-only refusals, including four classified as passes over
+(`refusals-ticket-over-station`, `browser-message-across-stage`,
+`conversations-turn-over-seat-name`, `discovery-arm-over-register`). Those four
+reject before painting their intended crossing. The 32/59 result is consequently
+a comparable mutation-rejection score, not 32 direct diagnoses of the historical
+defect kinds or a general detection accuracy estimate.
+
+The new foreground rule certifies coverage of glyph boxes by an opaque fill,
+including non-travelling shapes, with camera/descendant clips, conservative stroke
+bounds, SVG fill rules and cubic control-point hulls. It preserves transparent
+paint, holes, cutouts, co-located text handoffs and terminal wipes. It does not
+combine smaller masks or establish complete composited visibility. A separate
+outside-corpus poison still misses text temporarily lacking a keyed ancestor.
+The glyph-dissolve reconstruction remains uncredited: its 1,564 affected frames
+matched baseline after later changes stopped pairing those ledger keys.
+
+The baseline work repaired shared target-part entrance layering and actual
+sign-in, statechart, browser-record and coverage-request occlusions. The rule was
+not weakened to waive those scenes. Failed baseline replays now make the score
+unavailable; saved observations remain diagnostic evidence.
+
+[Evidence, native images, controls and reproduction commands](https://github.com/adewale/rayner/blob/1522b5040e599edcf9f373ff7e3e3fad9e730bfd/docs/evidence/motion-occlusion-2026-11-20/README.md)
+and the retained `corpus.json` give the case inventory, baseline counts and new
+observations. The measurement uses the same 59 entry IDs and focused event
+selection, with every baseline's events. Subsequent public-API test ports and
+attribution metadata leave the measured runtime and normalized mutation edits
+unchanged. Causality, unnecessary movement and pacing still need authored meaning
+and visual review.
+
+## Previous measurement: 19 November 2026
 
 A fresh focused run on the follow-up implementation caught **30 of 59** mutations;
 all eight baselines were clean and no entry errored. The score by kind is 19/28
@@ -141,7 +237,9 @@ The 23 additional hits are 19 **covers**, 3 **small words**, and 1 **flicker**; 
 
 For future measurements, retain affected-frame evidence showing each mutation still depicts its intended defect, associate acceptable rule/transition/part findings with it, and report baseline-subtracted results. Add independently discovered cases prospectively. Keep semantic and pacing review alongside these mechanical checks. [The follow-up review](https://github.com/adewale/rayner/blob/main/docs/evidence/review-2026-11-17.md) separates those recommendations from changes already verified.
 
-## Why the misses are missed
+## Why the historical misses were missed
+
+This section describes the November 15 run; the latest measurements above supersede it.
 
 The 33 misses fall into five groups (the table gives each entry's):
 

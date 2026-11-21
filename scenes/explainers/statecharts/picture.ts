@@ -53,7 +53,7 @@ export interface Drawn { group: Group; words: string[] }
 interface Place { center: Vec; size: Vec }
 
 /** A box with one or two words stacked in it. */
-function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: readonly { key: string; text: string }[], followed: boolean, dashed = false) {
+function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: readonly { key: string; text: string }[], followed: boolean, dashed = false): [Rectangle, ...Text[]] {
   const box = keyed(
     new Rectangle({
       width: size[0] * f.k,
@@ -249,12 +249,17 @@ export function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fi
       words.push(`region ${c.region}`);
     }
   }
+  // Matched words can move into a different cell or cross another cell's plate.
+  const stateLabels: Text[] = [];
   for (const [id, key] of boxKey) {
     const p = places.get(id)!,
       followed = look.follow.includes(id) || look.follow.includes(key.slice('r:cell:'.length));
-    parts.push(...stateBox(s, f, key, p.center, p.size, wordKeys.get(id)!, followed));
+    const [plate, ...labels] = stateBox(s, f, key, p.center, p.size, wordKeys.get(id)!, followed);
+    parts.push(plate);
+    stateLabels.push(...labels);
     words.push(wordKeys.get(id)!.map((w) => w.text).join(' · ') + (followed ? ' (followed)' : ''));
   }
+  parts.push(...stateLabels);
   // A start dot for every compound state: the root enters off; on, each region and playing enter their initial child.
   const compounds = (n: StateNode): StateNode[] => [...(n.type === 'compound' ? [n] : []), ...(n.children ?? []).flatMap(compounds)];
   for (const n of compounds(chart)) {
@@ -345,10 +350,17 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look): D
     );
     words.push('new: a frother, still or frothing, any time the machine is on; where it goes is the question');
   }
+  const stateLabels: Text[] = [];
   for (const [id, p] of places) {
-    parts.push(...stateBox(s, f, `c:${id}`, p.center, p.size, [{ key: `c:${id}|w`, text: id }], look.follow.includes(id)));
+    // The outside 'off' box changes sides of the frother in the answer. Replace it
+    // around that move so its label never passes through the moving 'still' label.
+    const key = mode === 'question' && id === 'off' ? 'c:question:off' : `c:${id}`;
+    const [plate, ...labels] = stateBox(s, f, key, p.center, p.size, [{ key: `${key}|w`, text: id }], look.follow.includes(id));
+    parts.push(plate);
+    stateLabels.push(...labels);
     words.push(id + (look.follow.includes(id) ? ' (current)' : ''));
   }
+  parts.push(...stateLabels);
   if (mode === 'plain') {
     parts.push(...start(s, f, 'c:start:on', places.get('idle')!, 'above'));
     words.push('start → idle');

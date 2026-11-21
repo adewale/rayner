@@ -322,7 +322,7 @@ Decide that before drawing, from the script:
 
 - **The array as written, and the result under it.** The question is about a before and an after, so both stay on screen, one row above the other. The reader compares them without remembering either.
 - **The strings.** The answer is that `sort()` compares strings. With no compare function, the sorted row shows each element in quotes, `"10"`, which is the thing `sort()` compared. With `a - b` it shows plain numbers. The reason is then in the picture as well as the caption.
-- **The comparison in force.** A line between the rows says "sort() compares them as text" or "sort((a, b) => a - b) compares them as numbers". It is the one place where the two scenarios' pictures differ before the sort.
+- **The comparison in force.** A line below the sorted row says "sort() compares them as text" or "sort((a, b) => a - b) compares them as numbers". Keeping it below the row leaves the incoming numbers a clear route. It is the one place where the two scenarios' pictures differ before the sort.
 - **Nothing else.** The row has to hold six boxes on a phone after the reader has added three numbers, so each box is a number and no more.
 
 ### How it is drawn
@@ -361,7 +361,7 @@ export function drawSort(s: Stage, st: State): Group {
   parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
   st.values.forEach((n, i) => parts.add(numberBox(s, String(n), [across(i), 0.6], `array:${n}`), `array:${n}`));
   const how = st.compare === 'none' ? 'sort() compares them as text' : 'sort((a, b) => a - b) compares them as numbers';
-  parts.add(label(s, how, { at: [0, -1], color: t.soft }), 'sorted:name');
+  parts.add(label(s, how, { at: [0, -3], color: t.soft }), 'sorted:name');
   if (st.sorted)
     sorted(st.values, st.compare).forEach((n, i) =>
       parts.add(numberBox(s, st.compare === 'none' ? `"${n}"` : String(n), [across(i), -1.9], `sorted:${n}`), `sorted:${n}`));
@@ -495,7 +495,7 @@ The stage draws the step's title and line at the top. The first layout put the r
 
 <!-- draft: heading sort-as-text/picture.ts -->
 ```diff
--  parts.add(label(s, 'The array', { at: [0, 2.55], color: t.soft }), 'array:name');
+-  parts.add(label(s, 'The array', { at: [0, 3], color: t.soft }), 'array:name');
 +  parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
 ```
 

@@ -1,4 +1,4 @@
-// The motion defect corpus: motion defects that filming the eight Poppy chapters at 200 ms found after
+// The motion defect corpus: historical motion-defect reconstructions that filming the eight Poppy chapters at 200 ms found after
 // `rayner check` and `rayner review` had passed them (issue #101, item 14; the glyph dissolve of item
 // 12), each brought back as a few text edits to the current Poppy scenes (scenes/explainers/poppy*).
 //
@@ -10,6 +10,8 @@
 // the commit whose hunk made the fix. `kind` is #101's kind for it, from the fix's own comment.
 // tools/repo/motion-corpus.ts builds each variant in a copy of the Poppy folders under out/ and runs
 // the keyed motion check on it; test/motion-corpus.test.ts holds the recall measured there.
+// The all-59 visual audit in docs/evidence/motion-all59-2026-11-21 distinguishes
+// confirmed, secondary, editorial, blocked and stale reconstructions. Rejection is not accuracy.
 
 /** One text edit to a file of a Poppy folder: `find` (the current scene's text, exactly once) becomes `replace`. */
 export interface Edit { file: string; find: string; replace: string }
@@ -43,6 +45,17 @@ export interface CorpusEntry {
    * these from every reachable state, with every play of the run. Absent: every event, as `rayner check`.
    */
   events?: readonly string[];
+  /** When present, credit only a fresh finding matching the observed historical defect. */
+  expectedFinding?: {
+    scenario: string;
+    transition: RegExp;
+    kind: string;
+    path: string;
+    /** Quoted subjects or foreground parts in the observation, before the suggested fix. */
+    subjects: readonly string[];
+    /** A semantic gain must diagnose this exact authored requirement, not a missing anchor or another warning. */
+    requirement?: 'present' | 'absent';
+  };
 }
 
 export const CORPUS: readonly CorpusEntry[] = [
@@ -67,6 +80,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'poppy-last-object-lingers', chapter: 'poppy', kind: 'result before cause', commit: '0a887ad4', method: 'reverted',
     what: 'The last event’s exhibit and closed door stayed while the next ticket travelled, and changed only when it had landed; the fix lists them in beats’ fresh, so they go before it sets off.',
+    expectedFinding: { scenario: '{"approve":"read-write"}', transition: /^step "lanes", event "browse"$/, kind: 'motion contract', path: 'ticket:flight', subjects: ['exhibit:mark'], requirement: 'absent' },
     edits: [
       { file: 'poppy/scene.ts', find: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\', \'exhibit:\', \'door:\'];', replace: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\'];' },
     ],
@@ -94,6 +108,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     edits: [
       { file: 'poppy-refusals/picture.ts', find: 'id: mcpShown ? `mcp-${id}` : id, name:', replace: 'id, name:' },
       { file: 'poppy-refusals/scene.ts', find: 'const LANE_PARTS = [\'api\', \'mcp-api\', \'mcp-mcp\']', replace: 'const LANE_PARTS = [\'api\', \'mcp\']' },
+      { file: 'poppy-refusals/scene.ts', find: "c.to('lane:mcp-mcp:name')", replace: "c.to('lane:mcp:name')" },
     ],
   },
   {
@@ -111,17 +126,17 @@ export const CORPUS: readonly CorpusEntry[] = [
     ],
   },
   {
-    id: 'refusals-mcp-key-over-label', chapter: 'poppy-refusals', kind: 'passes over', commit: '0a887ad4', method: 'reverted', events: ['answer'],
+    id: 'refusals-mcp-key-over-label', chapter: 'poppy-refusals', kind: 'passes over', commit: '0a887ad4', method: 'adapted', events: ['answer'],
     what: 'The MCP key came down 1.2 units right of its hook, over the words “for MCP”; the fix brings it down 2.6 units right, past them.',
     edits: [
-      { file: 'poppy-refusals/scene.ts', find: '[MCP_KEY_AT[0] + 2.6, y], [MCP_KEY_AT[0] + 2.6, MCP_KEY_AT[1]]', replace: '[MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]' },
+      { file: 'poppy-refusals/scene.ts', find: '[clearX, y], [clearX, MCP_KEY_AT[1]]', replace: '[MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]' },
     ],
   },
   {
-    id: 'refusals-key-over-lane-name', chapter: 'poppy-refusals', kind: 'passes over', commit: 'd99c9195', method: 'reverted', events: ['answer'],
+    id: 'refusals-key-over-lane-name', chapter: 'poppy-refusals', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['answer'],
     what: 'A refreshed key came back along the lane over the lane’s name; the fix routes it under the name.',
     edits: [
-      { file: 'poppy-refusals/picture.ts', find: 'export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [NAME_X + 1.3, y], [NAME_X + 1.0, y - 0.55], [STATION[0] + STATION_R + 0.4, y - 0.55], KEY_AT];', replace: 'export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];' },
+      { file: 'poppy-refusals/picture.ts', find: 'export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {\n  const [left, bottom, right] = name.box()!;\n  const halfWidth = key.width() / 2 + 0.08, below = bottom - key.height() / 2 - 0.08;\n  return [[STOP_X, y], [right + halfWidth, y], [right + halfWidth, below], [left - halfWidth, below], KEY_AT];\n}', replace: 'export function keyRoute(y: number, name: Mobject, key: Mobject): Vec[] {\n  return [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];\n}' },
     ],
   },
   // -------------------------------------------------------------------------------------- sessions
@@ -135,6 +150,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sessions-key-to-wax-after-check', chapter: 'poppy-sessions', kind: 'result before cause', commit: 'd99c9195', method: 'adapted',
     what: 'When the published key pressed the seal, nothing showed it moving: it left the chain and appeared on the wax only as the picture settled, after the punches it caused; the fix sends it down first.',
+    expectedFinding: { scenario: '{"company":"remembers"}', transition: /^step "signer", event "published"$/, kind: 'motion contract', path: 'ticket:flight', subjects: ['chain:ring:on-wax'], requirement: 'present' },
     edits: [
       { file: 'poppy-sessions/scene.ts', find: 'const moved = [...hand(), ...flight(c, \'ticket\'', replace: 'const moved = [...flight(c, \'ticket\'' },
       { file: 'poppy-sessions/scene.ts', find: '}, { fresh: [\'verdict:\', \'ticket\', \'hole\', \'tear\', \'link\'], lead: [\'chain:\'] });', replace: '}, { fresh: [\'verdict:\', \'ticket\', \'hole\', \'tear\', \'link\'] });' },
@@ -143,6 +159,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sessions-key-in-two-places', chapter: 'poppy-sessions', kind: 'two copies', commit: 'cb20195a', method: 'adapted',
     what: 'The published key flew to the wax while it still hung in the chain, so it was in two places; the fix takes it out of the chain as the trip begins.',
+    expectedFinding: { scenario: '{"company":"remembers"}', transition: /^step "signer", event "published"$/, kind: 'motion contract', path: 'chain:ring:on-wax:flight', subjects: ['chain:ring'], requirement: 'absent' },
     edits: [
       { file: 'poppy-sessions/scene.ts', find: 'return [new AnimationGroup([appear!, c.leave(fromKey, { runTime: 0.25 }), ...also', replace: 'return [new AnimationGroup([appear!, ...also' },
     ],
@@ -175,6 +192,12 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sign-in-ask-people-slide', chapter: 'poppy-sign-in', kind: 'layout motion', commit: '3038108f', method: 'adapted', events: ['ask'],
     what: 'When the page opened, you and the agent slid to your places beside it, motion that says nothing about the protocol; the fix cross-fades them.',
+    // The moving tag also crosses the page's words. That visible consequence is
+    // what the detector catches; judging the purpose of the slide is editorial.
+    expectedFinding: {
+      scenario: '{"flow":"direct"}', transition: /^step "reask", play 1, event 1$/,
+      kind: 'occluded words', path: 'page:orders:write:line', subjects: ['Exchange items', 'tag'],
+    },
     edits: [
       { file: 'poppy-sign-in/scene.ts', find: 'const c = t.choreograph(world), seal = centre(c, \'agent:seal\', \'to\'), moved = relaid(c);', replace: 'const c = t.choreograph(world), seal = centre(c, \'agent:seal\', \'to\'), moved: string[] = [];' },
     ],
@@ -230,21 +253,25 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-card-from-desk', chapter: 'poppy-sign-in', kind: 'layout motion', commit: 'd99c9195', method: 'adapted', events: ['ask'],
     what: 'The device card came from the Company’s desk, where it does not come from; the fix brings it from the agent’s seal.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '...fly(c, \'card\', [seal]), ...frame()', replace: '...flight(c, \'card\', [DESK], { appear: 0.25, move: 0.5, leave: 0.25 })(), ...frame()' },
+      { file: 'poppy-sign-in/scene.ts', find: "...fly(c, 'card', [present]), ...frame()", replace: '...flight(c, \'card\', [DESK], { appear: 0.25, move: 0.5, leave: 0.25 })(), ...frame()' },
     ],
   },
   {
-    id: 'sign-in-poll-over-card', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'd99c9195', method: 'reverted', events: ['collect'],
+    id: 'sign-in-poll-over-card', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['collect'],
     what: 'With the device card on the stage, the poll ran over it to the desk; the fix sends it along a lower line.',
+    expectedFinding: {
+      scenario: '{"flow":"device"}', transition: /^(?:step "ask", play 1, event 2|after .+, collect)$/,
+      kind: 'occluded words', path: 'card', subjects: ['Example Company', 'poll'],
+    },
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: 'const poll = (p: Pt) => (c.has(\'card\', \'from\') ? low(p) : toDesk(p));', replace: 'const poll = (p: Pt) => toDesk(p);' },
+      { file: 'poppy-sign-in/scene.ts', find: 'const poll = (p: Pt): Pt[] => {\n          // Leave the key slot clear, then turn up into the accessible edge of the counter.\n          const acrossY = Math.min(p[1], c.from(\'agent:key:slot\').box()![1] - token.height() / 2 - 0.06);\n          const dockX = c.has(\'card\', \'from\') ? c.from(\'card\').box()![2] + token.width() / 2 + 0.08 : DESK[0];\n          return [p, [p[0], acrossY], [dockX, acrossY], [dockX, DESK[1]]];\n        };', replace: 'const poll = (p: Pt) => toDesk(p);' },
     ],
   },
   {
     id: 'sign-in-password-hand-and-flight', chapter: 'poppy-sign-in', kind: 'two copies', commit: 'd99c9195', method: 'adapted', events: ['approve-all', 'approve-read'],
     what: 'Your password card flew into the page while it was still in your hand, and across the page’s lines; the fix takes it from your hand as it sets off, round the page.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '        const side = device ? [from, to] as Pt[] : [from, [-1.7, from[1]], [-1.7, to[1]], to] as Pt[];\n        const card = pass(c, \'password:travel\', c.from(\'you:password\').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'you:password\', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter(\'page:password\', {}, { runTime: 0.25 })])];', replace: '        return flight(c, \'page:password\', [from], { move: 0.8 })();' },
+      { file: 'poppy-sign-in/scene.ts', find: '        const halfCard = c.from(\'you:password\').width() / 2 + 0.05;\n        const passX = device\n          ? c.to(\'page:orders:read:box\').box()![0] - halfCard\n          : Math.max(c.from(\'page:orders:read:line\').box()![2], c.from(\'page:orders:write:line\').box()![2]) + halfCard;\n        const side: Pt[] = [from, [passX, from[1]], [passX, to[1]], to];\n        const card = pass(c, \'password:travel\', c.from(\'you:password\').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'you:password\', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter(\'page:password\', {}, { runTime: 0.25 })])];', replace: '        return flight(c, \'page:password\', [from], { move: 0.8 })();' },
     ],
   },
   {
@@ -256,17 +283,17 @@ export const CORPUS: readonly CorpusEntry[] = [
     ],
   },
   {
-    id: 'sign-in-password-route', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'reverted', events: ['approve-all', 'approve-read'],
+    id: 'sign-in-password-route', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'adapted', events: ['approve-all', 'approve-read'],
     what: 'The password card’s way round the page ran at x −2.05, over the page’s edge; the fix moves it to −1.7.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: '[from, [-1.7, from[1]], [-1.7, to[1]], to]', replace: '[from, [-2.05, from[1]], [-2.05, to[1]], to]' },
+      { file: 'poppy-sign-in/scene.ts', find: 'Math.max(c.from(\'page:orders:read:line\').box()![2], c.from(\'page:orders:write:line\').box()![2]) + halfCard', replace: '-2.05' },
     ],
   },
   {
     id: 'sign-in-tag-over-scopes', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'adapted', events: ['sign-out', 'disconnect'],
     what: 'At sign-out the tag went back onto the desk over the scopes, and the key and cord stayed until it had gone; the fix stops it at the counter’s edge and fades them as it sets off.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [to[0], from[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];', replace: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];' },
+      { file: 'poppy-sign-in/scene.ts', find: "const back = pass(c, 'tag:return', token, via, { appear: 0.25, move: 0.7, leave: 0.25 });\n        // The agent returns to its empty-key layout as the detached tag crosses.\n        const shift = moved.length ? [new Succession([new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))])] : [];\n        return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]),\n          new AnimationGroup([back[1]!, ...shift]), back[2]!];", replace: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];' },
     ],
   },
   // --------------------------------------------------------------------------------------- browser
@@ -309,6 +336,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'browser-message-lingers', chapter: 'poppy-browser', kind: 'result before cause', commit: '0a887ad4', method: 'reverted',
     what: 'The declined message and the rack’s “no codes yet” were not listed in beats’ fresh, so they stayed through the next event’s flight; the fix lists them.',
+    expectedFinding: { scenario: '{"signin":"signed-in"}', transition: /^(?:from the state at "phish", )?after .*phish, forge$/, kind: 'motion contract', path: 'forged', subjects: ['message'], requirement: 'absent' },
     edits: [
       { file: 'poppy-browser/scene.ts', find: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\', \'message\', \'rack:none\'];', replace: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\'];' },
     ],
@@ -332,9 +360,10 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'browser-record-after-halves', chapter: 'poppy-browser', kind: 'result before cause', commit: 'd99c9195', method: 'reverted', events: ['load'],
     what: 'The Company’s record of the new code appeared on the rack only after the two halves had been handed out; the fix shows it first.',
+    expectedFinding: { scenario: '{"signin":"signed-in"}', transition: /^step "load", event "load"$/, kind: 'motion contract', path: 'page:stub:flight', subjects: ['row:Vn3q:stub'], requirement: 'present' },
     edits: [
       { file: 'poppy-browser/scene.ts', find: '            // The Company keeps its record of the new code before handing out the two halves.\n            new AnimationGroup([c.enter(`row:${id}:stub`, {}, { runTime: 0.3 }), c.enter(`row:${id}:ring`, {}, { runTime: 0.3 })]),\n', replace: '' },
-      { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...FRESH, \'page:error\'], lead: BROWSER_ROAD });', replace: '          ], { fresh: [...FRESH, \'page:error\'], lead: BROWSER_ROAD, then: [`row:${id}:stub`, `row:${id}:ring`] });' },
+      { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'] });', replace: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'], then: [`row:${id}:stub`, `row:${id}:ring`] });' },
     ],
   },
   {
@@ -397,8 +426,11 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-words-dissolve', chapter: 'poppy-conversations', kind: 'glyph dissolve', commit: '0a887ad4', method: 'reverted', events: [],
     what: 'Two steps’ plain view.sync() morphed the ledger’s words glyph by glyph, so they dissolved into rows of dots (#101 item 12); the fix matches words whole.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8, match: {by:\'key\',text:\'glyphs\'} })' },
-      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6, match: {by:\'key\',text:\'glyphs\'} })' },
+      // view.sync uses the public by-place mode; "glyphs" belongs to choreograph.rest.
+      // The current ledger changes all these keys, so neither mode pairs its words:
+      // this reconstruction currently renders identically to its baseline (still a miss).
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.8, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.8, match: {by:\'key\',text:\'by-place\'} })' },
+      { file: 'poppy-conversations/scene.ts', find: 'world.sync({ runTime: 0.6, match: { by: \'key\', text: \'whole\' } })', replace: 'world.sync({ runTime: 0.6, match: {by:\'key\',text:\'by-place\'} })' },
     ],
   },
   {
@@ -411,6 +443,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'conversations-table-block-blinks', chapter: 'poppy-conversations', kind: 'flicker', commit: '46cdb7e6', method: 'reverted', events: ['ask', 'you', 'read'],
     what: 'Filmed after the audit (origin/claude/film-fixes): the whole “On the table” block (heading, rules, labels) went out from about 0.2 s to 1.1 s on every message, because beats’ fresh named its prefix; only the two values change. The fix lists just the values.',
+    expectedFinding: { scenario: '{}', transition: /^step "read", event "read"$/, kind: 'motion contract', path: 'turn:flight', subjects: ['written:title:0'], requirement: 'present' },
     edits: [
       { file: 'poppy-conversations/scene.ts', find: "const SAID = ['turn', 'written:author.type:value', 'written:role:value'];", replace: "const SAID = ['turn', 'written:'];" },
     ],
@@ -477,7 +510,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'coverage-list-over-labels', chapter: 'poppy-coverage', kind: 'passes over', commit: 'd99c9195', method: 'adapted', events: ['read tasks'],
     what: 'The shop’s list crossed straight from the board to the agent’s tray, over the counter’s labels; the fix brings it down and under the rule.',
     edits: [
-      { file: 'poppy-coverage/scene.ts', find: '[[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]]', replace: '[BOARD_AT, [-3.4, -2.0]]' },
+      { file: 'poppy-coverage/scene.ts', find: '[[dropX, 2.0], [dropX, acrossY], [trayEdge, acrossY]]', replace: '[BOARD_AT, [-3.4, -2.0]]' },
     ],
   },
   // ------------------------------------------------------------------------------------- discovery

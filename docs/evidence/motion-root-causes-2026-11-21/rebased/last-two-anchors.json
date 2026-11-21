@@ -1,0 +1,1655 @@
+{
+  "stage": "Final sources after the held-tag clearance repair. Same original primary routes, plus three legal held-device histories.",
+  "sourceFiles": {
+    "picture.ts": "2d5e9ffac7e9c5e51f5b37ca617d587d5b14fbf10932d4c3b78bd0bd0bc143be",
+    "scene.ts": "ce43a2bdbf9601ffa0a84c23e27fbde7b8ee798f28dc6ba3f3026ad7d0d2d3f4"
+  },
+  "browser": {
+    "version": "156.0.8078.4",
+    "revision": "1248",
+    "compositedFrames": 30
+  },
+  "routes": [
+    {
+      "id": "sign-in-card-from-desk",
+      "case": "story",
+      "route": {
+        "step": "ask",
+        "event": "ask",
+        "settings": {
+          "flow": "device"
+        }
+      },
+      "framesPerSide": 124,
+      "before": {
+        "flow": "device",
+        "sign": null,
+        "holds": null,
+        "ended": false,
+        "last": null
+      },
+      "after": {
+        "flow": "device",
+        "sign": {
+          "lists": [
+            "orders:read",
+            "orders:write"
+          ],
+          "approved": null
+        },
+        "holds": null,
+        "ended": false,
+        "last": {
+          "kind": "ask",
+          "scopes": [
+            "orders:read",
+            "orders:write"
+          ],
+          "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+        }
+      },
+      "comparison": {
+        "id": "sign-in-card-from-desk",
+        "route": {
+          "step": "ask",
+          "event": "ask",
+          "settings": {
+            "flow": "device"
+          }
+        },
+        "baselineFrames": 124,
+        "variantFrames": 124,
+        "identicalAtMatchedOffsets": 3,
+        "guard": null,
+        "complete": true
+      },
+      "sides": {
+        "baseline": {
+          "firstCardOver1000VisiblePixels": {
+            "frame": 60,
+            "ink": 15188,
+            "box": [
+              0,
+              330,
+              226,
+              404
+            ]
+          },
+          "midFlight": [
+            {
+              "frame": 69,
+              "box": [
+                0,
+                315,
+                249,
+                390
+              ],
+              "ink": 17074
+            },
+            {
+              "frame": 74,
+              "box": [
+                4,
+                292,
+                286,
+                367
+              ],
+              "ink": 19138
+            },
+            {
+              "frame": 80,
+              "box": [
+                50,
+                265,
+                332,
+                339
+              ],
+              "ink": 19040
+            },
+            {
+              "frame": 88,
+              "box": [
+                80,
+                246,
+                362,
+                321
+              ],
+              "ink": 21492
+            }
+          ],
+          "sourceBundle": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487"
+        },
+        "variant": {
+          "firstCardOver1000VisiblePixels": {
+            "frame": 62,
+            "ink": 20905,
+            "box": [
+              219,
+              240,
+              500,
+              314
+            ]
+          },
+          "midFlight": [
+            {
+              "frame": 69,
+              "box": [
+                206,
+                240,
+                488,
+                315
+              ],
+              "ink": 19474
+            },
+            {
+              "frame": 74,
+              "box": [
+                161,
+                242,
+                443,
+                317
+              ],
+              "ink": 19336
+            },
+            {
+              "frame": 80,
+              "box": [
+                107,
+                245,
+                389,
+                320
+              ],
+              "ink": 19203
+            },
+            {
+              "frame": 88,
+              "box": [
+                80,
+                246,
+                362,
+                321
+              ],
+              "ink": 21490
+            }
+          ],
+          "sourceBundle": "5da3cc1f1521e3d5d119b5af597e3f857e4806f658cd712a3d5a0d8f48febf80"
+        }
+      }
+    },
+    {
+      "id": "sign-in-card-from-desk",
+      "case": "held",
+      "route": {
+        "step": "sign-out",
+        "event": "ask",
+        "settings": {
+          "flow": "device"
+        },
+        "log": [
+          "ask",
+          "approve-read",
+          "collect",
+          "ask"
+        ]
+      },
+      "framesPerSide": 125,
+      "before": {
+        "flow": "device",
+        "sign": null,
+        "holds": {
+          "scopes": [
+            "orders:read"
+          ],
+          "card": 0
+        },
+        "ended": false,
+        "last": {
+          "kind": "tokens",
+          "granted": [
+            "orders:read"
+          ],
+          "saysScope": true,
+          "replaced": false
+        }
+      },
+      "after": {
+        "flow": "device",
+        "sign": {
+          "lists": [
+            "orders:read",
+            "orders:write"
+          ],
+          "approved": null
+        },
+        "holds": {
+          "scopes": [
+            "orders:read"
+          ],
+          "card": 0
+        },
+        "ended": false,
+        "last": {
+          "kind": "ask",
+          "scopes": [
+            "orders:read",
+            "orders:write"
+          ],
+          "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+        }
+      },
+      "comparison": {
+        "id": "sign-in-card-from-desk",
+        "route": {
+          "step": "sign-out",
+          "event": "ask",
+          "settings": {
+            "flow": "device"
+          },
+          "log": [
+            "ask",
+            "approve-read",
+            "collect",
+            "ask"
+          ]
+        },
+        "baselineFrames": 125,
+        "variantFrames": 125,
+        "identicalAtMatchedOffsets": 7,
+        "guard": null,
+        "complete": true
+      },
+      "sides": {
+        "baseline": {
+          "firstCardOver1000VisiblePixels": {
+            "frame": 65,
+            "ink": 21200,
+            "box": [
+              162,
+              237,
+              444,
+              312
+            ]
+          },
+          "midFlight": [
+            {
+              "frame": 69,
+              "box": [
+                162,
+                237,
+                444,
+                312
+              ],
+              "ink": 21227
+            },
+            {
+              "frame": 74,
+              "box": [
+                150,
+                237,
+                432,
+                312
+              ],
+              "ink": 19287
+            },
+            {
+              "frame": 80,
+              "box": [
+                125,
+                237,
+                407,
+                312
+              ],
+              "ink": 19317
+            },
+            {
+              "frame": 88,
+              "box": [
+                91,
+                237,
+                373,
+                312
+              ],
+              "ink": 19332
+            }
+          ],
+          "sourceBundle": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487"
+        },
+        "variant": {
+          "firstCardOver1000VisiblePixels": {
+            "frame": 67,
+            "ink": 20905,
+            "box": [
+              219,
+              240,
+              500,
+              314
+            ]
+          },
+          "midFlight": [
+            {
+              "frame": 69,
+              "box": [
+                218,
+                240,
+                500,
+                314
+              ],
+              "ink": 20992
+            },
+            {
+              "frame": 74,
+              "box": [
+                211,
+                239,
+                493,
+                314
+              ],
+              "ink": 19490
+            },
+            {
+              "frame": 80,
+              "box": [
+                161,
+                239,
+                443,
+                313
+              ],
+              "ink": 19032
+            },
+            {
+              "frame": 88,
+              "box": [
+                95,
+                237,
+                377,
+                312
+              ],
+              "ink": 19115
+            }
+          ],
+          "sourceBundle": "5da3cc1f1521e3d5d119b5af597e3f857e4806f658cd712a3d5a0d8f48febf80"
+        }
+      }
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "case": "story",
+      "route": {
+        "step": "sign-out",
+        "event": "sign-out"
+      },
+      "framesPerSide": 72,
+      "before": {
+        "flow": "direct",
+        "sign": null,
+        "holds": {
+          "scopes": [
+            "orders:read",
+            "orders:write"
+          ],
+          "card": 1
+        },
+        "ended": false,
+        "last": {
+          "kind": "thief",
+          "error": "invalid_grant",
+          "reason": "the refresh token was issued to https://agent.example/agent.json"
+        }
+      },
+      "after": {
+        "flow": "direct",
+        "sign": null,
+        "holds": null,
+        "ended": true,
+        "last": {
+          "kind": "sign-out"
+        }
+      },
+      "comparison": {
+        "id": "sign-in-tag-over-scopes",
+        "route": {
+          "step": "sign-out",
+          "event": "sign-out"
+        },
+        "baselineFrames": 72,
+        "variantFrames": 72,
+        "identicalAtMatchedOffsets": 12,
+        "guard": null,
+        "complete": true
+      },
+      "sides": {
+        "baseline": {
+          "scope-panel words": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "agent name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "device company name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "held key ink": [
+            {
+              "frame": 0,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 36,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 41,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 46,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 47,
+              "ink": 0,
+              "box": null
+            }
+          ],
+          "cord ink": [
+            {
+              "frame": 0,
+              "ink": 381,
+              "box": [
+                137,
+                104,
+                164,
+                188
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 36,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 41,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 46,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 47,
+              "ink": 0,
+              "box": null
+            }
+          ],
+          "tag:return": [
+            {
+              "frame": 0,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 24,
+              "ink": 13974,
+              "box": [
+                141,
+                182,
+                358,
+                254
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 13750,
+              "box": [
+                141,
+                216,
+                358,
+                287
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 13955,
+              "box": [
+                141,
+                229,
+                358,
+                301
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 14032,
+              "box": [
+                141,
+                241,
+                358,
+                313
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 15484,
+              "box": [
+                141,
+                241,
+                358,
+                313
+              ]
+            }
+          ],
+          "sourceBundle": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487"
+        },
+        "variant": {
+          "scope-panel words": {
+            "peakRestored": 169,
+            "frame": 46,
+            "box": [
+              445,
+              242,
+              468,
+              257
+            ]
+          },
+          "agent name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "device company name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "held key ink": [
+            {
+              "frame": 0,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 5795,
+              "box": [
+                149,
+                61,
+                348,
+                129
+              ]
+            }
+          ],
+          "cord ink": [
+            {
+              "frame": 0,
+              "ink": 381,
+              "box": [
+                137,
+                104,
+                164,
+                188
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 425,
+              "box": [
+                137,
+                104,
+                167,
+                196
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 425,
+              "box": [
+                137,
+                104,
+                167,
+                196
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 425,
+              "box": [
+                137,
+                104,
+                167,
+                196
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 425,
+              "box": [
+                137,
+                104,
+                167,
+                196
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 425,
+              "box": [
+                137,
+                104,
+                167,
+                196
+              ]
+            }
+          ],
+          "tag:return": [
+            {
+              "frame": 0,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 24,
+              "ink": 13638,
+              "box": [
+                170,
+                210,
+                388,
+                282
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 13847,
+              "box": [
+                209,
+                241,
+                427,
+                313
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 14004,
+              "box": [
+                231,
+                241,
+                449,
+                313
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 13877,
+              "box": [
+                251,
+                241,
+                468,
+                313
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 15111,
+              "box": [
+                251,
+                241,
+                468,
+                313
+              ]
+            }
+          ],
+          "sourceBundle": "ba5d355435043d5e2efa49c752c2362336d7b052a53e9fca82fd7846cb606263"
+        }
+      }
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "case": "pending",
+      "route": {
+        "step": "sign-out",
+        "event": "sign-out",
+        "settings": {
+          "flow": "device"
+        },
+        "log": [
+          "ask",
+          "approve-read",
+          "collect",
+          "ask",
+          "sign-out"
+        ]
+      },
+      "framesPerSide": 73,
+      "before": {
+        "flow": "device",
+        "sign": {
+          "lists": [
+            "orders:read",
+            "orders:write"
+          ],
+          "approved": null
+        },
+        "holds": {
+          "scopes": [
+            "orders:read"
+          ],
+          "card": 0
+        },
+        "ended": false,
+        "last": {
+          "kind": "ask",
+          "scopes": [
+            "orders:read",
+            "orders:write"
+          ],
+          "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+        }
+      },
+      "after": {
+        "flow": "device",
+        "sign": {
+          "lists": [
+            "orders:read",
+            "orders:write"
+          ],
+          "approved": null
+        },
+        "holds": null,
+        "ended": true,
+        "last": {
+          "kind": "sign-out"
+        }
+      },
+      "comparison": {
+        "id": "sign-in-tag-over-scopes",
+        "route": {
+          "step": "sign-out",
+          "event": "sign-out",
+          "settings": {
+            "flow": "device"
+          },
+          "log": [
+            "ask",
+            "approve-read",
+            "collect",
+            "ask",
+            "sign-out"
+          ]
+        },
+        "baselineFrames": 73,
+        "variantFrames": 73,
+        "identicalAtMatchedOffsets": 12,
+        "guard": null,
+        "complete": true
+      },
+      "sides": {
+        "baseline": {
+          "scope-panel words": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "agent name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "device company name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "held key ink": [
+            {
+              "frame": 0,
+              "ink": 1852,
+              "box": [
+                123,
+                315,
+                237,
+                354
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 36,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 41,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 46,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 47,
+              "ink": 0,
+              "box": null
+            }
+          ],
+          "cord ink": [
+            {
+              "frame": 0,
+              "ink": 171,
+              "box": [
+                221,
+                344,
+                249,
+                373
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 36,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 41,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 46,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 47,
+              "ink": 0,
+              "box": null
+            }
+          ],
+          "tag:return": [
+            {
+              "frame": 0,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 24,
+              "ink": 1781,
+              "box": [
+                128,
+                365,
+                178,
+                404
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 1776,
+              "box": [
+                258,
+                365,
+                308,
+                404
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 1779,
+              "box": [
+                310,
+                362,
+                359,
+                402
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 1786,
+              "box": [
+                310,
+                317,
+                359,
+                357
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 1834,
+              "box": [
+                310,
+                317,
+                359,
+                357
+              ]
+            }
+          ],
+          "sourceBundle": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487"
+        },
+        "variant": {
+          "scope-panel words": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "agent name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "device company name": {
+            "peakRestored": 1627,
+            "frame": 32,
+            "box": [
+              103,
+              283,
+              317,
+              309
+            ]
+          },
+          "held key ink": [
+            {
+              "frame": 0,
+              "ink": 1852,
+              "box": [
+                123,
+                315,
+                237,
+                354
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 70,
+              "box": [
+                130,
+                352,
+                227,
+                354
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 1852,
+              "box": [
+                123,
+                315,
+                237,
+                354
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 1852,
+              "box": [
+                123,
+                315,
+                237,
+                354
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 1852,
+              "box": [
+                123,
+                315,
+                237,
+                354
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 1852,
+              "box": [
+                123,
+                315,
+                237,
+                354
+              ]
+            }
+          ],
+          "cord ink": [
+            {
+              "frame": 0,
+              "ink": 171,
+              "box": [
+                221,
+                344,
+                249,
+                373
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 184,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            }
+          ],
+          "tag:return": [
+            {
+              "frame": 0,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 24,
+              "ink": 11531,
+              "box": [
+                41,
+                280,
+                259,
+                352
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 5492,
+              "box": [
+                147,
+                247,
+                365,
+                313
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 7548,
+              "box": [
+                203,
+                241,
+                421,
+                313
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 9643,
+              "box": [
+                251,
+                241,
+                468,
+                313
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 9981,
+              "box": [
+                251,
+                241,
+                468,
+                313
+              ]
+            }
+          ],
+          "sourceBundle": "ba5d355435043d5e2efa49c752c2362336d7b052a53e9fca82fd7846cb606263"
+        }
+      }
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "case": "after-thief",
+      "route": {
+        "step": "sign-out",
+        "event": "disconnect",
+        "settings": {
+          "flow": "device"
+        },
+        "log": [
+          "ask",
+          "approve-read",
+          "collect",
+          "ask",
+          "approve-read",
+          "collect",
+          "ask",
+          "approve-read",
+          "thief",
+          "disconnect"
+        ]
+      },
+      "framesPerSide": 73,
+      "before": {
+        "flow": "device",
+        "sign": {
+          "lists": [
+            "orders:read",
+            "orders:write"
+          ],
+          "approved": [
+            "orders:read"
+          ]
+        },
+        "holds": {
+          "scopes": [
+            "orders:read"
+          ],
+          "card": 1
+        },
+        "ended": false,
+        "last": {
+          "kind": "thief",
+          "error": "invalid_grant",
+          "reason": "the refresh token was issued to https://agent.example/agent.json"
+        }
+      },
+      "after": {
+        "flow": "device",
+        "sign": {
+          "lists": [
+            "orders:read",
+            "orders:write"
+          ],
+          "approved": [
+            "orders:read"
+          ]
+        },
+        "holds": null,
+        "ended": true,
+        "last": {
+          "kind": "disconnect"
+        }
+      },
+      "comparison": {
+        "id": "sign-in-tag-over-scopes",
+        "route": {
+          "step": "sign-out",
+          "event": "disconnect",
+          "settings": {
+            "flow": "device"
+          },
+          "log": [
+            "ask",
+            "approve-read",
+            "collect",
+            "ask",
+            "approve-read",
+            "collect",
+            "ask",
+            "approve-read",
+            "thief",
+            "disconnect"
+          ]
+        },
+        "baselineFrames": 73,
+        "variantFrames": 73,
+        "identicalAtMatchedOffsets": 12,
+        "guard": null,
+        "complete": true
+      },
+      "sides": {
+        "baseline": {
+          "scope-panel words": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "agent name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "device company name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "held key ink": [
+            {
+              "frame": 0,
+              "ink": 1867,
+              "box": [
+                123,
+                315,
+                238,
+                354
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 36,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 41,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 46,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 47,
+              "ink": 0,
+              "box": null
+            }
+          ],
+          "cord ink": [
+            {
+              "frame": 0,
+              "ink": 171,
+              "box": [
+                221,
+                344,
+                249,
+                373
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 36,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 41,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 46,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 47,
+              "ink": 0,
+              "box": null
+            }
+          ],
+          "tag:return": [
+            {
+              "frame": 0,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 24,
+              "ink": 1745,
+              "box": [
+                138,
+                365,
+                187,
+                404
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 1781,
+              "box": [
+                296,
+                365,
+                346,
+                404
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 1781,
+              "box": [
+                310,
+                312,
+                359,
+                352
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 1786,
+              "box": [
+                310,
+                257,
+                359,
+                297
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 1834,
+              "box": [
+                310,
+                257,
+                359,
+                297
+              ]
+            }
+          ],
+          "sourceBundle": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487"
+        },
+        "variant": {
+          "scope-panel words": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "agent name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "device company name": {
+            "peakRestored": 0,
+            "frame": 0,
+            "box": null
+          },
+          "held key ink": [
+            {
+              "frame": 0,
+              "ink": 1867,
+              "box": [
+                123,
+                315,
+                238,
+                354
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 70,
+              "box": [
+                130,
+                352,
+                227,
+                354
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 1867,
+              "box": [
+                123,
+                315,
+                238,
+                354
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 1867,
+              "box": [
+                123,
+                315,
+                238,
+                354
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 1867,
+              "box": [
+                123,
+                315,
+                238,
+                354
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 1867,
+              "box": [
+                123,
+                315,
+                238,
+                354
+              ]
+            }
+          ],
+          "cord ink": [
+            {
+              "frame": 0,
+              "ink": 171,
+              "box": [
+                221,
+                344,
+                249,
+                373
+              ]
+            },
+            {
+              "frame": 24,
+              "ink": 184,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 208,
+              "box": [
+                216,
+                344,
+                249,
+                379
+              ]
+            }
+          ],
+          "tag:return": [
+            {
+              "frame": 0,
+              "ink": 0,
+              "box": null
+            },
+            {
+              "frame": 24,
+              "ink": 14317,
+              "box": [
+                41,
+                280,
+                259,
+                352
+              ]
+            },
+            {
+              "frame": 36,
+              "ink": 13775,
+              "box": [
+                147,
+                241,
+                365,
+                313
+              ]
+            },
+            {
+              "frame": 41,
+              "ink": 13568,
+              "box": [
+                203,
+                241,
+                421,
+                313
+              ]
+            },
+            {
+              "frame": 46,
+              "ink": 13856,
+              "box": [
+                251,
+                241,
+                468,
+                313
+              ]
+            },
+            {
+              "frame": 47,
+              "ink": 15011,
+              "box": [
+                251,
+                241,
+                468,
+                313
+              ]
+            }
+          ],
+          "sourceBundle": "ba5d355435043d5e2efa49c752c2362336d7b052a53e9fca82fd7846cb606263"
+        }
+      }
+    }
+  ]
+}
