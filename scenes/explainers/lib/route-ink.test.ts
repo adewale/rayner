@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Rectangle, Scene, Text, keyed } from '../../../src/index.ts';
 import { loadFonts } from '../../../explain/testing.ts';
-import { routeInkCheck } from './route-ink.ts';
+import { routeInkCheck } from './route-ink/fidelity.ts';
 
 await loadFonts();
 

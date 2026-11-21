@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Text } from '../../../src/index.ts';
 import { loadFonts, loadProject } from '../../../explain/testing.ts';
-import { routeInkCheck } from '../lib/route-ink.ts';
+import { routeInkCheck } from '../lib/route-ink/fidelity.ts';
 import SignIn from './scene.ts';
 
 await loadFonts();

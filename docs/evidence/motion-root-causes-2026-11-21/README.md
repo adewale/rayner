@@ -29,7 +29,9 @@ Additional independent deliberate-defect records: [lost diagnostic ownership](co
 
 ## Measurement boundaries
 
-The historical 59 IDs and faulty behaviors are retained. Five mutation contexts were mechanically rebased around the baseline route repairs. Three previously direct hunk reversals are now explicitly marked adapted, so the current edit inventory has 38 adapted entries and 21 reversals; the frozen visual audit's 35/24 inventory remains unchanged. New diagnostic and clipping poisons are outside the 59.
+The historical 59 IDs and faulty behaviors are retained. Six mutation contexts were mechanically rebased around the baseline route repairs. The sliding-lane reconstruction also renames the new clearance lookup so it can still paint its intended layout change; the initial unrelated lookup exception is not credited as a detection. Three previously direct hunk reversals are now explicitly marked adapted, so the current edit inventory has 38 adapted entries and 21 reversals; the frozen visual audit's 35/24 inventory remains unchanged. New diagnostic and clipping poisons are outside the 59.
+
+The installed-package test found a Node-only native helper in the portable scene-source set. It now lives in the existing fidelity-support convention, and Discovery's public scene test owns its URL assertion directly. The same eighteen affected assertions passed after that test-support correction, as did the complete installed-package smoke test, including every authored scene, scene test and recipe against the packed declarations. The measured scene and detector runtime bytes are unchanged by this correction. Completed measurements are retained by runtime identity and per-case mutation identity; the one changed reconstruction is rerun independently.
 
 Raw baseline-subtracted rejection, guard-only refusal, an attributed historical diagnosis, a secondary effect and a visually valid reconstruction remain separate claims. The three unreproduced entries are not repaired by inventing a new historical case. The seven editorial entries do not acquire an automatic quality verdict from a displacement or time threshold.
 

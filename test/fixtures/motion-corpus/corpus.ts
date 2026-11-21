@@ -106,6 +106,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     edits: [
       { file: 'poppy-refusals/picture.ts', find: 'id: mcpShown ? `mcp-${id}` : id, name:', replace: 'id, name:' },
       { file: 'poppy-refusals/scene.ts', find: 'const LANE_PARTS = [\'api\', \'mcp-api\', \'mcp-mcp\']', replace: 'const LANE_PARTS = [\'api\', \'mcp\']' },
+      { file: 'poppy-refusals/scene.ts', find: "c.to('lane:mcp-mcp:name')", replace: "c.to('lane:mcp:name')" },
     ],
   },
   {

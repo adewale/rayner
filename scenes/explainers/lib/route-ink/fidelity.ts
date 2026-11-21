@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Resvg } from '@resvg/resvg-js';
-import { Text, toSvgString } from '../../../src/index.ts';
-import type { Box, Mobject, Scene } from '../../../src/index.ts';
+import { Text, toSvgString } from '../../../../src/index.ts';
+import type { Box, Mobject, Scene } from '../../../../src/index.ts';
 
 /** Native SVG knockout for a moving object's effect on the actual strokes of nearby words. */
 const pixels = (scene: Scene) =>
