@@ -1,0 +1,155 @@
+{
+  "stage": "Final independent replay",
+  "provenance": {
+    "ruleCheckerGitBlob": "a06d2c1456ea8cce9d5e542360c7b4f63dc7a861",
+    "ruleCheckerSha256": "40a545d17655a6d20c760c2ec34ab718a8ab1563e5df8c849220ee797f7a291b",
+    "unchangedProbeSha256": "0466395eed3520eb06ab83cd204ccb18f320dde74fd8c482672809fcea6086d9"
+  },
+  "scenarios": [
+    {
+      "scenario": "normal",
+      "expected": "clean",
+      "before": [],
+      "after": [],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 70,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "constructed only",
+      "expected": "movement never played",
+      "before": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame"
+      ],
+      "after": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move"
+      ],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 0,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "wrong view",
+      "expected": "declared view has no trip",
+      "before": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", the declared travel was never constructed",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", the declared travel was never constructed"
+      ],
+      "after": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", the declared travel was never constructed",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", the declared travel was never constructed"
+      ],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 0,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "grouped same key",
+      "expected": "clean",
+      "before": [],
+      "after": [],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 64,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "repeat missing",
+      "expected": "one of two moves never played",
+      "before": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame"
+      ],
+      "after": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move"
+      ],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 60,
+      "unmodifiedGenericFindings": [
+        [
+          "flicker",
+          "parcel"
+        ]
+      ]
+    },
+    {
+      "scenario": "ring clipped absent",
+      "expected": "clean",
+      "before": [],
+      "after": [],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 70,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "ring painted absent",
+      "expected": "required absence violated",
+      "before": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"sealed\" must be absent at +0.167 s",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"sealed\" must be absent at +0.167 s"
+      ],
+      "after": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"sealed\" must be absent at +0.167 s",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"sealed\" must be absent at +0.167 s"
+      ],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 70,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "aperture flash",
+      "expected": "clean; two antialiased positions",
+      "before": [],
+      "after": [],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 70,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "context lost offstage",
+      "expected": "required caption disappeared",
+      "before": [],
+      "after": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"caption\" must be present at +0.700 s",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"caption\" must be present at +0.700 s"
+      ],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 70,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "existing destination",
+      "expected": "existing destination must first leave",
+      "before": [],
+      "after": [],
+      "exception": "Error: t.choreograph(): leave \"dest\" must play before its replacement enters",
+      "nativeMoveFrameObservationsIdentical": 0,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "opaque foreground",
+      "expected": "traveller never paints",
+      "before": [],
+      "after": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move"
+      ],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 70,
+      "unmodifiedGenericFindings": []
+    },
+    {
+      "scenario": "clipped source",
+      "expected": "clean; a concealed source may release its drawing",
+      "before": [],
+      "after": [],
+      "exception": null,
+      "nativeMoveFrameObservationsIdentical": 35,
+      "unmodifiedGenericFindings": []
+    }
+  ],
+  "matchedFrameRecords": 579,
+  "note": "Native thresholds in the original probe are unchanged. See aperture-calibration.json for all nonzero antialiased red, including the edge pixels missed by the strict RGB mask."
+}

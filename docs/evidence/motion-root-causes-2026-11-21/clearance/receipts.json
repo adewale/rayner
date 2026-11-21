@@ -1,0 +1,722 @@
+{
+  "oldAuthorSource": "1522b5040e599edcf9f373ff7e3e3fad9e730bfd",
+  "clock": "Production 30fps, native SVG 800x450. Both author revisions ran against the same engine during this route-only comparison. The selected PNG crops preserve native pixels.",
+  "method": "Each side is rendered four times: ordinary, without the protected words, without the carrier, and with both removed. A restored pixel contributes more than 16 RGB levels when exposed and at most 15% of that contribution in the ordinary picture. The Resvg table covers every event frame. Chromium independently checks the prior route’s worst frame.",
+  "rows": [
+    {
+      "route": "api-key",
+      "target": {
+        "key": "lane:api:name",
+        "text": "API"
+      },
+      "carrier": {
+        "key": "agent:key:flight"
+      },
+      "eventFrame": 35,
+      "seconds": 1.1667,
+      "native": {
+        "old": {
+          "allFrameCount": 103,
+          "largestLoss": 28,
+          "losingFrames": [
+            [
+              35,
+              28
+            ],
+            [
+              36,
+              18
+            ]
+          ],
+          "selectedFrameFullSvg": "62b71393f49a3039d3650c0556d2ee4044994924c0cfcb2a8803ec3a9ab400dc",
+          "selectedFramePixels": "dd2376e25dedc032696e2c13046b9c8ed53c0fcdd7d3fc486a2ea06a27e57adf"
+        },
+        "fixed": {
+          "allFrameCount": 103,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "a3226917c2372e4b427fa9ba32467378431e66442319d4eda22ebfb4a0656313",
+          "selectedFramePixels": "28e12c9167a2043558cffaa11c0957ec39811cdf2668f3fb3e62d68b601e5277"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "62b71393f49a3039d3650c0556d2ee4044994924c0cfcb2a8803ec3a9ab400dc",
+          "paintedWordPixelsWithoutCarrier": 546,
+          "restoredByCarrierRemoval": 28,
+          "lossBounds": [
+            168,
+            71,
+            170,
+            82
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "a3226917c2372e4b427fa9ba32467378431e66442319d4eda22ebfb4a0656313",
+          "paintedWordPixelsWithoutCarrier": 546,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "api-key.webp",
+      "reader": {
+        "chapter": "poppy-refusals",
+        "settings": {},
+        "step": "slip",
+        "event": "answer",
+        "history": [
+          "expire"
+        ],
+        "corpusCaseForRoute": "refusals-key-over-lane-name"
+      },
+      "nativeCrop": [
+        107,
+        38,
+        244,
+        123
+      ]
+    },
+    {
+      "route": "device-poll",
+      "target": {
+        "key": "card",
+        "text": "Example Company"
+      },
+      "carrier": {
+        "key": "poll"
+      },
+      "eventFrame": 31,
+      "seconds": 1.0333,
+      "native": {
+        "old": {
+          "allFrameCount": 85,
+          "largestLoss": 104,
+          "losingFrames": [
+            [
+              31,
+              104
+            ],
+            [
+              32,
+              82
+            ]
+          ],
+          "selectedFrameFullSvg": "add15f09802ba3465c1bd37f2e3f691b2e026b25f1558304c6197059481f47c3",
+          "selectedFramePixels": "bbc41e09ae2e37081481d46d2ad82fa4e15a07d4cecacea7f36be183e1755b17"
+        },
+        "fixed": {
+          "allFrameCount": 85,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "cdfa42725960ab934313e817de7cc0f2ad9d9fedb3b6f98ff8fc747a719dea67",
+          "selectedFramePixels": "2eeb930559ff9c4937bfb143a0aff7c1bd793694c367e0cf3e592cd4d24b2447"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "add15f09802ba3465c1bd37f2e3f691b2e026b25f1558304c6197059481f47c3",
+          "paintedWordPixelsWithoutCarrier": 1945,
+          "restoredByCarrierRemoval": 106,
+          "lossBounds": [
+            325,
+            304,
+            341,
+            318
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "cdfa42725960ab934313e817de7cc0f2ad9d9fedb3b6f98ff8fc747a719dea67",
+          "paintedWordPixelsWithoutCarrier": 1945,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "device-poll.webp",
+      "reader": {
+        "chapter": "poppy-sign-in",
+        "settings": {
+          "flow": "device"
+        },
+        "step": "ask",
+        "event": "collect",
+        "history": [
+          "ask"
+        ],
+        "corpusCaseForRoute": "sign-in-poll-over-card"
+      },
+      "nativeCrop": [
+        60,
+        226,
+        445,
+        354
+      ]
+    },
+    {
+      "route": "device-poll",
+      "target": {
+        "key": "card",
+        "text": "Example Company"
+      },
+      "carrier": {
+        "key": "poll:back"
+      },
+      "eventFrame": 49,
+      "seconds": 1.6333,
+      "native": {
+        "old": {
+          "allFrameCount": 85,
+          "largestLoss": 114,
+          "losingFrames": [
+            [
+              49,
+              114
+            ],
+            [
+              50,
+              40
+            ]
+          ],
+          "selectedFrameFullSvg": "a5e513e512770e89ce34fbab2164ca8e99fdaf687b979afbe0561b4f897de39f",
+          "selectedFramePixels": "7f0465d966134111064c0cd28979316c1e7a20e48fc051e6077b407f13592f97"
+        },
+        "fixed": {
+          "allFrameCount": 85,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "7d9eaea624cd4a5704761f5720bf854d4e363abf4c63b4bc1224982768b3bb5d",
+          "selectedFramePixels": "9d2fd4be427d39008f1919272f4e2f7fc1bf0b01a77fd690186fe19950797216"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "a5e513e512770e89ce34fbab2164ca8e99fdaf687b979afbe0561b4f897de39f",
+          "paintedWordPixelsWithoutCarrier": 1945,
+          "restoredByCarrierRemoval": 116,
+          "lossBounds": [
+            326,
+            297,
+            344,
+            310
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "7d9eaea624cd4a5704761f5720bf854d4e363abf4c63b4bc1224982768b3bb5d",
+          "paintedWordPixelsWithoutCarrier": 1945,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "device-poll-return.webp",
+      "reader": {
+        "chapter": "poppy-sign-in",
+        "settings": {
+          "flow": "device"
+        },
+        "step": "ask",
+        "event": "collect",
+        "history": [
+          "ask"
+        ],
+        "corpusCaseForRoute": "sign-in-poll-over-card"
+      },
+      "nativeCrop": [
+        60,
+        226,
+        445,
+        342
+      ]
+    },
+    {
+      "route": "list-honest",
+      "target": {
+        "key": "desk:head",
+        "text": "the shop sees"
+      },
+      "carrier": {
+        "key": "list"
+      },
+      "eventFrame": 18,
+      "seconds": 0.6,
+      "native": {
+        "old": {
+          "allFrameCount": 67,
+          "largestLoss": 236,
+          "losingFrames": [
+            [
+              17,
+              78
+            ],
+            [
+              18,
+              236
+            ],
+            [
+              19,
+              236
+            ],
+            [
+              20,
+              236
+            ],
+            [
+              21,
+              236
+            ],
+            [
+              22,
+              83
+            ],
+            [
+              27,
+              8
+            ],
+            [
+              28,
+              8
+            ],
+            [
+              29,
+              8
+            ]
+          ],
+          "selectedFrameFullSvg": "5c571a747a9f8620001cc8d0a54e808efbaeacbe926abd563ea7dd922b31c9ec",
+          "selectedFramePixels": "1b0f3b2876eb8aed3b31c5dc957516cd695d4e4bce1e3939ebd768f4ec7abd57"
+        },
+        "fixed": {
+          "allFrameCount": 67,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "030071a49eec641436b50a5e1a530d51c77ad52d005215f37de4669daacefa13",
+          "selectedFramePixels": "7589223b31cae98ac0287b93824fb37e9b6d3d6fb333cef834c85e4cb6768dfb"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "5c571a747a9f8620001cc8d0a54e808efbaeacbe926abd563ea7dd922b31c9ec",
+          "paintedWordPixelsWithoutCarrier": 1408,
+          "restoredByCarrierRemoval": 232,
+          "lossBounds": [
+            580,
+            194,
+            606,
+            210
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "030071a49eec641436b50a5e1a530d51c77ad52d005215f37de4669daacefa13",
+          "paintedWordPixelsWithoutCarrier": 1408,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "list-honest.webp",
+      "reader": {
+        "chapter": "poppy-coverage",
+        "settings": {
+          "company": "honest"
+        },
+        "step": "board",
+        "event": "read tasks",
+        "history": [
+          "close account"
+        ],
+        "corpusCaseForRoute": "coverage-list-over-labels"
+      },
+      "nativeCrop": [
+        402,
+        128,
+        677,
+        237
+      ]
+    },
+    {
+      "route": "list-hostile",
+      "target": {
+        "key": "desk:head",
+        "text": "the shop sees"
+      },
+      "carrier": {
+        "key": "list"
+      },
+      "eventFrame": 18,
+      "seconds": 0.6,
+      "native": {
+        "old": {
+          "allFrameCount": 67,
+          "largestLoss": 236,
+          "losingFrames": [
+            [
+              17,
+              78
+            ],
+            [
+              18,
+              236
+            ],
+            [
+              19,
+              236
+            ],
+            [
+              20,
+              236
+            ],
+            [
+              21,
+              236
+            ],
+            [
+              22,
+              83
+            ],
+            [
+              27,
+              8
+            ],
+            [
+              28,
+              8
+            ],
+            [
+              29,
+              8
+            ]
+          ],
+          "selectedFrameFullSvg": "5c571a747a9f8620001cc8d0a54e808efbaeacbe926abd563ea7dd922b31c9ec",
+          "selectedFramePixels": "1b0f3b2876eb8aed3b31c5dc957516cd695d4e4bce1e3939ebd768f4ec7abd57"
+        },
+        "fixed": {
+          "allFrameCount": 67,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "030071a49eec641436b50a5e1a530d51c77ad52d005215f37de4669daacefa13",
+          "selectedFramePixels": "7589223b31cae98ac0287b93824fb37e9b6d3d6fb333cef834c85e4cb6768dfb"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "5c571a747a9f8620001cc8d0a54e808efbaeacbe926abd563ea7dd922b31c9ec",
+          "paintedWordPixelsWithoutCarrier": 1408,
+          "restoredByCarrierRemoval": 232,
+          "lossBounds": [
+            580,
+            194,
+            606,
+            210
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "030071a49eec641436b50a5e1a530d51c77ad52d005215f37de4669daacefa13",
+          "paintedWordPixelsWithoutCarrier": 1408,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "list-hostile.webp",
+      "reader": {
+        "chapter": "poppy-coverage",
+        "settings": {
+          "company": "hostile"
+        },
+        "step": "board",
+        "event": "read tasks",
+        "history": [
+          "close account"
+        ],
+        "corpusCaseForRoute": "coverage-list-over-labels"
+      },
+      "nativeCrop": [
+        402,
+        128,
+        677,
+        237
+      ]
+    },
+    {
+      "route": "mcp-key",
+      "target": {
+        "key": "lane:mcp-mcp:name",
+        "text": "MCP"
+      },
+      "carrier": {
+        "key": "agent:mcp-key:flight"
+      },
+      "eventFrame": 32,
+      "seconds": 1.0667,
+      "native": {
+        "old": {
+          "allFrameCount": 103,
+          "largestLoss": 56,
+          "losingFrames": [
+            [
+              32,
+              56
+            ]
+          ],
+          "selectedFrameFullSvg": "82f07dd916028f6b7d1043e69acfac624480f380aaa25a03303c4d0767bcca4c",
+          "selectedFramePixels": "6a8dc94e660ac70e0e8d48d62602b8eef224a41aa22068994e171f565dbcda6d"
+        },
+        "fixed": {
+          "allFrameCount": 103,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "1349feb92e784df07b815a9c0ac4692962186f18d984e40a93b3b6d8d20b75d2",
+          "selectedFramePixels": "9631a253c04d892bc616b702dfb70e97faf73ebb9ceaf40a3ec8b5a94fb7a070"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "82f07dd916028f6b7d1043e69acfac624480f380aaa25a03303c4d0767bcca4c",
+          "paintedWordPixelsWithoutCarrier": 765,
+          "restoredByCarrierRemoval": 56,
+          "lossBounds": [
+            183,
+            74,
+            190,
+            85
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "1349feb92e784df07b815a9c0ac4692962186f18d984e40a93b3b6d8d20b75d2",
+          "paintedWordPixelsWithoutCarrier": 765,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "mcp-key.webp",
+      "reader": {
+        "chapter": "poppy-refusals",
+        "settings": {},
+        "step": "one-door",
+        "event": "answer",
+        "history": [
+          "expire",
+          "answer",
+          "read-only",
+          "answer",
+          "delegation",
+          "answer",
+          "end",
+          "answer",
+          "old-copy",
+          "answer",
+          "mcp"
+        ],
+        "corpusCaseForRoute": "refusals-mcp-key-over-label"
+      },
+      "nativeCrop": [
+        107,
+        45,
+        262,
+        124
+      ]
+    },
+    {
+      "route": "password-device",
+      "target": {
+        "key": "page:orders:(?:read|write):line",
+        "text": ".+"
+      },
+      "carrier": {
+        "key": "password:travel"
+      },
+      "eventFrame": 33,
+      "seconds": 1.1,
+      "native": {
+        "old": {
+          "allFrameCount": 72,
+          "largestLoss": 50,
+          "losingFrames": [
+            [
+              31,
+              9
+            ],
+            [
+              32,
+              42
+            ],
+            [
+              33,
+              50
+            ],
+            [
+              34,
+              49
+            ],
+            [
+              35,
+              6
+            ]
+          ],
+          "selectedFrameFullSvg": "88f81cf0cb402a9cace45f5f2401295276f7a0a213c3f1741a1498224593ae2a",
+          "selectedFramePixels": "4fc44acb0ad764de74c082d85943b8ab0f44535f27dc5b97899034c566d3f9ef"
+        },
+        "fixed": {
+          "allFrameCount": 72,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "c8c9bdd057a37f6ca1ef4646a01f3d8895c6269b3279d12018a67836b94d5a95",
+          "selectedFramePixels": "561a4c61b2c1aa1f8c03ec22d919ae4f0d354cf82a6b6f9e486ff0d121bae715"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "88f81cf0cb402a9cace45f5f2401295276f7a0a213c3f1741a1498224593ae2a",
+          "paintedWordPixelsWithoutCarrier": 1039,
+          "restoredByCarrierRemoval": 49,
+          "lossBounds": [
+            241,
+            145,
+            253,
+            151
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "c8c9bdd057a37f6ca1ef4646a01f3d8895c6269b3279d12018a67836b94d5a95",
+          "paintedWordPixelsWithoutCarrier": 1039,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "password-device.webp",
+      "reader": {
+        "chapter": "poppy-sign-in",
+        "settings": {
+          "flow": "device"
+        },
+        "step": "approve",
+        "event": "approve-read",
+        "history": [
+          "ask",
+          "collect"
+        ],
+        "corpusCaseForRoute": "sign-in-password-route"
+      },
+      "nativeCrop": [
+        122,
+        67,
+        326,
+        228
+      ]
+    },
+    {
+      "route": "password-direct",
+      "target": {
+        "key": "page:orders:(?:read|write):line",
+        "text": ".+"
+      },
+      "carrier": {
+        "key": "password:travel"
+      },
+      "eventFrame": 27,
+      "seconds": 0.9,
+      "native": {
+        "old": {
+          "allFrameCount": 72,
+          "largestLoss": 52,
+          "losingFrames": [
+            [
+              24,
+              21
+            ],
+            [
+              25,
+              31
+            ],
+            [
+              26,
+              45
+            ],
+            [
+              27,
+              52
+            ],
+            [
+              28,
+              5
+            ]
+          ],
+          "selectedFrameFullSvg": "e36d467b12b5f2e049d42537f979411da822befa16218a455093b7d001aef508",
+          "selectedFramePixels": "46868ccdda44b214c6b8df1deefa2639048a86299ccabbe819c1ae5788d19440"
+        },
+        "fixed": {
+          "allFrameCount": 72,
+          "largestLoss": 0,
+          "losingFrames": [],
+          "selectedFrameFullSvg": "e71ec2bcbea9ee9922e510c97fa8b46a2c42d8636ee72f1447bd92f5380bbf2f",
+          "selectedFramePixels": "9ba55c03057cc261f562dafe7661472615854b22dff55b6a0e1bb32acf855b78"
+        }
+      },
+      "chromium": {
+        "old": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "e36d467b12b5f2e049d42537f979411da822befa16218a455093b7d001aef508",
+          "paintedWordPixelsWithoutCarrier": 3288,
+          "restoredByCarrierRemoval": 52,
+          "lossBounds": [
+            270,
+            165,
+            275,
+            181
+          ]
+        },
+        "fixed": {
+          "revision": "1248",
+          "version": "156.0.8078.4",
+          "inputSvgSha256": "e71ec2bcbea9ee9922e510c97fa8b46a2c42d8636ee72f1447bd92f5380bbf2f",
+          "paintedWordPixelsWithoutCarrier": 3288,
+          "restoredByCarrierRemoval": 0,
+          "lossBounds": null
+        }
+      },
+      "proof": "password-direct.webp",
+      "reader": {
+        "chapter": "poppy-sign-in",
+        "settings": {
+          "flow": "direct"
+        },
+        "step": "approve",
+        "event": "approve-read",
+        "history": [
+          "ask"
+        ],
+        "corpusCaseForRoute": "sign-in-password-route"
+      },
+      "nativeCrop": [
+        45,
+        127,
+        390,
+        249
+      ]
+    }
+  ]
+}

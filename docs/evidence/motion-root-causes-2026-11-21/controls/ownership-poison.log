@@ -1,0 +1,29 @@
+✖ matched text keeps its omitted keyed owner for an attributed native paint-order rejection (100.471988ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 307.865054
+
+✖ failing tests:
+
+test at ../../tmp/rayner-matching-poison-Dn9km5/test/matching-ownership.test.ts:51:1
+✖ matched text keeps its omitted keyed owner for an attributed native paint-order rejection (100.471988ms)
+  AssertionError [ERR_ASSERTION]: []
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///tmp/rayner-matching-poison-Dn9km5/test/matching-ownership.test.ts:73:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
