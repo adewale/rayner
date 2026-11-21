@@ -1,7 +1,7 @@
 // The motion defect corpus (test/fixtures/motion-corpus/corpus.ts): each entry brings back one motion
 // defect that filming the Poppy series found and `rayner check` passed (issue #101, item 14), as a few
 // text edits to the current Poppy scenes. This builds each variant on the fly, in a copy of the Poppy
-// folders under out/, and runs the keyed motion check alone on it, so the corpus costs the repository a
+// folders under out/, and checks keyed motion and authored travel rules, so the corpus costs the repository a
 // few kilobytes of edits rather than a copy of eight explainers per defect.
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -20,7 +20,7 @@ export interface Found { scenario: string; line: string }
 
 let fonts: ReturnType<typeof loadFonts> | undefined;
 /**
- * Every keyed motion finding in the scene at `file`, as `rayner check` would make them, without the
+ * Every keyed motion and authored travel finding in `file`, as `rayner check` would make them, without the
  * check's other gates and without its cap of eight: each play of each scenario's run, and every
  * transition a reader can press from every reachable state; with `events`, only those events'
  * transitions (a subset of the check's findings, so what it catches the check catches).
@@ -76,6 +76,8 @@ export async function buildVariant(entry: Variant, root = ROOT): Promise<string>
 }
 
 function parseFinding(line: string) {
+  const contract = /^(.*): motion contract: during "([^"]+)", (.*)$/.exec(line);
+  if (contract) return { transition: contract[1]!, kind: 'motion contract', path: contract[2]!, observation: contract[3]!.replace(/ at \+[\d.]+ s$/, '') };
   const m = /^(.*?): ([a-z ]+): part “(.*?)”(?: \((.*?)\))? at [\d.]+ s (.*)$/.exec(line);
   if (!m) return undefined;
   return { transition: m[1]!, kind: m[2]!, path: m[4] ?? m[3]!, observation: m[5]!.split('; fix: ')[0]! };
@@ -85,6 +87,7 @@ function parseFinding(line: string) {
 export function findingId(f: Found): string {
   const item = parseFinding(f.line);
   if (!item) return JSON.stringify([f.scenario, f.line]);
+  if (item.kind === 'motion contract') return JSON.stringify([f.scenario, item.transition, item.kind, item.path, item.observation]);
   // Different foreground shapes can hide different words on the same keyed card.
   const subjects = item.kind === 'occluded words' ? item.observation.match(/“[^”]*”/g) : undefined;
   return JSON.stringify([f.scenario, item.transition, item.kind, item.path, subjects]);
@@ -95,7 +98,8 @@ export function attributedFindings(fresh: readonly Found[], expected: NonNullabl
   return fresh.filter(f => {
     const item = parseFinding(f.line);
     return item && f.scenario === expected.scenario && item.kind === expected.kind && item.path === expected.path &&
-      expected.transition.test(item.transition) && expected.subjects.every(name => item.observation.includes(`“${name}”`));
+      expected.transition.test(item.transition) && expected.subjects.every(name => item.observation.includes(item.kind === 'motion contract' ? `"${name}"` : `“${name}”`)) &&
+      (expected.requirement === undefined || item.observation.includes(`must be ${expected.requirement}`));
   });
 }
 

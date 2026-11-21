@@ -51,6 +51,8 @@ export interface CorpusEntry {
     path: string;
     /** Quoted subjects or foreground parts in the observation, before the suggested fix. */
     subjects: readonly string[];
+    /** A semantic gain must diagnose this exact authored requirement, not a missing anchor or another warning. */
+    requirement?: 'present' | 'absent';
   };
 }
 
@@ -76,6 +78,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'poppy-last-object-lingers', chapter: 'poppy', kind: 'result before cause', commit: '0a887ad4', method: 'reverted',
     what: 'The last event’s exhibit and closed door stayed while the next ticket travelled, and changed only when it had landed; the fix lists them in beats’ fresh, so they go before it sets off.',
+    expectedFinding: { scenario: '{"approve":"read-write"}', transition: /^step "lanes", event "browse"$/, kind: 'motion contract', path: 'ticket:flight', subjects: ['exhibit:mark'], requirement: 'absent' },
     edits: [
       { file: 'poppy/scene.ts', find: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\', \'exhibit:\', \'door:\'];', replace: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\'];' },
     ],
@@ -144,6 +147,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sessions-key-to-wax-after-check', chapter: 'poppy-sessions', kind: 'result before cause', commit: 'd99c9195', method: 'adapted',
     what: 'When the published key pressed the seal, nothing showed it moving: it left the chain and appeared on the wax only as the picture settled, after the punches it caused; the fix sends it down first.',
+    expectedFinding: { scenario: '{"company":"remembers"}', transition: /^step "signer", event "published"$/, kind: 'motion contract', path: 'ticket:flight', subjects: ['chain:ring:on-wax'], requirement: 'present' },
     edits: [
       { file: 'poppy-sessions/scene.ts', find: 'const moved = [...hand(), ...flight(c, \'ticket\'', replace: 'const moved = [...flight(c, \'ticket\'' },
       { file: 'poppy-sessions/scene.ts', find: '}, { fresh: [\'verdict:\', \'ticket\', \'hole\', \'tear\', \'link\'], lead: [\'chain:\'] });', replace: '}, { fresh: [\'verdict:\', \'ticket\', \'hole\', \'tear\', \'link\'] });' },
@@ -152,6 +156,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'sessions-key-in-two-places', chapter: 'poppy-sessions', kind: 'two copies', commit: 'cb20195a', method: 'adapted',
     what: 'The published key flew to the wax while it still hung in the chain, so it was in two places; the fix takes it out of the chain as the trip begins.',
+    expectedFinding: { scenario: '{"company":"remembers"}', transition: /^step "signer", event "published"$/, kind: 'motion contract', path: 'chain:ring:on-wax:flight', subjects: ['chain:ring'], requirement: 'absent' },
     edits: [
       { file: 'poppy-sessions/scene.ts', find: 'return [new AnimationGroup([appear!, c.leave(fromKey, { runTime: 0.25 }), ...also', replace: 'return [new AnimationGroup([appear!, ...also' },
     ],
@@ -328,6 +333,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'browser-message-lingers', chapter: 'poppy-browser', kind: 'result before cause', commit: '0a887ad4', method: 'reverted',
     what: 'The declined message and the rack’s “no codes yet” were not listed in beats’ fresh, so they stayed through the next event’s flight; the fix lists them.',
+    expectedFinding: { scenario: '{"signin":"signed-in"}', transition: /^(?:from the state at "phish", )?after .*phish, forge$/, kind: 'motion contract', path: 'forged', subjects: ['message'], requirement: 'absent' },
     edits: [
       { file: 'poppy-browser/scene.ts', find: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\', \'message\', \'rack:none\'];', replace: 'const FRESH = [\'answer:\', \'ticket\', \'barrier\'];' },
     ],
@@ -351,6 +357,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'browser-record-after-halves', chapter: 'poppy-browser', kind: 'result before cause', commit: 'd99c9195', method: 'reverted', events: ['load'],
     what: 'The Company’s record of the new code appeared on the rack only after the two halves had been handed out; the fix shows it first.',
+    expectedFinding: { scenario: '{"signin":"signed-in"}', transition: /^step "load", event "load"$/, kind: 'motion contract', path: 'page:stub:flight', subjects: ['row:Vn3q:stub'], requirement: 'present' },
     edits: [
       { file: 'poppy-browser/scene.ts', find: '            // The Company keeps its record of the new code before handing out the two halves.\n            new AnimationGroup([c.enter(`row:${id}:stub`, {}, { runTime: 0.3 }), c.enter(`row:${id}:ring`, {}, { runTime: 0.3 })]),\n', replace: '' },
       { file: 'poppy-browser/scene.ts', find: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'] });', replace: '          ], { fresh: [...FRESH, \'page:error\'], lead: [...BROWSER_ROAD, \'row:\'], then: [`row:${id}:stub`, `row:${id}:ring`] });' },
@@ -433,6 +440,7 @@ export const CORPUS: readonly CorpusEntry[] = [
   {
     id: 'conversations-table-block-blinks', chapter: 'poppy-conversations', kind: 'flicker', commit: '46cdb7e6', method: 'reverted', events: ['ask', 'you', 'read'],
     what: 'Filmed after the audit (origin/claude/film-fixes): the whole “On the table” block (heading, rules, labels) went out from about 0.2 s to 1.1 s on every message, because beats’ fresh named its prefix; only the two values change. The fix lists just the values.',
+    expectedFinding: { scenario: '{}', transition: /^step "read", event "read"$/, kind: 'motion contract', path: 'turn:flight', subjects: ['written:title:0'], requirement: 'present' },
     edits: [
       { file: 'poppy-conversations/scene.ts', find: "const SAID = ['turn', 'written:author.type:value', 'written:role:value'];", replace: "const SAID = ['turn', 'written:'];" },
     ],

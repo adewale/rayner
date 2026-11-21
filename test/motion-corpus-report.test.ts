@@ -71,7 +71,7 @@ test('credit for the device poll requires fresh observed occlusion of the compan
 });
 
 test('a report counts the requested identities and rejects missing, duplicate or unexpected rows', () => {
-  const first = CORPUS[0]!, second = CORPUS.find(e => e.kind !== first.kind)!;
+  const first = CORPUS[0]!, second = CORPUS.find(e => e.kind !== first.kind && !e.expectedFinding)!;
   const missed = result(first.id), caught = result(second.id, [observation('send', 'ledger/title', 0.4)]);
   const score = recall([first, second], [caught, missed]);
   assert.equal(score.caught, 1);
@@ -112,4 +112,39 @@ test('the fast variant-only run identifies that it omitted comparison scenes', a
   assert.equal((await runCorpus([], { bases: false })).comparison, 'variants-only');
   assert.equal((await runCorpus([])).comparison, 'baseline-subtracted');
   await assert.rejects(runCorpus([], { jobs: 0 }), /jobs must be a positive integer/);
+});
+
+test('each new semantic gain requires its observed event, trip, subject and requirement', () => {
+  const rows = [
+    ['poppy-last-object-lingers', '{"approve":"read-write"}', 'step "lanes", event "browse"', 'ticket:flight', 'exhibit:mark', 'absent'],
+    ['sessions-key-to-wax-after-check', '{"company":"remembers"}', 'step "signer", event "published"', 'ticket:flight', 'chain:ring:on-wax', 'present'],
+    ['sessions-key-in-two-places', '{"company":"remembers"}', 'step "signer", event "published"', 'chain:ring:on-wax:flight', 'chain:ring', 'absent'],
+    ['browser-record-after-halves', '{"signin":"signed-in"}', 'step "load", event "load"', 'page:stub:flight', 'row:Vn3q:stub', 'present'],
+    ['browser-message-lingers', '{"signin":"signed-in"}', 'after load, authorize, submit, phish, forge', 'forged', 'message', 'absent'],
+    ['conversations-table-block-blinks', '{}', 'step "read", event "read"', 'turn:flight', 'written:title:0', 'present'],
+  ] as const;
+  assert.equal(rows.length, 6);
+  for (const [id, scenario, event, trip, subject, requirement] of rows) {
+    const entry = CORPUS.find(e => e.id === id)!;
+    assert.ok(entry.expectedFinding);
+    const line = `${event}: motion contract: during "${trip}", subject "${subject}" must be ${requirement} at +0.700 s`;
+    const observed = {scenario, line};
+    const unrelated = [
+      {scenario: '{"unrelated":"scenario"}', line},
+      {scenario, line: line.replace(event, 'an unrelated event')},
+      {scenario, line: line.replace(`during "${trip}"`, 'during "another-trip"')},
+      {scenario, line: line.replace(`subject "${subject}"`, 'subject "another-subject"')},
+      {scenario, line: line.replace(`must be ${requirement}`, `must be ${requirement === 'present' ? 'absent' : 'present'}`)},
+      {scenario, line: `${event}: motion contract: during "${trip}", the declared travel was never constructed`},
+      {scenario, line: 'duration guard: machine.send("send"): authored transition lasts 3.000 s'},
+    ];
+    assert.equal(recall([entry], [result(id, unrelated)]).caught, 0, id);
+    const matched = againstBaseline(result(id, [...unrelated, observed]), result('base'), entry.expectedFinding);
+    assert.deepEqual(matched.attributed, [observed], id);
+    assert.equal(recall([entry], [matched]).caught, 1, id);
+    const shifted = {...observed, line: line.replace('+0.700', '+0.900')};
+    const known = againstBaseline(result(id, [shifted]), result('base', [observed]), entry.expectedFinding);
+    assert.deepEqual(known.fresh, [], 'a shifted baseline warning earns no new credit');
+    assert.equal(recall([entry], [known]).caught, 0, id);
+  }
 });
