@@ -64,6 +64,19 @@ Each explainer folder (`scenes/explainers/<id>/`, `scenes/tutorial/<id>/`) holds
 
 Shared helpers stay in `test/lib/`. Engine tests that use an explainer as an example (the CLI, describe, watch, the reader values) and the Chromium reader tests in `test/browser/` stay where they are. `npm test` runs `scenes/*/*/*.test.ts` with the rest.
 
+CLI behavior is tested through `run(args, { stdout, stderr })` in `tools/explain.ts`.
+It returns an exit status and writes command output through those two callbacks; only the
+executable adapter reads `process.argv`, writes process streams and sets `process.exitCode`.
+`test/lib/cli-contract.ts` captures the explicit writers for help, option errors and real
+temporary-project operations. Watch tests supply writers too. They do not replace global
+console methods, filter runtime warnings, or launch Node once per argument combination.
+
+The installed-package gate runs the same contract against the installed implementation.
+A few executable smoke checks retain the separate proof that npm's bin link starts, prints
+help/version and returns a failing OS exit status. External source/compiled-module loading,
+capture tools and long-running preview retain their process integration boundaries; these
+do not own the full argument/help matrix.
+
 The primary Linux/current-Node lane owns the complete browser suite. Minimum Node retains the standard suite, CLI and author-review browser checks, plus installed-package capture and preview. It does not repeat every reader interaction. Set `EXPLAIN_WEBKIT=1` or `EXPLAIN_SAFARI=1` for those browser checks. WebKit emulation does not establish physical iPhone touch, rotation, zoom or VoiceOver behavior.
 
 The motion-burst properties in `test/browser/explain-embed.test.ts` own early controls, direct-link resting SVG comparisons and reuse of a live scene. The scheduled audio property owns delayed resumes and sound cancellation on navigation, Stop and Pulse changes. Resting-picture assertions wait for a ready event matching the accepted step and settings before the history-idle guard; a counted 1000 ms render keeps completion separate from an idle-time guess. Native mutation-observer and audio-resume microtasks reject resuming canceled continuations. The scope driver checks and resumes in one turn; ReaderSink guards pending native paints. `test/browser/explain-loading.test.ts` owns latest host requests, native footer links, Tab, child navigation, zoom and pointer-release cleanup while a scenario loads.

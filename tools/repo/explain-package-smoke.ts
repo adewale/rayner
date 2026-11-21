@@ -14,7 +14,7 @@ import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf, listTree, relativePosix } from '../lib/hash.ts';
 import { options as authoredOptions, typeCheckAuthored } from './lib/authored-types.ts';
-import { assertCommandHelp, assertPinnedCommandInputs } from '../../test/lib/cli-contract.ts';
+import { assertCommandHelp, assertPinnedCommandInputs, captureCommand } from '../../test/lib/cli-contract.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
 async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
@@ -76,15 +76,17 @@ try {
   // The command works straight after the install, from npm's bin link.
   assert.ok((await run(bin, ['--help'], { cwd: folder })).stdout.startsWith(`Rayner ${version} (Node 24+)`));
   assert.equal((await run(bin, ['--version'], { cwd: folder })).stdout.trim(), version);
-  const installedCommand = async (args: string[]) => {
-    try {
-      const result = await run(bin, args, { cwd: folder });
-      return { status: 0, stdout: result.stdout, stderr: result.stderr };
-    } catch (error) {
-      const result = error as { code: number; stdout: string; stderr: string };
-      return { status: result.code, stdout: result.stdout, stderr: result.stderr };
-    }
-  };
+  const invalid = await run(bin, ['not-a-command'], { cwd: folder }).then(
+    () => { throw new Error('the installed executable accepted an unknown command'); },
+    (error: { code: number; stdout: string; stderr: string }) => error,
+  );
+  assert.equal(invalid.code, 1);
+  assert.equal(invalid.stdout, '');
+  assert.match(invalid.stderr, /^rayner: "not-a-command" is not a command/m);
+  // Run the full contract directly against the installed implementation. The few calls above
+  // own npm's executable link and the OS exit status; they do not repeat the argument matrix.
+  const { run: command } = await import(pathToFileURL(cli).href);
+  const installedCommand = captureCommand(command);
   await assertCommandHelp(installedCommand);
   await assertPinnedCommandInputs(installedCommand, join(folder, 'cli-contract'));
   for (const entry of entryPoints(ROOT).keys())

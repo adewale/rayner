@@ -6,6 +6,19 @@ import { join } from 'node:path';
 interface Result { status: number | null; stdout: string; stderr: string }
 type Run = (args: string[]) => Promise<Result>;
 
+/** Capture the command's explicit output, without replacing streams, console or process state. */
+export const captureCommand = (command: (args: string[], io: {
+  stdout(text: string): void;
+  stderr(text: string): void;
+}) => Promise<number>): Run => async args => {
+  let stdout = '', stderr = '';
+  const status = await command(args, {
+    stdout: text => { stdout += text; },
+    stderr: text => { stderr += text; },
+  });
+  return { status, stdout, stderr };
+};
+
 /** Help and invalid invocations must work before loading a scene or producing artifacts. */
 export async function assertCommandHelp(run: Run): Promise<void> {
   const root = await run(['--help']);
