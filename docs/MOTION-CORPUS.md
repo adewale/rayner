@@ -81,7 +81,7 @@ sign-in, statechart, browser-record and coverage-request occlusions. The rule wa
 not weakened to waive those scenes. Failed baseline replays now make the score
 unavailable; saved observations remain diagnostic evidence.
 
-[Evidence, native images, controls and reproduction commands](evidence/motion-occlusion-2026-11-20/README.md)
+[Evidence, native images, controls and reproduction commands](https://github.com/adewale/rayner/blob/1522b5040e599edcf9f373ff7e3e3fad9e730bfd/docs/evidence/motion-occlusion-2026-11-20/README.md)
 and the retained `corpus.json` give the case inventory, baseline counts and new
 observations. The measurement uses the same 59 entry IDs and focused event
 selection, with every baseline's events. Subsequent public-API test ports and
