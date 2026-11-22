@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderAsync } from '@resvg/resvg-js';
-import { Text, VMobject, toSvgString } from '../../../src/index.ts';
+import { Rectangle, Text, VMobject, toSvgString } from '../../../src/index.ts';
+import type { Mobject } from '../../../src/index.ts';
 import { loadFonts, loadProject } from '../../../explain/testing.ts';
 import { routeInkCheck } from '../lib/route-ink/fidelity.ts';
 import SignIn from './scene.ts';
 import { STORY, type Flow } from './model.ts';
+import { DESK } from './picture.ts';
 
 await loadFonts();
 
@@ -50,17 +52,133 @@ test('the device poll and its reply reach the counter without hiding either line
 
 // These assertions state this chapter's actors and object identities independently of
 // the route construction. Layout reflows are fades; protocol objects actually travel.
-test('the code travelling to the token endpoint is wordless while its resting credentials stay readable', async () => {
+test('the code travelling to the token endpoint is wordless and visibly moves in every authored journey', async () => {
   const project = await loadProject(SignIn, import.meta.dirname);
   const scenario = project.scenarios.find(scenario => scenario.values.flow === 'direct')!;
-  let count = 0;
+  type Sample = {at: readonly number[]; actual: string; omitted: string};
+  type Journey = {visible: Sample[]; covered: Sample[]; offstage: Sample[]};
+  const journeys = new Map<Mobject, Journey>();
   await new scenario.Scene({async frame(scene) {
-    const code = scene.familyMembers().find(m => m.key === 'code');
+    const code = scene.find('code');
     if (!painted(code)) return;
-    count++;
     assert.equal(code!.family().filter(m => m instanceof Text).length, 0, 'a small travelling code carries no unreadable words');
+    // Read native movement at complete travelling ink, not its partial fades.
+    if (code!.family().some(member => member.style.opacity < 1)) return;
+    const journey = journeys.get(code!) ?? {visible: [], covered: [], offstage: []};
+    journeys.set(code!, journey);
+    const picture = () => toSvgString(scene, {width: 800});
+    const sample = (): Sample => ({at: [...code!.center()], actual: picture(), omitted: without(code!, picture)});
+    const keep = (rows: Sample[], row: Sample) => { if (rows.length < 2) rows.push(row); else rows[1] = row; };
+    keep(journey.visible, sample());
+    const cover = new Rectangle({width: code!.width() + 0.2, height: code!.height() + 0.2,
+      fill: scene.colors.paper, stroke: 'none'}).moveTo(code!.center());
+    scene.add(cover);
+    try { keep(journey.covered, sample()); }
+    finally { scene.remove(cover); }
+    const at = code!.center(), frame = scene.frame.box()!;
+    try {
+      code!.moveTo([frame[2] + code!.width(), frame[3] + code!.height()]);
+      keep(journey.offstage, sample());
+    } finally { code!.moveTo(at); }
   }}).run();
-  assert.ok(count > 2, 'the wordless code actually travels');
+  assert.equal(journeys.size, STORY.direct.filter(event => event === 'collect').length, 'every authored code journey is observed');
+  const moving = async (samples: Sample[]) => {
+    assert.equal(samples.length, 2, 'two complete native travelling frames');
+    const positions: number[][] = [], paintings: {actual: Uint8Array; omitted: Uint8Array; support: boolean[]}[] = [];
+    for (const sample of samples) {
+      const [actual, omitted] = await Promise.all([native(sample.actual), native(sample.omitted)]);
+      const support: boolean[] = [];
+      let x = 0, y = 0, ink = 0;
+      for (let p = 0; p < actual.length; p += 4) {
+        const paints = [0, 1, 2, 3].some(c => actual[p + c] !== omitted[p + c]);
+        support.push(paints);
+        if (paints) { x += (p / 4) % 800; y += Math.floor(p / 4 / 800); ink++; }
+      }
+      assert.ok(ink > 0, 'the wordless traveller must contribute actual native ink');
+      positions.push([x / ink, y / ink]); paintings.push({actual, omitted, support});
+    }
+    assert.notDeepEqual(samples[0]!.at, samples[1]!.at, 'the token changes world position');
+    assert.notDeepEqual(positions[0], positions[1], 'the token changes composited screen position');
+    const [a, b] = paintings;
+    let changed = false;
+    for (let p = 0; p < a!.support.length; p++) if (a!.support[p] || b!.support[p]) {
+      for (const c of [0, 1, 2, 3]) {
+        assert.equal(a!.omitted[p * 4 + c], b!.omitted[p * 4 + c], 'unrelated background changes cannot supply token movement');
+        changed ||= a!.actual[p * 4 + c] !== b!.actual[p * 4 + c];
+      }
+    }
+    assert.ok(changed, 'actual token ink changes where its native contribution moves');
+  };
+  for (const journey of journeys.values()) {
+    await moving(journey.visible);
+    await assert.rejects(moving(journey.covered), /must contribute actual native ink/);
+    await assert.rejects(moving(journey.offstage), /must contribute actual native ink/);
+  }
+});
+
+/** Snapshot mutations finish before native rendering starts. A getter is read once
+ * per async result, and the small source-phase inventory bounds native work. */
+function without(part: Mobject, read: () => string): string {
+  const members = part.family(), alpha = members.map(member => member.style.opacity);
+  try { members.forEach(member => member.setStyle({opacity: 0}, false)); return read(); }
+  finally { members.forEach((member, i) => member.setStyle({opacity: alpha[i]!}, false)); }
+}
+const native = async (svg: string) => (await renderAsync(svg, {font: {loadSystemFonts: false}})).pixels;
+
+test('each device card first paints completely above the agent key slot rather than at the Company desk', async () => {
+  const project = await loadProject(SignIn, import.meta.dirname);
+  const scenario = project.scenarios.find(scenario => scenario.values.flow === 'device')!;
+  const seen = new Set<Mobject>();
+  let sourceChecks = 0, deskControls = 0;
+  const origin = (card: Mobject, slot: Mobject, station: Mobject) => {
+    const box = card.box()!, key = slot.box()!, agent = station.center();
+    assert.ok(box[1] >= key[3], 'the first painted card is above the agent key slot');
+    assert.ok(box[0] <= agent[0] && agent[0] <= box[2], 'the first painted card belongs above its agent');
+  };
+  await new scenario.Scene({async frame(scene) {
+    const card = scene.find('card:flight');
+    if (!card || seen.has(card) || card.family().some(member => member.style.opacity < 1)) return;
+    seen.add(card);
+    const slot = scene.find('agent:key:slot'), station = scene.find('agent:station');
+    assert.ok(slot && station, 'the card has its actual agent and key slot at source');
+    const words = card.family().filter((member): member is Text => member instanceof Text);
+    assert.deepEqual(words.map(word => word.text), ['WDJB-MJHT', 'Example Company', 'example.com']);
+    const picture = () => toSvgString(scene, {width: 800});
+    const alone = () => toSvgString({frame: scene.frame, colors: scene.colors, mobjects: [card]}, {width: 800});
+    const actualSvg = picture(), aloneSvg = alone();
+    const removed = words.map(word => ({actual: without(word, picture), alone: without(word, alone)}));
+    const missingCardSvg = without(card, picture);
+    // A desk-origin control retains the complete real card and all its printing.
+    const at = card.center();
+    let deskSvg: string, deskMissingSvg: string;
+    try {
+      card.moveTo(DESK);
+      deskSvg = picture(); deskMissingSvg = without(card, picture);
+      assert.throws(() => origin(card, slot, station), /first painted card is above the agent key slot/);
+    } finally { card.moveTo(at); }
+    const actual = await native(actualSvg), isolated = await native(aloneSvg), missing = await native(missingCardSvg);
+    assert.ok(actual.some((value, i) => value !== missing[i]), 'the source card really contributes native paint');
+    for (const row of removed) {
+      const [omitted, isolatedOmitted] = await Promise.all([native(row.actual), native(row.alone)]);
+      let ink = 0;
+      for (let p = 0; p < isolated.length; p += 4) {
+        if (![0, 1, 2, 3].some(c => isolated[p + c] !== isolatedOmitted[p + c])) continue;
+        ink++;
+        for (const channel of [0, 1, 2, 3]) {
+          assert.equal(actual[p + channel], isolated[p + channel], 'the complete source printing stays visible');
+          assert.equal(omitted[p + channel], isolatedOmitted[p + channel], 'other paint cannot substitute for a source word');
+        }
+      }
+      assert.ok(ink > 0, 'each independently named source word really paints');
+    }
+    origin(card, slot, station); sourceChecks++;
+    const [desk, deskMissing] = await Promise.all([native(deskSvg!), native(deskMissingSvg!)]);
+    assert.ok(desk.some((value, i) => value !== deskMissing[i]), 'the rejected desk-origin control really paints');
+    deskControls++;
+  }}).run();
+  const expected = STORY.device.filter(event => event === 'ask').length;
+  assert.equal(sourceChecks, expected, 'every authored device ask paints its card at its source');
+  assert.equal(deskControls, expected, 'the same source rule rejects every native desk-origin control');
 });
 
 function painted(part: import('../../../src/index.ts').Mobject | undefined): boolean {
