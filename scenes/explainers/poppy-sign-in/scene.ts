@@ -1,4 +1,5 @@
-import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Succession, Text, linear } from '../../../src/index.ts';
+import type { Animation, Mobject } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
 import { MARGIN, beats, flight, pass, route } from '../lib/poppy-kit.ts';
@@ -93,9 +94,11 @@ export default class SignIn extends Scene {
     const request = () => requestToken(s.drawing).scale(0.55);
     const code = () => codeToken(s.drawing);
     /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
-    const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 }): Beat[] => {
-      const part = c.to(k), walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
-      return [walk.appear, walk.move, new AnimationGroup([walk.leave, c.enter(k, {}, { runTime: times.leave })])];
+    const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 },
+      {retire, token, replaceInPlace = false}: {retire?: Animation; token?: Mobject; replaceInPlace?: boolean} = {}): Beat[] => {
+      const part = c.to(k), walk = c.travel(`${k}:flight`, token ?? part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
+      const arrival = new AnimationGroup([walk.leave, replaceInPlace ? c.morph(k, {runTime: times.leave}) : c.enter(k, {}, { runTime: times.leave })]);
+      return [walk.appear, walk.move, retire ? new Succession([retire, arrival]) : arrival];
     };
 
     /**
@@ -136,13 +139,13 @@ export default class SignIn extends Scene {
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
       'approve-read': (t: Transition<World, SignInEvent>) => approve(t),
       // A code comes out of the page to the agent, and with its signature to the desk (or a poll goes there);
-      // then the page closes, the agent takes the top, and the key and the tag come to it from the desk.
+      // then the page closes and both grant products come to the same agent/ring from the desk.
       collect: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world), got = t.after.last?.kind === 'tokens', seal = centre(c, 'agent:seal', 'from');
         // Direct: the code drops out of the bottom of the page to the agent's side and runs on, under the
         // agent's signature, to the desk. Device: a poll runs to the desk. If tokens come back, the page
-        // closes and the layout cross-fades (an old key and tag fade with it: they are replaced), then the
-        // key comes from the desk to the agent's ring, and the tag after it.
+        // closes while the recipient stays put. Earlier credentials remain at its
+        // ring until each replacement actually arrives from the Company.
         const token = device ? request() : code();
         const poll = (p: Pt): Pt[] => {
           // Leave the key slot clear, then turn up into the accessible edge of the counter.
@@ -157,11 +160,21 @@ export default class SignIn extends Scene {
           const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
           const moved = relaid(c, ['agent:key', 'tag']);
           const old = ['agent:key', 'tag'].filter((k) => c.has(k, 'from'));
-          const out: Pt = [FACE_LEFT, DESK[1]];
-          const gone = new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved, ...old])]);
+          const out: Pt = [...DESK];
+          const gone = new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved])]);
           const targetKey = c.to('agent:key'), name = c.to('agent:name').box()!;
           const clearX = Math.max(out[0], name[2] + targetKey.width() / 2 + 0.08);
-          const key = fly(c, 'agent:key', [out, [clearX, out[1]], [clearX, targetKey.center()[1]]]), tag = fly(c, 'tag', [out]);
+          const retireTag = old.includes('tag') ? c.leave('tag', {runTime: 0.1, rateFunc: linear}) : undefined;
+          const timing = (replacement: Animation | undefined) => ({appear: 0.25, move: 0.6, leave: replacement ? 0.15 : 0.25});
+          // A wordless refresh-token tag travels around the held key and then
+          // hands off to its complete printed tag. No small lettering or swept
+          // paper can erase the still-usable grant at the recipient's ring.
+          const targetTag = c.to('tag'), tagToken = keyTag(s.drawing, {at: [0, 0], value: null});
+          const edgeX = device ? targetKey.box()![0] - tagToken.width() / 2 - 0.08
+            : targetKey.box()![2] + tagToken.width() / 2 + 0.08;
+          const tagRoute: Pt[] = [out, [edgeX, out[1]], [edgeX, targetTag.center()[1]]];
+          const key = fly(c, 'agent:key', [out, [clearX, out[1]], [clearX, targetKey.center()[1]]], timing(undefined), {replaceInPlace: old.includes('agent:key')}),
+            tag = fly(c, 'tag', tagRoute, timing(retireTag), {retire: retireTag, token: tagToken});
           return [
             run[0]!, run[1]!, gone,
             new AnimationGroup([...fadeIn(c, moved), key[0]!]),
@@ -201,8 +214,8 @@ export default class SignIn extends Scene {
     /** The tag goes back to the Company's desk, and the key with it. */
     const giveBack = (t: Transition<World, SignInEvent>) => {
       const c = t.choreograph(world), from = centre(c, 'tag', 'from');
-      const heldDevice = device && !!t.before.sign;
-      // In the open device layout the station is between the held tag and the desk.
+      const heldDevice = device;
+      // In the stable device composition the station is between the tag and desk.
       // Release the printed original into the same punched tag, seen in transit.
       const token = heldDevice ? keyTag(s.drawing, { at: from, value: null }) : c.from('tag').copy();
       const halfHeight = token.height() / 2 + 0.06;
@@ -232,7 +245,24 @@ export default class SignIn extends Scene {
       },
       next,
       views: [world],
-      motion: ({event, before}) => {
+      motion: ({event, before, after}) => {
+        if (event === 'collect') {
+          const context = ['counter', 'agent:station', 'agent:ring', 'agent:name'];
+          const got = after.last?.kind === 'tokens', input = device ? 'poll' : 'code';
+          // These are selective protocol dependencies: the reply cannot be read
+          // while its input is still travelling; both grant products have the
+          // Company as source and the unchanged ring as recipient. A replacement
+          // does not erase usable credentials before the new ones reach that ring.
+          return [
+            {view: world, during: input, present: context, absent: ['answer:phrase']},
+            ...(!got ? [{view: world, during: 'poll:back', present: context, absent: ['answer:phrase']}] : [
+              {view: world, during: 'agent:key:flight', present: [...context, ...(before.holds ? ['agent:key', 'tag'] : [])],
+                absent: ['answer:phrase'], clearText: ['agent:name']},
+              {view: world, during: 'tag:flight', present: [...context, 'agent:key', ...(before.holds ? ['tag'] : [])],
+                absent: ['answer:phrase'], clearText: ['agent:name']},
+            ]),
+          ];
+        }
         // The password is one physical card until it reaches the Company's field.
         if (event === 'approve-read' || event === 'approve-all') return [{
           view: world, during: 'page:password:flight', absent: ['you:password', 'page:password'],

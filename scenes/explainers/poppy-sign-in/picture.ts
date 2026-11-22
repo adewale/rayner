@@ -12,8 +12,8 @@ import type { Flow, OfferedScope, Scope, World } from './model.ts';
 // sign-in is open, the top left is your browser (Direct Sign-In) or your phone, upright (Device
 // Sign-In); the page in it is drawn in the Company's tone and runs out through the window's edge into
 // the counter, so the page is the Company's ground, reached through your window. Your password card
-// goes into that page and no further. When no sign-in is open the page is gone, and the agent's
-// keyring takes its place: the key large enough to count its teeth, the refresh-token tag on a cord.
+// goes into that page and no further. The agent and its ring keep their place as
+// the page closes and the Company's access key and refresh-token tag arrive.
 // Behind the counter, the scopes example.com offers, each a row with a tooth the size of the key's,
 // cut in brass when the agent holds the scope and hollow when it does not, so the key's teeth are
 // the brass rows. Bottom right, what happened last, in words.
@@ -28,10 +28,9 @@ export const PALETTE = KIT_PALETTE;
 /** What a step shows that is not the model: step 1's picture of the password shortcut. */
 export type Shown = { password: boolean };
 
-// The picture's geometry, shared with the scene's transitions. Two layouts on the left half: while a
-// sign-in is open, the Company's page fills the top (your browser, or your phone upright) and the
-// agent stands small at the bottom; when none is open, the page is gone and the agent's keyring is
-// the hero at the top, the key large enough to count its teeth, with you and your password below.
+// The Company's page uses the top; each flow keeps one agent/ring composition
+// beneath it through requesting, approval, issuance and replacement. Closing a
+// page is not a new trip for its recipient. The tag retains its full-size printing.
 const WIN = { left: MARGIN.left, right: -1.3, top: MARGIN.top, bottom: -0.22, bar: 0.86 } as const;
 /** The counter's face, and its lower end, where the agent deals with the token endpoint. */
 export const FACE = -0.6;
@@ -58,20 +57,18 @@ const STRIP_Y = -1.06;
 export const SLIP_AT: Vec = [-2.75, STRIP_Y];
 /** Where you stand, and your password card, in each layout. */
 type Place = { you: Vec; size: number; card: Vec };
-const YOU: { direct: Place; device: Place; closed: Place } = {
+const YOU: { direct: Place; device: Place } = {
   direct: { you: [-7.0, STRIP_Y], size: 1.1, card: [-5.3, STRIP_Y] },
   device: { you: [-6.5, 2.55], size: 1.3, card: [-6.2, 1.1] },
-  closed: { you: [-6.9, -2.6], size: 1.2, card: [-5.0, -2.65] },
 };
-/** The agent's station and keyring in each layout: small at the bottom, or the hero at the top. */
+/** A stable recipient in each flow, including while its page is closed. */
 type Ring = { station: Vec; ring: Vec; key: Vec; size: number; tag: Vec };
-const AGENT_AT: { open: Ring; deviceHeld: Ring; closed: Ring } = {
+const AGENT_AT: { open: Ring; deviceHeld: Ring } = {
   open: { station: [-6.3, -2.86], ring: [-5.22, -2.2], key: [-3.86, -2.2], size: 1.15, tag: [-2.3, -3.48] },
   // Keep the station beside the counter while the open device flow shows an
   // earlier grant. The readable tag and its full-size key hang away from
   // the seal's route to the counter.
   deviceHeld: { station: [-1.94, -2.86], ring: [-3.02, -2.2], key: [-4.38, -2.2], size: 1.15, tag: [-5.54, -3.48] },
-  closed: { station: [-6.3, 2.3], ring: [-5.22, 2.6], key: [-3.02, 2.6], size: 2.0, tag: [-2.8, 0.15] },
 };
 const STATION_R = 0.72;
 export const THIEF_AT: Vec = [-0.95, -2.1];
@@ -346,10 +343,10 @@ export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
   parts.add(label(s, 'can’t be undone', { at: [RACK_X, rows['orders:write'] - 0.7], color: TONE.soft, align: 'start' }), 'rack:hint');
 
   // You, and your password unless it is on the page.
-  const place = open ? YOU[w.flow] : YOU.closed;
+  const place = YOU[w.flow];
   parts.add(person(s, { at: place.you, size: place.size }), 'you');
   if (!w.sign?.approved) parts.add(passwordCard(s, { at: place.card }), 'you:password');
-  const ringLayout = !open ? AGENT_AT.closed : device && w.holds ? AGENT_AT.deviceHeld : AGENT_AT.open;
+  const ringLayout = device ? AGENT_AT.deviceHeld : AGENT_AT.open;
   const ring = agentWith(s, ringLayout, w.holds ? w.holds.scopes.length : 0, w.holds ? CARDS[w.holds.card] : null);
   const showsCard = device && open && !w.sign?.approved;
   // The empty-key guide is always background, beneath both the printed card
@@ -374,7 +371,7 @@ export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
     }
   }
 
-  // The agent, with its keyring: small while a page is open, the hero when none is.
+  // Both products of the grant reach the same stable recipient.
   const held = ring.find((m) => m.key === 'agent:key');
   if (held && last?.kind === 'tokens') emphasised(held, `changed: the agent holds a key with ${w.holds!.scopes.length === 1 ? 'one tooth' : 'two teeth'}`);
   addAll(parts, ring.filter(part => part !== emptyKeyGuide));
