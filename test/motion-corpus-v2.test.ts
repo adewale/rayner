@@ -1,4 +1,11 @@
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { FROZEN_REVISION, FROZEN_RUN } from '../tools/repo/motion-corpus-v2-current.ts';
 import assert from 'node:assert/strict';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
 import { PROSPECTIVE_V2_VISUAL, INDEPENDENT_VISUAL_TARGETS } from './fixtures/motion-corpus/prospective-v2-visual.ts';
@@ -212,4 +219,95 @@ test('explicitly confirmed concrete obstruction can be diagnosed inside an edito
   assert.equal(report.prospective.targetMatchedDiagnoses, 1);
   assert.equal(report.prospective.diagnosesWithinEditorialCases, 1);
   assert.equal(report.rows.find(row => row.id === codeCase.id)!.visualVerdict, 'editorial');
+});
+
+const digest = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
+async function boundFixture() {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-v2-binding-'));
+  const provenance = JSON.stringify({revision: FROZEN_REVISION});
+  await writeFile(join(directory, 'provenance.json'), provenance);
+  for (const [file, owner, key, revisionKey, entries] of [
+    ['review-first.json', 'current_audit_first', 'cases', 'revision', CORPUS.slice(0, 30)],
+    ['review-second.json', 'current_audit_second', 'entries', 'frozenRevision', CORPUS.slice(30)],
+  ] as const) {
+    const review = JSON.stringify({reviewer: owner, [revisionKey]: FROZEN_REVISION,
+      [key]: entries.map(entry => ({id: entry.id, disposition: 'confirmed intended clause',
+        observation: entry.id === codeCase.id ? 'Synthetic named code observation for adapter test.' : 'Synthetic case; no diagnostic target ratified.',
+        witnesses: [`synthetic/${entry.id}.png`]}))});
+    await writeFile(join(directory, file), review);
+    await writeFile(join(directory, file.replace('.json', '-v2-confirmations.json')), JSON.stringify({schema: 1,
+      revision: FROZEN_REVISION, run: FROZEN_RUN, reviewer: owner, reviewFile: file,
+      reviewSha256: digest(review), provenanceSha256: digest(provenance),
+      confirmations: entries.map(entry => ({id: entry.id, targets: entry.id === codeCase.id ? [codeCase.targets[0]!.version] : [],
+        note: 'Explicit synthetic adapter-test ratification, not actual audit evidence.'}))}));
+  }
+  const data = input(); row(data, codeCase.id, [small]);
+  const measurement = JSON.stringify({comparison: 'baseline-subtracted', results: data.results, baselines: data.baselines});
+  await mkdir(join(directory, 'measurement'));
+  await writeFile(join(directory, 'measurement/corpus.json'), measurement);
+  await writeFile(join(directory, 'measurement/corpus.exit'), '0\n');
+  await writeFile(join(directory, 'measurement/provenance.json'), JSON.stringify({schema: 1, revision: FROZEN_REVISION,
+    run: FROZEN_RUN, measurementFile: 'corpus.json', measurementSha256: digest(measurement), comparison: 'baseline-subtracted',
+    expectedCases: 59, expectedBaselines: 8, sourcePolicy: 'Synthetic adapter test only.'}));
+  return directory;
+}
+const adapterPath = fileURLToPath(new URL('../tools/repo/motion-corpus-v2-current.ts', import.meta.url));
+const runAdapter = (directory: string) => spawnSync(process.execPath, [adapterPath, '--audit', directory], {encoding: 'utf8', timeout: 15_000});
+async function changeJSON(directory: string, file: string, change: (row: any) => void) {
+  const path = join(directory, file), row = JSON.parse(await readFile(path, 'utf8'));
+  change(row); await writeFile(path, JSON.stringify(row));
+}
+
+test('actual adapter accepts bound explicit ratification and never upgrades a broad confirmation of another clause', async () => {
+  const directory = await boundFixture();
+  try {
+    let child = runAdapter(directory);
+    assert.equal(child.status, 0, child.stderr);
+    let report = JSON.parse(await readFile(join(directory, 'prospective-v2/report.json'), 'utf8'));
+    assert.equal(report.prospective.targetMatchedDiagnoses, 1);
+    assert.equal(report.sourceRevision, FROZEN_REVISION);
+    await rm(join(directory, 'prospective-v2'), {recursive: true});
+    await changeJSON(directory, 'review-first.json', review => {
+      review.cases.find((row: {id: string}) => row.id === codeCase.id).observation = 'A completely different clause is visible; the code-size clause is unconfirmed.';
+    });
+    // Re-ratify the new review bytes explicitly with NO target, retaining its
+    // same coarse confirmed disposition. That must produce no diagnosis.
+    const bytes = await readFile(join(directory, 'review-first.json'), 'utf8');
+    await changeJSON(directory, 'review-first-v2-confirmations.json', receipt => {
+      receipt.reviewSha256 = digest(bytes);
+      receipt.confirmations.find((row: {id: string}) => row.id === codeCase.id).targets = [];
+    });
+    child = runAdapter(directory);
+    assert.equal(child.status, 0, child.stderr);
+    report = JSON.parse(await readFile(join(directory, 'prospective-v2/report.json'), 'utf8'));
+    assert.equal(report.prospective.targetMatchedDiagnoses, 0);
+    assert.equal(report.rows.find((row: {id: string}) => row.id === codeCase.id).targets[0].findingMatch, true);
+  } finally {await rm(directory, {recursive: true, force: true});}
+});
+
+test('actual adapter rejects stale review bytes, wrong reviewer/source/run, and unbound measurement bytes', async () => {
+  for (const damage of ['capture-source', 'stale-clause', 'wrong-reviewer', 'wrong-run', 'measurement-source', 'measurement-bytes'] as const) {
+    const directory = await boundFixture();
+    try {
+      if (damage === 'capture-source') await changeJSON(directory, 'provenance.json', row => {row.revision = '0'.repeat(40);});
+      if (damage === 'stale-clause') await changeJSON(directory, 'review-first.json', row => {row.cases[0].observation = 'Another clause, unchanged coarse disposition.';});
+      if (damage === 'wrong-reviewer') await changeJSON(directory, 'review-first-v2-confirmations.json', row => {row.reviewer = 'another reviewer';});
+      if (damage === 'wrong-run') await changeJSON(directory, 'review-first-v2-confirmations.json', row => {row.run = 'different-run';});
+      if (damage === 'measurement-source') await changeJSON(directory, 'measurement/provenance.json', row => {row.revision = '0'.repeat(40);});
+      if (damage === 'measurement-bytes') await writeFile(join(directory, 'measurement/corpus.json'), '{}');
+      const child = runAdapter(directory);
+      assert.equal(child.status, 1, `${damage}: ${child.stderr}`);
+      assert.match(child.stderr, /provenance|binding|source receipt/);
+      await assert.rejects(readFile(join(directory, 'prospective-v2/report.json')), /ENOENT/);
+    } finally {await rm(directory, {recursive: true, force: true});}
+  }
+});
+
+test('a blocked visual case can ratify a typed prevention cause without earning visual diagnosis', () => {
+  const data = input(), id = 'discovery-fetch-squeezed';
+  const version = PROSPECTIVE_V2.find(entry => entry.id === id)!.targets[0]!.version;
+  data.reviews = [{...review(id, [version]), verdict: 'blocked', note: 'Typed event-budget prevention only; no compressed fades were painted.'}];
+  const report = assessV2(data);
+  assert.equal(report.prospective.targetMatchedDiagnoses, 0);
+  assert.equal(report.rows.find(row => row.id === id)!.visualVerdict, 'blocked');
 });

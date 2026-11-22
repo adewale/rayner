@@ -98,7 +98,7 @@ export function assessV2(input: V2Input, manifest: readonly ProspectiveCase[] = 
       !['confirmed', 'editorial', 'not-visually-reproduced', 'blocked', 'inconclusive', 'secondary-only'].includes(review.verdict) ||
       new Set(review.confirmedTargets).size !== review.confirmedTargets.length ||
       review.confirmedTargets.some(version => !entry.targets.some(target => target.version === version)) ||
-      (['not-visually-reproduced', 'blocked', 'inconclusive'].includes(review.verdict) && review.confirmedTargets.length)) throw new Error(`v2 invalid independent review for ${review.id}`);
+      (['not-visually-reproduced', 'blocked', 'inconclusive'].includes(review.verdict) && review.confirmedTargets.some(version => entry.targets.some(target => target.version === version && target.finding)))) throw new Error(`v2 invalid independent review for ${review.id}`);
   }
   const chapterReceipts = unique(input.chapterReceipts ?? [], 'chapter receipts');
   for (const receipt of chapterReceipts.values()) {
