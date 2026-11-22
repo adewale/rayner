@@ -5,6 +5,7 @@ import { Text, VMobject, toSvgString } from '../../../src/index.ts';
 import { loadFonts, loadProject } from '../../../explain/testing.ts';
 import { routeInkCheck } from '../lib/route-ink/fidelity.ts';
 import SignIn from './scene.ts';
+import { STORY, type Flow } from './model.ts';
 
 await loadFonts();
 
@@ -124,7 +125,7 @@ test('approval preserves the keyring silhouette on every emitted frame', async (
         const state = scene.state as import('./model.ts').World;
         if (state.last?.kind !== 'approve') { row = undefined; return; }
         const guide = scene.find('agent:key:slot'), ring = scene.find('agent:ring');
-        if (!guide || !ring) return;
+        assert.ok(guide && ring, 'every approval frame retains its physical ring and guide');
         // Observe the ring itself. The card above it legitimately disappears;
         // its paper is outside this fixed context aperture.
         const box = [...ring.box()!];
@@ -151,7 +152,7 @@ test('approval preserves the keyring silhouette on every emitted frame', async (
         }
         row.images.push(svg);
       }}).run();
-      assert.ok(rows.length > 0, `${scenario.values.flow}: an empty-ring approval must actually run`);
+      assert.equal(rows.length, STORY[scenario.values.flow as Flow].filter(event=>event==='approve-read'||event==='approve-all').length, `${scenario.values.flow}: every authored approval must be observed`);
       for (const row of rows) {
         assert.ok(row.images.length > 2);
         const render = async (svg: string) => (await renderAsync(svg,{font:{loadSystemFonts:false}})).pixels;
