@@ -2,7 +2,7 @@
 // arranging the beats. A declaration cannot make its own source disappear or its prerequisite paint.
 import { motionObservers, type ObserveMotion } from '../../explain/internal.ts';
 import type { MotionRule } from '../../explain/index.ts';
-import { clipPathOf, intersect, isHex, mobjectId, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
+import { UNITS, clipPathOf, intersect, isHex, mobjectId, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
 import type { Animation, Box, Mobject, Scene, Sink, Vec } from '../../src/index.ts';
 import { rasterize } from './explain-raster.ts';
 
@@ -11,6 +11,7 @@ type VisiblePaint = { screen: Vec; pixels: Uint8Array; support: Uint8Array; fore
 type Trip = { move: Animation; first?: { world: Vec; paint: VisiblePaint }; proved: boolean };
 type Check = { rule: MotionRule; trips: Trip[]; issues: Set<string>; where: string; start: number };
 type Painted = { svg: string; visible: boolean };
+type Composited = { actual: string; omitted: string; visible: boolean };
 
 /** Isolated native paint, including the camera, inherited/descendant clips, real fills and strokes.
  * Keep the last result per subject: unchanged context usually has identical SVG across a trip. */
@@ -52,6 +53,63 @@ async function paintsOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject
   let visible = false;
   for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) { visible = true; break; }
   cache.set(part, {svg, visible});
+  return visible;
+}
+
+/** Required context must contribute to this picture, not merely paint in isolation.
+ * The native crop uses the full scene's order and clips, including later views. Only
+ * the exact subject's records are omitted; unrelated changing ink cannot witness it.
+ * Cache the two relevant SVGs, since an unchanged subject can acquire a new cover. */
+async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject, Composited>): Promise<boolean> {
+  const camera = scene.frame.box()!, bounds = part.box();
+  if (!bounds) return false;
+  // Match toSvgString's rounded user-unit viewBox and SVG's centred meet transform,
+  // including a shifted camera or letterboxing from a non-16:9 camera.
+  const [left, top, right, bottom] = userBox(camera);
+  const vx = Math.round(left), vy = Math.round(top), vw = Math.round(right - left), vh = Math.round(bottom - top);
+  const unit = Math.min(800 / vw, 450 / vh);
+  const ox = (800 - vw * unit) / 2, oy = (450 - vh * unit) / 2;
+  const stroke = Math.max(0, ...part.family().map(m => m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4)));
+  const extent = userBox(pad(bounds, stroke + 1 / (unit * UNITS)));
+  const x0 = Math.max(0, Math.floor(ox + (extent[0] - vx) * unit));
+  const x1 = Math.min(800, Math.ceil(ox + (extent[2] - vx) * unit));
+  const y0 = Math.max(0, Math.floor(oy + (extent[1] - vy) * unit));
+  const y1 = Math.min(450, Math.ceil(oy + (extent[3] - vy) * unit));
+  if (x0 >= x1 || y0 >= y1) return false;
+  const crop: Box = [vx + (x0 - ox) / unit, vy + (y0 - oy) / unit,
+    vx + (x1 - ox) / unit, vy + (y1 - oy) / unit];
+  const box: Box = [crop[0] / UNITS, -crop[3] / UNITS, crop[2] / UNITS, -crop[1] / UNITS];
+  // The temporary frame only narrows native conservative culling. World paint and
+  // its inherited clips remain untouched, on the original 800 x 450 pixel grid.
+  const frame = scene.frame.copy().setWidth(box[2] - box[0], true).setHeight(box[3] - box[1], true)
+    .moveTo([(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]);
+  // Preserve individual record ownership: merged text runs can contain siblings
+  // outside a keyed glyph, and omitting that run would credit unrelated ink.
+  const records = renderElements({frame, mobjects: scene.mobjects}, {cull: true, width: x1 - x0});
+  const ids = new Set(part.family().map(mobjectId));
+  if (!records.some(record => ids.has(record.id))) return false;
+  const clips = new Map<string, string>(), actual: string[] = [], omitted: string[] = [];
+  for (const record of records) {
+    if (record.clipBox) {
+      const clip = clipPathOf(record.clipBox);
+      clips.set(clip.id, clip.svg);
+    }
+    const svg = record.svg ??= serializeElement(record);
+    actual.push(svg);
+    if (!ids.has(record.id)) omitted.push(svg);
+  }
+  const paper = scene.colors.paper;
+  if (!isHex(paper)) throw new TypeError('Scene paper must be a #rgb or #rrggbb colour');
+  const start = `<svg xmlns="http://www.w3.org/2000/svg" width="${x1-x0}" height="${y1-y0}" viewBox="${crop[0]} ${crop[1]} ${crop[2]-crop[0]} ${crop[3]-crop[1]}"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${paper}"/><defs>${[...clips.values()].join('')}</defs>`;
+  const svg = start + actual.join('') + '</svg>', without = start + omitted.join('') + '</svg>';
+  const old = cache.get(part);
+  if (old?.actual === svg && old.omitted === without) return old.visible;
+  const [drawn, removed] = await Promise.all([rasterize(svg), rasterize(without)]);
+  const a = drawn.pixels, b = removed.pixels;
+  // Letterboxed pixels outside the camera's paper can be transparent. Opaque
+  // black there contributes alpha even when both RGB triples are zero.
+  const visible = a.some((value, i) => value !== b[i]);
+  cache.set(part, {actual: svg, omitted: without, visible});
   return visible;
 }
 
@@ -155,6 +213,7 @@ export class MachineMotionCheck implements Sink {
   readonly findings: string[] = [];
   readonly #active = new Map<object, Check[]>();
   readonly #paint = new WeakMap<Mobject, Painted>();
+  readonly #context = new WeakMap<Mobject, Composited>();
   readonly #segment?: (scene: Scene) => string | null;
   constructor(segment?: (scene: Scene) => string | null) { this.#segment = segment; }
 
@@ -218,7 +277,11 @@ export class MachineMotionCheck implements Sink {
       for (const [subjects, required] of [[rule.present ?? [], true], [rule.absent ?? [], false]] as const) {
         for (const key of subjects) {
           const matches = rule.view.current.findAll(key);
-          const painted = (await Promise.all(matches.map(m => paintsOnStage(scene, m, this.#paint)))).filter(Boolean).length;
+          // Absence retires physical source ink even behind a cover. Presence is
+          // stronger: the reader must receive that subject in the composed scene.
+          const painted = (await Promise.all(matches.map(m => required
+            ? contributesOnStage(scene, m, this.#context)
+            : paintsOnStage(scene, m, this.#paint)))).filter(Boolean).length;
           const issue = painted > 1 ? `subject "${key}" paints in more than one place`
             : Boolean(painted) !== required ? `subject "${key}" must be ${required ? 'present' : 'absent'}` : null;
           if (issue && ![...issues].some(s => s.startsWith(issue))) issues.add(`${issue} at +${(scene.time - check.start).toFixed(3)} s`);

@@ -238,11 +238,15 @@ transition that produces it.
 
 `present` and `absent` list exact keys in the specified view. Each subject
 must resolve uniquely in at least one endpoint picture and at most once in
-each. On every sampled frame of the move, the checker tests each subject's
-isolated drawing on the 800 × 450 stage, including the camera, strokes, fill
-and inherited clips. This continues when the traveller goes offstage. A visible
-pixel establishes presence. A complete absence of painted pixels establishes
-absence. The separate occlusion checks judge foreground objects that cover
+each. On every sampled frame of the move, `present` requires the subject to
+contribute pixels to the composited 800 × 450 picture: omitting that exact
+subject must change the picture. Camera, strokes, fill, inherited clips and
+foreground paint, including later views, all apply. RGBA changes count, including
+alpha-only ink in a transparent letterbox. `absent` requires retirement
+of the subject's on-stage drawing even when another object could hide it; an
+opaque cover does not remove a physical source. This continues when the
+traveller goes offstage. Presence establishes some visible ink, not complete
+readability; the separate occlusion checks judge foreground objects that cover
 words. Use a subject key for each part that matters when a panel contains
 several independently required labels.
 

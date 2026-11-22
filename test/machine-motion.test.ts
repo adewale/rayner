@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Animation, AnimationGroup, Circle, Group, Rectangle, Scene, Succession, keyed, renderFrame, toSvgString } from '../src/index.ts';
+import { Animation, AnimationGroup, Circle, Group, Rectangle, Scene, Succession, Text, keyed, renderFrame, toSvgString } from '../src/index.ts';
 import { Machine, view } from '../explain/index.ts';
 import { liveSteps, runLive } from '../explain/internal.ts';
 import { carry, pass } from '../explain/drawing.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { MachineMotionCheck } from '../tools/lib/explain-motion-rules.ts';
 import { rasterize } from '../tools/lib/explain-raster.ts';
+import { loadFonts } from '../explain/testing.ts';
 
 type Fault = 'none' | 'source retained' | 'context gone' | 'early arrival' | 'missing travel' | 'missing transition'
   | 'wrong subject' | 'clipped context' | 'invisible travel' | 'ambiguous subject' | 'repeated' | 'simultaneous';
@@ -306,5 +307,137 @@ test('reader histories with the same model retain each incoming result as the ne
     assert.ok(middle.length >= 2);
     assert.equal(middle.every(ink => ink.red === 0), damaged);
     assert.equal(middle.every(ink => ink.red > 100), !damaged);
+  }
+});
+
+test('required context contributes composited ink through changing foreground views while absent sources remain retired', async () => {
+  type Trial = 'clear' | 'opaque' | 'same-color' | 'late-view' | 'delayed-cover' | 'unrelated-change'
+    | 'ancestor-clip' | 'descendant-clip' | 'edge-strip' | 'hidden-source';
+  const trials: Trial[] = ['clear', 'opaque', 'same-color', 'late-view', 'delayed-cover', 'unrelated-change',
+    'ancestor-clip', 'descendant-clip', 'edge-strip', 'hidden-source'];
+  for (const trial of trials) {
+    class Context extends Scene {
+      override state = {n: 0};
+      override async construct() {
+        const picture = view(this, () => {
+          const mark = new Rectangle({width: 1, height: 0.5, fill: trial === 'unrelated-change' ? '#fff' : '#f00', stroke: 'none'}).moveTo([0, 2]);
+          if (trial === 'descendant-clip') mark.clipBox = [-0.1, -0.1, 0.1, 0.1];
+          const context = keyed(new Group(mark), 'context');
+          if (trial === 'ancestor-clip') context.clipBox = [-0.1, -0.1, 0.1, 0.1];
+          if (trial === 'edge-strip') context.clipBox = [0, 2, 0.01, 2.2];
+          const covered = ['opaque', 'same-color', 'hidden-source'].includes(trial);
+          const cover = keyed(new Rectangle({width: 1.2, height: 0.7,
+            fill: trial === 'same-color' ? '#f00' : '#000', stroke: 'none', opacity: covered ? 1 : 0}).moveTo([0, 2]), 'cover');
+          return new Group(context, cover);
+        }, {place: false});
+        const machine = new Machine(this, {start: this.state, events: ['ship'], views: [picture], runTime: 1,
+          next: ({n}) => ({n: n + 1}),
+          motion: () => [{view: picture, during: 'parcel', [trial === 'hidden-source' ? 'absent' : 'present']: ['context']}],
+          transition: {ship: t => {
+            const c = t.choreograph(picture);
+            return new Succession([...pass(c, 'parcel', new Rectangle({width: 0.3, height: 0.3, fill: '#0f0', stroke: 'none'}),
+              [[-2, 0], [2, 0]], {appear: 0.1, move: 0.5, leave: 0.1}), c.rest({runTime: 0.1})]);
+          }},
+        });
+        this.add(picture);
+        if (trial === 'late-view') this.add(view(this, () => new Group(new Rectangle({width: 1.2, height: 0.7, fill: '#000', stroke: 'none'}).moveTo([0, 2])), {place: false}));
+        this.add(keyed(new Rectangle({width: 0.3, height: 0.3, fill: '#00f', stroke: 'none'}).moveTo([4, 2]), 'unrelated'));
+        await this.play(machine.send('ship'));
+      }
+    }
+    const check = new MachineMotionCheck();
+    const witnesses: {actual: string; removed: string}[] = [];
+    let frames = 0;
+    const scene = new Context({async frame(s) {
+      frames++;
+      if (trial === 'delayed-cover' && s.time >= 0.3) s.find('cover')?.setOpacity(1);
+      if (trial === 'unrelated-change') s.find('unrelated')?.setFill(frames % 2 ? '#00f' : '#000');
+      await check.frame(s);
+      if (s.time < 0.2 || s.time > 0.5 || !s.find('parcel')) return;
+      const subject = s.find('context')!, actual = toSvgString(s, {width: 800});
+      subject.setOpacity(0);
+      const removed = toSvgString(s, {width: 800});
+      subject.setOpacity(1);
+      witnesses.push({actual, removed});
+    }});
+    await check.during(scene, () => scene.run());
+    const visible = trial === 'clear' || trial === 'edge-strip';
+    if (visible) assert.deepEqual(check.findings, [], trial);
+    else {
+      assert.equal(check.findings.length, 1, `${trial}: one exact context issue`);
+      assert.match(check.findings[0]!, trial === 'hidden-source' ? /subject "context" must be absent/ : /subject "context" must be present/, trial);
+    }
+    assert.ok(witnesses.length >= 2, `${trial}: independent native samples during the moving interval`);
+    const samples = [witnesses[0]!, witnesses.at(-1)!];
+    const green: number[] = [];
+    const contributes: boolean[] = [];
+    for (const sample of samples) {
+      const [actual, removed] = await Promise.all([rasterize(sample.actual), rasterize(sample.removed)]);
+      const a = actual.pixels, b = removed.pixels;
+      contributes.push(a.some((value, i) => i % 4 !== 3 && value !== b[i]));
+      let x = 0, n = 0;
+      for (let i = 0; i < a.length; i += 4) if (a[i] === 0 && a[i + 1] === 255 && a[i + 2] === 0) { x += (i / 4) % 800; n++; }
+      assert.ok(n > 0, `${trial}: the independently moving traveller really paints`);
+      green.push(x / n);
+    }
+    assert.notEqual(green[0], green[1], `${trial}: two composited traveller positions`);
+    assert.deepEqual(contributes, trial === 'delayed-cover' ? [true, false] : [visible, visible], `${trial}: native subject knockout`);
+  }
+});
+
+test('a required keyed glyph keeps its own composited identity across text runs and camera crops', async () => {
+  await loadFonts();
+  for (const trial of ['uniform', 'split-visible', 'split-covered', 'zoomed', 'letterboxed', 'letterbox-black'] as const) {
+    class GlyphContext extends Scene {
+      override state = {n: 0};
+      override async construct() {
+        if (trial === 'zoomed') this.frame.scale(0.7).shift([0.0173, 0.0281]);
+        if (trial === 'letterboxed') this.frame.setWidth(12, true).shift([0.0173, 0.0281]);
+        if (trial === 'letterbox-black') this.frame.setWidth(10, true);
+        const picture = view(this, () => {
+          const text = new Text('ABC', {fontSize: 1, color: trial === 'letterbox-black' ? '#000' : '#f00'}).moveTo(trial === 'letterbox-black' ? [6, 0] : [0, 2]);
+          // A merged Text record may own several glyphs. The first glyph alone is
+          // this contract's subject; the other letters cannot provide its ink.
+          const glyph = keyed(text.children[0]!, 'context');
+          if (trial.startsWith('split')) text.children[2]!.setFill('#00f');
+          const parts: (Text | Rectangle)[] = [text];
+          if (trial === 'split-covered') {
+            const b = glyph.box()!;
+            parts.push(new Rectangle({width: b[2] - b[0] + 0.04, height: b[3] - b[1] + 0.04, fill: '#000', stroke: 'none'})
+              .moveTo([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]));
+          }
+          return new Group(...parts);
+        }, {place: false});
+        const machine = new Machine(this, {start: this.state, events: ['ship'], views: [picture], runTime: 1,
+          next: ({n}) => ({n: n + 1}), motion: () => [{view: picture, during: 'parcel', present: ['context']}],
+          transition: {ship: t => {
+            const c = t.choreograph(picture);
+            return new Succession([...pass(c, 'parcel', ring(), [[-2, 0], [2, 0]], {appear: 0.1, move: 0.5, leave: 0.1}), c.rest({runTime: 0.1})]);
+          }},
+        });
+        this.add(picture);
+        await this.play(machine.send('ship'));
+      }
+    }
+    const check = new MachineMotionCheck();
+    let witness: {actual: string; omitted: string} | undefined;
+    const scene = new GlyphContext({async frame(s) {
+      await check.frame(s);
+      if (witness || s.time < 0.2 || !s.find('parcel')) return;
+      const glyph = s.find('context')!, actual = toSvgString(s, {width: 800});
+      glyph.setOpacity(0); const omitted = toSvgString(s, {width: 800}); glyph.setOpacity(1);
+      witness = {actual, omitted};
+    }});
+    await check.during(scene, () => scene.run());
+    assert.ok(witness, `${trial}: an independent full-stage native witness`);
+    const [drawn, removed] = await Promise.all([rasterize(witness.actual), rasterize(witness.omitted)]);
+    const a = drawn.pixels, b = removed.pixels;
+    const paints = a.some((value, i) => value !== b[i]);
+    assert.equal(paints, trial !== 'split-covered', trial);
+    if (paints) assert.deepEqual(check.findings, [], trial);
+    else {
+      assert.equal(check.findings.length, 1);
+      assert.match(check.findings[0]!, /subject "context" must be present/);
+    }
   }
 });
