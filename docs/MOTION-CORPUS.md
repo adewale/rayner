@@ -50,7 +50,7 @@ The implementation centralizes target-parent paint admission and family fades, u
 
 All 59 IDs and predeclared targets remain unchanged. Seven fixture contexts were mechanically rebased: `browser-read-across-page`, `browser-read-over-its-copy`, `browser-message-lingers`, `browser-record-after-halves`, `browser-forge-tiny-words`, `coverage-report-too-long`, and `coverage-skill-card-twice`. The fixture's historical labels remain 42 adapted / 17 reverted; those labels are not a claim that every updated context is a literal historical hunk reversal. The frozen 59-case visual audit and benchmark inputs were not rewritten. A full visual re-audit of the new reconstructions has not been performed.
 
-[Implementation, all 14 review workstreams, correctness-by-construction matrices, validation and remaining limits](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-construction-2026-11-21/README.md) · [All 59 outcomes](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-construction-2026-11-21/corpus.json).
+[Implementation, all 14 review workstreams, correctness-by-construction matrices, validation and remaining limits](https://github.com/adewale/rayner/blob/7df2e0b20bea3570edaa6b4e2cf951fe3e64d395/docs/evidence/motion-construction-2026-11-21/README.md) · [All 59 outcomes](https://github.com/adewale/rayner/blob/7df2e0b20bea3570edaa6b4e2cf951fe3e64d395/docs/evidence/motion-construction-2026-11-21/corpus.json).
 
 ## Previous measurement: ten Sol 6.1 High investigations, 21 November 2026
 
