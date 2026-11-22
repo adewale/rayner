@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { renderAsync } from '@resvg/resvg-js';
 import { loadFonts } from '../../explain/testing.ts';
@@ -22,8 +22,18 @@ import { loadScene } from '../lib/explain-project.ts';
 import { ROOT } from '../lib/roots.ts';
 import { buildVariant } from './motion-corpus-lib.ts';
 import { routes, type AuditRoute } from './motion-audit-routes.ts';
-const REVISION='5bff60e0aa5660c2b944fb59fbfe0b59e703db93';
-const OUT=join(ROOT,'out/current-audit-2026-11-22');
+// The default continues to reproduce the frozen capture. A fresh capture has an
+// explicit, separate revision/output namespace, inherited by its bounded children.
+const currentAt=process.argv.indexOf('--current');
+if(currentAt>=0){
+  const revision=process.argv[currentAt+1],outAt=process.argv.indexOf('--out'),output=process.argv[outAt+1];
+  assert.match(revision??'',/^[a-f0-9]{40}$/,'--current requires an exact source revision');
+  assert.ok(outAt>=0&&output&&resolve(ROOT,output)!==resolve(ROOT,'out/current-audit-2026-11-22'),'a fresh capture needs a separate --out directory');
+  process.env.RAYNER_MOTION_CAPTURE_REVISION=revision;
+  process.env.RAYNER_MOTION_CAPTURE_OUTPUT=output;
+}
+const REVISION=process.env.RAYNER_MOTION_CAPTURE_REVISION??'5bff60e0aa5660c2b944fb59fbfe0b59e703db93';
+const OUT=resolve(ROOT,process.env.RAYNER_MOTION_CAPTURE_OUTPUT??'out/current-audit-2026-11-22');
 const width=800, height=450, fps=30;
 const sha=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
 const json=(v:unknown)=>JSON.stringify(v,(_k,v)=>v instanceof RegExp?String(v):v,2)+'\n';
@@ -169,13 +179,22 @@ async function index(){
 }
 if(process.argv[2]==='--case'){await runCase(process.argv[3]!);}else if(process.argv[2]==='--supplement'){await runCase(process.argv[3]!,{route:JSON.parse(process.argv[4]!),label:process.argv[5]!});}else{
   assert.deepEqual(Object.keys(routes).sort(),CORPUS.map(x=>x.id).sort());await mkdir(OUT,{recursive:true});
-  const revision=await command('git',['rev-parse','HEAD']);assert.equal(revision.stdout.trim(),REVISION,'run on the frozen repaired revision');
+  const revision=await command('git',['rev-parse','HEAD']);assert.equal(revision.stdout.trim(),REVISION,'run on the declared capture revision');
+  const sourcePaths=['src','explain','app','scenes','tools/lib','test/fixtures/motion-corpus',
+    ...(process.env.RAYNER_MOTION_CAPTURE_REVISION?['tools/repo/motion-current-audit.ts','tools/repo/motion-audit-routes.ts','tools/repo/motion-corpus-lib.ts','tools/repo/motion-corpus.ts']:[])];
+  const clean=await command('git',['diff','--exit-code',REVISION,'--',...sourcePaths]);assert.equal(clean.code,0,'capture source must match its declared revision');
   const fingerprints={revision:REVISION,node:process.version,renderer:'@resvg/resvg-js 2.6.2',driverSha256:sha(await readFile(new URL(import.meta.url))),routesSha256:sha(await readFile(join(ROOT,'tools/repo/motion-audit-routes.ts'))),corpusSha256:sha(await readFile(join(ROOT,'test/fixtures/motion-corpus/corpus.ts'))),packageLockSha256:sha(await readFile(join(ROOT,'package-lock.json'))),reproduce:'bash tools/repo/reproduce-motion-current-audit.sh',maxWorkers:2,maxHeapMiB:1024};
   await writeFile(join(OUT,'provenance.json'),json(fingerprints));await index();let next=0;const queue=CORPUS.slice(0,30).flatMap((entry,i)=>[entry,...(CORPUS[i+30]?[CORPUS[i+30]!]:[])]);
-  async function worker(){while(next<queue.length){const entry=queue[next++]!;try{await readFile(join(OUT,entry.id,'case.json'));continue;}catch{}
+  async function worker(){while(next<queue.length){const entry=queue[next++]!;let existing;
+    try{existing=JSON.parse(await readFile(join(OUT,entry.id,'case.json'),'utf8'));}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+    if(existing){assert.equal(existing.id,entry.id,'existing case identity');assert.equal(existing.revision,REVISION,'existing case belongs to another capture source');
+      if(['complete','typed-refusal','history-inadmissible'].includes(existing.status))continue;}
     const result=await command(process.execPath,['--max-old-space-size=1024','tools/repo/motion-current-audit.ts','--case',entry.id]);
     await writeFile(join(OUT,entry.id+'.log'),result.stdout+'\n'+result.stderr);
     if(result.code!==0){await mkdir(join(OUT,entry.id),{recursive:true});await writeFile(join(OUT,entry.id,'case.json'),json({id:entry.id,index:CORPUS.indexOf(entry),status:'child-error',exitCode:result.code,stderr:result.stderr}));}
     const progress=await index();process.stdout.write(entry.id+' '+result.code+' '+progress.completed+'/'+CORPUS.length+'\n');
-  }}await Promise.all([worker(),worker()]);await index();
+  }}await Promise.all([worker(),worker()]);const completed=await index();
+  assert.equal(completed.completed,CORPUS.length,'every native case must finish');
+  assert.ok(completed.cases.every((c:any)=>['complete','typed-refusal','history-inadmissible'].includes(c.status)),'native capture errors must not become a successful run');
+  const final=await command('git',['diff','--exit-code',REVISION,'--',...sourcePaths]);assert.equal(final.code,0,'capture source changed during the run');
 }
