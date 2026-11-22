@@ -4,7 +4,7 @@ The source repairs below are integrated. Their focused native, model, reader and
 
 ## Repairs
 
-| Problem | Cause and repair | Independent evidence |
+| Problem | Cause and repair | Evidence and review |
 |---|---|---|
 | SignIn approval jumped at target adoption | The empty-key guide changed from a background layer to foreground when the card disappeared. Keep it below both card and physical ring in every layout (`5bff60e0`, strengthened keeper `5e66dc98`). | Endpoint: 43 changed pixels before, zero after. [Independent reader check](independent-sign-in/findings.md): 47 accepted events, 12 approvals, 876 approval frames at widths 390/800; four inverse controls. [Native keeper](keeper-strengthened.log). |
 | Conversations Direct opening lost its AI participant until target adoption | New seats entered among inconsistent retained paint anchors. Construct seats/tables behind participant marks in both layouts (`0f7622c9`). | [Committed native comparison](../conversations-endpoint-2026-11-22/README.md): 456 missing participant pixels before, zero endpoint difference after; eight real reader opening/closing routes. |
@@ -16,6 +16,12 @@ The source repairs below are integrated. Their focused native, model, reader and
 | Prospective assessment could relabel unrelated input as the frozen review | The adapter inferred target confirmation from case IDs/coarse verdicts. Require explicit reviewer-produced version bindings tied to exact review/source/run bytes and a measurement provenance receipt (`80c57a1c`). | [Independent adversarial review](prospective-v2-independent-review.md): nine real-file binding checks and 96 synthetic predicate groups. The original wrong-source/different-clause counterexample now rejects. |
 
 Physical `absent` still means retiring the source, so hiding an unwanted copy behind a plate does not satisfy absence. Required `present` proves some real paint contribution; it does not establish complete glyph readability or explanatory causality. The context repair adds native work: the small paired ABBA benchmark records CPU increases of about 18% for Poppy and 12% for Conversations, with 358 MiB peak RSS. [Exact inputs and receipts](context/benchmark-paired.json) are retained; these measurements are not a general performance guarantee.
+
+The Poppy repair and Chromium keeper share an author; they are ownership evidence, not independent review of that author's code. The exercise gap was independently identified by the editorial reviewer. The archived SignIn review describes a missing-guide/count keeper gap that the later `5e66dc98` strengthening closes; it is not an outstanding final-source gap.
+
+Root subsequently found that the Poppy reader-origin keeper imported private reader APIs from a portable scene test. It is now owned by `test/poppy-reader-origin.test.ts`, using the internal barrels. All assertions remain; no public API was added. The moved keeper and package/scene-import boundaries [pass together](package-owner-followup.log). The earlier full integration invocation executed the same keeper in its former location; this follow-up covers the relocation.
+
+The later [integration review](integration-review/final-integration-review.md) independently exercised six whole-word variants, 222 frames and 432 native word checks, including rotation, placement/font-size changes and nonuniform glyph opacity. The script and compact receipt are retained beside that report. Its Poppy section is explicitly an ownership review; its earlier no-blocker statement predates the test-ownership correction above.
 
 ## Fresh 59-case evidence
 

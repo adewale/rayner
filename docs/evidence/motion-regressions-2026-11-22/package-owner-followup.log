@@ -1,0 +1,15 @@
+✔ rayner ships the library and the command, and nothing from the repository's own tooling (4564.546175ms)
+✔ the command is rayner's bin, depending on exactly what its bundle imports, the diagram add-on as optional peers it loads lazily, sharing the library's compiled modules (642.120355ms)
+✔ Poppy keeps its signed-out story picture while reader events begin before discovery (7927.22369ms)
+✔ the entry points are the documented package exports (22.539421ms)
+✔ every file under scenes/ imports the library only through its public entry points, by relative path (1268.293733ms)
+✔ the rule rejects an internal module, a package name and a dynamic import, and allows the entry points (1.021146ms)
+✔ a folder’s tests may use rayner/testing and nothing else a scene may not; its fidelity check is the repository’s own (0.658428ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9957.059326

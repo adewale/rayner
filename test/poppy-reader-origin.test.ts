@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadFonts, loadProject } from '../../../explain/testing.ts';
-import { liveSteps, logStart, runLive } from '../../../explain/live.ts';
-import { NullSink } from '../../../src/timeline.ts';
-import Poppy from './scene.ts';
+import { fileURLToPath } from 'node:url';
+import { loadFonts, loadProject } from '../explain/testing.ts';
+import { liveSteps, logStart, runLive } from '../explain/internal.ts';
+import { NullSink } from '../src/internal.ts';
+import Poppy from '../scenes/explainers/poppy/scene.ts';
 
 await loadFonts();
 
 test('Poppy keeps its signed-out story picture while reader events begin before discovery', async () => {
-  const project = await loadProject(Poppy, import.meta.dirname);
+  const project = await loadProject(Poppy, fileURLToPath(new URL('../scenes/explainers/poppy/', import.meta.url)));
   assert.deepEqual(project.scenarios.map(s => s.values.approve).sort(), ['read-only', 'read-write']);
   for (const scenario of project.scenarios) {
     const guided = await new scenario.Scene(new NullSink()).run();
