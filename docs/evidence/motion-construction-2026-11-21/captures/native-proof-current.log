@@ -1,0 +1,10 @@
+✔ the current poll mutation removes actual domain pixels and its fixed route preserves them (9521.380462ms)
+✔ the held-token dock preserves each printed word with normal and enlarged historical polls (18833.313323ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29182.265964

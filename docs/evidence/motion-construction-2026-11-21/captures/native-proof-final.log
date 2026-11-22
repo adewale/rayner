@@ -1,0 +1,56 @@
+✖ the credited poll mutation removes actual letter pixels and its fixed route preserves them (8782.583791ms)
+✔ the held-token dock preserves each printed word with normal and enlarged historical polls (20575.796102ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30761.338465
+
+✖ failing tests:
+
+test at test/motion-corpus.test.ts:82:1
+✖ the credited poll mutation removes actual letter pixels and its fixed route preserves them (8782.583791ms)
+  Error: Command failed: /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/rayner/tools/repo/motion-occlusion-proof.ts --out /tmp/rayner-motion-proof-UubGGs
+  node:internal/modules/run_main:107
+      triggerUncaughtException(
+      ^
+  
+  AssertionError [ERR_ASSERTION]: the poll completely hides a glyph
+      at verifyPixels (file:///workspace/rayner/tools/repo/motion-occlusion-proof.ts:81:12)
+      at Object.frame (file:///workspace/rayner/tools/repo/motion-occlusion-proof.ts:109:7)
+      at file:///workspace/rayner/src/scene.ts:857:47
+      at #toSink (file:///workspace/rayner/src/scene.ts:487:17)
+      at #emitFrame (file:///workspace/rayner/src/scene.ts:857:29)
+      at #playFrames (file:///workspace/rayner/src/scene.ts:948:28)
+      at async #play (file:///workspace/rayner/src/scene.ts:902:11)
+      at async #exclusive (file:///workspace/rayner/src/scene.ts:503:18)
+      at async Bound.play (file:///workspace/rayner/src/scene.ts:864:5)
+      at async Bound.construct (file:///tmp/rayner-explain/e9f475d813ef4f3560f21c755e5aacacd376b8179f4ff52993108651dff0921e.mjs:941:5) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+  
+  Node.js v24.22.1
+  
+      at genericNodeError (node:internal/errors:986:15)
+      at wrappedFn (node:internal/errors:540:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:514:28)
+      at maybeClose (node:internal/child_process:1172:16)
+      at Socket.<anonymous> (node:internal/child_process:527:11)
+      at Socket.emit (node:events:514:28)
+      at Pipe.<anonymous> (node:net:362:12) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: '/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/rayner/tools/repo/motion-occlusion-proof.ts --out /tmp/rayner-motion-proof-UubGGs',
+    stdout: '',
+    stderr: "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: the poll completely hides a glyph\n    at verifyPixels (file:///workspace/rayner/tools/repo/motion-occlusion-proof.ts:81:12)\n    at Object.frame (file:///workspace/rayner/tools/repo/motion-occlusion-proof.ts:109:7)\n    at file:///workspace/rayner/src/scene.ts:857:47\n    at #toSink (file:///workspace/rayner/src/scene.ts:487:17)\n    at #emitFrame (file:///workspace/rayner/src/scene.ts:857:29)\n    at #playFrames (file:///workspace/rayner/src/scene.ts:948:28)\n    at async #play (file:///workspace/rayner/src/scene.ts:902:11)\n    at async #exclusive (file:///workspace/rayner/src/scene.ts:503:18)\n    at async Bound.play (file:///workspace/rayner/src/scene.ts:864:5)\n    at async Bound.construct (file:///tmp/rayner-explain/e9f475d813ef4f3560f21c755e5aacacd376b8179f4ff52993108651dff0921e.mjs:941:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.22.1\n"
+  }

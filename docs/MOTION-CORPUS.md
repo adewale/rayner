@@ -8,11 +8,11 @@ Issue #101 counts 63 filmed defects and names their kinds, but lists none of the
 
 There are 59 entries. Fixes left out are listed, with the reason, in `NOT_IN_CORPUS` in the same file: one is a transition rewritten whole, with no single defect to tell; one is a new step with no before-state; one is an engine bug (below); the rest are re-timings, comments, and the layout, wording and schema changes that shared the audit commits. The 59 are therefore not a subset of #101's 63 that can be matched one to one: they are every motion fix the history shows, which is the nearest recoverable record of them.
 
-The corpus is kept as edits, not as copies of the scenes. `tools/repo/motion-corpus.ts` copies the Poppy folders to `out/motion-corpus-<id>/` (three levels below the root, so the scenes' relative imports resolve), makes the entry's edits and runs the keyed motion check on the copy, in a process of its own, four at a time. The repository carries about 50 KB of edits and their descriptions rather than a copy of eight explainers per defect, needs no git history (the Poppy branch is not an ancestor of main), and a change to a Poppy scene that moves an entry's text fails a fast test naming the entry rather than silently measuring nothing.
+The corpus is kept as edits, not as copies of the scenes. `tools/repo/motion-corpus.ts` copies the Poppy folders to `out/motion-corpus-<id>/` (three levels below the root, so the scenes' relative imports resolve), makes the entry's edits and runs the keyed motion check on the copy, in a process of its own, two at a time by default. The repository carries about 50 KB of edits and their descriptions rather than a copy of eight explainers per defect, needs no git history (the Poppy branch is not an ancestor of main), and a change to a Poppy scene that moves an entry's text fails a fast test naming the entry rather than silently measuring nothing.
 
 ## How it is measured
 
-Each entry is caught when the check makes a finding in its variant that the scene as it is does not have. The scenes as they are have none (the catalog's gate), and the runner runs each chapter's baseline first, with every event: a finding a baseline has is not counted for an entry. For the figures below every baseline was clean. An entry names the machine events whose transitions its edits change; the runner plays those events' transitions from every reachable state, with every play of every scenario's run. That is a subset of what `rayner check` plays, so what it catches the check catches. `--full` plays every event, as the check does; run that way, no entry missed below is caught.
+Each completed entry is credited for its predeclared exact finding or refusal when one exists; legacy entries without a target accept any fresh finding. Raw rejection is reported separately. A failed or incomplete worker cannot earn credit. The scenes as they are have none (the catalog's gate), and the runner runs each chapter's baseline first, with every event: a finding a baseline has is not counted for an entry. For the figures below every baseline was clean. An entry names the machine events whose transitions its edits change; the runner plays those events' transitions from every reachable state, with every play of every scenario's run. That is a subset of what `rayner check` plays, so what it catches the check catches. `--full` plays every event, as the check does. Some older measurements also checked their misses that way; the latest focused capture does not establish that stronger result.
 
 ```sh
 node tools/repo/motion-corpus.ts                # every entry, focused; out/motion-corpus.json has each entry's findings
@@ -20,9 +20,39 @@ node tools/repo/motion-corpus.ts --full         # every event's transitions, as 
 node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 ```
 
-`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs seven sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. A separate FULL-only native pixel proof establishes the credited poll's visible defect independently of the detector. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
+`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs six sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. Separate FULL-only native proofs check the current domain-crossing poll and held-token routes independently of the detector; the original company-name target remains unchanged and uncredited after the card layout repair. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
-## Latest measurement: ten Sol 6.1 High investigations, 21 November 2026
+## Latest measurement: principled construction repairs, 21 November 2026
+
+After the six-review recommendations and the requested pair of **Astra 6 Max** construction reviews, the complete focused replay produces **40/59 raw rejections and 39/59 credited cases**. The previous 41/59 is retained as a historical broad rejection count. All 59 workers finished without error (52 complete replays and seven typed early refusals), all eight full-event Poppy baselines are clean, and all 45 other catalog chapters are clean. These figures do not count outstanding production defects or establish general detection accuracy.
+
+| Mutation kind | Cases | Previous broad rejections | Current credited |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 20 | 19 |
+| result before cause | 5 | 4 | 4 |
+| layout motion | 8 | 2 | 2 |
+| two copies | 4 | 4 | 4 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 1 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 4 | 4 |
+| **all** | **59** | **41** | **39** |
+
+Two old points are deliberately not retained:
+
+- **`sessions-too-long`:** removed the production comparison of a duration with a second copy of its own formula. The chapter keeper now measures actual intervals from the published reader origin and rejects the exact historical slowdown. It remains a generic miss; chapter prevention does not earn a generic point. SignIn collection now has a separate 4.5-second response policy, measured on the actual reader clock in both flows, with the exact historical 4.8-second mutation as its inverse.
+- **`sign-in-poll-over-card`:** restoring the caption-promised `example.com` line changes the current mutation's victim. It still triggers a domain-crossing warning, but no longer matches the frozen company-name target. The target is unchanged and receives no credit. A separate native keeper proves severe domain-glyph loss on the mutated route, full preservation on the fixed route at those samples, and the middle-frame result in Chromium. The old company-name pixel assertion failed and was replaced with this explicitly different current-layout proof; it was not relabeled as the same evidence.
+
+Current evidence separates **10 cases with exact findings** (nine semantic relationships and one named occlusion), **23 credited legacy warning cases**, and **six guard-only cases**. Another warning case is the uncredited poll-target mismatch. No declared refusal target matches. There are 12 predeclared exact targets, ten matched. The six guard-only cases establish early refusal, not visual diagnosis; a run with earlier findings and a later refusal retains both. The 20 uncredited cases consist of 19 quiet variants and one wrong-target rejection. The original 18 misses and their qualified historical verdicts remain documented; two changes of evidence policy/layout do not create two new production defects.
+
+The implementation centralizes target-parent paint admission and family fades, uses conservative reader-equivalent paint bounds and physical glyph occurrences, requires actual attributable composited movement per trip, shares one bounded state/presentation inventory across tools, and makes worker credit and film publication fail closed. Chapter repairs retain persistent context, restore promised information, construct clear routes from actual footprints and expose reader roots with the advertised actions. Native, browser and chapter-owned inverse controls remain independent of those constructors.
+
+All 59 IDs and predeclared targets remain unchanged. Seven fixture contexts were mechanically rebased: `browser-read-across-page`, `browser-read-over-its-copy`, `browser-message-lingers`, `browser-record-after-halves`, `browser-forge-tiny-words`, `coverage-report-too-long`, and `coverage-skill-card-twice`. The fixture's historical labels remain 42 adapted / 17 reverted; those labels are not a claim that every updated context is a literal historical hunk reversal. The frozen 59-case visual audit and benchmark inputs were not rewritten. A full visual re-audit of the new reconstructions has not been performed.
+
+[Implementation, all 14 review workstreams, correctness-by-construction matrices, validation and remaining limits](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-construction-2026-11-21/README.md) · [All 59 outcomes](https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-construction-2026-11-21/corpus.json).
+
+## Previous measurement: ten Sol 6.1 High investigations, 21 November 2026
 
 After pulling the motion branch and integrating main at `2bab6486`, ten Sol 6.1 High agents investigated the eight chapters and two shared framework boundaries. The complete run rejects **41 of 59** reconstructed mutations, up from 37 immediately before this investigation and 30 originally. All 37 preceding rejection IDs remain caught.
 

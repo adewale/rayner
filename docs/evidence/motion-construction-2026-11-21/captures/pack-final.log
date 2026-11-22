@@ -1,0 +1,18 @@
+
+> rayner@0.2.0 pack:smoke
+> node tools/repo/explain-package-smoke.ts
+
+file:///workspace/rayner/tools/repo/lib/authored-types.ts:77
+      throw new Error(`${config}: the collection does not type-check against the packed rayner's declarations:\n${stdout}${stderr}`);
+            ^
+
+Error: tsconfig.tests.json: the collection does not type-check against the packed rayner's declarations:
+scenes/explainers/lib/route-ink/fidelity.ts(5,59): error TS2307: Cannot find module '../../../../src/internal.ts' or its corresponding type declarations.
+scenes/explainers/lib/route-ink/fidelity.ts(50,40): error TS7006: Parameter 'record' implicitly has an 'any' type.
+scenes/explainers/poppy-sign-in/scene.test.ts(9,34): error TS2307: Cannot find module './fidelity.ts' or its corresponding type declarations.
+
+    at typeCheckAuthored (file:///workspace/rayner/tools/repo/lib/authored-types.ts:77:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///workspace/rayner/tools/repo/explain-package-smoke.ts:196:20
+
+Node.js v24.22.1

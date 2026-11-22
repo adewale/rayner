@@ -1,0 +1,2534 @@
+{
+  "date": "2026-11-21",
+  "reviewedCommit": "bad42099793aba0988fc98a6daaf3819f3bf4559",
+  "measuredCommit": "96aab8815e31348e8b06a6cf21df00fe70a3d7b1",
+  "fingerprint": "d45c61d68ce2d589b1a52cf98bb8994d55b0e346f7058bb1b112e8ef692dd635",
+  "metric": "Focused historical mutations, eight full-event baselines, exact predeclared targets enforced. Neither accuracy nor outstanding production bug count.",
+  "summary": {
+    "caught": 39,
+    "of": 59,
+    "byKind": {
+      "passes over": {
+        "caught": 19,
+        "of": 28
+      },
+      "result before cause": {
+        "caught": 4,
+        "of": 5
+      },
+      "layout motion": {
+        "caught": 2,
+        "of": 8
+      },
+      "two copies": {
+        "caught": 4,
+        "of": 4
+      },
+      "squeezed": {
+        "caught": 3,
+        "of": 3
+      },
+      "too long": {
+        "caught": 0,
+        "of": 3
+      },
+      "small label in flight": {
+        "caught": 3,
+        "of": 3
+      },
+      "glyph dissolve": {
+        "caught": 0,
+        "of": 1
+      },
+      "flicker": {
+        "caught": 4,
+        "of": 4
+      }
+    },
+    "evidence": {
+      "rejected": 40,
+      "attributedFindings": 10,
+      "declaredRefusals": 0,
+      "guardOnly": 6,
+      "unattributedWarnings": 24,
+      "exactTargets": 12,
+      "exactMatches": 10
+    }
+  },
+  "previous": {
+    "broadRejected": 41,
+    "explicitlyAttributed": 11,
+    "anyFreshWarningAccepted": 22,
+    "guardOnly": 8
+  },
+  "retainedCredited": 39,
+  "lostCredit": [
+    "sessions-too-long",
+    "sign-in-poll-over-card"
+  ],
+  "newCredit": [],
+  "catalogChapters": 53,
+  "catalogFindings": 0,
+  "rawCapture": "capture.json.gz",
+  "source": "source.json",
+  "cases": [
+    {
+      "id": "poppy-ticket-over-lane-names",
+      "chapter": "poppy",
+      "kind": "passes over",
+      "intendedClaim": "A full-size ticket rode each lane over the lane\u2019s name, which sat on the line on a plate; the fix set names above the lines and sent a token at 0.28 scale under them.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"approve\":\"read-write\"}",
+          "line": "step \"seal\", play 1, event 1: covers: part \u201cticket:flight\u201d at 0.933 s travels over \u201cAPI\u201d (part \u201clane:api:name\u201d), covering at least 100% of its visible glyph boxes, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"seal\", play 1, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cAPI\u201d (part \u201clane:api:name\u201d), covering at least 100% of its visible glyph boxes, for 0.37 s before it lands",
+            "subjects": [
+              "API",
+              "lane:api:name"
+            ],
+            "victim": "lane:api:name",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"approve\":\"read-write\"}",
+          "line": "step \"lanes\", play 1, event 1: covers: part \u201cticket:flight\u201d at 0.933 s travels over \u201cWebsite\u201d (part \u201clane:web:name\u201d), covering at least 95% of its visible glyph boxes, for 0.50 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"lanes\", play 1, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cWebsite\u201d (part \u201clane:web:name\u201d), covering at least 95% of its visible glyph boxes, for 0.50 s before it lands",
+            "subjects": [
+              "Website",
+              "lane:web:name"
+            ],
+            "victim": "lane:web:name",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "poppy-key-over-station-name",
+      "chapter": "poppy",
+      "kind": "passes over",
+      "intendedClaim": "The key flew to the agent, and back at sign-out, at full size over the station\u2019s name and the lane names; the fix flies it at half size.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "poppy-last-object-lingers",
+      "chapter": "poppy",
+      "kind": "result before cause",
+      "intendedClaim": "The last event\u2019s exhibit and closed door stayed while the next ticket travelled, and changed only when it had landed; the fix lists them in beats\u2019 fresh, so they go before it sets off.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"approve\":\"read-write\"}",
+        "transition": {
+          "pattern": "^step \"lanes\", event \"browse\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "ticket:flight",
+        "subjects": [
+          "exhibit:mark"
+        ],
+        "requirement": "absent"
+      },
+      "examples": [
+        {
+          "scenario": "{\"approve\":\"read-write\"}",
+          "line": "step \"discover\", event \"discover\": motion contract: during \"document\", subject \"exhibit:mark\" must be absent at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"discover\", event \"discover\"",
+            "kind": "motion contract",
+            "path": "document",
+            "detail": "subject \"exhibit:mark\" must be absent",
+            "subjects": [
+              "exhibit:mark"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"approve\":\"read-write\"}",
+          "line": "step \"discover\", event \"discover\": motion contract: during \"document\", subject \"door:barrier\" must be absent at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"discover\", event \"discover\"",
+            "kind": "motion contract",
+            "path": "document",
+            "detail": "subject \"door:barrier\" must be absent",
+            "subjects": [
+              "door:barrier"
+            ],
+            "requirement": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refusals-ticket-over-station",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "intendedClaim": "A request\u2019s ticket set off from the agent\u2019s seal and crossed the station on its way to the lane; the fix launches it on its lane, clear of the station.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": true,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "during guarded execution",
+          "line": "duration guard: machine.send(\"answer\"): authored transition lasts 3.450 s but the event allows 3.400 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+          "observation": {
+            "type": "refusal",
+            "kind": "duration guard",
+            "name": "RangeError",
+            "message": "machine.send(\"answer\"): authored transition lasts 3.450 s but the event allows 3.400 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+            "event": "answer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refusals-ticket-over-lane-name",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "intendedClaim": "The ticket was launched just clear of the station, so it set off over the lane\u2019s name; the fix launches it past the name.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"turned-back\", play 2, event 1: covers: part \u201cticket:flight\u201d at 0.500 s travels over \u201cAPI\u201d (part \u201clane:api:name\u201d), covering at least 100% of its visible glyph boxes, for 0.57 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"turned-back\", play 2, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cAPI\u201d (part \u201clane:api:name\u201d), covering at least 100% of its visible glyph boxes, for 0.57 s before it lands",
+            "subjects": [
+              "API",
+              "lane:api:name"
+            ],
+            "victim": "lane:api:name",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "step \"slip\", play 1, event 1: covers: part \u201cticket:flight\u201d at 1.833 s travels over \u201cAPI\u201d (part \u201clane:api:name\u201d), covering at least 100% of its visible glyph boxes, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"slip\", play 1, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cAPI\u201d (part \u201clane:api:name\u201d), covering at least 100% of its visible glyph boxes, for 0.37 s before it lands",
+            "subjects": [
+              "API",
+              "lane:api:name"
+            ],
+            "victim": "lane:api:name",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "refusals-lanes-slide",
+      "chapter": "poppy-refusals",
+      "kind": "layout motion",
+      "intendedClaim": "When the MCP lane came or went, the API lane slid to its new height: motion for the layout; the fix keys the lanes apart in the two layouts and cross-fades them.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "refusals-lanes-gone-in-flight",
+      "chapter": "poppy-refusals",
+      "kind": "layout motion",
+      "intendedClaim": "The first fix for the sliding lanes listed them in beats\u2019 fresh: they faded out and came back only after the ticket had travelled, so it flew on no lane; the second cross-faded them before it set off.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{}",
+        "transition": {
+          "pattern": "^step \"one-door\", event \"mcp\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "ticket:flight",
+        "subjects": [
+          "lane:mcp-mcp:line"
+        ],
+        "requirement": "present"
+      },
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"one-door\", event \"mcp\": motion contract: during \"ticket:flight\", subject \"lane:mcp-mcp:line\" must be present at +0.633 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"one-door\", event \"mcp\"",
+            "kind": "motion contract",
+            "path": "ticket:flight",
+            "detail": "subject \"lane:mcp-mcp:line\" must be present",
+            "subjects": [
+              "lane:mcp-mcp:line"
+            ],
+            "requirement": "present"
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "step \"one-door\", event \"mcp\": motion contract: during \"ticket:flight\", subject \"lane:mcp-mcp:name\" must be present at +0.633 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"one-door\", event \"mcp\"",
+            "kind": "motion contract",
+            "path": "ticket:flight",
+            "detail": "subject \"lane:mcp-mcp:name\" must be present",
+            "subjects": [
+              "lane:mcp-mcp:name"
+            ],
+            "requirement": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refusals-delegation-over-station",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "intendedClaim": "A new delegation (or seal) came up from under the station, across its name, to the seal; the fix brings it from off the stage above.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"seal\", play 1, event 2: covers: part \u201cdelegation\u201d at 0.767 s travels over \u201cyour agent\u201d (part \u201cagent:name\u201d), covering at least 37% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"seal\", play 1, event 2",
+            "kind": "covers",
+            "path": "delegation",
+            "detail": "travels over \u201cyour agent\u201d (part \u201cagent:name\u201d), covering at least 37% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "your agent",
+              "agent:name"
+            ],
+            "victim": "agent:name",
+            "masks": [
+              "delegation"
+            ]
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "after delegation, answer: covers: part \u201cdelegation\u201d at 0.767 s travels over \u201cyour agent\u201d (part \u201cagent:name\u201d), covering at least 37% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after delegation, answer",
+            "kind": "covers",
+            "path": "delegation",
+            "detail": "travels over \u201cyour agent\u201d (part \u201cagent:name\u201d), covering at least 37% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "your agent",
+              "agent:name"
+            ],
+            "victim": "agent:name",
+            "masks": [
+              "delegation"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "intendedClaim": "The MCP key came down 1.2 units right of its hook, over the words \u201cfor MCP\u201d; the fix brings it down 2.6 units right, past them.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "secondary-only",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "chapter": "poppy-refusals",
+      "kind": "passes over",
+      "intendedClaim": "A refreshed key came back along the lane over the lane\u2019s name; the fix routes it under the name.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sessions-ticket-from-under-stamp",
+      "chapter": "poppy-sessions",
+      "kind": "passes over",
+      "intendedClaim": "The agent\u2019s ticket came in diagonally from under the stamp, across it; the fix brings it in level from the stamp\u2019s side.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"remembers\"}",
+          "line": "step \"send\", play 1, event 1: covers: part \u201cticket:flight\u201d at 0.467 s travels over \u201cuntil 06:00\u201d (part \u201cchain:until\u201d), covering at least 69% of its visible glyph boxes, for 0.27 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"send\", play 1, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cuntil 06:00\u201d (part \u201cchain:until\u201d), covering at least 69% of its visible glyph boxes, for 0.27 s before it lands",
+            "subjects": [
+              "until 06:00",
+              "chain:until"
+            ],
+            "victim": "chain:until",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"company\":\"remembers\"}",
+          "line": "send: covers: part \u201cticket:flight\u201d at 0.467 s travels over \u201cuntil 06:00\u201d (part \u201cchain:until\u201d), covering at least 69% of its visible glyph boxes, for 0.27 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "send",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cuntil 06:00\u201d (part \u201cchain:until\u201d), covering at least 69% of its visible glyph boxes, for 0.27 s before it lands",
+            "subjects": [
+              "until 06:00",
+              "chain:until"
+            ],
+            "victim": "chain:until",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sessions-key-to-wax-after-check",
+      "chapter": "poppy-sessions",
+      "kind": "result before cause",
+      "intendedClaim": "When the published key pressed the seal, nothing showed it moving: it left the chain and appeared on the wax only as the picture settled, after the punches it caused; the fix sends it down first.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"company\":\"remembers\"}",
+        "transition": {
+          "pattern": "^step \"signer\", event \"published\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "ticket:flight",
+        "subjects": [
+          "chain:ring:on-wax"
+        ],
+        "requirement": "present"
+      },
+      "examples": [
+        {
+          "scenario": "{\"company\":\"remembers\"}",
+          "line": "step \"signer\", event \"published\": motion contract: during \"chain:ring:on-wax:flight\", the declared travel was never constructed",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"signer\", event \"published\"",
+            "kind": "motion contract",
+            "path": "chain:ring:on-wax:flight",
+            "detail": "the declared travel was never constructed",
+            "subjects": []
+          }
+        },
+        {
+          "scenario": "{\"company\":\"remembers\"}",
+          "line": "step \"signer\", event \"published\": motion contract: during \"ticket:flight\", subject \"chain:ring:on-wax\" must be present at +0.967 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"signer\", event \"published\"",
+            "kind": "motion contract",
+            "path": "ticket:flight",
+            "detail": "subject \"chain:ring:on-wax\" must be present",
+            "subjects": [
+              "chain:ring:on-wax"
+            ],
+            "requirement": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sessions-key-in-two-places",
+      "chapter": "poppy-sessions",
+      "kind": "two copies",
+      "intendedClaim": "The published key flew to the wax while it still hung in the chain, so it was in two places; the fix takes it out of the chain as the trip begins.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"company\":\"remembers\"}",
+        "transition": {
+          "pattern": "^step \"signer\", event \"published\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "chain:ring:on-wax:flight",
+        "subjects": [
+          "chain:ring"
+        ],
+        "requirement": "absent"
+      },
+      "examples": [
+        {
+          "scenario": "{\"company\":\"remembers\"}",
+          "line": "step \"signer\", event \"published\": motion contract: during \"chain:ring:on-wax:flight\", subject \"chain:ring\" must be absent at +0.700 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"signer\", event \"published\"",
+            "kind": "motion contract",
+            "path": "chain:ring:on-wax:flight",
+            "detail": "subject \"chain:ring\" must be absent",
+            "subjects": [
+              "chain:ring"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"company\":\"remembers\"}",
+          "line": "step \"signer\", event \"published\": motion contract: during \"ticket:flight\", subject \"chain:ring\" must be absent at +1.967 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"signer\", event \"published\"",
+            "kind": "motion contract",
+            "path": "ticket:flight",
+            "detail": "subject \"chain:ring\" must be absent",
+            "subjects": [
+              "chain:ring"
+            ],
+            "requirement": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sessions-squeezed",
+      "chapter": "poppy-sessions",
+      "kind": "squeezed",
+      "intendedClaim": "Every tamper ran in a fixed 2.6 s runTime, while its beats lasted 3.1 s (4.35 s with the published key\u2019s trip), so they were squeezed into it; the fix gives each transition its own length. Undone with the beats as they were then.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "blocked-before-paint",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": true,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "during guarded execution",
+          "line": "duration guard: machine.send(\"send\"): authored transition lasts 3.060 s but the event allows 2.600 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+          "observation": {
+            "type": "refusal",
+            "kind": "duration guard",
+            "name": "RangeError",
+            "message": "machine.send(\"send\"): authored transition lasts 3.060 s but the event allows 2.600 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+            "event": "send"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sessions-too-long",
+      "chapter": "poppy-sessions",
+      "kind": "too long",
+      "intendedClaim": "A tamper took 3.1 s, and 4.35 s with the published key\u2019s trip; the last audit commit shortened every beat.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": true,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": true,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "expectedRefusal": {
+        "name": "Error",
+        "kind": "authored pacing guard",
+        "message": {
+          "pattern": "^Sessions tamper pacing: (?:3\\.100 s exceeds this ticket-check sequence's 2\\.850|4\\.350 s exceeds this key-transfer sequence's 3\\.900) s budget$",
+          "flags": ""
+        }
+      },
+      "examples": [],
+      "note": "Production pacing self-comparison removed; the chapter owner measures actual intervals and rejects the exact historical slowdown."
+    },
+    {
+      "id": "sign-in-ask-people-slide",
+      "chapter": "poppy-sign-in",
+      "kind": "layout motion",
+      "intendedClaim": "When the page opened, you and the agent slid to your places beside it, motion that says nothing about the protocol; the fix cross-fades them.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "secondary-only",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "transition": {
+          "pattern": "^step \"reask\", play 1, event 1$",
+          "flags": ""
+        },
+        "kind": "occluded words",
+        "path": "page:orders:write:line",
+        "subjects": [
+          "Exchange items",
+          "tag"
+        ]
+      },
+      "examples": [
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"reask\", play 1, event 1: occluded words: part \u201cpage:hint\u201d at 3.433 s \u201cpassword\u201d stays readable by opacity but \u201cagent:station\u201d, an opaque foreground shape, covers at least 90% of 3 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"reask\", play 1, event 1",
+            "kind": "occluded words",
+            "path": "page:hint",
+            "detail": "\u201cpassword\u201d stays readable by opacity but \u201cagent:station\u201d, an opaque foreground shape, covers at least 90% of 3 glyph boxes for 0.10 s",
+            "subjects": [
+              "password",
+              "agent:station"
+            ],
+            "victim": "page:hint",
+            "masks": [
+              "agent:station"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"reask\", play 1, event 1: occluded words: part \u201cpage:orders:write:line\u201d at 3.100 s \u201cExchange items\u201d stays readable by opacity but \u201ctag\u201d, an opaque foreground shape, covers at least 90% of 5 glyph boxes for 0.43 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"reask\", play 1, event 1",
+            "kind": "occluded words",
+            "path": "page:orders:write:line",
+            "detail": "\u201cExchange items\u201d stays readable by opacity but \u201ctag\u201d, an opaque foreground shape, covers at least 90% of 5 glyph boxes for 0.43 s",
+            "subjects": [
+              "Exchange items",
+              "tag"
+            ],
+            "victim": "page:orders:write:line",
+            "masks": [
+              "tag"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign-in-collect-people-slide",
+      "chapter": "poppy-sign-in",
+      "kind": "layout motion",
+      "intendedClaim": "When the page closed after the code came back, you and the agent slid back across the stage; the fix cross-fades them.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sign-in-collect-too-long",
+      "chapter": "poppy-sign-in",
+      "kind": "too long",
+      "intendedClaim": "A code coming back with tokens took 4.8 s; the fix brought it to 3.3 s.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sign-in-tokens-over-labels",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "intendedClaim": "The request and the poll went straight from the seal to the desk or the address bar, full size, over the labels of the agent\u2019s side; the fix routes small tokens along the gap between the strip and the keyring.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "secondary-only",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sign-in-password-before-card",
+      "chapter": "poppy-sign-in",
+      "kind": "result before cause",
+      "intendedClaim": "The password in the page was not listed in beats\u2019 fresh, so on a second approval it stayed in the field while your card was still on its way to it; the fix lists it.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "unreproduced",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sign-in-ask-squeezed",
+      "chapter": "poppy-sign-in",
+      "kind": "squeezed",
+      "intendedClaim": "The request\u2019s token appeared and left in 0.15 s, inside a 2.2 s runTime its beats overran, so they popped; the fix gives them 0.25 s and the event 2.6 s.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "blocked-before-paint",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": true,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "during guarded execution",
+          "line": "duration guard: machine.send(\"ask\"): authored transition lasts 2.800 s but the event allows 2.200 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+          "observation": {
+            "type": "refusal",
+            "kind": "duration guard",
+            "name": "RangeError",
+            "message": "machine.send(\"ask\"): authored transition lasts 2.800 s but the event allows 2.200 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+            "event": "ask"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign-in-pages-overlap",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "intendedClaim": "A page of another shape (the website before the phone) was still there while the new one faded in over it; the fix takes the old page away first.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "secondary-only",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"flow\":\"device\"}",
+        "transition": {
+          "pattern": "^step \"ask\", event \"ask\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "request",
+        "subjects": [
+          "window:frame"
+        ],
+        "requirement": "absent"
+      },
+      "examples": [
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "step \"ask\", event \"ask\": motion contract: during \"request\", subject \"window:frame\" must be absent at +1.200 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"ask\", event \"ask\"",
+            "kind": "motion contract",
+            "path": "request",
+            "detail": "subject \"window:frame\" must be absent",
+            "subjects": [
+              "window:frame"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "step \"ask\", event \"ask\": motion contract: during \"request\", subject \"window:page\" must be absent at +1.200 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"ask\", event \"ask\"",
+            "kind": "motion contract",
+            "path": "request",
+            "detail": "subject \"window:page\" must be absent",
+            "subjects": [
+              "window:page"
+            ],
+            "requirement": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign-in-card-from-desk",
+      "chapter": "poppy-sign-in",
+      "kind": "layout motion",
+      "intendedClaim": "The device card came from the Company\u2019s desk, where it does not come from; the fix brings it from the agent\u2019s seal.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "intendedClaim": "With the device card on the stage, the poll ran over it to the desk; the fix sends it along a lower line.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": false,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"flow\":\"device\"}",
+        "transition": {
+          "pattern": "^(?:step \"ask\", play 1, event 2|after .+, collect)$",
+          "flags": ""
+        },
+        "kind": "occluded words",
+        "path": "card",
+        "subjects": [
+          "Example Company",
+          "poll"
+        ]
+      },
+      "examples": [
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "step \"ask\", play 1, event 2: covers: part \u201cpoll\u201d at 0.733 s travels over \u201cexample.com\u201d (part \u201ccard\u201d), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"ask\", play 1, event 2",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over \u201cexample.com\u201d (part \u201ccard\u201d), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect: covers: part \u201cpoll\u201d at 0.733 s travels over \u201cexample.com\u201d (part \u201ccard\u201d), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over \u201cexample.com\u201d (part \u201ccard\u201d), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        }
+      ],
+      "note": "Original exact company-name target remains unchanged and uncredited. Current mutation covers the restored domain; separate native Resvg/Chromium evidence proves that crossing and the fixed route."
+    },
+    {
+      "id": "sign-in-password-hand-and-flight",
+      "chapter": "poppy-sign-in",
+      "kind": "two copies",
+      "intendedClaim": "Your password card flew into the page while it was still in your hand, and across the page\u2019s lines; the fix takes it from your hand as it sets off, round the page.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"flow\":\"direct\"}",
+        "transition": {
+          "pattern": "^step \"approve\", event \"approve-read\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "page:password:flight",
+        "subjects": [
+          "you:password"
+        ],
+        "requirement": "absent"
+      },
+      "examples": [
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"approve\", event \"approve-read\": motion contract: during \"page:password:flight\", subject \"you:password\" must be absent at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"approve\", event \"approve-read\"",
+            "kind": "motion contract",
+            "path": "page:password:flight",
+            "detail": "subject \"you:password\" must be absent",
+            "subjects": [
+              "you:password"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"reask\", event \"approve-all\": motion contract: during \"page:password:flight\", subject \"you:password\" must be absent at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"reask\", event \"approve-all\"",
+            "kind": "motion contract",
+            "path": "page:password:flight",
+            "detail": "subject \"you:password\" must be absent",
+            "subjects": [
+              "you:password"
+            ],
+            "requirement": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign-in-code-tiny-words",
+      "chapter": "poppy-sign-in",
+      "kind": "small label in flight",
+      "intendedClaim": "The code travelled as the kit\u2019s code slip, with its words, at 0.6 scale: words far under a phone\u2019s legible size in flight; the fix draws a slip too small to carry words.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"key\", play 1, event 1: small words: part \u201ccode\u201d at 1.067 s carries \u201cc_5Rm2\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"key\", play 1, event 1",
+            "kind": "small words",
+            "path": "code",
+            "detail": "carries \u201cc_5Rm2\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56)",
+            "subjects": [
+              "c_5Rm2"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"replace\", play 1, event 1: small words: part \u201ccode\u201d at 0.700 s carries \u201cc_5Rm2\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"replace\", play 1, event 1",
+            "kind": "small words",
+            "path": "code",
+            "detail": "carries \u201cc_5Rm2\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56)",
+            "subjects": [
+              "c_5Rm2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign-in-password-route",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "intendedClaim": "The password card\u2019s way round the page ran at x \u22122.05, over the page\u2019s edge; the fix moves it to \u22121.7.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "inconclusive",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "chapter": "poppy-sign-in",
+      "kind": "passes over",
+      "intendedClaim": "At sign-out the tag went back onto the desk over the scopes, and the key and cord stayed until it had gone; the fix stops it at the counter\u2019s edge and fades them as it sets off.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"sign-out\", event \"sign-out\": motion contract: during \"tag:return\", subject \"agent:key\" must be absent at +0.567 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"sign-out\", event \"sign-out\"",
+            "kind": "motion contract",
+            "path": "tag:return",
+            "detail": "subject \"agent:key\" must be absent",
+            "subjects": [
+              "agent:key"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"direct\"}",
+          "line": "step \"sign-out\", event \"sign-out\": motion contract: during \"tag:return\", subject \"tag:cord\" must be absent at +0.567 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"sign-out\", event \"sign-out\"",
+            "kind": "motion contract",
+            "path": "tag:return",
+            "detail": "subject \"tag:cord\" must be absent",
+            "subjects": [
+              "tag:cord"
+            ],
+            "requirement": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-ticket-over-road-name",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The agent\u2019s road carried its name, \u201cagent\u2019s requests\u201d, on the line, and every ticket ran over it; the fix draws the road without a name.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"fetch\", play 2, event 1: covers: part \u201cticket:flight\u201d at 0.800 s travels over \u201cagent\u2019s requests\u201d (part \u201clane:agent:name\u201d), covering at least 50% of its visible glyph boxes, for 0.53 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"fetch\", play 2, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cagent\u2019s requests\u201d (part \u201clane:agent:name\u201d), covering at least 50% of its visible glyph boxes, for 0.53 s before it lands",
+            "subjects": [
+              "agent\u2019s requests",
+              "lane:agent:name"
+            ],
+            "victim": "lane:agent:name",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"authorize\", play 1, event 1: covers: part \u201cticket:flight\u201d at 1.867 s travels over \u201cagent\u2019s requests\u201d (part \u201clane:agent:name\u201d), covering at least 50% of its visible glyph boxes, for 0.50 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"authorize\", play 1, event 1",
+            "kind": "covers",
+            "path": "ticket:flight",
+            "detail": "travels over \u201cagent\u2019s requests\u201d (part \u201clane:agent:name\u201d), covering at least 50% of its visible glyph boxes, for 0.50 s before it lands",
+            "subjects": [
+              "agent\u2019s requests",
+              "lane:agent:name"
+            ],
+            "victim": "lane:agent:name",
+            "masks": [
+              "ticket:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-halves-together",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "At the join page the code and its cookie half left the counter together from one point, one over the other; the fix sends them one after the other from their own places.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"load\", play 1, event 1: covers: part \u201cshelf:join:flight\u201d at 2.067 s travels over \u201cVn3q\u201d (part \u201cpage:stub:flight\u201d), covering at least 66% of its visible glyph boxes, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"load\", play 1, event 1",
+            "kind": "covers",
+            "path": "shelf:join:flight",
+            "detail": "travels over \u201cVn3q\u201d (part \u201cpage:stub:flight\u201d), covering at least 66% of its visible glyph boxes, for 0.37 s before it lands",
+            "subjects": [
+              "Vn3q",
+              "page:stub:flight"
+            ],
+            "victim": "page:stub:flight",
+            "masks": [
+              "shelf:join:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "load: covers: part \u201cshelf:join:flight\u201d at 2.067 s travels over \u201cVn3q\u201d (part \u201cpage:stub:flight\u201d), covering at least 66% of its visible glyph boxes, for 0.37 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "load",
+            "kind": "covers",
+            "path": "shelf:join:flight",
+            "detail": "travels over \u201cVn3q\u201d (part \u201cpage:stub:flight\u201d), covering at least 66% of its visible glyph boxes, for 0.37 s before it lands",
+            "subjects": [
+              "Vn3q",
+              "page:stub:flight"
+            ],
+            "victim": "page:stub:flight",
+            "masks": [
+              "shelf:join:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-read-across-page",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The code the agent reads went diagonally across the page to the seal, over the window\u2019s content; the fix sends it along the agent\u2019s dotted reading line.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "browser-forge-across-stage",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The attacker\u2019s forged stub, full size, crossed from its browser through yours on a diagonal over the page; the fix routes it round the windows.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"forge\", play 3, event 1: covers: part \u201cforged\u201d at 1.067 s travels over \u201cYx2b7Q\u201d (part \u201cpage:sid\u201d), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"forge\", play 3, event 1",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over \u201cYx2b7Q\u201d (part \u201cpage:sid\u201d), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, forge: covers: part \u201cforged\u201d at 1.067 s travels over \u201cYx2b7Q\u201d (part \u201cpage:sid\u201d), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over \u201cYx2b7Q\u201d (part \u201cpage:sid\u201d), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-message-across-stage",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The attacker\u2019s message crossed the stage diagonally to your agent; the fix brings it along the bottom of the stage.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "blocked-before-paint",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": true,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "during guarded execution",
+          "line": "duration guard: machine.send(\"phish\"): authored transition lasts 3.450 s but the event allows 3.350 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+          "observation": {
+            "type": "refusal",
+            "kind": "duration guard",
+            "name": "RangeError",
+            "message": "machine.send(\"phish\"): authored transition lasts 3.450 s but the event allows 3.350 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+            "event": "phish"
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-message-lingers",
+      "chapter": "poppy-browser",
+      "kind": "result before cause",
+      "intendedClaim": "The declined message and the rack\u2019s \u201cno codes yet\u201d were not listed in beats\u2019 fresh, so they stayed through the next event\u2019s flight; the fix lists them.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 2,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "transition": {
+          "pattern": "^(?:from the state at \"phish\", )?after .*phish, forge$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "forged",
+        "subjects": [
+          "message"
+        ],
+        "requirement": "absent"
+      },
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, phish, fetch: motion contract: during \"ticket:flight\", subject \"message\" must be absent at +0.567 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, fetch",
+            "kind": "motion contract",
+            "path": "ticket:flight",
+            "detail": "subject \"message\" must be absent",
+            "subjects": [
+              "message"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, phish, fetch: motion contract: during \"ticket:flight\", subject \"message:note\" must be absent at +0.567 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, fetch",
+            "kind": "motion contract",
+            "path": "ticket:flight",
+            "detail": "subject \"message:note\" must be absent",
+            "subjects": [
+              "message:note"
+            ],
+            "requirement": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-submit-meet-on-top",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The submitted code and its cookie half both ended their trips on the counter\u2019s stop, one on top of the other, and the Session\u2019s cookie left from there; the fix sets them side by side.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"submit\", play 1, event 1: covers: part \u201ccarried:half\u201d at 1.200 s travels over \u201cVn3q\u201d (part \u201ccarried\u201d), covering at least 65% of its visible glyph boxes, for 0.13 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"submit\", play 1, event 1",
+            "kind": "covers",
+            "path": "carried:half",
+            "detail": "travels over \u201cVn3q\u201d (part \u201ccarried\u201d), covering at least 65% of its visible glyph boxes, for 0.13 s before it lands",
+            "subjects": [
+              "Vn3q",
+              "carried"
+            ],
+            "victim": "carried",
+            "masks": [
+              "carried:half"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit: covers: part \u201ccarried:half\u201d at 1.533 s travels over \u201cVn3q\u201d (part \u201ccarried\u201d), covering at least 66% of its visible glyph boxes, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit",
+            "kind": "covers",
+            "path": "carried:half",
+            "detail": "travels over \u201cVn3q\u201d (part \u201ccarried\u201d), covering at least 66% of its visible glyph boxes, for 0.17 s before it lands",
+            "subjects": [
+              "Vn3q",
+              "carried"
+            ],
+            "victim": "carried",
+            "masks": [
+              "carried:half"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-forge-ends-on-stop",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The forged stub ended its trip on the counter\u2019s stop, under the barrier that then dropped; the fix stops it short.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "browser-record-after-halves",
+      "chapter": "poppy-browser",
+      "kind": "result before cause",
+      "intendedClaim": "The Company\u2019s record of the new code appeared on the rack only after the two halves had been handed out; the fix shows it first.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{\"signin\":\"signed-in\"}",
+        "transition": {
+          "pattern": "^step \"load\", event \"load\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "page:stub:flight",
+        "subjects": [
+          "row:Vn3q:stub"
+        ],
+        "requirement": "present"
+      },
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"load\", event \"load\": motion contract: during \"page:stub:flight\", subject \"row:Vn3q:stub\" must be present at +1.433 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"load\", event \"load\"",
+            "kind": "motion contract",
+            "path": "page:stub:flight",
+            "detail": "subject \"row:Vn3q:stub\" must be present",
+            "subjects": [
+              "row:Vn3q:stub"
+            ],
+            "requirement": "present"
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"load\", event \"load\": motion contract: during \"page:stub:flight\", subject \"row:Vn3q:ring\" must be present at +1.433 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"load\", event \"load\"",
+            "kind": "motion contract",
+            "path": "page:stub:flight",
+            "detail": "subject \"row:Vn3q:ring\" must be present",
+            "subjects": [
+              "row:Vn3q:ring"
+            ],
+            "requirement": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-read-over-its-copy",
+      "chapter": "poppy-browser",
+      "kind": "two copies",
+      "intendedClaim": "The code the agent reads set off from the page\u2019s stub, over it, so the code showed twice at once (\u201cVn3q3q\u201d); the fix starts it beside the page.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"authorize\", play 1, event 1: covers: part \u201cread\u201d at 0.400 s travels over \u201cVn3q\u201d (part \u201cpage:stub\u201d), the same words as its own, for 0.30 s: two copies at once, one over the other; fix: take the resting copy away as the travelling one sets off (leave it as the flight appears), or start the flight beside it",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"authorize\", play 1, event 1",
+            "kind": "covers",
+            "path": "read",
+            "detail": "travels over \u201cVn3q\u201d (part \u201cpage:stub\u201d), the same words as its own, for 0.30 s: two copies at once, one over the other",
+            "subjects": [
+              "Vn3q",
+              "page:stub"
+            ],
+            "victim": "page:stub",
+            "masks": [
+              "read"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize: covers: part \u201cread\u201d at 0.400 s travels over \u201cVn3q\u201d (part \u201cpage:stub\u201d), the same words as its own, for 0.30 s: two copies at once, one over the other; fix: take the resting copy away as the travelling one sets off (leave it as the flight appears), or start the flight beside it",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize",
+            "kind": "covers",
+            "path": "read",
+            "detail": "travels over \u201cVn3q\u201d (part \u201cpage:stub\u201d), the same words as its own, for 0.30 s: two copies at once, one over the other",
+            "subjects": [
+              "Vn3q",
+              "page:stub"
+            ],
+            "victim": "page:stub",
+            "masks": [
+              "read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-legend-moves",
+      "chapter": "poppy-browser",
+      "kind": "layout motion",
+      "intendedClaim": "The rack\u2019s legend sat under the last row, so it slid down each time a row was added; the fix pins it.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "unreproduced",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "browser-attacker-over-shelf",
+      "chapter": "poppy-browser",
+      "kind": "passes over",
+      "intendedClaim": "The attacker\u2019s things left its browser on the right, over its shelf and its name, on their way to the counter; the fix moves the shelf left and sends them out of the window\u2019s left side.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, forge: covers: part \u201cforged\u201d at 0.933 s travels over \u201cR5ty\u201d (part \u201crow:R5ty:stub\u201d), covering at least 55% of its visible glyph boxes, for 0.23 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over \u201cR5ty\u201d (part \u201crow:R5ty:stub\u201d), covering at least 55% of its visible glyph boxes, for 0.23 s before it lands",
+            "subjects": [
+              "R5ty",
+              "row:R5ty:stub"
+            ],
+            "victim": "row:R5ty:stub",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, phish: covers: part \u201ccarried:half\u201d at 2.100 s travels over \u201cR5ty\u201d (part \u201crow:R5ty:stub\u201d), covering at least 38% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish",
+            "kind": "covers",
+            "path": "carried:half",
+            "detail": "travels over \u201cR5ty\u201d (part \u201crow:R5ty:stub\u201d), covering at least 38% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "R5ty",
+              "row:R5ty:stub"
+            ],
+            "victim": "row:R5ty:stub",
+            "masks": [
+              "carried:half"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-read-tiny-words",
+      "chapter": "poppy-browser",
+      "kind": "small label in flight",
+      "intendedClaim": "The code the agent reads travelled as a copy of the page\u2019s stub at 0.6 scale, its code far under a phone\u2019s legible size; the fix sends a code slip.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"authorize\", play 1, event 1: small words: part \u201cread\u201d at 0.567 s carries \u201cVn3q\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"authorize\", play 1, event 1",
+            "kind": "small words",
+            "path": "read",
+            "detail": "carries \u201cVn3q\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56)",
+            "subjects": [
+              "Vn3q"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize: small words: part \u201cread\u201d at 0.567 s carries \u201cVn3q\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize",
+            "kind": "small words",
+            "path": "read",
+            "detail": "carries \u201cVn3q\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56)",
+            "subjects": [
+              "Vn3q"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-forge-tiny-words",
+      "chapter": "poppy-browser",
+      "kind": "small label in flight",
+      "intendedClaim": "The forged stub travelled as a stub at 0.6 scale, its code far under a phone\u2019s legible size; the fix sends a code slip.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"forge\", play 3, event 1: small words: part \u201cforged\u201d at 0.700 s carries \u201cK9wd\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"forge\", play 3, event 1",
+            "kind": "small words",
+            "path": "forged",
+            "detail": "carries \u201cK9wd\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56)",
+            "subjects": [
+              "K9wd"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, forge: small words: part \u201cforged\u201d at 0.700 s carries \u201cK9wd\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56); fix: carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, forge",
+            "kind": "small words",
+            "path": "forged",
+            "detail": "carries \u201cK9wd\u201d 0.34 units high, under the 0.54 a phone reads on the whole picture and smaller than every label at rest (0.56)",
+            "subjects": [
+              "K9wd"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "conversations-layout-slides",
+      "chapter": "poppy-conversations",
+      "kind": "layout motion",
+      "intendedClaim": "Opening or closing the Direct Conversation slid every part that only changed place for the composition; the fix moves only the travellers and cross-fades the rest.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "conversations-turn-over-seat-name",
+      "chapter": "poppy-conversations",
+      "kind": "passes over",
+      "intendedClaim": "A turn of speech set off from its writer\u2019s seat, so the travelling copy covered the seat\u2019s name; the fix starts it a third of the way out.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "secondary-only",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"read\", play 1, event 1: covers: part \u201cturn:flight\u201d at 0.367 s travels over \u201cworking\u201d (part \u201cstate:working:label\u201d), covering at least 97% of its visible glyph boxes, for 0.27 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"read\", play 1, event 1",
+            "kind": "covers",
+            "path": "turn:flight",
+            "detail": "travels over \u201cworking\u201d (part \u201cstate:working:label\u201d), covering at least 97% of its visible glyph boxes, for 0.27 s before it lands",
+            "subjects": [
+              "working",
+              "state:working:label"
+            ],
+            "victim": "state:working:label",
+            "masks": [
+              "turn:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "step \"read\", play 1, event 1: occluded words: part \u201cstate:handoff:label\u201d at 0.567 s \u201chandoff\u201d stays readable by opacity but \u201cturn:flight\u201d, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.13 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"read\", play 1, event 1",
+            "kind": "occluded words",
+            "path": "state:handoff:label",
+            "detail": "\u201chandoff\u201d stays readable by opacity but \u201cturn:flight\u201d, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.13 s",
+            "subjects": [
+              "handoff",
+              "turn:flight"
+            ],
+            "victim": "state:handoff:label",
+            "masks": [
+              "turn:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "conversations-words-dissolve",
+      "chapter": "poppy-conversations",
+      "kind": "glyph dissolve",
+      "intendedClaim": "Two steps\u2019 plain view.sync() morphed the ledger\u2019s words glyph by glyph, so they dissolved into rows of dots (#101 item 12); the fix matches words whole.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "unreproduced",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "conversations-person-over-ledger",
+      "chapter": "poppy-conversations",
+      "kind": "passes over",
+      "intendedClaim": "A person joining came in level from the back office straight to the seat, across the ledger\u2019s rows; the fix brings them along the stage\u2019s foot, under the ledger.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"direct\", play 1, event 2: covers: part \u201cspecialist:mark:flight\u201d at 0.600 s travels over \u201cnone\u201d (part \u201cwritten:role:value\u201d), covering at least 49% of its visible glyph boxes, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"direct\", play 1, event 2",
+            "kind": "covers",
+            "path": "specialist:mark:flight",
+            "detail": "travels over \u201cnone\u201d (part \u201cwritten:role:value\u201d), covering at least 49% of its visible glyph boxes, for 0.17 s before it lands",
+            "subjects": [
+              "none",
+              "written:role:value"
+            ],
+            "victim": "written:role:value",
+            "masks": [
+              "specialist:mark:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "after ask, read, invite, direct, joins: covers: part \u201cspecialist:mark:flight\u201d at 0.600 s travels over \u201cnone\u201d (part \u201cwritten:role:value\u201d), covering at least 49% of its visible glyph boxes, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, read, invite, direct, joins",
+            "kind": "covers",
+            "path": "specialist:mark:flight",
+            "detail": "travels over \u201cnone\u201d (part \u201cwritten:role:value\u201d), covering at least 49% of its visible glyph boxes, for 0.17 s before it lands",
+            "subjects": [
+              "none",
+              "written:role:value"
+            ],
+            "victim": "written:role:value",
+            "masks": [
+              "specialist:mark:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "conversations-table-block-blinks",
+      "chapter": "poppy-conversations",
+      "kind": "flicker",
+      "intendedClaim": "Filmed after the audit (origin/claude/film-fixes): the whole \u201cOn the table\u201d block (heading, rules, labels) went out from about 0.2 s to 1.1 s on every message, because beats\u2019 fresh named its prefix; only the two values change. The fix lists just the values.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": true,
+      "exactMatchCount": 1,
+      "declaredRefusalMatches": 0,
+      "expectedFinding": {
+        "scenario": "{}",
+        "transition": {
+          "pattern": "^step \"read\", event \"read\"$",
+          "flags": ""
+        },
+        "kind": "motion contract",
+        "path": "turn:flight",
+        "subjects": [
+          "written:title:0"
+        ],
+        "requirement": "present"
+      },
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"open\", event \"ask\": motion contract: during \"turn:flight\", subject \"written:title:0\" must be present at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"open\", event \"ask\"",
+            "kind": "motion contract",
+            "path": "turn:flight",
+            "detail": "subject \"written:title:0\" must be present",
+            "subjects": [
+              "written:title:0"
+            ],
+            "requirement": "present"
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "step \"open\", event \"ask\": motion contract: during \"turn:flight\", subject \"written:rule\" must be present at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"open\", event \"ask\"",
+            "kind": "motion contract",
+            "path": "turn:flight",
+            "detail": "subject \"written:rule\" must be present",
+            "subjects": [
+              "written:rule"
+            ],
+            "requirement": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "conversations-block-crossfades",
+      "chapter": "poppy-conversations",
+      "kind": "flicker",
+      "intendedClaim": "Filmed after the audit: opening or closing the Direct Conversation shifted the \u201cOn the table\u201d block 0.1 units, just over the reflow\u2019s 0.1 threshold, so it was cross-faded and gone from 0.4 s to 1.0 s. The fix morphs shifts under 0.5 units.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{}",
+          "line": "step \"direct\", play 1, event 1: flicker: part \u201cwritten:title:0\u201d at 0.233 s went from alpha 0.50 to 0.16 and came back 1.30 s later, unchanged and in the same place (\u201cOn the table\u201d); fix: leave it alone: a part that ends as it began should stay (only words that change are replaced; drop it from beats' fresh unless the event makes it new)",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"direct\", play 1, event 1",
+            "kind": "flicker",
+            "path": "written:title:0",
+            "detail": "went from alpha 0.50 to 0.16 and came back 1.30 s later, unchanged and in the same place (\u201cOn the table\u201d)",
+            "subjects": [
+              "On the table"
+            ]
+          }
+        },
+        {
+          "scenario": "{}",
+          "line": "step \"direct\", play 1, event 1: flicker: part \u201cwritten:rule\u201d at 0.233 s went from alpha 0.50 to 0.16 and came back 1.30 s later, unchanged and in the same place; fix: leave it alone: a part that ends as it began should stay (only words that change are replaced; drop it from beats' fresh unless the event makes it new)",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"direct\", play 1, event 1",
+            "kind": "flicker",
+            "path": "written:rule",
+            "detail": "went from alpha 0.50 to 0.16 and came back 1.30 s later, unchanged and in the same place",
+            "subjects": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "coverage-strips-cross",
+      "chapter": "poppy-coverage",
+      "kind": "passes over",
+      "intendedClaim": "The note\u2019s strips all flew to their places at once, the followed ones into the model and the others to the shop\u2019s side, crossing over one another; the fix moves each group alone.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"sort\", play 1, event 1: covers: part \u201cstrip:aside:0:flight\u201d at 0.567 s travels over \u201ccheckout page\u201d (part \u201cstrip:used:1:flight\u201d), covering at least 65% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"sort\", play 1, event 1",
+            "kind": "covers",
+            "path": "strip:aside:0:flight",
+            "detail": "travels over \u201ccheckout page\u201d (part \u201cstrip:used:1:flight\u201d), covering at least 65% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "checkout page",
+              "strip:used:1:flight"
+            ],
+            "victim": "strip:used:1:flight",
+            "masks": [
+              "strip:aside:0:flight"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"skill\", play 1, event 1: covers: part \u201cstrip:aside:0:flight\u201d at 1.333 s travels over \u201cPOST the exchange\u201d (part \u201cstrip:used:1:flight\u201d), covering at least 52% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"skill\", play 1, event 1",
+            "kind": "covers",
+            "path": "strip:aside:0:flight",
+            "detail": "travels over \u201cPOST the exchange\u201d (part \u201cstrip:used:1:flight\u201d), covering at least 52% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "POST the exchange",
+              "strip:used:1:flight"
+            ],
+            "victim": "strip:used:1:flight",
+            "masks": [
+              "strip:aside:0:flight"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "coverage-report-too-long",
+      "chapter": "poppy-coverage",
+      "kind": "too long",
+      "intendedClaim": "A report went in three legs (to the station, to the slot, back to the desk) over a 4.0 s event; the fix drops the first leg and runs it in 2.75 s.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "editorial",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "coverage-skill-card-twice",
+      "chapter": "poppy-coverage",
+      "kind": "two copies",
+      "intendedClaim": "A copy of the skill card was carried down to the desk while the card stayed on its hook, so it showed twice; the fix takes the card itself down and puts it back as the ticket lands.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"skill\", event \"use skill\": motion contract: during \"skill:read\", subject \"skill:card\" must be absent at +0.533 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"skill\", event \"use skill\"",
+            "kind": "motion contract",
+            "path": "skill:read",
+            "detail": "subject \"skill:card\" must be absent",
+            "subjects": [
+              "skill:card"
+            ],
+            "requirement": "absent"
+          }
+        },
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"skill\", play 1, event 1: covers: part \u201cskill:read\u201d at 0.400 s travels over \u201cskill\u201d (part \u201cskill:card\u201d), the same words as its own, for 0.17 s: two copies at once, one over the other; fix: take the resting copy away as the travelling one sets off (leave it as the flight appears), or start the flight beside it",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"skill\", play 1, event 1",
+            "kind": "covers",
+            "path": "skill:read",
+            "detail": "travels over \u201cskill\u201d (part \u201cskill:card\u201d), the same words as its own, for 0.17 s: two copies at once, one over the other",
+            "subjects": [
+              "skill",
+              "skill:card"
+            ],
+            "victim": "skill:card",
+            "masks": [
+              "skill:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "coverage-reach-over-strips",
+      "chapter": "poppy-coverage",
+      "kind": "passes over",
+      "intendedClaim": "The strip that asks for a secret reached straight from the note toward the station, over the strips already settled; the fix sends it alone, first, along a corridor under the rule.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"skill\", play 1, event 1: long transition: part \u201ctransition\u201d at 0.000 s keeps changing for 5.13 s, over the 5 s ceiling; fix: shorten or split the authored transition; leave caption reading time as a hold",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"skill\", play 1, event 1",
+            "kind": "long transition",
+            "path": "transition",
+            "detail": "keeps changing for 5.13 s, over the 5 s ceiling",
+            "subjects": []
+          }
+        },
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "after read tasks, use skill: long transition: part \u201ctransition\u201d at 0.000 s keeps changing for 5.10 s, over the 5 s ceiling; fix: shorten or split the authored transition; leave caption reading time as a hold",
+          "observation": {
+            "type": "finding",
+            "transition": "after read tasks, use skill",
+            "kind": "long transition",
+            "path": "transition",
+            "detail": "keeps changing for 5.10 s, over the 5 s ceiling",
+            "subjects": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "coverage-desk-blinks",
+      "chapter": "poppy-coverage",
+      "kind": "flicker",
+      "intendedClaim": "The shop\u2019s desk was listed in beats\u2019 fresh, so its unchanged words faded out and came back on every event; the fix drops it from fresh.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"board\", event \"read tasks\": motion contract: during \"list\", subject \"desk:head\" must be present at +0.467 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"board\", event \"read tasks\"",
+            "kind": "motion contract",
+            "path": "list",
+            "detail": "subject \"desk:head\" must be present",
+            "subjects": [
+              "desk:head"
+            ],
+            "requirement": "present"
+          }
+        },
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "read tasks: motion contract: during \"list\", subject \"desk:head\" must be present at +0.467 s",
+          "observation": {
+            "type": "finding",
+            "transition": "read tasks",
+            "kind": "motion contract",
+            "path": "list",
+            "detail": "subject \"desk:head\" must be present",
+            "subjects": [
+              "desk:head"
+            ],
+            "requirement": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "coverage-user-line-blinks",
+      "chapter": "poppy-coverage",
+      "kind": "flicker",
+      "intendedClaim": "What the User says was keyed under the tray, which beats\u2019 fresh fades out and back, so the unchanged line blinked on each event; the fix keys it apart.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"board\", event \"read tasks\": motion contract: during \"list\", subject \"tray:user:close\" must be present at +0.467 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"board\", event \"read tasks\"",
+            "kind": "motion contract",
+            "path": "list",
+            "detail": "subject \"tray:user:close\" must be present",
+            "subjects": [
+              "tray:user:close"
+            ],
+            "requirement": "present"
+          }
+        },
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "after close account, read tasks: motion contract: during \"list\", subject \"tray:user:close\" must be present at +0.467 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after close account, read tasks",
+            "kind": "motion contract",
+            "path": "list",
+            "detail": "subject \"tray:user:close\" must be present",
+            "subjects": [
+              "tray:user:close"
+            ],
+            "requirement": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "coverage-list-over-labels",
+      "chapter": "poppy-coverage",
+      "kind": "passes over",
+      "intendedClaim": "The shop\u2019s list crossed straight from the board to the agent\u2019s tray, over the counter\u2019s labels; the fix brings it down and under the rule.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": true,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"board\", play 1, event 1: covers: part \u201clist\u201d at 0.767 s travels over \u201cfeedback\u201d (part \u201cfeedback:name\u201d), covering at least 38% of its visible glyph boxes, for 0.17 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"board\", play 1, event 1",
+            "kind": "covers",
+            "path": "list",
+            "detail": "travels over \u201cfeedback\u201d (part \u201cfeedback:name\u201d), covering at least 38% of its visible glyph boxes, for 0.17 s before it lands",
+            "subjects": [
+              "feedback",
+              "feedback:name"
+            ],
+            "victim": "feedback:name",
+            "masks": [
+              "list"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"company\":\"hostile\"}",
+          "line": "step \"board\", play 1, event 1: occluded words: part \u201cuser:close\u201d at 1.267 s \u201cClose my account\u201d stays readable by opacity but \u201clist\u201d, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s; fix: draw the words above their paper, route the foreground shape round them, or take the old words away before covering them",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"board\", play 1, event 1",
+            "kind": "occluded words",
+            "path": "user:close",
+            "detail": "\u201cClose my account\u201d stays readable by opacity but \u201clist\u201d, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.10 s",
+            "subjects": [
+              "Close my account",
+              "list"
+            ],
+            "victim": "user:close",
+            "masks": [
+              "list"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "discovery-arm-over-register",
+      "chapter": "poppy-discovery",
+      "kind": "passes over",
+      "intendedClaim": "The arm to the issuer was drawn out over the closed register, which gave way only afterwards; the fix closes the register as the arm is drawn.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "blocked-before-paint",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": true,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "during guarded execution",
+          "line": "duration guard: machine.send(\"check\"): authored transition lasts 1.850 s but the event allows 1.550 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+          "observation": {
+            "type": "refusal",
+            "kind": "duration guard",
+            "name": "RangeError",
+            "message": "machine.send(\"check\"): authored transition lasts 1.850 s but the event allows 1.550 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+            "event": "check"
+          }
+        }
+      ]
+    },
+    {
+      "id": "discovery-sheet-over-shop",
+      "chapter": "poppy-discovery",
+      "kind": "passes over",
+      "intendedClaim": "The fetched sheet dropped from the address bar straight down over the shop\u2019s fascia to the doorstep, while the address was still changing; the fix changes the address first and brings a document down the street beside the shop.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "secondary-only",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    },
+    {
+      "id": "discovery-fetch-squeezed",
+      "chapter": "poppy-discovery",
+      "kind": "squeezed",
+      "intendedClaim": "The fetch\u2019s document appeared and left in 0.15 s and the barrier had a beat of its own, in a 1.3 s runTime the beats overran; the fix gives the token 0.25 s, folds the barrier into the settle and the event 1.5 s.",
+      "historicalReconstructionLabel": "adapted",
+      "frozenVisualVerdict": "blocked-before-paint",
+      "priorBroadRejected": true,
+      "credited": true,
+      "rawRejected": true,
+      "status": "refused",
+      "guardOnly": true,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": [
+        {
+          "scenario": "during guarded execution",
+          "line": "duration guard: machine.send(\"check\"): authored transition lasts 1.750 s but the event allows 1.300 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+          "observation": {
+            "type": "refusal",
+            "kind": "duration guard",
+            "name": "RangeError",
+            "message": "machine.send(\"check\"): authored transition lasts 1.750 s but the event allows 1.300 s; increase the machine runTime or shorten the transition instead of compressing its fades",
+            "event": "check"
+          }
+        }
+      ]
+    },
+    {
+      "id": "discovery-path-slides",
+      "chapter": "poppy-discovery",
+      "kind": "layout motion",
+      "intendedClaim": "When a redirect shortened the host, the URL\u2019s path slid left; the fix replaces the whole URL.",
+      "historicalReconstructionLabel": "reverted",
+      "frozenVisualVerdict": "confirmed",
+      "priorBroadRejected": false,
+      "credited": false,
+      "rawRejected": false,
+      "status": "complete",
+      "guardOnly": false,
+      "hasWarning": false,
+      "exactTarget": false,
+      "exactMatchCount": 0,
+      "declaredRefusalMatches": 0,
+      "examples": []
+    }
+  ],
+  "workerOutcomes": {
+    "complete": 52,
+    "refused": 7
+  }
+}

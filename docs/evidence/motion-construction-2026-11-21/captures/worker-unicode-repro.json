@@ -1,0 +1,17 @@
+{
+  "id": "poppy-ticket-over-lane-names",
+  "payloadBytes": 1483,
+  "splitByte": 881,
+  "broken": {
+    "status": "error",
+    "error": "worker poppy-ticket-over-lane-names: fresh observations are absent from its findings",
+    "retainedFindings": 1,
+    "creditedFresh": 0
+  },
+  "streamDecoded": {
+    "status": "complete",
+    "findings": 1,
+    "fresh": 1
+  },
+  "productionEdited": false
+}

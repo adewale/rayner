@@ -1,0 +1,223 @@
+{
+  "completedAt": "2026-11-22T00:12:19.260517+00:00",
+  "sourceCommit": "d3615b3658d79d980b26be4fb4b1375c1208d057",
+  "scope": "Repository integration plus final changed-owner followups, complete corpus and catalog, native/browser/package boundaries. Counts overlap; do not sum them as unique tests.",
+  "repositoryIntegration": {
+    "command": "NODE_OPTIONS=--max-old-space-size=1024 node --expose-gc --test --test-concurrency=2 test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
+    "tests": 2365,
+    "pass": 2165,
+    "fail": 7,
+    "skipped": 193,
+    "receipt": "captures/full-suite.log",
+    "note": "Integration run predates final owner reconciliation. Its failures remain failures in this record; all seven are corrected and verified by the final owners below. This is not presented as a new clean full-suite run."
+  },
+  "resolvedIntegrationFailures": [
+    {
+      "test": "machine check concise JSON verdict",
+      "repair": "Accurate checked-state wording",
+      "verifiedBy": "integrationFollowups"
+    },
+    {
+      "test": "machine starter exact report",
+      "repair": "Add presentations/transitions to the expected additive report shape",
+      "verifiedBy": "integrationFollowups"
+    },
+    {
+      "test": "writing guide done-stage report",
+      "repair": "Document actual16 states/16 presentations/15 accepted transitions",
+      "verifiedBy": "integrationFollowups"
+    },
+    {
+      "test": "library import boundaries",
+      "repair": "Import identical JSON functions through existing internal barrel",
+      "verifiedBy": "integrationFollowups"
+    },
+    {
+      "test": "internal member ownership inventory",
+      "repair": "List the shared inventory as actual owner; retain exact rule",
+      "verifiedBy": "integrationFollowups"
+    },
+    {
+      "test": "corpus sample",
+      "repair": "Do not credit the poll wrong-target observation; native domain proof retained separately",
+      "verifiedBy": "corpusAndPackageOwners"
+    },
+    {
+      "test": "bundled command library boundary",
+      "repair": "Same internal-barrel repair; no new public export",
+      "verifiedBy": "corpusAndPackageOwners"
+    }
+  ],
+  "additionalBoundaryRepair": {
+    "problem": "Installed-author test dependency reached private renderer internals; SignIn public scene test reached repository-only fidelity",
+    "repair": "Public native foreground compositing; pacing poison belongs in repository fidelity; repository await keeper moved out of portable scene inventory",
+    "verifiedBy": [
+      "installedPackage",
+      "portableHelperRuntimeAwait",
+      "repositoryAwaitKeeper",
+      "nativeSignInFinal"
+    ]
+  },
+  "checks": {
+    "integrationFollowups": {
+      "receipt": "captures/integration-followup.log",
+      "tests": 56,
+      "pass": 55,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1
+    },
+    "corpusAndPackageOwners": {
+      "receipt": "captures/corpus-package-followup.log",
+      "tests": 20,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 3
+    },
+    "nativeSignInFinal": {
+      "receipt": "captures/sign-in-portable-final.log",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "nativeOtherReaderOwnersFinal": {
+      "receipt": "captures/reader-owners-portable-final.log",
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "fullOnlyNativeProofsFinal": {
+      "receipt": "captures/native-proof-portable-final.log",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "portableHelperRuntimeAwait": {
+      "receipt": "captures/runtime-public-route-tests.log",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "portableChapterClients": {
+      "receipt": "captures/runtime-public-route-clients.log",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "repositoryAwaitKeeper": {
+      "receipt": "captures/runtime-public-await-owner.log",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "fullRefusals": {
+      "receipt": "captures/refusals-resource-portable.log",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "browserSuite": {
+      "filesCovered": 29,
+      "completedBeforeRestart": [
+        "test/browser/bench-measure.test.ts",
+        "test/browser/comparison-openings.test.ts",
+        "test/browser/domain-contracts.test.ts",
+        "test/browser/explain-audio.test.ts",
+        "test/browser/explain-birthday-reader.test.ts",
+        "test/browser/explain-capture.test.ts",
+        "test/browser/explain-embed.test.ts",
+        "test/browser/explain-lang.test.ts",
+        "test/browser/explain-live-review.test.ts",
+        "test/browser/explain-live.test.ts",
+        "test/browser/explain-loading.test.ts",
+        "test/browser/explain-monty-reader.test.ts",
+        "test/browser/explain-narrow-stage.test.ts",
+        "test/browser/explain-periodic-reader.test.ts",
+        "test/browser/explain-player-style.test.ts",
+        "test/browser/explain-predict.test.ts",
+        "test/browser/explain-reading.test.ts",
+        "test/browser/explain-reference-reader.test.ts",
+        "test/browser/explain-results.test.ts",
+        "test/browser/explain-review-scene.test.ts",
+        "test/browser/explain-ring-reader.test.ts"
+      ],
+      "rerunAfterRestart": [
+        "test/browser/explain-site.test.ts",
+        "test/browser/explain-story-review.test.ts",
+        "test/browser/explain-writing-review.test.ts",
+        "test/browser/lettering-browser.test.ts",
+        "test/browser/lettering-math.test.ts",
+        "test/browser/page-snapshots.test.ts",
+        "test/browser/rendering-comparison.test.ts",
+        "test/browser/svg-browser.test.ts"
+      ],
+      "resume": {
+        "receipt": "captures/browser-resume.log",
+        "tests": 44,
+        "pass": 42,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2
+      },
+      "interruptedReceipt": "captures/browser-final.log",
+      "note": "Environment restart interrupted the original runner during the22nd file. First21 completed sequentially with no reported failures; the interrupted file and all7 later files were rerun fully. No clean single-run footer or aggregate test count is invented for the interrupted run."
+    },
+    "finalDocumentAndInterfaceContracts": {
+      "receipt": "captures/document-contracts-final.log",
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "typecheck": {
+      "receipt": "captures/typecheck-release-final.log",
+      "exit": 0
+    },
+    "installedPackage": {
+      "receipt": "captures/pack-release-final.log",
+      "exit": 0
+    }
+  },
+  "genericMeasurement": {
+    "variants": 59,
+    "finishedWorkers": 59,
+    "completeReplays": 52,
+    "typedEarlyRefusals": 7,
+    "errors": 0,
+    "credited": 39,
+    "rawRejected": 40,
+    "baselines": 8,
+    "baselineFindings": 0,
+    "otherCatalog": 45,
+    "otherCatalogFindings": 0,
+    "rawReceipt": "capture.json.gz",
+    "inputManifest": "source.json",
+    "finalInterfaceOnlyAmendment": "captures/interface-amendment/amendment.json"
+  },
+  "preserved": {
+    "frozenVisualAuditUnchanged": true,
+    "frozenRound3BenchmarkUnchanged": true
+  },
+  "scopeLimits": [
+    "Default full-suite run has193 explicit skips; the completed first21 Chromium files plus resumed8 cover all29 browser owners and retain the resume run\u2019s explicit skips.",
+    "FULL whole-corpus worker gate was not replayed a second time; its39 individual identities and lower bound are verified against the complete new59-worker capture.",
+    "Native observations are finite sampled/resolution-specific evidence; bounded/deeper reader exploration retains declared completeness/sampling limits.",
+    "A full new visual audit of all59 reconstructed variants was not performed."
+  ]
+}

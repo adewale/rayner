@@ -1,0 +1,55 @@
+{
+  "nan-port": {
+    "error": "Route ports and frame must be finite, with a nonempty frame"
+  },
+  "infinite-port": {
+    "error": "Route ports and frame must be finite, with a nonempty frame"
+  },
+  "nan-frame": {
+    "error": "Route ports and frame must be finite, with a nonempty frame"
+  },
+  "infinite-frame": {
+    "error": "Route ports and frame must be finite, with a nonempty frame"
+  },
+  "same-port": {
+    "path": [
+      [
+        0,
+        0
+      ]
+    ]
+  },
+  "clipped-away-obstacle": {
+    "error": "No route reserves the full carrier footprint between the declared ports"
+  },
+  "squareCap": {
+    "path": [
+      [
+        -2,
+        0
+      ],
+      [
+        -1.0671067856568959,
+        0
+      ],
+      [
+        -1.0671067856568959,
+        1.0671067856568959
+      ],
+      [
+        2,
+        1.0671067856568959
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "checkedPosition": [
+      0,
+      1.0671067856568959
+    ],
+    "protectedPixels": 400,
+    "lostPixels": 0
+  }
+}

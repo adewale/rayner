@@ -6,6 +6,8 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Correctness and evidence
 
+- Nested transition entrants retain target parent slots and clips; whole-picture fades preserve each child’s relative opacity. Visible travel requires actual changing composited ink per physical trip, and text checks track glyph occurrences and clipped paint. Check, film and review share a bounded state/presentation inventory; film publishes complete owned generations and corpus credit requires successful workers and the declared target.
+
 - Scene model and presentation types are inferred from initialized fields and validated as JSON before frame zero, including scenario-bound starts.
 - `DrawContext`, `drawContext` and `s.drawing` detach pure picture helpers from the mutable stage, retaining palette, language, direction and explicit shaping across historical redraws.
 - Source-qualified watch rows distinguish model changes from current local, shown and derived values. The player receives formatted readouts rather than raw trace channels.

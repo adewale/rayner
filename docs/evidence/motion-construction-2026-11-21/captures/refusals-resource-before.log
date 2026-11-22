@@ -1,0 +1,16 @@
+✔ the replacement keys clear the API and MCP lettering as they travel to their hooks (6325.013823ms)
+✖ scenes/explainers/poppy-refusals/scene.test.ts (67238.437552ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67249.025763
+
+✖ failing tests:
+
+test at scenes/explainers/poppy-refusals/scene.test.ts:1:1
+✖ scenes/explainers/poppy-refusals/scene.test.ts (67238.437552ms)
+  'test failed'

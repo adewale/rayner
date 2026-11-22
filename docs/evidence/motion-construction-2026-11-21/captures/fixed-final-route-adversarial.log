@@ -1,0 +1,41 @@
+probe nan-port
+probe infinite-port
+probe nan-frame
+probe infinite-frame
+probe same-port
+probe clipped-away-obstacle
+finite probes done
+before square route
+square route [
+  [ -2, 0 ],
+  [ -1.0671067856568959, 0 ],
+  [ -1.0671067856568959, 1.0671067856568959 ],
+  [ 2, 1.0671067856568959 ],
+  [ 2, 0 ]
+]
+full rendered
+{
+  'nan-port': {
+    error: 'Route ports and frame must be finite, with a nonempty frame'
+  },
+  'infinite-port': {
+    error: 'Route ports and frame must be finite, with a nonempty frame'
+  },
+  'nan-frame': {
+    error: 'Route ports and frame must be finite, with a nonempty frame'
+  },
+  'infinite-frame': {
+    error: 'Route ports and frame must be finite, with a nonempty frame'
+  },
+  'same-port': { path: [ [Array] ] },
+  'clipped-away-obstacle': {
+    error: 'No route reserves the full carrier footprint between the declared ports'
+  },
+  unsetOpacity: undefined,
+  squareCap: {
+    path: [ [Array], [Array], [Array], [Array], [Array] ],
+    checkedPosition: [ 0, 1.0671067856568959 ],
+    protectedPixels: 400,
+    lostPixels: 0
+  }
+}

@@ -1,0 +1,25 @@
+✔ every route observation awaits native completion before its caller advances the scene (12121.554298ms)
+✔ an outlined carrier can surround its destination lettering and an opaque carrier hides it (213.694099ms)
+✔ incremental clearance can run before departure without certifying a missing final trip (42.097604ms)
+✔ clearance includes descendant strokes, miter tips and the protected drawing’s own stroke (401.740654ms)
+✔ a carrier must visibly change position, including when an aperture stays fixed over moving geometry (178.081785ms)
+✔ each physical route occurrence needs its own actual movement and a hidden underlay cannot animate a frozen aperture (432.467101ms)
+✔ moving foreground paper cannot supply a traveller’s movement witness (272.403604ms)
+✔ a foreground drawing clipped away by its ancestor cannot invalidate visible travel (202.301308ms)
+✔ nested entrants occupy target sibling slots throughout native playback, in either construction order (29.098018ms)
+✔ whole-picture fade has native quarter and blank midpoint frames and restores relative dimming (19.353136ms)
+✔ matched new paper stays below retained text through staggered admissions and owner clips constrain every entering frame (219.205646ms)
+✔ occlusion follows one physical repeated label and a handoff supplies every missing glyph (423.152966ms)
+✔ duplicate words require two visible glyph occurrences, while contained different-sized copies still reject (1505.252505ms)
+✔ travel coverage respects evenodd holes and the victim viewport and never reports more than all glyph ink (934.41161ms)
+✔ native travel proof keeps narrow edge ink and wide offstage strokes and refuses a moving hidden-underlay counterfactual (2823.040753ms)
+✔ the endpoint checker rejects a native stacking reversal and accepts disjoint reordering (40.128136ms)
+✔ native pruning and motion retain SVG default opacity and diagonal square caps (14.444208ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21574.461964
