@@ -2,7 +2,7 @@
 // arranging the beats. A declaration cannot make its own source disappear or its prerequisite paint.
 import { motionObservers, type ObserveMotion } from '../../explain/internal.ts';
 import type { MotionRule } from '../../explain/index.ts';
-import { UNITS, clipPathOf, intersect, isGlyph, isHex, mobjectId, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
+import { UNITS, clipPathOf, intersect, isGlyph, isHex, mobjectId, pad, paintReach, renderElements, serializeElement, userBox } from '../../src/internal.ts';
 import type { Animation, Box, Mobject, Scene, Sink, Vec } from '../../src/index.ts';
 import { rasterize } from './explain-raster.ts';
 
@@ -70,8 +70,7 @@ function nativePatch(scene: Scene, part: Mobject) {
   const vx = Math.round(left), vy = Math.round(top), vw = Math.round(right - left), vh = Math.round(bottom - top);
   const unit = Math.min(800 / vw, 450 / vh);
   const ox = (800 - vw * unit) / 2, oy = (450 - vh * unit) / 2;
-  const stroke = Math.max(0, ...part.family().map(m => m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4)));
-  const extent = userBox(pad(bounds, stroke + 1 / (unit * UNITS)));
+  const extent = userBox(pad(bounds, paintReach(part) + 1 / UNITS + 1 / (unit * UNITS)));
   const x0 = Math.max(0, Math.floor(ox + (extent[0] - vx) * unit));
   const x1 = Math.min(800, Math.ceil(ox + (extent[2] - vx) * unit));
   const y0 = Math.max(0, Math.floor(oy + (extent[1] - vy) * unit));
@@ -98,11 +97,13 @@ function nativePatch(scene: Scene, part: Mobject) {
   return {records, start};
 }
 
-async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject, Composited>): Promise<boolean> {
+async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject, Composited>, glyphsOnly = false): Promise<boolean> {
   const patch = nativePatch(scene, part);
   if (!patch) return false;
   const {records, start} = patch;
-  const ids = new Set(part.family().map(mobjectId));
+  // One grouped omission protects actual glyph ownership. A sibling decoration
+  // remains in both pictures and cannot certify hidden lettering.
+  const ids = new Set(part.family().filter(m => !glyphsOnly || isGlyph(m)).map(mobjectId));
   if (!records.some(record => ids.has(record.id))) return false;
   const actual: string[] = [], omitted: string[] = [];
   for (const record of records) {
@@ -129,8 +130,10 @@ async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mo
  * Broad-phase bounds and a crop on the stage's pixel grid bound native work. */
 async function losesText(scene: Scene, text: Mobject, actor: Mobject, cache: WeakMap<Mobject, Clearance>): Promise<boolean> {
   const a = actor.box(), b = text.box();
-  const stroke = Math.max(0, ...actor.family().map(m => m.style.stroke === 'none' ? 0 : m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4)));
-  if (!a || !b || !intersect(pad(a, stroke), b)) return false;
+  const [left, top, right, bottom] = userBox(scene.frame.box()!);
+  const unit = Math.min(800 / Math.round(right-left), 450 / Math.round(bottom-top));
+  const tolerance = 1 / UNITS + 1 / (unit * UNITS);
+  if (!a || !b || !intersect(pad(a, paintReach(actor) + tolerance), pad(b, paintReach(text) + tolerance))) return false;
   const glyphs = new Set(text.family().filter(isGlyph).map(mobjectId));
   const actors = new Set(actor.family().map(mobjectId));
   const patch = nativePatch(scene, text);
@@ -286,7 +289,7 @@ export class MachineMotionCheck implements Sink {
         if (!views.includes(view)) throw new RangeError('machine.motion(): the rule must name a view of this machine');
         if (![present, absent, clearText].every(Array.isArray)) throw new TypeError('machine.motion(): present, absent and clearText must be lists of exact keys');
         const subjects = [...new Set([...present, ...absent, ...clearText])];
-        if (!subjects.length || ![during, ...subjects].every(k => typeof k === 'string' && k.trim()) || present.some(k => absent.includes(k)) ||
+        if (!subjects.length || ![during, ...subjects].every(k => typeof k === 'string' && k.trim()) || [...present, ...clearText].some(k => absent.includes(k)) ||
           [present, absent, clearText].some(keys => new Set(keys).size !== keys.length))
           throw new RangeError('machine.motion(): provide a travel key and distinct, nonempty subject keys');
         const issues = new Set<string>();
@@ -332,6 +335,7 @@ export class MachineMotionCheck implements Sink {
         }
       }
       for (const key of rule.clearText ?? []) {
+        if ([...issues].some(s => s.startsWith(`text subject "${key}" must remain clear`))) continue;
         const matches = rule.view.current.findAll(key);
         for (const text of matches) for (const {move} of active) {
           if (!text.family().some(isGlyph)) issues.add(`text subject "${key}" must identify glyph ink`);
@@ -348,7 +352,7 @@ export class MachineMotionCheck implements Sink {
           // Absence retires physical source ink even behind a cover. Presence is
           // stronger: the reader must receive that subject in the composed scene.
           const painted = (await Promise.all(matches.map(m => required
-            ? contributesOnStage(scene, m, this.#context)
+            ? contributesOnStage(scene, m, this.#context, rule.clearText?.includes(key))
             : paintsOnStage(scene, m, this.#paint)))).filter(Boolean).length;
           const issue = painted > 1 ? `subject "${key}" paints in more than one place`
             : Boolean(painted) !== required ? `subject "${key}" must be ${required ? 'present' : 'absent'}` : null;

@@ -23,6 +23,18 @@ const viewBoxOf = (scene: Scene): string => userRect(scene.frame.box()!).join(' 
 export const VIEWBOX = userRect(STAGE_BOX).join(' ');
 /** Whether a camera box is the home box, to within float noise from an animated camera. */
 export const atHome = (view: Readonly<Box>): boolean => view.every((v, i) => Math.abs(v - STAGE_BOX[i]!) < 1e-6);
+/** @internal Conservative painted reach beyond geometry, including descendant
+ * strokes, square caps, miter joins and SVG stroke rounding. Callers add their
+ * own screen-pixel and coordinate-rounding allowance. */
+export function paintReach(m: Mobject, cache = new Map<Mobject, number>()): number {
+  const old = cache.get(m);
+  if (old !== undefined) return old;
+  const s = m.style, miter = Number.isFinite(s.miterLimit) ? Math.max(4, s.miterLimit!) : 4;
+  const join = s.lineJoin ?? 'round';
+  let reach = paintsStroke(s) ? (s.strokeWidth + 1 / UNITS) * Math.max(Math.SQRT2, join === 'round' || join === 'bevel' ? 1 : miter) / 2 : 0;
+  for (const child of m.children) reach = Math.max(reach, paintReach(child, cache));
+  cache.set(m, reach); return reach;
+}
 /** The box of the world on screen: the camera's (`scene.frame`), which the SVG viewBox shows; without one, the whole stage. A new box. */
 export const viewOf = (scene: { frame?: { box(): Box | null } }): Box => [...(scene.frame?.box() ?? STAGE_BOX)] as Box;
 
@@ -103,22 +115,11 @@ function renderElementsImpl(scene: Pick<Scene, 'mobjects' | 'frame'>, relative: 
   // miter joins, SVG rounding and the next antialiased pixel all enlarge the bounds.
   // A visible edge strip is evidence even when it is narrower than a pixel.
   const reaches = new Map<Mobject, number>();
-  const reach = (m: Mobject): number => {
-    const old = reaches.get(m);
-    if (old !== undefined) return old;
-    const s = m.style;
-    const miter = Number.isFinite(s.miterLimit) ? Math.max(4, s.miterLimit!) : 4;
-    const join = s.lineJoin ?? 'round';
-    let r = paintsStroke(s) ? (s.strokeWidth + 1 / UNITS) *
-      Math.max(Math.SQRT2, join === 'round' || join === 'bevel' ? 1 : miter) / 2 : 0;
-    for (const child of m.children) r = Math.max(r, reach(child));
-    reaches.set(m, r); return r;
-  };
   const unseen = (m: Mobject, viewport: Box): boolean => {
     const b = m.box();
     if (viewport[0] >= viewport[2] || viewport[1] >= viewport[3]) return true;
     if (!b) return false;
-    const margin = reach(m) + 1 / UNITS + (view ? (view[2] - view[0]) / width : 0);
+    const margin = paintReach(m, reaches) + 1 / UNITS + (view ? (view[2] - view[0]) / width : 0);
     return b[2] + margin < viewport[0] || b[0] - margin > viewport[2] || b[3] + margin < viewport[1] || b[1] - margin > viewport[3];
   };
   const walk = (m: Mobject, inherited?: Clip): void => {

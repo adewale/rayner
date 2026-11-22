@@ -15,7 +15,7 @@ export { takeLetteringMissing, takeLetteringUse, useLettering, withLettering } f
 export type { LetteringFaces, LetteringScript, SubsetLetteringRequest } from './lettering.ts';
 export { affine, mobjectId, paints, paintsStroke } from './mobject.ts';
 export { StopScene } from './scene.ts';
-export { DomSink, SnapshotSink, VIEWBOX, applyRecords, atHome, clipPathOf, renderElements, serializeElement, userBox, viewOf } from './svg.ts';
+export { DomSink, SnapshotSink, VIEWBOX, applyRecords, atHome, clipPathOf, paintReach, renderElements, serializeElement, userBox, viewOf } from './svg.ts';
 export type { ElementRecord } from './svg.ts';
 export { textContextOf } from './text-context.ts';
 export { isGlyph } from './text.ts';

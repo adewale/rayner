@@ -97,3 +97,52 @@ test('authored text clearance protects native glyph cores against narrow filled 
     }
   }
 });
+
+test('clearance includes painted glyph stroke and requires glyph-owned contribution inside a decorated group', async () => {
+  for (const trial of ['stroke', 'stroke-near-miss', 'clear', 'hidden', 'clipped', 'covered', 'same-background', 'faint', 'conflict'] as const) {
+    class Reading extends Scene {
+      override state = {n: 0};
+      override async construct() {
+        const picture = view(this, () => {
+          const text = new Text('I', {fontSize: 0.8, color: trial === 'same-background' ? this.colors.paper : '#f00'});
+          const glyph = text.children[0]!;
+          if (trial.startsWith('stroke')) glyph.setStyle({stroke:'#f00',strokeWidth:0.35});
+          if (trial === 'hidden') glyph.setOpacity(0);
+          if (trial === 'faint') glyph.setOpacity(0.03);
+          if (trial === 'clipped') glyph.clipBox = [2,2,3,3];
+          const cover = trial === 'covered' ? [new Rectangle({width:1,height:1,fill:'#000',stroke:'none'})] : [];
+          return new Group(keyed(new Group(text,...cover,new Rectangle({width:0.08,height:0.08,fill:'#00f',stroke:'none'}).moveTo([-1,1])), 'reading'));
+        }, {place:false});
+        const machine = new Machine(this,{start:this.state,events:['send'],next:()=>({n:1}),views:[picture],runTime:0.9,
+          motion:()=>[{view:picture,during:'traveller',clearText:['reading'],...(trial==='conflict'?{absent:['reading']}:{})}],
+          transition:{send:t=>{
+            const c=t.choreograph(picture), glyph=c.from('reading').family().find(m=>m instanceof Text)!.children[0]!, box=glyph.box()!;
+            const x=trial==='stroke'?box[2]+0.07:trial==='stroke-near-miss'?box[2]+0.175+0.0275+0.04:2;
+            return new Succession([...pass(c,'traveller',new Rectangle({width:0.055,height:0.15,fill:'#000',stroke:'none'}),[[x,-0.2],[x,0.2]],{appear:0.1,move:0.5,leave:0.1}),c.rest({runTime:0.1})]);
+          }}});
+        this.add(picture); await this.play(machine.send('send'));
+      }
+    }
+    const check=new MachineMotionCheck(); let witness: {actual:string;free:string;noGlyph:string}|undefined;
+    const scene=new Reading({async frame(s){
+      await check.frame(s);
+      if(witness||s.time<0.32||!s.find('traveller')) return;
+      const actor=s.find('traveller')!, glyph=s.find('reading')!.family().find(m=>m instanceof Text)!.children[0]!;
+      const actual=toSvgString(s,{width:800}), aa=actor.style.opacity, ga=glyph.style.opacity;
+      actor.setOpacity(0); const free=toSvgString(s,{width:800}); actor.setOpacity(aa);
+      glyph.setOpacity(0); const noGlyph=toSvgString(s,{width:800}); glyph.setOpacity(ga);
+      witness={actual,free,noGlyph};
+    }});
+    if(trial==='conflict') {await assert.rejects(check.during(scene,()=>scene.run()), /distinct, nonempty subject keys/);continue;}
+    await check.during(scene,()=>scene.run()); assert.ok(witness);
+    const images=await Promise.all([witness.actual,witness.free,witness.noGlyph].map(rasterize));
+    const [actual,free,noGlyph]=images.map(i=>i.pixels);
+    const missing=['hidden','clipped','covered','same-background'].includes(trial);
+    assert.equal(actual!.some((v,i)=>v!==noGlyph![i]),!missing,`${trial}: exact grouped glyph omission excludes blue sibling ink`);
+    let lost=0; for(let i=0;i<actual!.length;i+=4) if(free![i]!>248&&free![i+1]!<10&&free![i+2]!<10&&free![i]!-actual![i]!>=32) lost++;
+    assert.equal(lost>0,trial==='stroke',`${trial}: actual opaque painted red stroke (${lost} pixels)`);
+    if(trial==='stroke') assert.ok(check.findings.some(f=>f.includes('must remain clear')),check.findings.join('\n'));
+    else if(missing) assert.ok(check.findings.some(f=>f.includes('must be present')),trial);
+    else assert.deepEqual(check.findings,[],trial);
+  }
+});
