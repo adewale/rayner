@@ -267,20 +267,34 @@ export function drawWorld(w: World, s: DrawContext, shown: Shown = {}): Group {
     parts.add(label(s, kind, { at: [at[0], kindY], color: TONE.soft }), `${key}:kind`);
   };
 
-  // The conversation's table. Its seats are drawn first, so the table's edge covers their inner half.
+  // Keep the same physical layers in both layouts: seat backgrounds, tables,
+  // participant marks, then captions. Retained agent/you marks must keep their
+  // relative order when new Direct Conversation seats enter around them.
   const joined = w.main?.responder === 'human', looking = w.main?.handoff === 'pending';
   parts.add(seat(seats.agentSeat, back ? 'empty' : paused ? 'idle' : 'taken'), 'seat:agent');
   parts.add(seat(seats.youSeat, back ? 'empty' : paused ? 'idle' : 'taken'), 'seat:you');
   parts.add(seat(seats.company, paused ? 'idle' : 'taken'), 'seat:company');
   parts.add(seat(seats.person, joined ? (paused ? 'idle' : 'taken') : looking ? 'awaited' : 'empty'), 'seat:person');
+  if (direct) {
+    parts.add(new Line([THREAD_X, bottom(MAIN_BACK)], [THREAD_X, top(DIRECT)], { stroke: TONE.ink, strokeWidth: STROKE.fine }), 'direct:thread');
+    parts.add(seat(seats.directYou, 'taken'), 'seat:direct:you');
+    parts.add(seat(seats.directCompany, 'taken'), 'seat:direct:co');
+    parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
+  }
+  // The tables cover the inner edge of each seat, never its participant mark.
   parts.add(table(main), 'main:table');
+  if (direct) parts.add(table(DIRECT), 'direct:table');
 
   // Who sits where. Your agent and you move to the Direct Conversation while it is open.
   parts.add(markOf(s, 'ai', seats.company, ink), 'company:mark');
   if (joined) parts.add(markOf(s, 'person', seats.person, ink), 'person:mark');
+  parts.add(markOf(s, 'ai', seats.agent, back ? TONE.ink : ink, back ? 0.82 : 1), 'agent:mark');
+  parts.add(markOf(s, 'person', seats.you, back ? TONE.ink : ink), 'you:mark');
+  if (direct) {
+    const human = direct.responder === 'human';
+    parts.add(markOf(s, human ? 'person' : 'ai', seats.directCompany), human ? 'specialist:mark' : 'direct:agent:mark');
+  }
   if (!back) {
-    parts.add(markOf(s, 'ai', seats.agent, ink), 'agent:mark');
-    parts.add(markOf(s, 'person', seats.you, ink), 'you:mark');
     named('agent', seats.agentSeat, 'your agent', 'AI', true, paused);
     named('you', seats.youSeat, 'you', 'person', false, paused);
     named('company', seats.company, 'Company Agent', 'AI', true, paused);
@@ -300,20 +314,12 @@ export function drawWorld(w: World, s: DrawContext, shown: Shown = {}): Group {
     parts.add(label(s, 'user_requested', { at: [at[0] + 0.75, at[1]], mono: true, align: 'start' }), 'invite:type');
   }
 
-  // The Direct Conversation: a smaller table below, joined to the first by a thread.
+  // Names identify the Direct Conversation's seats and the agent watching beside it.
   if (direct) {
-    parts.add(new Line([THREAD_X, bottom(MAIN_BACK)], [THREAD_X, top(DIRECT)], { stroke: TONE.ink, strokeWidth: STROKE.fine }), 'direct:thread');
     const human = direct.responder === 'human';
-    parts.add(seat(seats.directYou, 'taken'), 'seat:direct:you');
-    parts.add(seat(seats.directCompany, 'taken'), 'seat:direct:co');
-    parts.add(table(DIRECT), 'direct:table');
-    parts.add(markOf(s, 'person', seats.you), 'you:mark');
     named('you', seats.directYou, 'you', 'person', false, false, 0.25);
-    parts.add(markOf(s, human ? 'person' : 'ai', seats.directCompany), human ? 'specialist:mark' : 'direct:agent:mark');
     named('direct:co', seats.directCompany, human ? 'specialist' : 'Company Agent', human ? 'person' : 'AI', false, false, 0.25);
     // Your agent, set back beside the table: it may watch, and it says nothing here.
-    parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
-    parts.add(markOf(s, 'ai', seats.agent, TONE.ink, 0.82), 'agent:mark');
     parts.add(label(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.31], bold: true, align: 'start' }), 'agent:name');
     parts.add(label(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft, align: 'start' }), 'agent:kind');
   } else if (w.direct === 'closed') {
