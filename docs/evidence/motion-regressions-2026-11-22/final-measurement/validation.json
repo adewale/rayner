@@ -1,0 +1,71 @@
+{
+  "sourceCommit": "78c267a01e231332b6a5ef8010805a0b58079c5e",
+  "verifiedCurrentHead": "d41c54ea421dca6886b9c00ae3194afd157bc80e",
+  "recordedAtCompletion": "2026-11-22T11:55:52.556038+00:00",
+  "comparison": "baseline-subtracted",
+  "summary": {
+    "caught": 39,
+    "of": 59,
+    "byKind": {
+      "passes over": {
+        "caught": 19,
+        "of": 28
+      },
+      "result before cause": {
+        "caught": 4,
+        "of": 5
+      },
+      "layout motion": {
+        "caught": 2,
+        "of": 8
+      },
+      "two copies": {
+        "caught": 4,
+        "of": 4
+      },
+      "squeezed": {
+        "caught": 3,
+        "of": 3
+      },
+      "too long": {
+        "caught": 0,
+        "of": 3
+      },
+      "small label in flight": {
+        "caught": 3,
+        "of": 3
+      },
+      "glyph dissolve": {
+        "caught": 0,
+        "of": 1
+      },
+      "flicker": {
+        "caught": 4,
+        "of": 4
+      }
+    },
+    "evidence": {
+      "rejected": 40,
+      "attributedFindings": 10,
+      "declaredRefusals": 0,
+      "guardOnly": 6,
+      "unattributedWarnings": 24,
+      "exactTargets": 12,
+      "exactMatches": 10
+    }
+  },
+  "workerStatuses": {
+    "complete": 52,
+    "refused": 7
+  },
+  "uniqueWorkers": 59,
+  "cleanFullBaselines": 8,
+  "lostHistoricalCreditedIds": [],
+  "gainedHistoricalCreditedIds": [],
+  "runtimeDifferencesAtCompletion": [],
+  "testOwnerAmendments": [
+    "scenes/explainers/poppy/scene.test.ts"
+  ],
+  "measurementSha256": "c42409a3dcc0497e7f48237739929b0475a630f251628f4e1b1afbe449fb8b95",
+  "sourcePolicy": "Controlled isolated child workers on the integrated production source. Completion verifies no runtime/detector/CORPUS source diff from the recorded source revision. The Poppy test relocation is an explicit non-runtime owner amendment. Later test-only keepers require their own receipts; this is not a new visual ratification of all59."
+}

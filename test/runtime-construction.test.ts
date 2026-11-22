@@ -212,7 +212,13 @@ test('native travel proof keeps narrow edge ink and wide offstage strokes and re
     }});
     await check.during(scene, () => scene.run());
     assert.ok(actual.length > 15);
-    assert.equal(check.findings.length, mode === 'covered' || mode.endsWith('aperture') ? 1 : 0, mode);
+    const unproved = check.findings.filter(line => line.includes('a declared travel did not paint at two distinct screen positions during its move'));
+    const hiddenContext = check.findings.filter(line => line.includes('subject "context" must be present'));
+    assert.equal(unproved.length, mode === 'covered' || mode.endsWith('aperture') ? 1 : 0, `${mode}: physical travel proof`);
+    // The moving opaque sheet also hides the green context outside its hole.
+    // Require that independent diagnostic as well as refusing fabricated travel.
+    assert.equal(hiddenContext.length, mode === 'moving aperture' ? 1 : 0, `${mode}: actual context contribution`);
+    assert.equal(check.findings.length, unproved.length + hiddenContext.length, `${mode}: no unrelated diagnostics`);
     if (mode === 'frozen aperture') assert.ok(actual.every(p => p.equals(actual[0]!)), 'every complete actual frame is frozen');
     else if (mode === 'moving aperture') assert.ok(actual.some(p => !p.equals(actual[0]!)), 'foreground aperture moves actual ink without revealing traveller motion');
     else assert.ok(reds.every(n => mode === 'covered' ? n === 0 : n > 0), mode);
