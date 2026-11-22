@@ -82,6 +82,9 @@ export default class Poppy extends Scene {
     };
     const machine = new Machine<World, PoppyEvent>(this, {
       start: start(approves),
+      // The last picture keeps the signed-out Session; the reader's own errand
+      // starts before discovery, so every step of the promised protocol is available.
+      liveStart: 'start',
       events: POPPY_EVENTS,
       labels: {
         discover: 'Read poppy.json', cart: 'Add to cart', browse: 'Browse the site', chat: 'Ask about sizes',
