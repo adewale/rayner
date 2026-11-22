@@ -1,0 +1,887 @@
+{
+  "policy": "Matched native offsets; blank cells explicitly indicate absent frames. All crops are ordinary native PNG inputs; no generated artwork.",
+  "samples": [
+    {
+      "step": "sort",
+      "frame": 0
+    },
+    {
+      "step": "skill",
+      "frame": 0
+    },
+    {
+      "step": "skill",
+      "frame": 18
+    },
+    {
+      "step": "skill",
+      "frame": 37
+    },
+    {
+      "step": "skill",
+      "frame": 55
+    },
+    {
+      "step": "skill",
+      "frame": 74
+    },
+    {
+      "step": "skill",
+      "frame": 92
+    },
+    {
+      "step": "skill",
+      "frame": 110
+    },
+    {
+      "step": "skill",
+      "frame": 129
+    },
+    {
+      "step": "skill",
+      "frame": 147
+    }
+  ],
+  "regions": [
+    {
+      "name": "whole-stage",
+      "crop": {
+        "name": "whole-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "387f58546285f510c48d26f05fd2157674d30569a26bed4847ee5c1f7d546cf5"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "4a031b6fb7c666afee1b9669ab2dd783497b5cb0ccde3a12e71e7d7f14178990"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "151f3be2a8af80487ec7822b6c891113cb8562af95971fd06e63ac1935980a2d"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "fae804cc3e28b18d8728dad280f1a874edde67205956f82ac98af254f816c3d2"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8e686d86478c059fdc24165250ca69fc65373305acc766361be3aec18f7a4efe"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8a92e1ce025b09b759c2a6366d7d7d1a263ea09e3db05476d30e61ced2f33f4e"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "3bb1a5826026cc122a6791482b5e8fdd4a94aebd004b13a6cf3b452d8fbf4503"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "f8bf46ad547845071ae6fcefbd47623e335a0ed67cc99aeafbf6c00dbfdba9cf"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "76e9230932096e71e0b1be392cc81aeec796880db8f9f619f864a190d43959e5"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "f251040f18c561251422af6cca3d8960343427ebd497ec88edb438e141ca0c32"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "c94fe07346d9e2460a6be2373d6396eadc5e533874b2976c226dd31c8fe1bb50"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "ce79faf43621de71d4ee966aa9eebeb5e47c47a711494daab2394158e7ff6a25"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "55158ee1b27f0fcd29a0fba71962a852112a9c0c235ae113c4e8fd6c6dcaa0e0"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "6577903f260da9dad9cabf6858cb9ea30f4a55600307045dee13d4cd27719939"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        }
+      ]
+    },
+    {
+      "name": "upper-stage",
+      "crop": {
+        "name": "upper-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "387f58546285f510c48d26f05fd2157674d30569a26bed4847ee5c1f7d546cf5"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "4a031b6fb7c666afee1b9669ab2dd783497b5cb0ccde3a12e71e7d7f14178990"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "151f3be2a8af80487ec7822b6c891113cb8562af95971fd06e63ac1935980a2d"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "fae804cc3e28b18d8728dad280f1a874edde67205956f82ac98af254f816c3d2"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8e686d86478c059fdc24165250ca69fc65373305acc766361be3aec18f7a4efe"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8a92e1ce025b09b759c2a6366d7d7d1a263ea09e3db05476d30e61ced2f33f4e"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "3bb1a5826026cc122a6791482b5e8fdd4a94aebd004b13a6cf3b452d8fbf4503"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "f8bf46ad547845071ae6fcefbd47623e335a0ed67cc99aeafbf6c00dbfdba9cf"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "76e9230932096e71e0b1be392cc81aeec796880db8f9f619f864a190d43959e5"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "f251040f18c561251422af6cca3d8960343427ebd497ec88edb438e141ca0c32"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "c94fe07346d9e2460a6be2373d6396eadc5e533874b2976c226dd31c8fe1bb50"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "ce79faf43621de71d4ee966aa9eebeb5e47c47a711494daab2394158e7ff6a25"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "55158ee1b27f0fcd29a0fba71962a852112a9c0c235ae113c4e8fd6c6dcaa0e0"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "6577903f260da9dad9cabf6858cb9ea30f4a55600307045dee13d4cd27719939"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        }
+      ]
+    },
+    {
+      "name": "lower-stage",
+      "crop": {
+        "name": "lower-stage",
+        "x": 0,
+        "y": 225,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "387f58546285f510c48d26f05fd2157674d30569a26bed4847ee5c1f7d546cf5"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "4a031b6fb7c666afee1b9669ab2dd783497b5cb0ccde3a12e71e7d7f14178990"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "151f3be2a8af80487ec7822b6c891113cb8562af95971fd06e63ac1935980a2d"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "fae804cc3e28b18d8728dad280f1a874edde67205956f82ac98af254f816c3d2"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8e686d86478c059fdc24165250ca69fc65373305acc766361be3aec18f7a4efe"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8a92e1ce025b09b759c2a6366d7d7d1a263ea09e3db05476d30e61ced2f33f4e"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "3bb1a5826026cc122a6791482b5e8fdd4a94aebd004b13a6cf3b452d8fbf4503"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "f8bf46ad547845071ae6fcefbd47623e335a0ed67cc99aeafbf6c00dbfdba9cf"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "76e9230932096e71e0b1be392cc81aeec796880db8f9f619f864a190d43959e5"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "f251040f18c561251422af6cca3d8960343427ebd497ec88edb438e141ca0c32"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "c94fe07346d9e2460a6be2373d6396eadc5e533874b2976c226dd31c8fe1bb50"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "ce79faf43621de71d4ee966aa9eebeb5e47c47a711494daab2394158e7ff6a25"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "55158ee1b27f0fcd29a0fba71962a852112a9c0c235ae113c4e8fd6c6dcaa0e0"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "6577903f260da9dad9cabf6858cb9ea30f4a55600307045dee13d4cd27719939"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        }
+      ]
+    },
+    {
+      "name": "left-stage",
+      "crop": {
+        "name": "left-stage",
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "387f58546285f510c48d26f05fd2157674d30569a26bed4847ee5c1f7d546cf5"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "4a031b6fb7c666afee1b9669ab2dd783497b5cb0ccde3a12e71e7d7f14178990"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "151f3be2a8af80487ec7822b6c891113cb8562af95971fd06e63ac1935980a2d"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "fae804cc3e28b18d8728dad280f1a874edde67205956f82ac98af254f816c3d2"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8e686d86478c059fdc24165250ca69fc65373305acc766361be3aec18f7a4efe"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8a92e1ce025b09b759c2a6366d7d7d1a263ea09e3db05476d30e61ced2f33f4e"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "3bb1a5826026cc122a6791482b5e8fdd4a94aebd004b13a6cf3b452d8fbf4503"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "f8bf46ad547845071ae6fcefbd47623e335a0ed67cc99aeafbf6c00dbfdba9cf"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "76e9230932096e71e0b1be392cc81aeec796880db8f9f619f864a190d43959e5"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "f251040f18c561251422af6cca3d8960343427ebd497ec88edb438e141ca0c32"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "c94fe07346d9e2460a6be2373d6396eadc5e533874b2976c226dd31c8fe1bb50"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "ce79faf43621de71d4ee966aa9eebeb5e47c47a711494daab2394158e7ff6a25"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "55158ee1b27f0fcd29a0fba71962a852112a9c0c235ae113c4e8fd6c6dcaa0e0"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "6577903f260da9dad9cabf6858cb9ea30f4a55600307045dee13d4cd27719939"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        }
+      ]
+    },
+    {
+      "name": "right-stage",
+      "crop": {
+        "name": "right-stage",
+        "x": 400,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "sort",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "bf2a677bae72b05975f109449a2012cab14c8224221101304cce74acb2c64692"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "skill",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "387f58546285f510c48d26f05fd2157674d30569a26bed4847ee5c1f7d546cf5"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "skill",
+          "frame": 18,
+          "sequence": 18,
+          "asset": "4a031b6fb7c666afee1b9669ab2dd783497b5cb0ccde3a12e71e7d7f14178990"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "151f3be2a8af80487ec7822b6c891113cb8562af95971fd06e63ac1935980a2d"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "skill",
+          "frame": 37,
+          "sequence": 37,
+          "asset": "fae804cc3e28b18d8728dad280f1a874edde67205956f82ac98af254f816c3d2"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8e686d86478c059fdc24165250ca69fc65373305acc766361be3aec18f7a4efe"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "skill",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "8a92e1ce025b09b759c2a6366d7d7d1a263ea09e3db05476d30e61ced2f33f4e"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "3bb1a5826026cc122a6791482b5e8fdd4a94aebd004b13a6cf3b452d8fbf4503"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "skill",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "f8bf46ad547845071ae6fcefbd47623e335a0ed67cc99aeafbf6c00dbfdba9cf"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "76e9230932096e71e0b1be392cc81aeec796880db8f9f619f864a190d43959e5"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "skill",
+          "frame": 92,
+          "sequence": 92,
+          "asset": "f251040f18c561251422af6cca3d8960343427ebd497ec88edb438e141ca0c32"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "c94fe07346d9e2460a6be2373d6396eadc5e533874b2976c226dd31c8fe1bb50"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "skill",
+          "frame": 110,
+          "sequence": 110,
+          "asset": "ce79faf43621de71d4ee966aa9eebeb5e47c47a711494daab2394158e7ff6a25"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "55158ee1b27f0fcd29a0fba71962a852112a9c0c235ae113c4e8fd6c6dcaa0e0"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "skill",
+          "frame": 129,
+          "sequence": 129,
+          "asset": "6577903f260da9dad9cabf6858cb9ea30f4a55600307045dee13d4cd27719939"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "skill",
+          "frame": 147,
+          "sequence": 147,
+          "asset": "648d7b3006ef9ab220a52ecf190ac0573bd2af5c4d6a16b60209d3578a523558"
+        }
+      ]
+    }
+  ]
+}

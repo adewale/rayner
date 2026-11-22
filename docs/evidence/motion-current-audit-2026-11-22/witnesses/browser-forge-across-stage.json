@@ -1,0 +1,823 @@
+{
+  "policy": "Matched native offsets; blank cells explicitly indicate absent frames. All crops are ordinary native PNG inputs; no generated artwork.",
+  "samples": [
+    {
+      "step": "forge",
+      "frame": 0
+    },
+    {
+      "step": "forge",
+      "frame": 11
+    },
+    {
+      "step": "forge",
+      "frame": 21
+    },
+    {
+      "step": "forge",
+      "frame": 32
+    },
+    {
+      "step": "forge",
+      "frame": 42
+    },
+    {
+      "step": "forge",
+      "frame": 53
+    },
+    {
+      "step": "forge",
+      "frame": 63
+    },
+    {
+      "step": "forge",
+      "frame": 74
+    },
+    {
+      "step": "forge",
+      "frame": 84
+    }
+  ],
+  "regions": [
+    {
+      "name": "whole-stage",
+      "crop": {
+        "name": "whole-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "34b5b0dd8c3e7760c9612236fab6d343dd3cde43c92c1c485909e52a07af17e6"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "01550dd5138e3415d59cc6a3071691256724e92e009c69e67727bf4e2b7ca2fa"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "bb0826ba6d20d174b0994337c544074ba04d07c322d7ed5460cc06067138e4e9"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "0f92f69b7d637e1c943d9345b5dd2bb0374e8a27e6a6c5e0cf7e42a369cd71da"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8c22aff3fd13339fb6627219b0bf66a8ab9f7f9a38aecfdebb80ec3f350ba583"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "decd7d5405af19a1199d231250ee79e4967167f4b0105b73f1574e6a7ad0c774"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "3ae0641c835c848adec99a0814555be79bd0d0a6ec7b9e5d809db631f1905427"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "834dbf97a72cc095b59b17bd8e0ba46b939477882addf5361b82cb297b95ee59"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "c0b696171502f90dc31c972361bce7f730cf6762210db87651a0a95fb9ef5a5d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "0e092ea679bb114dfa0f31f77ad5157cc25034f716237d9930e9d0c543e2867f"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        }
+      ]
+    },
+    {
+      "name": "upper-stage",
+      "crop": {
+        "name": "upper-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "34b5b0dd8c3e7760c9612236fab6d343dd3cde43c92c1c485909e52a07af17e6"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "01550dd5138e3415d59cc6a3071691256724e92e009c69e67727bf4e2b7ca2fa"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "bb0826ba6d20d174b0994337c544074ba04d07c322d7ed5460cc06067138e4e9"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "0f92f69b7d637e1c943d9345b5dd2bb0374e8a27e6a6c5e0cf7e42a369cd71da"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8c22aff3fd13339fb6627219b0bf66a8ab9f7f9a38aecfdebb80ec3f350ba583"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "decd7d5405af19a1199d231250ee79e4967167f4b0105b73f1574e6a7ad0c774"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "3ae0641c835c848adec99a0814555be79bd0d0a6ec7b9e5d809db631f1905427"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "834dbf97a72cc095b59b17bd8e0ba46b939477882addf5361b82cb297b95ee59"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "c0b696171502f90dc31c972361bce7f730cf6762210db87651a0a95fb9ef5a5d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "0e092ea679bb114dfa0f31f77ad5157cc25034f716237d9930e9d0c543e2867f"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        }
+      ]
+    },
+    {
+      "name": "lower-stage",
+      "crop": {
+        "name": "lower-stage",
+        "x": 0,
+        "y": 225,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "34b5b0dd8c3e7760c9612236fab6d343dd3cde43c92c1c485909e52a07af17e6"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "01550dd5138e3415d59cc6a3071691256724e92e009c69e67727bf4e2b7ca2fa"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "bb0826ba6d20d174b0994337c544074ba04d07c322d7ed5460cc06067138e4e9"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "0f92f69b7d637e1c943d9345b5dd2bb0374e8a27e6a6c5e0cf7e42a369cd71da"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8c22aff3fd13339fb6627219b0bf66a8ab9f7f9a38aecfdebb80ec3f350ba583"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "decd7d5405af19a1199d231250ee79e4967167f4b0105b73f1574e6a7ad0c774"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "3ae0641c835c848adec99a0814555be79bd0d0a6ec7b9e5d809db631f1905427"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "834dbf97a72cc095b59b17bd8e0ba46b939477882addf5361b82cb297b95ee59"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "c0b696171502f90dc31c972361bce7f730cf6762210db87651a0a95fb9ef5a5d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "0e092ea679bb114dfa0f31f77ad5157cc25034f716237d9930e9d0c543e2867f"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        }
+      ]
+    },
+    {
+      "name": "left-stage",
+      "crop": {
+        "name": "left-stage",
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "34b5b0dd8c3e7760c9612236fab6d343dd3cde43c92c1c485909e52a07af17e6"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "01550dd5138e3415d59cc6a3071691256724e92e009c69e67727bf4e2b7ca2fa"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "bb0826ba6d20d174b0994337c544074ba04d07c322d7ed5460cc06067138e4e9"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "0f92f69b7d637e1c943d9345b5dd2bb0374e8a27e6a6c5e0cf7e42a369cd71da"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8c22aff3fd13339fb6627219b0bf66a8ab9f7f9a38aecfdebb80ec3f350ba583"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "decd7d5405af19a1199d231250ee79e4967167f4b0105b73f1574e6a7ad0c774"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "3ae0641c835c848adec99a0814555be79bd0d0a6ec7b9e5d809db631f1905427"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "834dbf97a72cc095b59b17bd8e0ba46b939477882addf5361b82cb297b95ee59"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "c0b696171502f90dc31c972361bce7f730cf6762210db87651a0a95fb9ef5a5d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "0e092ea679bb114dfa0f31f77ad5157cc25034f716237d9930e9d0c543e2867f"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        }
+      ]
+    },
+    {
+      "name": "right-stage",
+      "crop": {
+        "name": "right-stage",
+        "x": 400,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "095c95c0f88ed9aa9cc66cc5f0c3bee5e145af1bad76a0dfc8dbd728fa45d877"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "34b5b0dd8c3e7760c9612236fab6d343dd3cde43c92c1c485909e52a07af17e6"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "forge",
+          "frame": 11,
+          "sequence": 11,
+          "asset": "01550dd5138e3415d59cc6a3071691256724e92e009c69e67727bf4e2b7ca2fa"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "bb0826ba6d20d174b0994337c544074ba04d07c322d7ed5460cc06067138e4e9"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "forge",
+          "frame": 21,
+          "sequence": 21,
+          "asset": "0f92f69b7d637e1c943d9345b5dd2bb0374e8a27e6a6c5e0cf7e42a369cd71da"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8c22aff3fd13339fb6627219b0bf66a8ab9f7f9a38aecfdebb80ec3f350ba583"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "forge",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "decd7d5405af19a1199d231250ee79e4967167f4b0105b73f1574e6a7ad0c774"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "3ae0641c835c848adec99a0814555be79bd0d0a6ec7b9e5d809db631f1905427"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "forge",
+          "frame": 42,
+          "sequence": 42,
+          "asset": "834dbf97a72cc095b59b17bd8e0ba46b939477882addf5361b82cb297b95ee59"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "c0b696171502f90dc31c972361bce7f730cf6762210db87651a0a95fb9ef5a5d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "forge",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "0e092ea679bb114dfa0f31f77ad5157cc25034f716237d9930e9d0c543e2867f"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "forge",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "1c8bcf025a58c39a6a3f3594a778928fd5d273dfeebe3c65ca4e0f57492348a2"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "forge",
+          "frame": 74,
+          "sequence": 74,
+          "asset": "ebbac4ef0c3f77f745491628e032889415a8a90ba71f578112b48c899b210e41"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "forge",
+          "frame": 84,
+          "sequence": 84,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        }
+      ]
+    }
+  ]
+}
