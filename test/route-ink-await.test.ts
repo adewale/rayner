@@ -4,7 +4,7 @@ import path from 'node:path';
 import ts from 'typescript';
 
 test('every route observation awaits native completion before its caller advances the scene', () => {
-  const root = path.resolve(import.meta.dirname, '../../..');
+  const root = path.resolve(import.meta.dirname, '..');
   const helper = path.join(root, 'scenes/explainers/lib/route-ink/fidelity.ts');
   const config = ts.readConfigFile(path.join(root, 'tsconfig.node.json'), ts.sys.readFile);
   assert.equal(config.error, undefined);
