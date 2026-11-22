@@ -3,8 +3,9 @@
 // representation, with exact native/review/measurement bytes and source/run binding.
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import type { Found } from './motion-corpus-lib.ts';
+import { dirname, resolve } from 'node:path';
+import { canonicalJson } from '../../src/internal.ts';
+import { againstBaseline, type EntryResult, type Found } from './motion-corpus-lib.ts';
 import { workerResult } from './motion-corpus.ts';
 import { CORPUS } from '../../test/fixtures/motion-corpus/corpus.ts';
 
@@ -47,13 +48,25 @@ export interface CaseReview {
   clause?: {actor: string; victim: string; event: string; phase: string; observed: string};
   prevention?: {event: string; name: string; message: string};
   blocker?: string;
+  settings?: object; route?: {step: string; event: string};
+  nativeFrameBindings?: NativeFrameBinding[];
+}
+export interface NativeFrameBinding {
+  side: 'baseline' | 'variant'; sequence: number; absolute?: number; step?: string; phase?: string;
+  frame?: number; asset?: string; receiptSha256?: string; pngSha256?: string;
+  png?: BoundArtifact; wholeStagePixelsSha256?: string;
+}
+export interface SemanticApproval {
+  version: string; targetSha256: string; actor: string; victim: string; literal: string;
+  event: string; phase: string; note: string; nativeWitnesses: BoundArtifact[];
+  caseId: string; route: {step: string; event: string}; scenario: object; witnessFrames: NativeFrameBinding[];
 }
 export interface SemanticRatification {
   schema: 1; sourceRevision: string; run: string; reviewer: string;
   review: BoundArtifact; capture: BoundArtifact; measurement: BoundArtifact;
-  observations: {version: string; targetSha256: string; actor: string; victim: string; literal: string;
-    event: string; phase: string; note: string; nativeWitnesses: BoundArtifact[]}[];
+  observations: SemanticApproval[];
 }
+const same = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 async function bound(directory: string, artifact: BoundArtifact) {
   if (!artifact?.path?.trim() || !/^[a-f0-9]{64}$/.test(artifact.sha256)) throw new Error('semantic observation: invalid artifact binding');
   const bytes = await readFile(resolve(directory, artifact.path));
@@ -66,6 +79,50 @@ async function nativeWitness(directory: string, witness: BoundArtifact, capture:
     !Array.isArray(capture.nativeAssets) || !capture.nativeAssets.includes(witness.sha256) ||
     !capture.cases?.some(c => c.id === id && c.nativeAssets.includes(witness.sha256)))
     throw new Error('semantic observation: native witness is outside the bound capture');
+}
+
+/** A picture is evidence only in its exact captured side and event ledger. A
+ * baseline starting picture cannot certify a later variant trip. The native
+ * ledger records the runtime scene phase; the independently saved clause names
+ * the finer narrative phase, without pretending geometry can infer it. */
+async function nativeFrames(directory: string, captureArtifact: BoundArtifact, capture: any, id: string,
+  witnesses: BoundArtifact[], bindings: NativeFrameBinding[] | undefined, observed: boolean, scenario?: object) {
+  const c = capture.cases?.find((row: {id: string}) => row.id === id);
+  if (!c || !Array.isArray(bindings) || !bindings.length) throw new Error(`native frame binding missing for ${id}`);
+  const captureDirectory = dirname(resolve(directory, captureArtifact.path));
+  const sides = new Map<string, any>();
+  for (const side of c.sides ?? []) {
+    const bytes = await bound(captureDirectory, side.receipt), actual = JSON.parse(bytes.toString());
+    if (actual.side !== side.side || actual.status !== side.status || !same(actual.route, c.route) ||
+      !same(actual.mark, side.mark) || !same(actual.provenance, side.provenance) ||
+      (scenario !== undefined && !same(actual.provenance?.settings, scenario))) throw new Error(`native side/route/scenario mismatch for ${id}`);
+    sides.set(side.side, {actual, sha256: side.receipt.sha256});
+  }
+  let qualifyingVariant = false;
+  const seen = new Set<string>();
+  for (const binding of bindings) {
+    const side = sides.get(binding.side), frame = side?.actual.frames?.[binding.sequence];
+    const reference = c.sides.find((s: any) => s.side === binding.side)?.receipt;
+    const sidePath = reference && resolve(captureDirectory, reference.path);
+    const expectedPng = frame && sidePath && resolve(dirname(sidePath), frame.asset + '.png');
+    const png = binding.png ?? witnesses.find(w => w.sha256 === binding.pngSha256 && resolve(directory, w.path) === expectedPng);
+    const identity = `${binding.side}:${binding.sequence}`;
+    if (!frame || !png || seen.has(identity) || !Number.isSafeInteger(binding.sequence) || binding.sequence < 0 ||
+      binding.receiptSha256 !== side.sha256 || binding.absolute !== frame.absolute || binding.step !== frame.step || binding.asset !== frame.asset ||
+      (binding.phase !== undefined && binding.phase !== frame.phase) || (binding.frame !== undefined && binding.frame !== frame.frame) ||
+      (binding.wholeStagePixelsSha256 !== undefined && binding.wholeStagePixelsSha256 !== frame.pixels) ||
+      (binding.pngSha256 !== undefined && binding.pngSha256 !== png.sha256) ||
+      !witnesses.some(w => same(w, png))) throw new Error(`native side/frame/phase binding mismatch for ${id}`);
+    seen.add(identity);
+    // Match the actual file, not merely a same-case digest copied from elsewhere.
+    if (resolve(directory, png.path) !== expectedPng) throw new Error(`native frame PNG role mismatch for ${id}`);
+    await nativeWitness(directory, png, capture, id);
+    const mark = side.actual.mark, steps = c.route.event === 'view.sync' ? mark?.before?.steps : [c.route.step];
+    if (binding.side === 'variant' && c.status === 'complete' && side.actual.status === 'complete' && frame.phase === 'playing' &&
+      frame.absolute > mark.origin && frame.absolute <= mark.end && steps?.includes(frame.step)) qualifyingVariant = true;
+  }
+  if (witnesses.some(w => !bindings.some(b => (b.png?.sha256 ?? b.pngSha256) === w.sha256))) throw new Error(`native witness lacks a frame binding for ${id}`);
+  if (observed && !qualifyingVariant) throw new Error(`observed clause needs a completed variant event/phase frame for ${id}`);
 }
 
 /** Complete accounting is not an accuracy score or a claim to inspect every
@@ -95,7 +152,8 @@ export async function boundCaseReview(directory: string, reviewArtifact: BoundAr
         row.prevention!.event !== captured.route?.event || row.prevention!.name !== guard.name || row.prevention!.message !== guard.message)
         throw new Error(`case review: prevention is not the exact captured typed guard for ${row.id}`);
     }
-    await Promise.all(row.nativeWitnesses.map(w => nativeWitness(directory, w, capture, row.id)));
+    if (row.disposition !== 'unresolved') await nativeFrames(directory, captureArtifact, capture, row.id,
+      row.nativeWitnesses, row.nativeFrameBindings, row.disposition === 'observed', row.settings);
   }
   return {sourceRevision: review.sourceRevision, run: review.run, reviewer: review.reviewer, cases: review.cases,
     counts: Object.fromEntries(['observed','typed-prevention','non-reproducing','editorial','unresolved'].map(kind => [kind, review.cases.filter(r => r.disposition === kind).length]))};
@@ -119,23 +177,42 @@ export async function boundSemanticAssessment(directory: string, receipt: Semant
   // payload, avoiding a self-referential hash in the provenance envelope.
   const payloadBytes = await bound(directory, measurement.payload);
   if (measurement.payload.sha256 !== measurement.measurementSha256) throw new Error('semantic observation: measurement payload mismatch');
-  const payload = JSON.parse(payloadBytes.toString()) as {results: {id: string; fresh: Found[]; status: string; error?: string}[]};
+  const payload = JSON.parse(payloadBytes.toString());
+  if (payload.comparison !== 'baseline-subtracted') throw new Error('semantic observation: payload is not baseline-subtracted');
   if (!Array.isArray(payload.results) || payload.results.length !== CORPUS.length ||
-    new Set(payload.results.map(r => r.id)).size !== CORPUS.length || payload.results.some(r => !CORPUS.some(c => c.id === r.id)))
+    new Set(payload.results.map((r: any) => r.id)).size !== CORPUS.length || payload.results.some((r: any) => !CORPUS.some(c => c.id === r.id)))
     throw new Error('semantic observation: incomplete worker inventory');
-  const workers = payload.results.map(r => workerResult(r.id, JSON.stringify(r), 0, null));
-  const reviewObservations = review.observations as {version: string; targetSha256: string}[];
+  const chapters = [...new Set(CORPUS.map(c => c.chapter))];
+  if (!Array.isArray(payload.baselines) || payload.baselines.length !== chapters.length ||
+    new Set(payload.baselines.map((r: any) => r.id)).size !== chapters.length ||
+    payload.baselines.some((r: any) => !chapters.some(c => r.id === `base-${c}`))) throw new Error('semantic observation: incomplete baseline inventory');
+  const baselines = new Map<string, EntryResult>(payload.baselines.map((r: any) => {
+    const checked = workerResult(r.id, JSON.stringify(r), 0, null);
+    if (checked.status !== 'complete' || checked.error || checked.findings.some(f => f.observation?.type === 'refusal')) throw new Error('semantic observation: baseline did not complete');
+    return [r.id, checked] as const;
+  }));
+  const workers: EntryResult[] = payload.results.map((r: any) => {
+    const checked = workerResult(r.id, JSON.stringify(r), 0, null), entry = CORPUS.find(c => c.id === r.id)!;
+    if (checked.error) throw new Error(`semantic observation: invalid worker ${r.id}`);
+    return againstBaseline(checked, baselines.get(`base-${entry.chapter}`), entry.expectedFinding, entry.expectedRefusal);
+  });
+  const reviewObservations = review.observations as SemanticApproval[];
   if (!Array.isArray(receipt.observations) || new Set(receipt.observations.map(o => o.version)).size !== receipt.observations.length ||
-    !Array.isArray(reviewObservations)) throw new Error('semantic observation: duplicate or missing independent confirmations');
+    !Array.isArray(reviewObservations) || new Set(reviewObservations.map(o => o.version)).size !== reviewObservations.length) throw new Error('semantic observation: duplicate or missing independent confirmations');
   for (const observation of receipt.observations) {
     const target = targets.find(t => t.version === observation.version);
     if (!target || semanticDigest(target) !== observation.targetSha256 ||
-      !reviewObservations.some(r => r.version === target.version && r.targetSha256 === observation.targetSha256) ||
+      !reviewObservations.some(r => same(r, observation)) ||
       ['actor', 'victim', 'literal', 'event', 'phase'].some(k => observation[k as 'actor'] !== target[k as 'actor']) ||
       !observation.note?.trim() || !observation.nativeWitnesses?.length) throw new Error(`semantic observation: unratified or different relation ${observation.version}`);
+    const row = review.cases?.find((r: CaseReview) => r.id === target.id);
+    if (observation.caseId !== target.id || !same(observation.scenario, JSON.parse(target.scenario)) ||
+      row?.disposition !== 'observed' || !same(row.settings, observation.scenario) || !same(row.route, observation.route) ||
+      !['actor','victim','literal','event','phase'].every(k => row.clause?.[k] === observation[k as 'actor']))
+      throw new Error('semantic observation: approved case/scenario/relation mismatch');
     if (!capture.cases?.some((c: {id: string; route?: {event: string}}) => c.id === target.id && c.route?.event === target.event))
       throw new Error('semantic observation: event is outside the captured route');
-    await Promise.all(observation.nativeWitnesses.map(w => nativeWitness(directory, w, capture, target.id)));
+    await nativeFrames(directory, receipt.capture, capture, target.id, observation.nativeWitnesses, observation.witnessFrames, true, observation.scenario);
   }
   return targets.map(target => {
     const ratified = receipt.observations.some(o => o.version === target.version), entries = workers.filter(r => r.id === target.id);
