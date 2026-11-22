@@ -46,6 +46,7 @@ test('authored text clearance protects native glyph cores against narrow filled 
     }
     const check = new MachineMotionCheck();
     let witness: {actual: string; noText: string; noActor: string; neither: string} | undefined;
+    let nearest = Infinity;
     const scene = new Clearance({async frame(s) {
       const actor = s.find('traveller');
       if (actor && trial === 'underlay') {
@@ -53,8 +54,13 @@ test('authored text clearance protects native glyph cores against narrow filled 
         parent.remove(...parent.children).add(actor, ...rest);
       }
       await check.frame(s);
-      if (!actor || witness || s.time < 0.33) return;
+      if (!actor || s.time < 0.12 || s.time > 0.58) return;
       const text = s.find('reading')!;
+      // Select an ordinary-colour witness independently of the checker's result.
+      // A stroke-only rectangle is aligned by its edge; filled blades by centre.
+      const distance = Math.abs(actor.center()[0] - text.center()[0] - (trial === 'stroke' ? actor.width() / 2 : 0));
+      if (distance >= nearest) return;
+      nearest = distance;
       const actual = toSvgString(s, {width: 800});
       const ta = text.style.opacity, aa = actor.style.opacity;
       text.setOpacity(0); const noText = toSvgString(s, {width: 800});
@@ -73,6 +79,16 @@ test('authored text clearance protects native glyph cores against narrow filled 
     const [actual, noText, noActor, neither] = images.map(image => image.pixels);
     assert.ok(noActor!.some((v, i) => v !== neither![i]), `${trial}: unblocked text paints`);
     if (trial !== 'filled') assert.ok(actual!.some((v, i) => v !== noText![i]), `${trial}: presence alone still holds`);
+    let lost = 0;
+    for (let i = 0; i < actual!.length; i += 4) {
+      const available = Math.max(...[0, 1, 2].map(c => Math.abs(noActor![i+c]! - neither![i+c]!)));
+      // The independently authored red glyph's opaque core is invariant to an
+      // underlay changing its background contrast. Antialias edges are not used
+      // by this ordinary-colour oracle; the subject knockout retains ownership.
+      const core = noActor![i]! >= 250 && noActor![i+1]! <= 5 && noActor![i+2]! <= 5 && available >= 128;
+      if (core && noActor![i]! - actual![i]! >= 32) lost++;
+    }
+    assert.equal(lost > 0, reject, `${trial}: full-stage ordinary-colour glyph contribution vs traveller knockout (${lost} core pixels lost)`);
     if (reject) {
       const o = observationOf({scenario: '{}', line: collisions[0]!});
       assert.ok(o?.type === 'finding');

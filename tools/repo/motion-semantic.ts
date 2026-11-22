@@ -86,6 +86,15 @@ export async function boundCaseReview(directory: string, reviewArtifact: BoundAr
       (row.disposition === 'observed' && (!row.clause || !nonempty([row.clause.actor,row.clause.victim,row.clause.event,row.clause.phase,row.clause.observed]))) ||
       (row.disposition === 'typed-prevention' && (!row.prevention || !nonempty([row.prevention.event,row.prevention.name,row.prevention.message]))) ||
       (row.disposition === 'unresolved' && !nonempty([row.blocker]))) throw new Error(`case review: incomplete disposition for ${row.id}`);
+    const captured = capture.cases?.find((c: {id: string}) => c.id === row.id);
+    if (row.disposition === 'observed' && captured?.route?.event !== row.clause!.event)
+      throw new Error(`case review: observed event is outside the captured route for ${row.id}`);
+    if (row.disposition === 'typed-prevention') {
+      const variant = captured?.sides?.find((s: {side: string}) => s.side === 'variant'), guard = variant?.mark?.guard;
+      if (captured?.status !== 'typed-refusal' || variant?.status !== 'typed-refusal' || !guard ||
+        row.prevention!.event !== captured.route?.event || row.prevention!.name !== guard.name || row.prevention!.message !== guard.message)
+        throw new Error(`case review: prevention is not the exact captured typed guard for ${row.id}`);
+    }
     await Promise.all(row.nativeWitnesses.map(w => nativeWitness(directory, w, capture, row.id)));
   }
   return {sourceRevision: review.sourceRevision, run: review.run, reviewer: review.reviewer, cases: review.cases,
@@ -124,6 +133,8 @@ export async function boundSemanticAssessment(directory: string, receipt: Semant
       !reviewObservations.some(r => r.version === target.version && r.targetSha256 === observation.targetSha256) ||
       ['actor', 'victim', 'literal', 'event', 'phase'].some(k => observation[k as 'actor'] !== target[k as 'actor']) ||
       !observation.note?.trim() || !observation.nativeWitnesses?.length) throw new Error(`semantic observation: unratified or different relation ${observation.version}`);
+    if (!capture.cases?.some((c: {id: string; route?: {event: string}}) => c.id === target.id && c.route?.event === target.event))
+      throw new Error('semantic observation: event is outside the captured route');
     await Promise.all(observation.nativeWitnesses.map(w => nativeWitness(directory, w, capture, target.id)));
   }
   return targets.map(target => {

@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
+import { routes } from '../tools/repo/motion-audit-routes.ts';
 import type { Found } from '../tools/repo/motion-corpus-lib.ts';
 import { SEMANTIC_V3, boundCaseReview, boundSemanticAssessment, digest, matchesSemantic, semanticDigest, type BoundArtifact, type SemanticRatification } from '../tools/repo/motion-semantic.ts';
 
@@ -38,7 +39,8 @@ test('semantic ratification binds exact relations, source/run and native image b
     const observation = {version: target.version, targetSha256: semanticDigest(target), actor: target.actor, victim: target.victim,
       literal: target.literal, event: target.event, phase: target.phase, note: 'synthetic admission control, not actual visual evidence', nativeWitnesses: [png]};
     const review = await store('review.json', {sourceRevision, run, reviewer, observations: [observation]});
-    const capture = await store('capture.json', {sourceRevision, run, nativeAssets: [png.sha256], cases: CORPUS.map(c => ({id: c.id, nativeAssets: [png.sha256]}))});
+    const captureCases = CORPUS.map(c => ({id: c.id, route: routes[c.id], nativeAssets: [png.sha256]}));
+    const capture = await store('capture.json', {sourceRevision, run, nativeAssets: [png.sha256], cases: captureCases});
     const measurement = await store('measurement.json', {sourceRevision, run, comparison: 'baseline-subtracted', measurementSha256: payload.sha256, payload});
     const receipt: SemanticRatification = {schema: 1, sourceRevision, run, reviewer, review, capture, measurement, observations: [observation]};
     const result = await boundSemanticAssessment(dir, receipt);
@@ -57,6 +59,15 @@ test('semantic ratification binds exact relations, source/run and native image b
     await assert.rejects(boundCaseReview(dir, missing, capture), /59-case inventory/);
     const unboundClause = await store('unbound-clause.json', {sourceRevision, run, reviewer, cases: [{...cases[0], disposition: 'observed', nativeWitnesses: [png]}, ...cases.slice(1)]});
     await assert.rejects(boundCaseReview(dir, unboundClause, capture), /incomplete disposition/);
+    const guard = {name: 'RangeError', message: 'machine.send("cart"): authored transition lasts 2 s but the event allows 1 s'};
+    const guardedCapture = await store('guarded-capture.json', {sourceRevision, run, nativeAssets: [png.sha256], cases: [
+      {...captureCases[0], status: 'typed-refusal', sides: [{side: 'variant', status: 'typed-refusal', mark: {guard}}]}, ...captureCases.slice(1)]});
+    const prevention = {event: routes[CORPUS[0]!.id]!.event, ...guard};
+    const prevented = {...cases[0], disposition: 'typed-prevention', nativeWitnesses: [png], prevention};
+    const preventedReview = await store('prevented.json', {sourceRevision, run, reviewer, cases: [prevented, ...cases.slice(1)]});
+    assert.equal((await boundCaseReview(dir, preventedReview, guardedCapture)).counts['typed-prevention'], 1);
+    const wrongGuard = await store('wrong-guard.json', {sourceRevision, run, reviewer, cases: [{...prevented, prevention: {...prevention, event: 'another event'}}, ...cases.slice(1)]});
+    await assert.rejects(boundCaseReview(dir, wrongGuard, guardedCapture), /exact captured typed guard/);
     await writeFile(join(dir, png.path), 'changed native bytes');
     await assert.rejects(boundSemanticAssessment(dir, receipt), /changed artifact/);
   } finally { await rm(dir, {recursive: true, force: true}); }
