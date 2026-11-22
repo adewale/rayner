@@ -352,9 +352,10 @@ export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
   const ringLayout = !open ? AGENT_AT.closed : device && w.holds ? AGENT_AT.deviceHeld : AGENT_AT.open;
   const ring = agentWith(s, ringLayout, w.holds ? w.holds.scopes.length : 0, w.holds ? CARDS[w.holds.card] : null);
   const showsCard = device && open && !w.sign?.approved;
-  // The dashed empty-key slot is a background guide beneath the printed device card.
-  const slotBehindCard = showsCard ? ring.find(part => part.key === 'agent:key:slot') : undefined;
-  if (slotBehindCard) addAll(parts, [slotBehindCard]);
+  // The empty-key guide is always background, beneath both the printed card
+  // and the physical ring/key. Approval removes the card, not this layer.
+  const emptyKeyGuide = ring.find(part => part.key === 'agent:key:slot');
+  if (emptyKeyGuide) addAll(parts, [emptyKeyGuide]);
   // What lies between: the code the agent shows you, a swapped code stopped short of the agent, a lookalike link kept from you.
   if (showsCard) {
     const card = deviceCard(s, [FACE - 0.15, STRIP_Y - 0.12], false);
@@ -376,7 +377,7 @@ export function drawWorld(w: World, shown: Shown, s: DrawContext): Group {
   // The agent, with its keyring: small while a page is open, the hero when none is.
   const held = ring.find((m) => m.key === 'agent:key');
   if (held && last?.kind === 'tokens') emphasised(held, `changed: the agent holds a key with ${w.holds!.scopes.length === 1 ? 'one tooth' : 'two teeth'}`);
-  addAll(parts, ring.filter(part => part !== slotBehindCard));
+  addAll(parts, ring.filter(part => part !== emptyKeyGuide));
   if (last?.kind === 'thief') parts.add(tag(s, { at: THIEF_AT, value: null, foreign: true }), 'thief');
 
   readout(s, parts, report);
