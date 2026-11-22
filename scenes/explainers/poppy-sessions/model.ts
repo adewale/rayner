@@ -343,7 +343,7 @@ export type Tamper = 'send' | 'replay' | 'late' | 'url' | 'aud' | 'thief' | 'pub
 /**
  * The tampers the player offers, in the order it shows its buttons: eight, which a phone can hold.
  * `late` (the same copy two minutes later, refused by iat) stays in the model and its tests; the
- * story tells it in words.
+ * story shows it in a separate late-copy detail.
  */
 export const TAMPERS: readonly Tamper[] = ['send', 'replay', 'url', 'aud', 'thief', 'published', 'expired', 'other-user'];
 /** The tampers made from the genuine request as it travelled, so nothing exists to copy before it is sent. */

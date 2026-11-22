@@ -203,8 +203,8 @@ export default class Sessions extends Scene {
       title: 'One key, one User',
       line: 'Now tamper yourself: each refusal names its check.',
       caption: remembers
-        ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press the tampers and predict each check. The detail after this shows the leaked key used first.'
-        : `The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User. This shop skips the optional check, so it accepts the header as that User, signed out: ${leaked.answer.status}, naming ${leaked.answer.needs}. No account opens. Press the tampers and predict each check.`,
+        ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press the tampers and predict each check. The details show the leaked key used first, and an exact copy arriving too late.'
+        : `The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User. This shop skips the optional check, so it accepts the header as that User, signed out: ${leaked.answer.status}, naming ${leaked.answer.needs}. No account opens. Press the tampers and predict each check. The detail compares an exact copy's signing and arrival times.`,
     });
     await this.play(machine.sendSequence(STORY.slice(7, 8)));
 
@@ -226,5 +226,23 @@ export default class Sessions extends Scene {
       this.shown = { links: 3, take: 2 };
       await world.sync();
     }
+
+    // The minute-old limit is independent of optional replay memory and the
+    // delegation's lifetime. Keep the eight tamper controls, and show this other
+    // history as a separately keyed detail, as with the leaked key used first.
+    const late = ['send', 'late'].reduce<SealWorld>((w, event) => {
+      const n = next(w, event as Tamper);
+      if (isRefusal(n)) throw new Error(`the late-copy detail's ${event} is refused: ${n.reason}`);
+      return n;
+    }, start(policy));
+    await this.step('late-copy', {
+      title: 'An exact copy, two minutes later',
+      line: 'Compare when it was signed with when it arrived.',
+      kind: 'detail',
+      caption: `The same sealed exchange arrives two minutes after it was signed. The delegation still lasts until 06:00, and every signature holds, but the when row tears at iat: ${late.last!.verdict.answer.reason}. Both kinds of Company refuse it with ${late.last!.verdict.answer.status} ${late.last!.verdict.answer.error}, before the optional jti check. A fresh delegation alone would not make this old header fresh.`,
+    });
+    this.state = late;
+    this.shown = { links: 3, take: 3 };
+    await world.sync();
   }
 }

@@ -38,7 +38,7 @@ export const PALETTE = KIT_PALETTE;
  * ticket and punches are keyed afresh, so the change to it cross-fades instead of morphing one
  * ticket's printing into another's.
  */
-export type Shown = { links: 0 | 1 | 3; take?: 2 };
+export type Shown = { links: 0 | 1 | 3; take?: 2 | 3 };
 export const ALL_SHOWN: Shown = { links: 3 };
 
 // ------------------------------------------------------------------ geometry (shared with the scene)
