@@ -18,6 +18,7 @@ export { StopScene } from './scene.ts';
 export { DomSink, SnapshotSink, VIEWBOX, applyRecords, atHome, clipPathOf, renderElements, serializeElement, userBox, viewOf } from './svg.ts';
 export type { ElementRecord } from './svg.ts';
 export { textContextOf } from './text-context.ts';
+export { isGlyph } from './text.ts';
 export { NullSink, dryRun } from './timeline.ts';
 export { traceRun } from './trace.ts';
 export { InvariantSink, MotionSink, analyzeMotion } from './verify.ts';

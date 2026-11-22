@@ -94,6 +94,9 @@ class Glyph extends VMobject {
   }
 }
 
+/** @internal Identify native glyph ownership without treating a whole text run as one leaf. */
+export const isGlyph = (m: Mobject): boolean => m instanceof Glyph;
+
 // Faux bold: an outline in the fill color, this fraction of the font size wide
 // (only Regular faces are embedded).
 const BOLD_STROKE = 0.045;

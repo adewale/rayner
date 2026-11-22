@@ -102,7 +102,8 @@ export default class Poppy extends Scene {
         if (after.last?.kind === 'request')
           return [{view: world, during: 'ticket:flight', present: [...present, ...LANES.map(name => `lane:${name}:name`)], absent}];
         if (event === 'sign-in' || event === 'sign-out')
-          return [{view: world, during: event === 'sign-in' ? 'agent:key:flight' : 'agent:key:return', present, absent}];
+          return [{view: world, during: event === 'sign-in' ? 'agent:key:flight' : 'agent:key:return', present, absent,
+            clearText: ['counter:sign', ...LANES.map(name => `lane:${name}:name`)]}];
         return [];
       },
       runTime: ({ event }) => (event === 'sign-out' ? 2.1 : event === 'discover' ? 2.7 : event === 'exchange' || event === 'thief' ? 2.5 : 2.2),

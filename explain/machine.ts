@@ -31,6 +31,10 @@ export interface MotionRule {
   /** Each key identifies one subject in the source picture, destination picture, or both. */
   present?: readonly string[];
   absent?: readonly string[];
+  /** Exact reading surfaces which this traveller must leave clear throughout its move.
+   * Unlike present, this protects glyph ink from partial obstruction. Name contextual
+   * text, not a label on the traveller's genuine source/destination attachment. */
+  clearText?: readonly string[];
 }
 
 /** @internal A check attaches to the actual movement animation as the author constructs the trip. */

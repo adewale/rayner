@@ -136,15 +136,16 @@ export default class Refusals extends Scene {
       motion: ({event, before, after}) => {
         const lane = laneOfWorld(after).mcpShown ? 'mcp-mcp' : 'api';
         const context = [`lane:${lane}:line`, `lane:${lane}:name`, 'agent:station', 'agent:name'];
-        const rules = [{view: world, during: 'ticket:flight', present: context}];
+        const rules = [{view: world, during: 'ticket:flight', present: context, clearText: [`lane:${lane}:name`, 'agent:name']}];
         if (event !== 'answer') return rules;
         switch (after.last?.fix) {
           case 'refresh': case 'sign-in':
             rules.push({view: world, during: after.last.trouble === 'mcp' ? 'agent:mcp-key:flight' : 'agent:key:flight',
-              present: [...context, ...(after.last.trouble === 'mcp' && before.mcpKey ? ['agent:mcp-key:name'] : [])]});
+              present: [...context, ...(after.last.trouble === 'mcp' && before.mcpKey ? ['agent:mcp-key:name'] : [])],
+              clearText: [`lane:${lane}:name`, 'agent:name']});
             break;
-          case 'fix': rules.push({view: world, during: 'delegation', present: ['agent:station', 'agent:name']}); break;
-          case 'new-session': rules.push({view: world, during: 'fresh-seal', present: ['agent:station', 'agent:name']}); break;
+          case 'fix': rules.push({view: world, during: 'delegation', present: ['agent:station', 'agent:name'], clearText: ['agent:name']}); break;
+          case 'new-session': rules.push({view: world, during: 'fresh-seal', present: ['agent:station', 'agent:name'], clearText: ['agent:name']}); break;
         }
         return rules;
       },

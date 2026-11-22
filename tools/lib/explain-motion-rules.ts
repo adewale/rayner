@@ -2,7 +2,7 @@
 // arranging the beats. A declaration cannot make its own source disappear or its prerequisite paint.
 import { motionObservers, type ObserveMotion } from '../../explain/internal.ts';
 import type { MotionRule } from '../../explain/index.ts';
-import { UNITS, clipPathOf, intersect, isHex, mobjectId, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
+import { UNITS, clipPathOf, intersect, isGlyph, isHex, mobjectId, pad, renderElements, serializeElement, userBox } from '../../src/internal.ts';
 import type { Animation, Box, Mobject, Scene, Sink, Vec } from '../../src/index.ts';
 import { rasterize } from './explain-raster.ts';
 
@@ -12,6 +12,7 @@ type Trip = { move: Animation; first?: { world: Vec; paint: VisiblePaint }; prov
 type Check = { rule: MotionRule; trips: Trip[]; issues: Set<string>; where: string; start: number };
 type Painted = { svg: string; visible: boolean };
 type Composited = { actual: string; omitted: string; visible: boolean };
+type Clearance = { signature: string; lost: boolean };
 
 /** Isolated native paint, including the camera, inherited/descendant clips, real fills and strokes.
  * Keep the last result per subject: unchanged context usually has identical SVG across a trip. */
@@ -60,9 +61,9 @@ async function paintsOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject
  * The native crop uses the full scene's order and clips, including later views. Only
  * the exact subject's records are omitted; unrelated changing ink cannot witness it.
  * Cache the two relevant SVGs, since an unchanged subject can acquire a new cover. */
-async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject, Composited>): Promise<boolean> {
+function nativePatch(scene: Scene, part: Mobject) {
   const camera = scene.frame.box()!, bounds = part.box();
-  if (!bounds) return false;
+  if (!bounds) return null;
   // Match toSvgString's rounded user-unit viewBox and SVG's centred meet transform,
   // including a shifted camera or letterboxing from a non-16:9 camera.
   const [left, top, right, bottom] = userBox(camera);
@@ -75,7 +76,7 @@ async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mo
   const x1 = Math.min(800, Math.ceil(ox + (extent[2] - vx) * unit));
   const y0 = Math.max(0, Math.floor(oy + (extent[1] - vy) * unit));
   const y1 = Math.min(450, Math.ceil(oy + (extent[3] - vy) * unit));
-  if (x0 >= x1 || y0 >= y1) return false;
+  if (x0 >= x1 || y0 >= y1) return null;
   const crop: Box = [vx + (x0 - ox) / unit, vy + (y0 - oy) / unit,
     vx + (x1 - ox) / unit, vy + (y1 - oy) / unit];
   const box: Box = [crop[0] / UNITS, -crop[3] / UNITS, crop[2] / UNITS, -crop[1] / UNITS];
@@ -86,21 +87,29 @@ async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mo
   // Preserve individual record ownership: merged text runs can contain siblings
   // outside a keyed glyph, and omitting that run would credit unrelated ink.
   const records = renderElements({frame, mobjects: scene.mobjects}, {cull: true, width: x1 - x0});
+  const paper = scene.colors.paper;
+  if (!isHex(paper)) throw new TypeError('Scene paper must be a #rgb or #rrggbb colour');
+  const clips = new Map<string, string>();
+  for (const record of records) if (record.clipBox) {
+    const clip = clipPathOf(record.clipBox);
+    clips.set(clip.id, clip.svg);
+  }
+  const start = `<svg xmlns="http://www.w3.org/2000/svg" width="${x1-x0}" height="${y1-y0}" viewBox="${crop[0]} ${crop[1]} ${crop[2]-crop[0]} ${crop[3]-crop[1]}"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${paper}"/><defs>${[...clips.values()].join('')}</defs>`;
+  return {records, start};
+}
+
+async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject, Composited>): Promise<boolean> {
+  const patch = nativePatch(scene, part);
+  if (!patch) return false;
+  const {records, start} = patch;
   const ids = new Set(part.family().map(mobjectId));
   if (!records.some(record => ids.has(record.id))) return false;
-  const clips = new Map<string, string>(), actual: string[] = [], omitted: string[] = [];
+  const actual: string[] = [], omitted: string[] = [];
   for (const record of records) {
-    if (record.clipBox) {
-      const clip = clipPathOf(record.clipBox);
-      clips.set(clip.id, clip.svg);
-    }
     const svg = record.svg ??= serializeElement(record);
     actual.push(svg);
     if (!ids.has(record.id)) omitted.push(svg);
   }
-  const paper = scene.colors.paper;
-  if (!isHex(paper)) throw new TypeError('Scene paper must be a #rgb or #rrggbb colour');
-  const start = `<svg xmlns="http://www.w3.org/2000/svg" width="${x1-x0}" height="${y1-y0}" viewBox="${crop[0]} ${crop[1]} ${crop[2]-crop[0]} ${crop[3]-crop[1]}"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${paper}"/><defs>${[...clips.values()].join('')}</defs>`;
   const svg = start + actual.join('') + '</svg>', without = start + omitted.join('') + '</svg>';
   const old = cache.get(part);
   if (old?.actual === svg && old.omitted === without) return old.visible;
@@ -111,6 +120,53 @@ async function contributesOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mo
   const visible = a.some((value, i) => value !== b[i]);
   cache.set(part, {actual: svg, omitted: without, visible});
   return visible;
+}
+
+/** Native glyph transmission with and without this exact traveller. Black/white
+ * glyph mattes retain original opacity and clips and remove colour coincidence as
+ * a source of credit. Only foreground actor records can obstruct a glyph: an
+ * underlay is not a text collision. No scene objects are mutated across awaits.
+ * Broad-phase bounds and a crop on the stage's pixel grid bound native work. */
+async function losesText(scene: Scene, text: Mobject, actor: Mobject, cache: WeakMap<Mobject, Clearance>): Promise<boolean> {
+  const a = actor.box(), b = text.box();
+  const stroke = Math.max(0, ...actor.family().map(m => m.style.stroke === 'none' ? 0 : m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4)));
+  if (!a || !b || !intersect(pad(a, stroke), b)) return false;
+  const glyphs = new Set(text.family().filter(isGlyph).map(mobjectId));
+  const actors = new Set(actor.family().map(mobjectId));
+  const patch = nativePatch(scene, text);
+  if (!patch || !patch.records.some(r => glyphs.has(r.id))) return false;
+  const paths: string[][] = [[], [], [], []];
+  let afterGlyph = false;
+  for (const record of patch.records) {
+    if (glyphs.has(record.id)) afterGlyph = true;
+    const foregroundActor = afterGlyph && actors.has(record.id);
+    for (let i = 0; i < 4; i++) {
+      if (i >= 2 && foregroundActor) continue;
+      if (!glyphs.has(record.id)) { paths[i]!.push(record.svg ??= serializeElement(record)); continue; }
+      const attrs = {...record.attrs}, color = i % 2 ? '#fff' : '#000';
+      if (attrs.fill !== 'none') attrs.fill = color;
+      if (attrs.stroke && attrs.stroke !== 'none') attrs.stroke = color;
+      paths[i]!.push(serializeElement({...record, attrs, svg: undefined}));
+    }
+  }
+  const snapshots = paths.map(p => patch.start + p.join('') + '</svg>');
+  // A clear actor underlay or clipped-away actor needs no native renders.
+  if (snapshots[0] === snapshots[2]) return false;
+  const signature = snapshots.join('\n');
+  const old = cache.get(text);
+  if (old?.signature === signature) return old.lost;
+  const rendered = await Promise.all(snapshots.map(rasterize));
+  const [dark, light, freeDark, freeLight] = rendered.map(r => r.pixels);
+  let lost = false;
+  for (let i = 0; i < dark!.length; i += 4) {
+    const available = Math.max(...[0, 1, 2].map(c => Math.abs(freeDark![i+c]! - freeLight![i+c]!)));
+    const actual = Math.max(...[0, 1, 2].map(c => Math.abs(dark![i+c]! - light![i+c]!)));
+    // Protect a glyph's native core. One-quantum antialias fringes and near misses
+    // cannot trigger; a narrow blade crossing one real stroke can.
+    if (available >= 128 && available - actual >= 32) { lost = true; break; }
+  }
+  cache.set(text, {signature, lost});
+  return lost;
 }
 
 /** Locate the family in the composited picture. Every other paint record, including later views,
@@ -214,6 +270,7 @@ export class MachineMotionCheck implements Sink {
   readonly #active = new Map<object, Check[]>();
   readonly #paint = new WeakMap<Mobject, Painted>();
   readonly #context = new WeakMap<Mobject, Composited>();
+  readonly #clearance = new WeakMap<Mobject, Clearance>();
   readonly #segment?: (scene: Scene) => string | null;
   constructor(segment?: (scene: Scene) => string | null) { this.#segment = segment; }
 
@@ -225,11 +282,12 @@ export class MachineMotionCheck implements Sink {
       if (!Array.isArray(rules)) throw new TypeError('machine.motion(): return an array of rules');
       const where = this.#segment?.(scene) ?? `step "${scene.currentStep?.path ?? '(opening)'}", event "${event}"`;
       const checks: Check[] = rules.map((rule: MotionRule) => {
-        const {view, during, present = [], absent = []} = rule;
+        const {view, during, present = [], absent = [], clearText = []} = rule;
         if (!views.includes(view)) throw new RangeError('machine.motion(): the rule must name a view of this machine');
-        if (!Array.isArray(present) || !Array.isArray(absent)) throw new TypeError('machine.motion(): present and absent must be lists of exact keys');
-        const subjects = [...present, ...absent];
-        if (!subjects.length || ![during, ...subjects].every(k => typeof k === 'string' && k.trim()) || new Set(subjects).size !== subjects.length)
+        if (![present, absent, clearText].every(Array.isArray)) throw new TypeError('machine.motion(): present, absent and clearText must be lists of exact keys');
+        const subjects = [...new Set([...present, ...absent, ...clearText])];
+        if (!subjects.length || ![during, ...subjects].every(k => typeof k === 'string' && k.trim()) || present.some(k => absent.includes(k)) ||
+          [present, absent, clearText].some(keys => new Set(keys).size !== keys.length))
           throw new RangeError('machine.motion(): provide a travel key and distinct, nonempty subject keys');
         const issues = new Set<string>();
         for (const key of subjects) {
@@ -273,8 +331,18 @@ export class MachineMotionCheck implements Sink {
           else trip.first = {world, paint};
         }
       }
+      for (const key of rule.clearText ?? []) {
+        const matches = rule.view.current.findAll(key);
+        for (const text of matches) for (const {move} of active) {
+          if (!text.family().some(isGlyph)) issues.add(`text subject "${key}" must identify glyph ink`);
+          else if (await losesText(scene, text, move.mobject, this.#clearance)) {
+            const issue = `text subject "${key}" must remain clear`;
+            if (![...issues].some(s => s.startsWith(issue))) issues.add(`${issue} at +${(scene.time - check.start).toFixed(3)} s`);
+          }
+        }
+      }
       // Context belongs to the whole begun move, even while its traveller is hidden or offstage.
-      for (const [subjects, required] of [[rule.present ?? [], true], [rule.absent ?? [], false]] as const) {
+      for (const [subjects, required] of [[[...new Set([...(rule.present ?? []), ...(rule.clearText ?? [])])], true], [rule.absent ?? [], false]] as const) {
         for (const key of subjects) {
           const matches = rule.view.current.findAll(key);
           // Absence retires physical source ink even behind a cover. Presence is

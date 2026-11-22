@@ -250,6 +250,27 @@ readability; the separate occlusion checks judge foreground objects that cover
 words. Use a subject key for each part that matters when a panel contains
 several independently required labels.
 
+`clearText` names exact contextual reading surfaces which this traveller must
+leave unobstructed during its actual move beat. It also requires their presence.
+For example, a refreshed key can declare `clearText: ['lane:api:name']` so its
+narrow blade cannot interrupt the API lettering while the lane explains the trip.
+This is an authored actor/victim/event/phase assertion; the checker cannot infer
+which text explains a protocol. Do not name the traveller's own source or landing
+attachment as contextual text.
+
+The native check compares black/white glyph contribution with the complete
+traveller present and knocked out, retaining original glyph/actor opacity,
+holes, strokes, clips, foreground order and camera. A native glyph core with at
+least 128/255 contribution must not lose 32/255 or more to that traveller on any
+sampled move frame. This excludes faint antialias fringes and negligible alpha;
+it is a precise 800 × 450 sampling contract, not a claim about every display or
+human reading accuracy. Bounds only prune native work, and unchanged snapshots
+reuse their result. Only explicitly named surfaces of active trips incur these
+cropped renders. The generic 30% cover and 90% occluded-glyph heuristics retain
+their existing thresholds and meaning. Structured corpus observations distinguish
+this contract with `requirement: 'clear'`, the travel key as actor/mask and the
+exact text key as victim; its rejection is separate from a generic diagnosis.
+
 Both authored replays and explored reader events run the checks. Each declared
 traveller must move and paint at two distinct screen positions. To locate its
 visible ink, the checker renders the whole stage with and without that

@@ -17,7 +17,7 @@ export const POPPY_FOLDERS = ['lib', 'poppy', 'poppy-browser', 'poppy-conversati
 
 /** One finding: the scenario's settings, and the line `rayner check` prints for it (`<transition>: <kind>: part “key” …`). */
 export type Observation =
-  | { type: 'finding'; transition: string; kind: string; path: string; subjects: string[]; detail: string; requirement?: 'present' | 'absent'; victim?: string; masks?: string[] }
+  | { type: 'finding'; transition: string; kind: string; path: string; subjects: string[]; detail: string; requirement?: 'present' | 'absent' | 'clear'; victim?: string; masks?: string[] }
   | { type: 'refusal'; kind: 'duration guard' | 'authored pacing guard'; name: string; message: string; event?: string };
 export interface Found { scenario: string; line: string; observation?: Observation }
 
@@ -89,8 +89,10 @@ export function observationOf(f: Found): Observation | undefined {
   if (contract) {
     const detail = contract[3]!.replace(/ at \+[\d.]+ s$/, '');
     const requirement = /must be (present|absent)(?: |$)/.exec(detail)?.[1] as 'present' | 'absent' | undefined;
+    const clearance = /^text subject "([^"]+)" must remain clear$/.exec(detail);
     return {type: 'finding', transition: contract[1]!, kind: 'motion contract', path: contract[2]!, detail,
-      subjects: [...detail.matchAll(/"([^"]*)"/g)].map(m => m[1]!), ...(requirement ? {requirement} : {})};
+      subjects: [...detail.matchAll(/"([^"]*)"/g)].map(m => m[1]!), ...(requirement ? {requirement} : {}),
+      ...(clearance ? {requirement: 'clear', victim: clearance[1]!, masks: [contract[2]!]} : {})};
   }
   const m = /^(.*?): ([a-z ]+): part “(.*?)”(?: \((.*?)\))? at [\d.]+ s (.*)$/.exec(f.line);
   if (!m) return undefined;

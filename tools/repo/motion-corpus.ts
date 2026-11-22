@@ -35,7 +35,7 @@ export function workerResult(id: string, stdout: string, code: number | null, si
     if (o.type === 'refusal') return ['duration guard', 'authored pacing guard'].includes(String(o.kind)) && typeof o.name === 'string' && typeof o.message === 'string' && (o.event === undefined || typeof o.event === 'string');
     return o.type === 'finding' && ['transition', 'kind', 'path', 'detail'].every(k => typeof o[k] === 'string') &&
       Array.isArray(o.subjects) && o.subjects.every(s => typeof s === 'string') &&
-      (o.requirement === undefined || o.requirement === 'present' || o.requirement === 'absent') &&
+      (o.requirement === undefined || o.requirement === 'present' || o.requirement === 'absent' || o.requirement === 'clear') &&
       (o.victim === undefined || typeof o.victim === 'string') && (o.masks === undefined || (Array.isArray(o.masks) && o.masks.every(m => typeof m === 'string')));
   };
   if (!object(parsed) || parsed.id !== id || typeof parsed.caught !== 'boolean' || typeof parsed.ms !== 'number' || !Number.isFinite(parsed.ms) || parsed.ms < 0 ||
