@@ -1,0 +1,105 @@
+{
+  "policy": "Native unmodified scene snapshots at matched first-step frame offsets; no timing or caption edits; hashes provenance only",
+  "beforeRevision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+  "afterWorktree": "/workspace/rayner-word-fix",
+  "afterAnimationSha256": "e43ee202491cc3c2b088f171eac27996c7f956aa59d0b61665f2ecf4b1766807",
+  "settings": {},
+  "rows": [
+    {
+      "step": "owner",
+      "frame": 3,
+      "before": {
+        "absolute": 4911,
+        "svg": "ea5d62d178571cef2ae8ad9b28684b1c6e1cc9819c684a0cd7e56e2c5053ab27",
+        "pixels": "f78d6f97d4136101dccd9553dc852b2ce2a01ea5aeadfc6cfe5a17c57cd000ef",
+        "png": "c89661aba4b21908dd9c6725a3e841be8c841b9d824752b1124b772ed6aa66a5"
+      },
+      "after": {
+        "absolute": 4911,
+        "svg": "0d0f90e49027144de7f2700ddee1221def8089715cfa30838a9606073cb84cf5",
+        "pixels": "961be45bb145044505aba763a92217622ec9203dfbf7eb769f002a25936dd042",
+        "png": "543434b667927b0d64cbef9700667357ff9a78af7ca0cf85b96a5338730e9dd1"
+      }
+    },
+    {
+      "step": "owner",
+      "frame": 9,
+      "before": {
+        "absolute": 4917,
+        "svg": "b73166dfe5c4598aafa9e40ef05853bca6411cd0fba08bcad10df57431ffded3",
+        "pixels": "652aab4b6d279cc1834f90c723e4da16416e4827df242cf1bf1dfa5aa8968811",
+        "png": "1f1ca850eaba67114190b56cfc34ee2cc3bf841115be3302eb1c4f4424c59748"
+      },
+      "after": {
+        "absolute": 4917,
+        "svg": "01d309603a08181ea069cf1ee02b06317345d249e457320d2720f65a72e328d0",
+        "pixels": "8d04ff578b6a84504304ed3f9477b9e39392f9566fab31cffab4a73a448845c3",
+        "png": "fe228246a0c90a5c9471dcb1ac5eabf4e9fa84515fc4ef7373a6e4f0aac55214"
+      }
+    },
+    {
+      "step": "owner",
+      "frame": 18,
+      "before": {
+        "absolute": 4926,
+        "svg": "8106b82ade683c1eacf2b8a05e1344265ac7c5711675bb35180116d0280b59a4",
+        "pixels": "9a260369427bbc055cb88146cfe0c96cf6c8c3ce627fec39ef2c58d28454a704",
+        "png": "303f91a43d54d4a5f0aef715908ce18b2f5ad9d828a80a3a70690372fe732ea5"
+      },
+      "after": {
+        "absolute": 4926,
+        "svg": "c830684484369e24b949d316731a5fe6d6be654c9545da449bc262a90d0ee289",
+        "pixels": "1ed0243b2e0344e32aee85cd217cabf5edf6304cdd8a3e8de86c0c09831b81cc",
+        "png": "1779db18387504efcf420ec770faadb1278761a7e47b54e420cb05b621c2c482"
+      }
+    },
+    {
+      "step": "close",
+      "frame": 3,
+      "before": {
+        "absolute": 5710,
+        "svg": "0a7aad20b570921b8b100f9b5660c5e48bbac01b54dbca73066fc7e396a4d686",
+        "pixels": "90024dd38c3bf61fc58c50e42eae2c1adf83343c195247b0d42d43dfaaa2c529",
+        "png": "e08aa22105d4eb7ea08844ca20908d2a59dd5834abfdceef1d57d2cd43bc6a99"
+      },
+      "after": {
+        "absolute": 5710,
+        "svg": "b62b7780a239fd8890389243256537693e0f61499bd0d405cd71596600af3edc",
+        "pixels": "93bda59e105c8ce4cc53c832296436d05400e529b14636402533a70a30ff2da6",
+        "png": "8061667147ef1e41c798bfa3b3f069d6e46307286bd42df1f81cf0ca0c8e2cbd"
+      }
+    },
+    {
+      "step": "close",
+      "frame": 9,
+      "before": {
+        "absolute": 5716,
+        "svg": "5fc3993cc2d8617408f3a54b643e29b16fbb3cefdb49fd24a22a9c1b114c55c1",
+        "pixels": "1575c64cf050aefbbd5818c90de8999bda2eab408e3451fc273eeed1f045e47d",
+        "png": "c662f62aebc64053a1594bec77cbd4c9470d00854b32557210d04698f0c6d790"
+      },
+      "after": {
+        "absolute": 5716,
+        "svg": "56a07abbd18a9cdd51b403ee1513a18022472791e88fdfc19f84c6a7736b0217",
+        "pixels": "1c327f8aa2e563d421d9281f7822e09af7ab5bbf4ed4d0bb0d400a6faf2a45ce",
+        "png": "04e5e3e6b68f3a09ba40dfbae4f0b9b1291f4b88b2bd69f88e45627ef7ca546d"
+      }
+    },
+    {
+      "step": "close",
+      "frame": 15,
+      "before": {
+        "absolute": 5722,
+        "svg": "569865a3a50d18107251603a505533c1545a7afdfd5fb71104d9cc0de5678066",
+        "pixels": "ccaa7d21fa3bd3a2ab989d06372f5a7a211acb950b8b6e56054b67f4923e76be",
+        "png": "8d4b4717d8ab3e1cc84172f9c1a8761448c4ce33aee08621e064fa66a31c982e"
+      },
+      "after": {
+        "absolute": 5722,
+        "svg": "ebdd9c870e1800066dc21c26b0f60314d7c4229f519fec85a4d4b10ae9ac04cd",
+        "pixels": "9227b6a61b8d7e8386606ff83d867fa3e08faabbf00ecb39c884e80e0bbbc36b",
+        "png": "d459bf6bf7d32e4722585fe4e385ca2af58689cc4e594ef2f39113cf584fdb80"
+      }
+    }
+  ]
+}

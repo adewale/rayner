@@ -1,0 +1,67 @@
+{
+  "chapter": "poppy-conversations",
+  "settings": {},
+  "step": "read",
+  "log": [
+    "direct"
+  ],
+  "id": "conversations-open-direct",
+  "from": "rest",
+  "base": {
+    "main": {
+      "working": false,
+      "handoff": "none",
+      "responder": "agent",
+      "closed": false
+    },
+    "direct": null,
+    "invited": false,
+    "said": {
+      "speaker": "company agent",
+      "line": "offer",
+      "at": "main"
+    }
+  },
+  "frames": [
+    {
+      "absolute": 1801,
+      "offset": 0,
+      "time": 60.03333333333333,
+      "seconds": 0,
+      "pixelsSha256": "42a9cd6d8ae8b3c66cd74cb961d737d182a1d38f769aa115079ded42785be3c0",
+      "svgSha256": "698690f752c8142152b37202de6fc550243331a2891de68dbea1017ebbd52c46"
+    },
+    {
+      "absolute": 1816,
+      "offset": 15,
+      "time": 60.53333333333333,
+      "seconds": 0.5,
+      "pixelsSha256": "3773fd52efd44d4b49afe2ab372ea9993cc18349dc776c48742a94b4d3ad3ed4",
+      "svgSha256": "66338c2f933622138b0908b543b4ad57020825a069252862f239929298a9f756"
+    },
+    {
+      "absolute": 1831,
+      "offset": 30,
+      "time": 61.03333333333333,
+      "seconds": 1,
+      "pixelsSha256": "b96e5a474a32d830bdd604a56ed6ebb6d448a523694b8468eea6a2c20d889b29",
+      "svgSha256": "266a2cabe2bb9dfa667e6ad8c04d59260448f3fd36a8cbf60d72e37467229283"
+    },
+    {
+      "absolute": 1846,
+      "offset": 45,
+      "time": 61.53333333333333,
+      "seconds": 1.5,
+      "pixelsSha256": "7cd294ddd81ec8a444d118588199a3c58117ccb5fe39a4a2ced426a7a1804592",
+      "svgSha256": "421cbeacca12741ce89c40ad00096200bfd8515c589f42b108d64769cd56fc20"
+    },
+    {
+      "absolute": 1856,
+      "offset": 55,
+      "time": 61.86666666666667,
+      "seconds": 1.8333333333333333,
+      "pixelsSha256": "677f1e8627181a170dca5405304b261aea0fba604ebf6b54dd224e7b332e9c1c",
+      "svgSha256": "a6bfbd158df9fd77f2a0edbc97d1f0e28fe428762242567fcb42054ba8f27a0d"
+    }
+  ]
+}

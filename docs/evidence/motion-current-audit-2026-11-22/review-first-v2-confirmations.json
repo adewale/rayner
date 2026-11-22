@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "revision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+  "run": "current-audit-2026-11-22/frozen-5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+  "reviewer": "current_audit_first",
+  "reviewFile": "review-first.json",
+  "reviewSha256": "bb6ad1ad1a35a1eda7a6baac0250e2d42ed5473f369a24dc4d126806fe9a9189",
+  "provenanceSha256": "e00a58872945b29626544b25b3a1b840dc96cf6204b4f7506a52929defbf6a96",
+  "confirmations": [
+    {
+      "id": "poppy-ticket-over-lane-names",
+      "targets": [
+        "poppy-ticket-over-lane-names@visual-2026-11-22.1"
+      ],
+      "note": "Ticket over lane name (API)."
+    },
+    {
+      "id": "poppy-key-over-station-name",
+      "targets": [
+        "poppy-key-over-station-name@visual-2026-11-22.1"
+      ],
+      "note": "Full-size key crosses Sign-in glyphs both inbound and outbound; station-name clause unconfirmed."
+    },
+    {
+      "id": "poppy-last-object-lingers",
+      "targets": [
+        "poppy-last-object-lingers@historical"
+      ],
+      "note": "Previous exhibit remains during next request; not whole compound claim."
+    },
+    {
+      "id": "refusals-ticket-over-station",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Ticket crosses station body."
+    },
+    {
+      "id": "refusals-ticket-over-lane-name",
+      "targets": [
+        "refusals-ticket-over-lane-name@visual-2026-11-22.1"
+      ],
+      "note": "Ticket covers API lane name on expire."
+    },
+    {
+      "id": "refusals-lanes-slide",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. API slides when MCP appears; MCP removal not witnessed."
+    },
+    {
+      "id": "refusals-lanes-gone-in-flight",
+      "targets": [
+        "refusals-lanes-gone-in-flight@historical"
+      ],
+      "note": "Ticket flies without its lane when MCP is introduced."
+    },
+    {
+      "id": "refusals-delegation-over-station",
+      "targets": [
+        "refusals-delegation-over-station@visual-2026-11-22.1"
+      ],
+      "note": "Delegation crosses station name on ascent; new-seal alternative not witnessed."
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. No for MCP collision established in captured first-refresh history."
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "targets": [
+        "refusals-key-over-lane-name@visual-2026-11-22.1"
+      ],
+      "note": "Refreshed key covers API lane-name ink."
+    },
+    {
+      "id": "sessions-ticket-from-under-stamp",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Changed diagonal entry and clock-label occlusion confirmed; exact stamp-body crossing unconfirmed."
+    },
+    {
+      "id": "sessions-key-to-wax-after-check",
+      "targets": [
+        "sessions-key-to-wax-after-check@historical"
+      ],
+      "note": "Published key fails to travel to wax before the ticket checks it causes."
+    },
+    {
+      "id": "sessions-key-in-two-places",
+      "targets": [
+        "sessions-key-in-two-places@historical"
+      ],
+      "note": "Published ring shown in chain and travelling/on wax at once."
+    },
+    {
+      "id": "sessions-squeezed",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Squeezing cannot be visually reproduced because runtime refuses the transition."
+    },
+    {
+      "id": "sessions-too-long",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Longer4.35 s published-key sequence confirmed; subjective too-long judgment remains editorial."
+    },
+    {
+      "id": "sign-in-ask-people-slide",
+      "targets": [
+        "sign-in-ask-people-slide@historical"
+      ],
+      "note": "Explicit concrete secondary target within editorial slide: at frame102 +3.400 s, tag plate hides the suffix of Exchange items (page:orders:write:line), paired native review-first-witnesses/sign-in-ask-slide-tag102.png. This does not turn editorial movement into an objective layout-purpose diagnosis."
+    },
+    {
+      "id": "sign-in-collect-people-slide",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. People slide back on collect; not an objective protocol-state error."
+    },
+    {
+      "id": "sign-in-collect-too-long",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. 4.8 s token-return duration; current baseline 4.45 s, not3.3 s."
+    },
+    {
+      "id": "sign-in-tokens-over-labels",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Full-size direct request and object obstruction confirmed; exact agent-side label obstruction not established."
+    },
+    {
+      "id": "sign-in-password-before-card",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. No password readable before the card on current reask approval."
+    },
+    {
+      "id": "sign-in-ask-squeezed",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Shorter fades/event duration; historical beats-overrun/squeezing unconfirmed."
+    },
+    {
+      "id": "sign-in-pages-overlap",
+      "targets": [
+        "sign-in-pages-overlap@historical"
+      ],
+      "note": "Old website shape remains behind new phone contents until settle."
+    },
+    {
+      "id": "sign-in-card-from-desk",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Device card comes from Company desk rather than agent presentation origin."
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "targets": [
+        "sign-in-poll-over-card@domain-2026-11-22.1"
+      ],
+      "note": "Outgoing poll blanks current example.com at frames21\u201327 (+0.7\u20130.9 s), review-first-witnesses/sign-in-poll-over-card-dense.png. Original Example Company remains unconfirmed and receives no historical target credit."
+    },
+    {
+      "id": "sign-in-password-hand-and-flight",
+      "targets": [
+        "sign-in-password-hand-and-flight@historical"
+      ],
+      "note": "Two password copies simultaneously, plus travelling dots crossing the page text."
+    },
+    {
+      "id": "sign-in-code-tiny-words",
+      "targets": [
+        "sign-in-code-tiny-words@source-2026-11-22.1"
+      ],
+      "note": "Visible c_5Rm2 literal on the travelling code at frames17/25/34 versus wordless baseline, review-first-witnesses/sign-in-code-tiny-words-dense.png. Small travelling text is confirmed; exact physical phone/browser threshold was not tested and is inferred from scene scaling."
+    },
+    {
+      "id": "sign-in-password-route",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Password card clips page edge/text on current x\u22122.05 route."
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Key/cord linger while tag returns (compound clause confirmed); tag-over-scope-names clause unconfirmed."
+    },
+    {
+      "id": "browser-ticket-over-road-name",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Fetch ticket crosses road-name ink; authorize branch not filmed."
+    },
+    {
+      "id": "browser-halves-together",
+      "targets": [],
+      "note": "No registered exact target independently confirmed for this case. Code and cookie half overlap at their shared simultaneous departure."
+    }
+  ]
+}

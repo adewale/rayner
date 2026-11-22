@@ -1,0 +1,38 @@
+✔ reader context wrappers retain typed duration refusals without crediting lookalike errors (1.281762ms)
+✔ the Sessions pacing refusal credits only its declared historical budget violation (1.272139ms)
+✔ baseline subtraction preserves a different covered victim, label or foreground mask (0.839296ms)
+✔ corpus scoring derives evidence rather than trusting caught, and separates rejection from exact targets (0.20213ms)
+✔ worker completion requires a successful process and a complete typed result with its expected identity (1363.484358ms)
+✔ worker pipes preserve split UTF-8 observations and diagnostics without crediting failed workers (1896.707138ms)
+✔ the baseline removes a shifted finding on the same part and retains findings in another transition or part (0.608974ms)
+✔ a failed baseline or variant preserves its observations and cannot produce a score (0.794139ms)
+✔ credit for the device poll requires fresh observed occlusion of the company name by that poll in a collect transition (1.092061ms)
+✔ a report counts the requested identities and rejects missing, duplicate or unexpected rows (0.614722ms)
+✔ the reconstructed people slide earns credit for its observed tag crossing in the reask step (4.955767ms)
+✔ the fast variant-only run identifies that it omitted comparison scenes (0.537217ms)
+✔ each new semantic gain requires its observed event, trip, subject and requirement (7.497681ms)
+✔ prospective inventory declares all 59 claims and retains the original 12 exact targets without changing them (2.02079ms)
+✔ source-bound diagnosis rejects a wrong actor, event, code, reason, scenario and textual lookalike (0.328217ms)
+✔ an attributed occlusion requires its predeclared victim and foreground rather than an incidental warning (0.229761ms)
+✔ typed prevention rejects the wrong event, error type and authored reason (0.239826ms)
+✔ unreviewed matching warnings and cases missing a target are unassessed; old rejection comparison stays separate (2.670695ms)
+✔ confirmed declared observation produces one diagnosis; a wrong event becomes a target miss (1.296795ms)
+✔ failed workers, malformed workers and failed baselines preserve no diagnosis or complete comparison (1.959038ms)
+✔ missing, duplicate and unexpected worker or baseline inventory rejects evaluation (0.853527ms)
+✔ baseline findings cannot earn fresh target credit even when worker fresh and caught claim success (0.9428ms)
+✔ a changed domain victim is a new observation and cannot gain historical company-name credit (7.724853ms)
+✔ chapter prevention needs this run and both named independent controls, and never earns diagnosis (1.154183ms)
+✔ editorial, unreproduced, blocked and inconclusive visual results never silently become diagnostic successes (1.944707ms)
+✔ a relevant typed refusal is prevention and leaves a different declared visual observation unassessed (0.655043ms)
+✔ explicitly confirmed concrete obstruction can be diagnosed inside an editorial case without reclassifying that case (0.602745ms)
+✔ actual adapter accepts bound explicit ratification and never upgrades a broad confirmation of another clause (1584.328132ms)
+✔ actual adapter rejects stale review bytes, wrong reviewer/source/run, and unbound measurement bytes (4590.036753ms)
+✔ a blocked visual case can ratify a typed prevention cause without earning visual diagnosis (1.177659ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6872.149236

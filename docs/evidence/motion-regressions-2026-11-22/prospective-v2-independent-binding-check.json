@@ -1,0 +1,41 @@
+{
+  "syntheticOnly": true,
+  "receipts": [
+    {
+      "check": "explicit valid synthetic binding",
+      "passed": true
+    },
+    {
+      "check": "stale review rejected before malformed measurement parsed",
+      "passed": true
+    },
+    {
+      "check": "same broad disposition with explicit empty target produces zero diagnoses",
+      "passed": true
+    },
+    {
+      "check": "provenance.json wrong revision",
+      "passed": true
+    },
+    {
+      "check": "review-first-v2-confirmations.json wrong run",
+      "passed": true
+    },
+    {
+      "check": "review-first-v2-confirmations.json wrong reviewer",
+      "passed": true
+    },
+    {
+      "check": "measurement/provenance.json wrong revision",
+      "passed": true
+    },
+    {
+      "check": "measurement bytes bound independently",
+      "passed": true
+    },
+    {
+      "check": "original independently reproduced counterexample rejected",
+      "passed": true
+    }
+  ]
+}

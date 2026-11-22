@@ -1,0 +1,138 @@
+[
+  {
+    "path": "witnesses/poppy--read-write/sign-out.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sessions--remembers/clock.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sessions--required/clock.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sessions--remembers/send.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sign-in--direct/key.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sign-in--device/ask.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-browser--no-scope/authorize.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-conversations--default/direct.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-conversations--default/owner.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-coverage--hostile/skill.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-discovery--default/claim.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-direct-grant/0045.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-direct-grant/0090.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-device-grant/0045.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/sessions-remembers-published/0015.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/sessions-remembers-published/0045.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/conversations-open-direct/0015.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-device-grant/0030.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-device-grant/0060.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-device-grant/0075.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/signin-direct-grant/0060.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/sessions-remembers-published/0030.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/sessions-remembers-published/0060.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/sessions-remembers-published/0075.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/coverage-hostile-report/0030.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-refusals--default/pace.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-coverage--honest/skill.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-discovery--default/handshake.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-conversations--default/close.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-browser--signed-in/phish.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-browser--signed-out/browse.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sign-in--direct/approve.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "witnesses/poppy-sign-in--device/approve.png",
+    "inspection": "view_image native pixel review"
+  },
+  {
+    "path": "../current-audit-2026-11-22/sessions-key-to-wax-after-check/contacts/whole-stage.png",
+    "inspection": "view_image fresh baseline/variant contact sheet; initial judgment independent of detector verdicts"
+  }
+]
