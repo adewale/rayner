@@ -39,15 +39,15 @@ test('semantic admission uses the exact approved relation, variant event frame a
     const sourceRevision = 'a'.repeat(40), run = 'semantic-test-run', reviewer = 'independent-native-reviewer';
     const pngBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64');
     const route = routes[target.id]!, scenario = JSON.parse(target.scenario), asset = 'f'.repeat(64);
-    const sides: {side:string;status:string;mark:{origin:number;end:number;duration:number};provenance:{settings:object};receipt:BoundArtifact}[] = [];
+    const sides: {side:string;status:string;mark:{origin:number;end:number;duration:number};provenance:{settings:object};receipt:BoundArtifact;frameCount:number}[] = [];
     const witnesses: BoundArtifact[] = [], frames: NativeFrameBinding[] = [];
     for (const side of ['baseline', 'variant'] as const) {
       const png = await store(`native/${target.id}/${side}/${asset}.png`, pngBytes); witnesses.push(png);
       const mark = {origin: 10, end: 12, duration: 2/30};
       const provenance = {settings: scenario};
       const ledger = [0,1,2].map(sequence => ({sequence, absolute: 10+sequence, frame: sequence, step: route.step, phase: 'playing', asset, pixels: '1'.repeat(64)}));
-      const receipt = await store(`native/${target.id}/${side}/receipt.json`, {side,status:'complete',route,mark,provenance,frames:ledger});
-      sides.push({side,status:'complete',mark,provenance,receipt:{...receipt,path:'../'+receipt.path}});
+      const receipt = await store(`native/${target.id}/${side}/receipt.json`, {side,status:'complete',route,mark,provenance,width:800,height:450,fps:30,frameCount:ledger.length,frames:ledger});
+      sides.push({side,status:'complete',mark,provenance,receipt:{...receipt,path:'../'+receipt.path},frameCount:ledger.length});
       frames.push({side,sequence:1,absolute:11,step:route.step,asset,pngSha256:png.sha256,receiptSha256:receipt.sha256});
     }
     const observation = {version: target.version, targetSha256: semanticDigest(target), actor: target.actor, victim: target.victim,
@@ -57,11 +57,16 @@ test('semantic admission uses the exact approved relation, variant event frame a
     const row = {...cases[1]!,id:target.id,disposition:'observed',nativeWitnesses:witnesses,settings:scenario,route,nativeFrameBindings:frames,
       clause:{actor:target.actor,victim:target.victim,literal:target.literal,event:target.event,phase:target.phase,observed:'Synthetic positive control.'}};
     const reviewCases = cases.map(c => c.id === target.id ? row : c);
-    const reviewData = {sourceRevision,run,reviewer,cases:reviewCases,observations:[observation]};
-    const review = await store('review.json', reviewData);
     const captureCases = CORPUS.map(c => ({id:c.id,route:routes[c.id],status:'complete',nativeAssets:c.id===target.id?[witnesses[0]!.sha256]:[],sides:c.id===target.id?sides:[]}));
-    const captureData = {sourceRevision,run,nativeAssets:[witnesses[0]!.sha256],cases:captureCases};
+    const driverSha256='d'.repeat(64);
+    const producer=await store('native/provenance.json',{revision:sourceRevision,run,driverSha256});
+    const actualCase=await store(`native/${target.id}/case.json`,{id:target.id,revision:sourceRevision,route,status:'complete',captureDriverSha256:driverSha256,
+      baseline:{status:'complete',frameCount:3},variant:{status:'complete',frameCount:3}});
+    const captureData = {sourceRevision,run,provenance:{...producer,path:'../'+producer.path},nativeAssets:[witnesses[0]!.sha256],
+      cases:captureCases.map(c=>c.id===target.id?{...c,caseReceipt:{...actualCase,path:'../'+actualCase.path}}:c)};
     const capture = await store('packet/capture.json',captureData);
+    const reviewData = {sourceRevision,run,reviewer,capture,cases:reviewCases,observations:[observation]};
+    const review = await store('review.json', reviewData);
     const measurementFor = async (name: string, payloadData: unknown) => {
       const payload=await store(name+'-workers.json',payloadData);
       return store(name+'-measurement.json',{sourceRevision,run,comparison:'baseline-subtracted',measurementSha256:payload.sha256,payload});
@@ -83,7 +88,7 @@ test('semantic admission uses the exact approved relation, variant event frame a
     const refusedSides=sides.map(s=>s.side==='variant'?{...s,status:'typed-refusal',mark:{origin:10,end:10,duration:0}}:s);
     const refusedCapture=await store('packet/refused.json',{...captureData,cases:captureCases.map(c=>c.id===target.id?{...c,status:'typed-refusal',sides:refusedSides}:c)});
     const baselineOnly=await store('baseline-only-review.json',{...reviewData,cases:reviewCases.map(c=>c.id===target.id?{...row,nativeWitnesses:[witnesses[0]],nativeFrameBindings:[frames[0]]}:c)});
-    await assert.rejects(boundCaseReview(dir,baselineOnly,refusedCapture),/side\/route\/scenario|completed variant/);
+    await assert.rejects(boundCaseReview(dir,baselineOnly,refusedCapture),/capture binding|side\/route\/scenario|completed variant/);
     // Same case, wrong runtime phase or pre-event variant role must also reject,
     // even when a new saved file honestly repeats the invalid claim.
     for (const changed of [{...frames[1]!,phase:'waiting'}, {...frames[1]!,sequence:0,absolute:10}]) {
@@ -97,6 +102,48 @@ test('semantic admission uses the exact approved relation, variant event frame a
     await assert.rejects(boundSemanticAssessment(dir,{...receipt,review:wrongCase,observations:[{...observation,caseId:CORPUS[0]!.id}]}),/case\/scenario\/relation/);
     const missing=await store('missing.json',{...reviewData,cases:reviewCases.slice(1)});
     await assert.rejects(boundCaseReview(dir,missing,capture),/59-case inventory/);
+
+    // Four further independent contradictions. Keep their authentic ledgers and
+    // producer fixed while adversarial envelope/reviewer claims are changed.
+    const unrelated={...observation,route:{...route,step:'unrelated'}};
+    const unrelatedReview=await store('unrelated-step.json',{...reviewData,cases:reviewCases.map(c=>c.id===target.id?{...row,route:unrelated.route}:c),observations:[unrelated]});
+    await assert.rejects(boundSemanticAssessment(dir,{...receipt,review:unrelatedReview,observations:[unrelated]}),/route mismatch/);
+    const contradictory=await measurementFor('complete-with-refusal',{comparison:'baseline-subtracted',baselines,results:results.map(r=>r.id===target.id?worker(r.id,[found,
+      {scenario:target.scenario,line:'typed execution refusal',observation:{type:'refusal',kind:'duration guard',name:'RangeError',message:'authored transition lasts too long',event:'sign-in'}}]):r)});
+    await assert.rejects(boundSemanticAssessment(dir,{...receipt,measurement:contradictory}),/complete worker contains typed execution refusal/);
+    const anotherSource='b'.repeat(40),anotherRun='relabeled-run';
+    const relabeledCapture=await store('packet/relabeled-capture.json',{...captureData,sourceRevision:anotherSource,run:anotherRun});
+    const relabeledReview=await store('relabeled-review.json',{...reviewData,sourceRevision:anotherSource,run:anotherRun,capture:relabeledCapture});
+    const relabeledEnvelope=await store('relabeled-measurement.json',{...JSON.parse(await readFile(join(dir,measurement.path),'utf8')),sourceRevision:anotherSource,run:anotherRun});
+    await assert.rejects(boundSemanticAssessment(dir,{...receipt,sourceRevision:anotherSource,run:anotherRun,review:relabeledReview,capture:relabeledCapture,measurement:relabeledEnvelope}),/producer source\/run/);
+    const differentCapture=await store('packet/different-capture.json',captureData);
+    await assert.rejects(boundSemanticAssessment(dir,{...receipt,capture:differentCapture}),/approved capture binding/);
+    for (const change of [{id:'wrong-case'},{revision:'c'.repeat(40)},{route:{...route,step:'wrong'}},{status:'typed-refusal'},
+      {captureDriverSha256:'e'.repeat(64)},{variant:{status:'typed-refusal',frameCount:3}}]) {
+      const badCase=await store(`native/${target.id}/altered-case.json`,{...JSON.parse(await readFile(join(dir,actualCase.path),'utf8')),...change});
+      const badCapture=await store('packet/altered-case-capture.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,caseReceipt:{...badCase,path:'../'+badCase.path}}:c)});
+      const badReview=await store('altered-case-review.json',{...reviewData,capture:badCapture});
+      await assert.rejects(boundSemanticAssessment(dir,{...receipt,capture:badCapture,review:badReview}),/producer\/case|side\/route\/scenario\/ledger/);
+    }
+    const nonReproducing=async (name:string,extra:object={})=>store(name,{...reviewData,cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',...extra}:c)});
+    assert.equal((await boundCaseReview(dir,await nonReproducing('actually-identical.json'),capture)).counts['non-reproducing'],1);
+    // Alter only the actual variant pixels, preserving honest side/case receipts.
+    const side=sides[1]!, ledger=JSON.parse(await readFile(join(dir,side.receipt.path.slice(3)),'utf8'));
+    ledger.frames[2].pixels='2'.repeat(64);
+    const changedSide=await store(`native/${target.id}/variant/changed-receipt.json`,ledger);
+    const different=await store('packet/pixel-different.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,sides:[sides[0],{...side,receipt:{...changedSide,path:'../'+changedSide.path}}]}:c)});
+    const differentFrames=frames.map(f=>f.side==='variant'?{...f,receiptSha256:changedSide.sha256}:f);
+    const unequalReview=await store('unequal-review.json',{...reviewData,capture:different,cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',nativeFrameBindings:[frames[0]],nativeWitnesses:[witnesses[0]],fullPixelEqualPairs:999}:c)});
+    await assert.rejects(boundCaseReview(dir,unequalReview,different),/full-route pixel identity/);
+    const scopedReview=await store('scoped-review.json',{...reviewData,capture:different,cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',nativeFrameBindings:differentFrames,nonReproduction:{basis:'scoped-visual',scope:'Only the independently reviewed event frames, no full-route identity claim.'}}:c)});
+    assert.equal((await boundCaseReview(dir,scopedReview,different)).counts['non-reproducing'],1);
+    const scopedBaselineOnly=await store('scoped-baseline-only.json',{...JSON.parse(await readFile(join(dir,scopedReview.path),'utf8')),cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',nativeFrameBindings:[frames[0]],nativeWitnesses:[witnesses[0]],nonReproduction:{basis:'scoped-visual',scope:'One baseline is insufficient.'}}:c)});
+    await assert.rejects(boundCaseReview(dir,scopedBaselineOnly,different),/both completed event sides/);
+    const truncatedSide=await store(`native/${target.id}/variant/truncated.json`,{...ledger,frameCount:1,frames:ledger.frames.slice(0,1)});
+    const truncatedCase=await store(`native/${target.id}/truncated-case.json`,{...JSON.parse(await readFile(join(dir,actualCase.path),'utf8')),variant:{status:'complete',frameCount:1}});
+    const truncatedCapture=await store('packet/truncated-capture.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,caseReceipt:{...truncatedCase,path:'../'+truncatedCase.path},sides:[sides[0],{...side,frameCount:1,receipt:{...truncatedSide,path:'../'+truncatedSide.path}}]}:c)});
+    const truncatedReview=await store('truncated-review.json',{...reviewData,capture:truncatedCapture});
+    await assert.rejects(boundCaseReview(dir,truncatedReview,truncatedCapture),/side\/route\/scenario\/ledger/,'matching fabricated counts cannot omit the actual event clock');
     await writeFile(join(dir,witnesses[1]!.path),'changed native bytes');
     await assert.rejects(boundSemanticAssessment(dir,receipt),/changed artifact/);
   } finally {await rm(dir,{recursive:true,force:true});}
