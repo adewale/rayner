@@ -333,9 +333,13 @@ export class ViewSink implements Sink {
   /** Views some step's end has shown to depend on their state (see viewIgnoresState). */
   private readonly proven = new Set<View>();
   /** Views no step has shown to yet, each named by the first step that showed it. */
-  private readonly unproven = new Map<View, { name: string; others: number }>();
-  /** Each step's state so far: the other states a view first seen now is drawn from. */
+  private readonly unproven = new Map<View, { name: string; others: number; local: boolean }>();
+  /** Each step's model so far: the other states a model view first seen now is drawn from. */
   private readonly states: Record<string, unknown>[] = [];
+  /** Each staged step's local input so far: the alternatives for a view of a local specimen. A
+   * specimen and the model have different shapes, so neither probes the other's views: a draw
+   * that throws on a foreign shape would otherwise pass for one that reads its input. */
+  private readonly locals: Record<string, unknown>[] = [];
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     const model = scene.stateJson(), shown = scene.shownJson();
@@ -343,8 +347,8 @@ export class ViewSink implements Sink {
     for (const m of scene.familyMembers()) {
       if (!isView(m)) continue;
       this.checked++;
-      const state = m[viewInput](model);
-      if (state !== model) this.states.push(structuredClone(state));
+      const state = m[viewInput](model), local = state !== model;
+      if (local && !this.locals.some((s) => canonicalJson(s) === canonicalJson(state))) this.locals.push(structuredClone(state));
       const mismatch = viewMismatch(m, state, { shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
       // An explicit observation is checked on actual reachable models by exploreMachine below.
@@ -356,15 +360,15 @@ export class ViewSink implements Sink {
       // may read live parts of the scene), until one shows the picture depends on the state: a list
       // that is empty at first and grows later shows it only later.
       if (this.proven.has(m)) continue;
-      const others = viewIgnoresState(m, state, shown, this.states);
+      const others = viewIgnoresState(m, state, shown, local ? this.locals : this.states);
       if (others === null) { this.proven.add(m); this.unproven.delete(m); }
-      else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others });
+      else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others, local });
     }
   }
   /** After the run: views for which the sampled inputs have not demonstrated a different picture. */
   get ignoring(): string[] { return [...this.unproven.values()].map((u) => u.name); }
   ignoringProblems(): string[] {
-    return [...this.unproven.values()].map((u) => `${u.name}: sampled alternative inputs produced the same picture (${u.others} model states); state dependence is unproven. Show a valid contrasting state in the scene and check the intended observation in its fidelity tests`);
+    return [...this.unproven.values()].map((u) => `${u.name}: sampled alternative inputs produced the same picture (${u.others} ${u.local ? 'local step inputs' : 'model states'}); state dependence is unproven. Show a valid contrasting state in the scene and check the intended observation in its fidelity tests`);
   }
 }
 

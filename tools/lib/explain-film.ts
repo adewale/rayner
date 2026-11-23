@@ -1,5 +1,6 @@
-import { mkdir, mkdtemp, writeFile, readFile, rename, rm, rmdir, readdir } from 'node:fs/promises';
-import { basename, join, resolve, sep } from 'node:path';
+import { mkdir, mkdtemp, writeFile, readFile, rename, rm, rmdir, readdir, stat } from 'node:fs/promises';
+import { hostname } from 'node:os';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { toSvgString } from '../../src/index.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import { logStart, runLive, withoutHeading, htmlEscape } from '../../explain/internal.ts';
@@ -32,6 +33,71 @@ function filmSink(directory: string, prefix: string, generation = '') {
     async stepEnd(scene) { await capture(scene, true); },
   };
   return {sink, frames, capture};
+}
+
+interface LockOwner { token: string; pid: number; host: string; created: number }
+const LOCK_OWNER = 'owner.json';
+
+/**
+ * Take the publication lock at `lock` (a directory, created atomically). A live holder is waited
+ * for, with backoff, up to `wait` ms. A lock is stale, and is removed, when its owner on this host
+ * is no longer running, or when it is older than `stale` ms (an owner on another host, or one
+ * that died before recording itself). Returns a release that removes the lock only while this
+ * call still owns it.
+ */
+export async function acquirePublishLock(lock: string, { wait = 120_000, stale = 10 * 60_000 }: { wait?: number; stale?: number } = {}): Promise<() => Promise<void>> {
+  const owner: LockOwner = { token: `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`, pid: process.pid, host: hostname(), created: Date.now() };
+  const deadline = Date.now() + wait;
+  for (let delay = 50; ; delay = Math.min(delay * 2, 2000)) {
+    try {
+      await mkdir(lock);
+      await writeFile(join(lock, LOCK_OWNER), JSON.stringify(owner));
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+    const judged = await staleLock(lock, stale);
+    if (judged) {
+      await retire(lock, judged.token, owner.token);
+      continue;
+    }
+    if (Date.now() >= deadline)
+      throw new Error(`another rayner film is publishing into ${dirname(lock)} (lock ${lock}); wait for it to finish, or remove the lock if no film is running`);
+    await new Promise((done) => setTimeout(done, delay));
+  }
+  return async () => {
+    if (await ownerToken(lock) === owner.token) await rm(lock, { recursive: true, force: true });
+  };
+}
+
+const ownerToken = (dir: string) => readFile(join(dir, LOCK_OWNER), 'utf8').then((t) => (JSON.parse(t) as Partial<LockOwner>).token, () => undefined);
+
+/** When the lock's holder can no longer release it, the holder's token (undefined if it recorded none); otherwise null. */
+async function staleLock(lock: string, stale: number): Promise<{ token: string | undefined } | null> {
+  const since = await stat(lock).then((s) => s.mtimeMs, () => undefined);
+  // Removed meanwhile: not stale, simply free; the next attempt takes it.
+  if (since === undefined) return null;
+  const recorded = await readFile(join(lock, LOCK_OWNER), 'utf8').then((t) => JSON.parse(t) as Partial<LockOwner>, () => undefined);
+  const judged = { token: recorded?.token };
+  const created = typeof recorded?.created === 'number' ? recorded.created : since;
+  if (Date.now() - created > stale) return judged;
+  // A holder that has just made the directory has not yet written its record: give it time.
+  if (!recorded) return Date.now() - since > 30_000 ? judged : null;
+  if (recorded.host !== hostname() || typeof recorded.pid !== 'number') return null;
+  try { process.kill(recorded.pid, 0); return null; } catch (error) { return (error as NodeJS.ErrnoException).code === 'ESRCH' ? judged : null; }
+}
+
+/**
+ * Remove the lock judged stale, and only that one. Two waiters can judge the same lock stale; the
+ * first retires it and may take a fresh lock before the second acts. Moving the directory aside
+ * first and comparing its recorded holder means the second never deletes the first's fresh lock.
+ */
+async function retire(lock: string, judged: string | undefined, mine: string): Promise<void> {
+  const aside = `${lock}.stale-${mine}`;
+  try { await rename(lock, aside); } catch { return; }
+  if (await ownerToken(aside) === judged) { await rm(aside, { recursive: true, force: true }); return; }
+  // A fresh lock was moved: put it back unless someone has taken the name meanwhile.
+  await rename(aside, lock).catch(() => rm(aside, { recursive: true, force: true }));
 }
 
 /** Film every authored scenario and every accepted/refused event from bounded reachable states.
@@ -76,10 +142,9 @@ export async function filmProject(project: Project, directory: string): Promise<
   await writeFile(join(output, 'film.json.pending'), JSON.stringify(report, null, 2) + '\n');
   const rows = films.map(f => `<section><h2>${htmlEscape(f.name)}</h2><p>${htmlEscape(JSON.stringify({settings:f.settings,path:f.path,outcome:f.outcome}))}</p><div>${f.frames.map(frame => `<figure><a href="frames/${frame.svg}"><img loading="lazy" src="frames/${frame.png}" width="358" alt="${htmlEscape(frame.step ?? f.name)} at ${frame.time} seconds"></a><figcaption>${frame.time}s</figcaption></figure>`).join('')}</div></section>`).join('');
   await writeFile(join(output, 'index.html.pending'), `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Rayner film</title><style>body{font:16px system-ui;margin:24px}section>div{display:flex;flex-wrap:wrap;gap:12px}figure{margin:0}img{max-width:100%;height:auto;border:1px solid #888}p{overflow-wrap:anywhere}</style><h1>Motion filmstrips</h1><p>Actual stage frames at 200 ms, including refused events. SVG links retain full resolution. Reachability follows each machine's declared bound and limit.</p>${rows}`);
-  // Serialize only publication. A concurrent producer may finish its private generation, but
-  // must retry if another publisher holds this lock; no invocation removes another's work.
-  const lock = join(directory, '.film-publish.lock');
-  await mkdir(lock);
+  // Serialize only publication. A concurrent producer may finish its private generation, then
+  // waits while another publisher holds this lock; no invocation removes another's work.
+  const release = await acquirePublishLock(join(directory, '.film-publish.lock'));
   try {
     const previous = await readFile(join(directory, 'film.json'), 'utf8').catch(() => undefined);
     const oldIndex = await readFile(join(directory, 'index.html')).catch(() => undefined);
@@ -116,7 +181,7 @@ export async function filmProject(project: Project, directory: string): Promise<
         }
       } catch { /* A foreign or damaged prior manifest grants no deletion authority. */ }
     }
-  } finally { await rmdir(lock); }
+  } finally { await release(); }
   return {films, explorations, frames: films.reduce((n, f) => n + f.frames.length, 0)};
   } finally { if (!published) await rm(output, {recursive: true, force: true}); }
 }

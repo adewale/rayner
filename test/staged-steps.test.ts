@@ -65,7 +65,7 @@ test('deliberate defect: a draw that ignores its state and draws a captured cons
   const { problems, ignoring } = await run(() => [1, 2].map((n) => step(`s${n}`, n, (_, s) => words(s, n))));
   assert.deepEqual(ignoring, ['step "s1": a view', 'step "s2": a view']);
   assert.equal(problems.length, 2);
-  assert.match(problems[0]!, /^step "s1": a view: sampled alternative inputs produced the same picture \(\d+ model states\); state dependence is unproven/);
+  assert.match(problems[0]!, /^step "s1": a view: sampled alternative inputs produced the same picture \(\d+ local step inputs\); state dependence is unproven/);
   // The same pictures drawn from the state pass.
   const fixed = await run(() => [1, 2].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
   assert.deepEqual({ problems: fixed.problems, ignoring: fixed.ignoring }, { problems: [], ignoring: [] });
@@ -163,4 +163,24 @@ test('threshold pictures need a valid contrasting example; equal probes do not p
   assert.ok(!threshold.problems[0]!.includes('ignores its state'));
   const contrasted = await run(() => [step('open', 3, draw), step('waiting', 0, draw)]);
   assert.deepEqual(contrasted.problems, []);
+});
+
+test('a model view is probed with model states alone: a local specimen it refuses is no proof that it reads the model', async () => {
+  const { view, keyed } = { ...(await import('../explain/index.ts')), ...(await import('../src/index.ts')) };
+  const { View } = await import('../explain/view.ts');
+  class Mixed extends Scene {
+    override state = { count: 1 };
+    override async construct() {
+      // Reads nothing of the model, but refuses a specimen's shape: still a view that ignores its state.
+      this.add(keyed(view(this, (st: object) => { if ('cells' in st) throw new TypeError('not the model'); return new Text('Total'); }), 'total'));
+      await this.step('one');
+      this.add(keyed(new View(this, (st: { cells: number[] }) => new Text(`cells ${st.cells.join(' ')}`), { place: false }, { cells: [1, 2] }), 'local'));
+      this.state = { count: 2 };
+      await this.step('two');
+    }
+  }
+  const views = new ViewSink();
+  await new Mixed(views).run();
+  assert.deepEqual(views.ignoring, ['step "one": total']);
+  assert.match(views.ignoringProblems()[0]!, /\(\d+ model states\)/);
 });

@@ -35,3 +35,38 @@ export default class Film extends Scene{static meta={id:"film"};static settings=
     assert.match(await readFile(join(output, 'phone-views.html'), 'utf8'), /native stage samples/);
   } finally {await rm(dir, {recursive:true,force:true});}
 });
+
+test('a publication lock left by a dead or crashed film is recovered; a live one is waited for', async () => {
+  const {acquirePublishLock} = await import('../tools/lib/explain-film.ts');
+  const {mkdir, utimes, stat} = await import('node:fs/promises');
+  const {hostname} = await import('node:os');
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-film-lock-'));
+  try {
+    const lock = join(dir, '.film-publish.lock');
+    // A holder on this host whose process has exited: taken over at once.
+    await mkdir(lock);
+    await writeFile(join(lock, 'owner.json'), JSON.stringify({token: 'dead', pid: 2 ** 22 + 12345, host: hostname(), created: Date.now()}));
+    const release = await acquirePublishLock(lock, {wait: 1000});
+    assert.equal(JSON.parse(await readFile(join(lock, 'owner.json'), 'utf8')).pid, process.pid);
+    await release();
+    await assert.rejects(stat(lock), {code: 'ENOENT'});
+    // A bare directory, as an earlier version left it, older than a holder needs to record itself.
+    await mkdir(lock);
+    const old = new Date(Date.now() - 60_000);
+    await utimes(lock, old, old);
+    await (await acquirePublishLock(lock, {wait: 1000}))();
+    // A live holder: the second publisher waits, then takes the lock once it is released.
+    const first = await acquirePublishLock(lock);
+    let second: Promise<() => Promise<void>> | undefined;
+    let took = false;
+    second = acquirePublishLock(lock, {wait: 5000}).then((r) => { took = true; return r; });
+    await new Promise((done) => setTimeout(done, 200));
+    assert.equal(took, false, 'a live lock is not taken over');
+    await first();
+    await (await second)();
+    // Waiting is bounded, and the error names the lock.
+    const held = await acquirePublishLock(lock);
+    await assert.rejects(acquirePublishLock(lock, {wait: 100}), /another rayner film is publishing.*film-publish\.lock/);
+    await held();
+  } finally { await rm(dir, {recursive: true, force: true}); }
+});

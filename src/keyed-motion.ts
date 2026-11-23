@@ -22,16 +22,21 @@
 //                 token lands while it is still travelling: a result shown before its cause lands.
 //                 A token passes through (on screen in neither the first frame nor the last, as
 //                 c.travel, flight and pass make one) and travels at least a unit keeping its size.
-//   covers        a token, readable and drawn over it, hides a share of a readable label's box with
-//                 its ink (a filled shape's outline, not its box) for a run of frames before it
-//                 reaches its landing: a ticket over a lane's name; with the label's own words, two
-//                 copies of one thing at once.
+//   covers        a token, readable and drawn over it, hides a share of a readable label's visible
+//                 glyph boxes for a run of frames before it reaches its landing: a filled shape by
+//                 what its fill provably paints (not its box), travelling words by where their
+//                 letters meet the label's. A ticket over a lane's name; with the label's own words,
+//                 two copies of one thing at once.
 //   occluded words an opaque foreground fill obscures two glyph boxes (one for a one-glyph
 //                 label), even when it is not a travelling token. Respects actual curve bounds,
 //                 fill rules, camera, descendant clips and co-located foreground text handoffs.
 //   small words   a token carries words smaller than a phone reads on the whole picture and than
 //                 every label at rest: a label scaled down to travel. Judged only when the sink is
 //                 given a label's reading size (the explain layer's), as `rayner check` gives it.
+//   duplicate words travelling words overlap another visible copy of the same words for a run
+//                 of frames; copies registered letter on letter are one word, a seamless handoff.
+//   long transition one play keeps the picture changing for more than five seconds (a caption hold
+//                 after it does not count): shorten or split it.
 //
 // Each threshold (KEYED_MOTION_LIMITS) is in stage units of the default 16-wide frame (screen space:
 // a camera move is motion of every part) and in seconds, so a scene at another fps is judged alike.
@@ -45,6 +50,7 @@ import type { Scene, Sink } from './scene.ts';
 import { playsBegun } from './scene.ts';
 import { FRAME } from './units.ts';
 import { intersect } from './box.ts';
+import { paintReach } from './svg.ts';
 
 export type KeyedMotionKind = 'jump' | 'flicker' | 'early words' | 'covers' | 'occluded words' | 'small words' | 'duplicate words' | 'long transition';
 /** One defect: in which transition, which part, when (seconds from the transition's first frame), and how much. */
@@ -329,9 +335,9 @@ function sampleFrame(scene: Pick<Scene, 'mobjects' | 'frame' | 'time'>, labelSiz
               paintsStroke(s) ? (s.strokeOpacity ?? 1) * paintAlpha(s.stroke) : 0) * (s.opacity ?? 1);
             if (g instanceof VMobject && painted >= KEYED_MOTION_LIMITS.readable && (s.drawFraction ?? 1) >= 1) {
               const b = g.box();
-              // Path boxes omit the stroke. A miter may reach farther than half its
-              // width; use the SVG limit (at least its default four) conservatively.
-              const margin = paintsStroke(s) ? s.strokeWidth / 2 * Math.max(4, s.miterLimit ?? 4) : 0;
+              // Path boxes omit the stroke. Its reach is the renderer's: half its width, grown
+              // by a square cap and, only for a miter join, by the miter limit.
+              const margin = paintReach(g);
               const visible = b && screen([b[0] - margin, b[1] - margin, b[2] + margin, b[3] + margin]);
               // A clip through a glyph's empty counter is not visible ink. Certify only
               // whole glyph boxes; partial-glyph evidence needs actual outline clipping.
@@ -578,6 +584,9 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
           if (other.a < L.readable || other.text !== moving.text) continue;
           const otherInk = visibleGlyphs(frames[i]!, b);
           if (!otherInk.length || registeredGlyphs(movingInk, otherInk)) continue;
+          // Coincident copies, letter on letter, read as one word even when a plate between
+          // them hides some of one copy's letters: register the copies, not only what shows.
+          if (registeredGlyphs(moving.glyphs ?? [], other.glyphs ?? [])) continue;
           // The visible letters must meet too: uncut run boxes can overlap across
           // a plate that hides every letter in their common area.
           if (!movingInk.some(glyph => otherInk.some(other => intersect(glyph, other)))) continue;
@@ -749,10 +758,20 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
             const glyphs = visibleGlyphs(f, q, traveller), whole = glyphs.reduce((sum, glyph) => sum + area(glyph), 0);
             if (whole <= 0) continue;
             let most = 0;
-            // A leaf with a fill covers its box; an outline alone (a ring round a label, a line) covers almost none of it.
+            // A filled shape covers what its fill proves it paints; an outline alone (a ring round a label,
+            // a line) covers almost none of it. Travelling words cover where their visible glyphs
+            // overlap the label's: two runs of letters over each other read as neither.
             for (let r = T.from; r < T.to; r++) {
               const t = f.leaves[r]!;
-              if ((t.fillAlpha ?? 0) < L.readable || !intersect(t.box, l.box)) continue;
+              if (!intersect(t.box, l.box)) continue;
+              if (t.text !== undefined) {
+                if (t.a < L.readable || !t.glyphs?.length) continue;
+                const ink = visibleGlyphs(f, r);
+                most = Math.max(most, glyphs.reduce((sum, glyph) =>
+                  sum + Math.min(area(glyph), ink.reduce((over, letter) => over + area(intersect(glyph, letter) ?? [0, 0, 0, 0]), 0)), 0) / whole);
+                continue;
+              }
+              if ((t.fillAlpha ?? 0) < L.readable) continue;
               most = Math.max(most, glyphs.reduce((sum, glyph) => sum + filledArea(t, glyph), 0) / whole);
             }
             if (most < L.cover) continue;
