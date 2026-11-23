@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
@@ -118,19 +118,64 @@ test('semantic admission uses the exact approved relation, variant event frame a
     await assert.rejects(boundSemanticAssessment(dir,{...receipt,sourceRevision:anotherSource,run:anotherRun,review:relabeledReview,capture:relabeledCapture,measurement:relabeledEnvelope}),/producer source\/run/);
     const differentCapture=await store('packet/different-capture.json',captureData);
     await assert.rejects(boundSemanticAssessment(dir,{...receipt,capture:differentCapture}),/approved capture binding/);
+    const rejectBoth=async (review:BoundArtifact, capture:BoundArtifact, observations=receipt.observations, pattern:RegExp) => {
+      await assert.rejects(boundCaseReview(dir,review,capture),pattern);
+      await assert.rejects(boundSemanticAssessment(dir,{...receipt,review,capture,observations}),pattern);
+    };
+    // A citation is the actual frame file, not any path carrying its digest.
+    for (const extra of [{path:'never-generated/unsigned-extra.png',sha256:witnesses[1]!.sha256},
+      await store(`native/${target.id}/variant/not-a-frame.png`,pngBytes)]) {
+      const citation={...observation,nativeWitnesses:[...witnesses,extra]};
+      const extraReview=await store('extra-citation-review.json',{...reviewData,observations:[citation],cases:reviewCases.map(c=>c.id===target.id?{...row,nativeWitnesses:citation.nativeWitnesses}:c)});
+      await rejectBoth(extraReview,capture,[citation],/ENOENT|native witness lacks a frame binding/);
+    }
+    const aliasWitnesses=witnesses.map(w=>({...w,path:'./native/../'+w.path}));
+    const aliasFrames=frames.map((f,i)=>({...f,png:witnesses[i]!}));
+    const aliasObservation={...observation,nativeWitnesses:aliasWitnesses,witnessFrames:aliasFrames};
+    const aliasCapture=await store('packet/alias-capture.json',{...captureData,provenance:{...captureData.provenance,path:'../native/../'+producer.path},
+      cases:captureData.cases.map(c=>c.id===target.id?{...c,caseReceipt:{...actualCase,path:'../native/../'+actualCase.path},sides:sides.map(s=>({...s,receipt:{...s.receipt,path:'../native/../'+s.receipt.path.slice(3)}}))}:c)});
+    const aliasReview=await store('alias-review.json',{...reviewData,capture:aliasCapture,observations:[aliasObservation],cases:reviewCases.map(c=>c.id===target.id?{...row,nativeWitnesses:aliasWitnesses,nativeFrameBindings:aliasFrames}:c)});
+    assert.equal((await boundCaseReview(dir,aliasReview,aliasCapture)).counts.observed,1);
+    assert.equal((await boundSemanticAssessment(dir,{...receipt,review:aliasReview,capture:aliasCapture,observations:[aliasObservation]}))[0]!.status,'semantic-target-match','equivalent relative citation and producer paths retain their real file roles');
+    const relocated=await mkdtemp(join(tmpdir(),'rayner-semantic-relocated-'));
+    try {
+      await cp(dir,relocated,{recursive:true});
+      assert.equal((await boundCaseReview(relocated,review,capture)).counts.observed,1);
+      assert.equal((await boundSemanticAssessment(relocated,receipt))[0]!.status,'semantic-target-match','moving an intact relative archive preserves its source/run');
+    }finally{await rm(relocated,{recursive:true,force:true});}
+    const caseBytes=await readFile(join(dir,actualCase.path));
+    const foreignCase=await store(`native/${target.id}/case-copy.json`,caseBytes);
+    const misplacedCapture=await store('packet/misplaced-case.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,caseReceipt:{...foreignCase,path:'../'+foreignCase.path}}:c)});
+    const misplacedReview=await store('misplaced-case-review.json',{...reviewData,capture:misplacedCapture});
+    await rejectBoth(misplacedReview,misplacedCapture,receipt.observations,/producer\/case file role/);
+    // Both old summary and old ledger agree; their native pixels are identical.
+    // They still belong to another producer tree with different ownership metadata.
+    await cp(join(dir,'native'),join(dir,'older-native'),{recursive:true});
+    await store('older-native/provenance.json',{revision:'b'.repeat(40),run:'older-native-run',driverSha256});
+    await store(`older-native/${target.id}/case.json`,{...JSON.parse(caseBytes.toString()),revision:'b'.repeat(40)});
+    const originalSideBytes=await readFile(join(dir,sides[1]!.receipt.path.slice(3))),originalLedger=JSON.parse(originalSideBytes.toString());
+    const oldProvenance={...sides[1]!.provenance,bundledSource:'f'.repeat(64)};
+    const oldSide=await store(`older-native/${target.id}/variant/receipt.json`,{...originalLedger,provenance:oldProvenance});
+    const oldPng={...witnesses[1]!,path:witnesses[1]!.path.replace('native/','older-native/')};
+    const mixedWitnesses=[witnesses[0]!,oldPng],mixedFrames=[frames[0]!,{...frames[1]!,receiptSha256:oldSide.sha256}];
+    const mixedObservation={...observation,nativeWitnesses:mixedWitnesses,witnessFrames:mixedFrames};
+    const mixedCapture=await store('packet/mixed-side.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,sides:[sides[0],{...sides[1],provenance:oldProvenance,receipt:{...oldSide,path:'../'+oldSide.path}}]}:c)});
+    const mixedReview=await store('mixed-side-review.json',{...reviewData,capture:mixedCapture,observations:[mixedObservation],cases:reviewCases.map(c=>c.id===target.id?{...row,nativeWitnesses:mixedWitnesses,nativeFrameBindings:mixedFrames}:c)});
+    await rejectBoth(mixedReview,mixedCapture,[mixedObservation],/producer\/side file role/);
     for (const change of [{id:'wrong-case'},{revision:'c'.repeat(40)},{route:{...route,step:'wrong'}},{status:'typed-refusal'},
       {captureDriverSha256:'e'.repeat(64)},{variant:{status:'typed-refusal',frameCount:3}}]) {
-      const badCase=await store(`native/${target.id}/altered-case.json`,{...JSON.parse(await readFile(join(dir,actualCase.path),'utf8')),...change});
+      const badCase=await store(actualCase.path,{...JSON.parse(caseBytes.toString()),...change});
       const badCapture=await store('packet/altered-case-capture.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,caseReceipt:{...badCase,path:'../'+badCase.path}}:c)});
       const badReview=await store('altered-case-review.json',{...reviewData,capture:badCapture});
       await assert.rejects(boundSemanticAssessment(dir,{...receipt,capture:badCapture,review:badReview}),/producer\/case|side\/route\/scenario\/ledger/);
     }
+    await writeFile(join(dir,actualCase.path),caseBytes);
     const nonReproducing=async (name:string,extra:object={})=>store(name,{...reviewData,cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',...extra}:c)});
     assert.equal((await boundCaseReview(dir,await nonReproducing('actually-identical.json'),capture)).counts['non-reproducing'],1);
     // Alter only the actual variant pixels, preserving honest side/case receipts.
     const side=sides[1]!, ledger=JSON.parse(await readFile(join(dir,side.receipt.path.slice(3)),'utf8'));
     ledger.frames[2].pixels='2'.repeat(64);
-    const changedSide=await store(`native/${target.id}/variant/changed-receipt.json`,ledger);
+    const changedSide=await store(`native/${target.id}/variant/receipt.json`,ledger);
     const different=await store('packet/pixel-different.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,sides:[sides[0],{...side,receipt:{...changedSide,path:'../'+changedSide.path}}]}:c)});
     const differentFrames=frames.map(f=>f.side==='variant'?{...f,receiptSha256:changedSide.sha256}:f);
     const unequalReview=await store('unequal-review.json',{...reviewData,capture:different,cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',nativeFrameBindings:[frames[0]],nativeWitnesses:[witnesses[0]],fullPixelEqualPairs:999}:c)});
@@ -139,11 +184,12 @@ test('semantic admission uses the exact approved relation, variant event frame a
     assert.equal((await boundCaseReview(dir,scopedReview,different)).counts['non-reproducing'],1);
     const scopedBaselineOnly=await store('scoped-baseline-only.json',{...JSON.parse(await readFile(join(dir,scopedReview.path),'utf8')),cases:reviewCases.map(c=>c.id===target.id?{...row,disposition:'non-reproducing',nativeFrameBindings:[frames[0]],nativeWitnesses:[witnesses[0]],nonReproduction:{basis:'scoped-visual',scope:'One baseline is insufficient.'}}:c)});
     await assert.rejects(boundCaseReview(dir,scopedBaselineOnly,different),/both completed event sides/);
-    const truncatedSide=await store(`native/${target.id}/variant/truncated.json`,{...ledger,frameCount:1,frames:ledger.frames.slice(0,1)});
-    const truncatedCase=await store(`native/${target.id}/truncated-case.json`,{...JSON.parse(await readFile(join(dir,actualCase.path),'utf8')),variant:{status:'complete',frameCount:1}});
+    const truncatedSide=await store(`native/${target.id}/variant/receipt.json`,{...ledger,frameCount:1,frames:ledger.frames.slice(0,1)});
+    const truncatedCase=await store(actualCase.path,{...JSON.parse(caseBytes.toString()),variant:{status:'complete',frameCount:1}});
     const truncatedCapture=await store('packet/truncated-capture.json',{...captureData,cases:captureData.cases.map(c=>c.id===target.id?{...c,caseReceipt:{...truncatedCase,path:'../'+truncatedCase.path},sides:[sides[0],{...side,frameCount:1,receipt:{...truncatedSide,path:'../'+truncatedSide.path}}]}:c)});
     const truncatedReview=await store('truncated-review.json',{...reviewData,capture:truncatedCapture});
     await assert.rejects(boundCaseReview(dir,truncatedReview,truncatedCapture),/side\/route\/scenario\/ledger/,'matching fabricated counts cannot omit the actual event clock');
+    await writeFile(join(dir,actualCase.path),caseBytes);await writeFile(join(dir,sides[1]!.receipt.path.slice(3)),originalSideBytes);
     await writeFile(join(dir,witnesses[1]!.path),'changed native bytes');
     await assert.rejects(boundSemanticAssessment(dir,receipt),/changed artifact/);
   } finally {await rm(dir,{recursive:true,force:true});}

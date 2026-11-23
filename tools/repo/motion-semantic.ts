@@ -2,7 +2,7 @@
 // consumed or rewritten here. A relation is ratified separately from its detector
 // representation, with exact native/review/measurement bytes and source/run binding.
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { canonicalJson } from '../../src/internal.ts';
 import { againstBaseline, type EntryResult, type Found } from './motion-corpus-lib.ts';
@@ -120,14 +120,25 @@ async function nativeCase(directory: string, captureArtifact: BoundArtifact, cap
   if (!c) throw new Error(`native case missing for ${id}`);
   const captureDirectory = dirname(resolve(directory, captureArtifact.path));
   const [producer, caseBytes] = await Promise.all([nativeProducer(directory, captureArtifact, capture), bound(captureDirectory, c.caseReceipt)]);
+  // The producer emits one case root and two side files. A same-pixel side
+  // from another run can have different semantic ownership; copied summaries
+  // cannot detach it from the producer's actual files. Canonical file locations
+  // also permit relative aliases and relocation of the intact archive.
+  const producerDirectory = dirname(await realpath(resolve(captureDirectory, capture.provenance.path)));
+  const caseFile = await realpath(resolve(captureDirectory, c.caseReceipt.path));
+  if (caseFile !== resolve(producerDirectory, id, 'case.json')) throw new Error(`native producer/case file role mismatch for ${id}`);
+  const caseDirectory = dirname(caseFile);
   const actualCase = JSON.parse(caseBytes.toString());
   if (actualCase.id !== id || actualCase.revision !== capture.sourceRevision || actualCase.captureDriverSha256 !== producer.driverSha256 ||
     !same(actualCase.route, c.route) || actualCase.status !== c.status)
     throw new Error(`native producer/case source/route/status binding mismatch for ${id}`);
   const sides = new Map<string, any>();
   for (const side of c.sides ?? []) {
+    if (sides.has(side.side) || !['baseline','variant'].includes(side.side)) throw new Error(`native side inventory mismatch for ${id}`);
+    const file = await realpath(resolve(captureDirectory, side.receipt.path));
+    if (file !== resolve(caseDirectory, side.side, 'receipt.json')) throw new Error(`native producer/side file role mismatch for ${id}`);
     const bytes = await bound(captureDirectory, side.receipt), actual = JSON.parse(bytes.toString());
-    if (sides.has(side.side) || !['baseline','variant'].includes(side.side) || actual.error ||
+    if (actual.error ||
       actual.side !== side.side || actual.status !== side.status || actual.status !== actualCase[side.side]?.status ||
       !same(actual.route, c.route) || !same(actual.mark, side.mark) || !same(actual.reader, side.reader) ||
       !same(actual.provenance, side.provenance) || (scenario !== undefined && !same(actual.provenance?.settings, scenario)) ||
@@ -138,7 +149,7 @@ async function nativeCase(directory: string, captureArtifact: BoundArtifact, cap
         !/^[a-f0-9]{64}$/.test(f.pixels) || !/^[a-f0-9]{64}$/.test(f.asset)) ||
       (actual.status === 'complete' && (actual.mark?.guard || !completeNativeClock(actual))))
       throw new Error(`native side/route/scenario/ledger mismatch for ${id}`);
-    sides.set(side.side, {actual, sha256: side.receipt.sha256});
+    sides.set(side.side, {actual, sha256: side.receipt.sha256, file});
   }
   if(sides.size!==2||!sides.has('baseline')||!sides.has('variant')||c.sides.length!==2) throw new Error(`native side inventory mismatch for ${id}`);
   return {c, sides};
@@ -152,16 +163,20 @@ async function nativeFrames(directory: string, captureArtifact: BoundArtifact, c
   witnesses: BoundArtifact[], bindings: NativeFrameBinding[] | undefined, observed: boolean, scenario?: object) {
   if (!Array.isArray(bindings) || !bindings.length) throw new Error(`native frame binding missing for ${id}`);
   const {c, sides} = await nativeCase(directory, captureArtifact, capture, id, scenario);
-  const captureDirectory = dirname(resolve(directory, captureArtifact.path));
   let qualifyingVariant = false;
   const eventSides = new Set<string>();
   const seen = new Set<string>();
+  const citations = await Promise.all(witnesses.map(async witness => {
+    await nativeWitness(directory, witness, capture, id);
+    return {witness, file: await realpath(resolve(directory, witness.path))};
+  }));
+  const verifiedPngs = new Set<string>();
   for (const binding of bindings) {
     const side = sides.get(binding.side), frame = side?.actual.frames?.[binding.sequence];
-    const reference = c.sides.find((s: any) => s.side === binding.side)?.receipt;
-    const sidePath = reference && resolve(captureDirectory, reference.path);
+    const sidePath = side?.file;
     const expectedPng = frame && sidePath && resolve(dirname(sidePath), frame.asset + '.png');
-    const png = binding.png ?? witnesses.find(w => w.sha256 === binding.pngSha256 && resolve(directory, w.path) === expectedPng);
+    const png = binding.png ?? citations.find(c => c.witness.sha256 === binding.pngSha256 && c.file === expectedPng)?.witness;
+    const pngFile = png && await realpath(resolve(directory, png.path));
     const identity = `${binding.side}:${binding.sequence}`;
     if (!frame || !png || seen.has(identity) || !Number.isSafeInteger(binding.sequence) || binding.sequence < 0 || frame.sequence !== binding.sequence ||
       !Number.isSafeInteger(frame.absolute) ||
@@ -169,18 +184,19 @@ async function nativeFrames(directory: string, captureArtifact: BoundArtifact, c
       (binding.phase !== undefined && binding.phase !== frame.phase) || (binding.frame !== undefined && binding.frame !== frame.frame) ||
       (binding.wholeStagePixelsSha256 !== undefined && binding.wholeStagePixelsSha256 !== frame.pixels) ||
       (binding.pngSha256 !== undefined && binding.pngSha256 !== png.sha256) ||
-      !witnesses.some(w => same(w, png))) throw new Error(`native side/frame/phase binding mismatch for ${id}`);
+      !citations.some(c => c.file === pngFile && c.witness.sha256 === png.sha256)) throw new Error(`native side/frame/phase binding mismatch for ${id}`);
     seen.add(identity);
     // Match the actual file, not merely a same-case digest copied from elsewhere.
-    if (resolve(directory, png.path) !== expectedPng) throw new Error(`native frame PNG role mismatch for ${id}`);
+    if (pngFile !== expectedPng) throw new Error(`native frame PNG role mismatch for ${id}`);
     await nativeWitness(directory, png, capture, id);
+    verifiedPngs.add(canonicalJson([pngFile,png.sha256]));
     const mark = side.actual.mark, steps = c.route.event === 'view.sync' ? mark?.before?.steps : [c.route.step];
     if (side.actual.status === 'complete' && frame.phase === 'playing' && frame.absolute > mark.origin && frame.absolute <= mark.end && steps?.includes(frame.step)) {
       eventSides.add(binding.side);
       if (binding.side === 'variant' && c.status === 'complete') qualifyingVariant = true;
     }
   }
-  if (witnesses.some(w => !bindings.some(b => (b.png?.sha256 ?? b.pngSha256) === w.sha256))) throw new Error(`native witness lacks a frame binding for ${id}`);
+  if (citations.some(c => !verifiedPngs.has(canonicalJson([c.file,c.witness.sha256])))) throw new Error(`native witness lacks a frame binding for ${id}`);
   if (observed && !qualifyingVariant) throw new Error(`observed clause needs a completed variant event/phase frame for ${id}`);
   return {sides, eventSides};
 }
