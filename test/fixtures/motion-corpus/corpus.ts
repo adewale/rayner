@@ -1,19 +1,19 @@
 // The motion defect corpus: historical motion-defect reconstructions that filming the eight Poppy chapters at 200 ms found after
 // `rayner check` and `rayner review` had passed them (issue #101, item 14; the glyph dissolve of item
-// 12), each brought back as a few text edits to the current Poppy scenes (scenes/explainers/poppy*).
+// 12), each brought back as a few text edits to a frozen copy of the Poppy scenes (./poppy/, see its README).
 //
 // Issue #101 counts 63 defects and names their kinds, but lists none of them one by one, and the
 // branch that fixed them (claude/focused-newton-s7zxou, PR #102) records the fixes only as hunks in
 // work-in-progress commits ("motion audit"). Each entry here is one fix in those commits, read from
-// its hunk and the comment it added, and undone on the current scene: `edits` replace the fixed code
+// its hunk and the comment it added, and undone on the frozen scene: `edits` replace the fixed code
 // with the code before the fix (adapted where later commits changed the lines around it). `commit` is
 // the commit whose hunk made the fix. `kind` is #101's kind for it, from the fix's own comment.
 // tools/repo/motion-corpus.ts builds each variant in a copy of the Poppy folders under out/ and runs
 // the keyed motion check on it; test/motion-corpus.test.ts holds the recall measured there.
-// The all-59 visual audit in docs/evidence/motion-all59-2026-11-21 distinguishes
+// The all-59 visual audit (motion-all59-2026-11-21 on the evidence branch, docs/evidence/README.md) distinguishes
 // confirmed, secondary, editorial, blocked and stale reconstructions. Rejection is not accuracy.
 
-/** One text edit to a file of a Poppy folder: `find` (the current scene's text, exactly once) becomes `replace`. */
+/** One text edit to a file of a frozen Poppy folder: `find` (its text, exactly once) becomes `replace`. */
 export interface Edit { file: string; find: string; replace: string }
 
 /** #101's kinds (item 14, and item 12's glyph-by-glyph dissolve), and the two the fixes show that it does not name. */
@@ -37,7 +37,7 @@ export interface CorpusEntry {
   commit: string;
   /** What a reader saw, and what the fix did. */
   what: string;
-  /** 'reverted': the fix's hunk undone on the current scene as it stands; 'adapted': undone by hand where later commits moved the lines. */
+  /** 'reverted': the fix's hunk undone on the scene as it stood when the entry was written; 'adapted': undone by hand where later commits moved the lines. */
   method: 'reverted' | 'adapted';
   edits: readonly Edit[];
   /**

@@ -1,8 +1,13 @@
 // The motion defect corpus (test/fixtures/motion-corpus/corpus.ts): each entry brings back one motion
 // defect that filming the Poppy series found and `rayner check` passed (issue #101, item 14), as a few
-// text edits to the current Poppy scenes. This builds each variant on the fly, in a copy of the Poppy
-// folders under out/, and checks keyed motion and authored travel rules, so the corpus costs the repository a
+// text edits to the Poppy scenes. This builds each variant on the fly, in a copy of the Poppy folders
+// under out/, and checks keyed motion and authored travel rules, so the corpus costs the repository a
 // few kilobytes of edits rather than a copy of eight explainers per defect.
+//
+// The recall measurement (runEntry) edits a frozen copy of the Poppy folders
+// (test/fixtures/motion-corpus/poppy/), so its numbers change only when the checks do: redesigning a
+// current scene cannot move them. Tools about today's scenes (the current audit, the native proofs,
+// the SignIn contracts) build from scenes/explainers/ with `from: 'current'`.
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { keyedMotionLine } from '../../src/internal.ts';
@@ -14,6 +19,11 @@ import type { CorpusEntry, Edit } from '../../test/fixtures/motion-corpus/corpus
 
 /** The folders a variant copies: every Poppy chapter (they import each other's models) and the shared kit. */
 export const POPPY_FOLDERS = ['lib', 'poppy', 'poppy-browser', 'poppy-conversations', 'poppy-coverage', 'poppy-discovery', 'poppy-refusals', 'poppy-sessions', 'poppy-sign-in'] as const;
+/** Where a variant's Poppy folders come from: the corpus's frozen copy, or the scenes as they are now. */
+export type VariantSource = 'frozen' | 'current';
+/** The frozen copy the recall corpus edits, relative to the root (see its README). */
+export const FROZEN_POPPY = 'test/fixtures/motion-corpus/poppy';
+export const poppySource = (from: VariantSource) => from === 'frozen' ? FROZEN_POPPY : 'scenes/explainers';
 
 /** One finding: the scenario's settings, and the line `rayner check` prints for it (`<transition>: <kind>: part “key” …`). */
 export type Observation =
@@ -48,11 +58,11 @@ export async function keyedMotionFindings(file: string, events?: readonly string
   return out;
 }
 
-/** `text` with each edit made; an edit whose `find` is not there exactly once is a corpus entry the scenes have moved past. */
+/** `text` with each edit made; an edit whose `find` is not there exactly once does not apply to these scenes. */
 export function applyEdits(text: string, edits: readonly Edit[], where: string): string {
   for (const e of edits) {
     const n = text.split(e.find).length - 1;
-    if (n !== 1) throw new Error(`${where}: the corpus edit's text is found ${n} times, not once, so the scene has changed since the entry was written; re-derive it from the current scene:\n${e.find}`);
+    if (n !== 1) throw new Error(`${where}: the corpus edit's text is found ${n} times, not once, so it does not apply to these scenes; the recall corpus edits the frozen copy (${FROZEN_POPPY}), which changes only for a deliberate migration:\n${e.find}`);
     text = text.replace(e.find, () => e.replace);
   }
   return text;
@@ -60,19 +70,19 @@ export function applyEdits(text: string, edits: readonly Edit[], where: string):
 
 /** What a variant is built from: an entry, or a chapter with no edits (its baseline). */
 export type Variant = Pick<CorpusEntry, 'id' | 'chapter' | 'edits' | 'events' | 'expectedRefusal'>;
-/** The baseline of `chapter`: its scene as it is, which the catalog's gate keeps free of findings. */
+/** The baseline of `chapter`: its frozen scene with no edits, which the full corpus run requires to be free of findings. */
 export const baseline = (chapter: string): Variant => ({ id: `base-${chapter}`, chapter, edits: [] });
 
 /**
- * Builds a variant: the Poppy folders copied to out/motion-corpus-<id>/ (three levels below the root,
- * as scenes/explainers/<id>/ is, so the scenes' relative imports resolve) with its edits made.
- * Returns the path of the edited chapter's scene.
+ * Builds a variant: the Poppy folders, from the frozen copy or the current scenes, copied to
+ * out/motion-corpus-<id>/ (three levels below the root, as scenes/explainers/<id>/ is, so the scenes'
+ * relative imports resolve) with its edits made. Returns the path of the edited chapter's scene.
  */
-export async function buildVariant(entry: Variant, root = ROOT): Promise<string> {
+export async function buildVariant(entry: Variant, root = ROOT, { from = 'current' }: { from?: VariantSource } = {}): Promise<string> {
   const dir = join(root, 'out', `motion-corpus-${entry.id}`);
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
-  for (const f of POPPY_FOLDERS) await cp(join(root, 'scenes/explainers', f), join(dir, f), { recursive: true });
+  for (const f of POPPY_FOLDERS) await cp(join(root, poppySource(from), f), join(dir, f), { recursive: true });
   const byFile = new Map<string, Edit[]>();
   for (const e of entry.edits) byFile.set(e.file, [...(byFile.get(e.file) ?? []), e]);
   for (const [file, edits] of byFile) {
@@ -182,11 +192,11 @@ export function guardRefusal(entry: Variant, error: unknown): Found | undefined 
     if (found) return current === error ? found : {...found, scenario: 'during guarded execution'};
   }
 }
-/** `full`: every event's transitions, as `rayner check`; otherwise only the entry's `events`. */
+/** `full`: every event's transitions, as `rayner check`; otherwise only the entry's `events`. Built from the frozen copy. */
 export async function runEntry(entry: Variant, { full = false, root = ROOT }: { full?: boolean; root?: string } = {}): Promise<EntryResult> {
   const t = Date.now(), observations: Found[] = [];
   try {
-    const file = await buildVariant(entry, root);
+    const file = await buildVariant(entry, root, { from: 'frozen' });
     const findings = await keyedMotionFindings(file, full ? undefined : entry.events, observations);
     return { id: entry.id, status: 'complete', caught: findings.length > 0, findings, fresh: findings, ms: Date.now() - t };
   } catch (e) {

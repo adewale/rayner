@@ -1,7 +1,8 @@
 // The keyed motion check's recall on real motion defects: the corpus (test/fixtures/motion-corpus/
 // corpus.ts) brings back, one at a time, fixes that filming the Poppy series made after every check
-// had passed (issue #101, item 14), as edits to the current Poppy scenes. Each variant is built in a
-// copy of the Poppy folders under out/ and checked in a process of its own (tools/repo/motion-corpus.ts),
+// had passed (issue #101, item 14), as edits to a frozen copy of the Poppy scenes
+// (test/fixtures/motion-corpus/poppy/), so redesigning a current scene cannot move the measurement.
+// Each variant is built in a copy of those folders under out/ and checked in a process of its own (tools/repo/motion-corpus.ts),
 // playing the transitions of the entry's own events from every reachable state, with every play of
 // the run. docs/MOTION-CORPUS.md holds the recall table and how it was measured.
 //
@@ -16,7 +17,7 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CORPUS } from './fixtures/motion-corpus/corpus.ts';
-import { applyEdits } from '../tools/repo/motion-corpus-lib.ts';
+import { FROZEN_POPPY, applyEdits } from '../tools/repo/motion-corpus-lib.ts';
 import { recall, runCorpus } from '../tools/repo/motion-corpus.ts';
 import { ROOT } from '../tools/lib/roots.ts';
 import { analyzeKeyedMotion } from '../src/keyed-motion.ts';
@@ -139,11 +140,11 @@ test('the recorded exhibit size jump remains rejected after current rest stops r
   assert.ok(!analyzeKeyedMotion(invisible as unknown as typeof frames, capture.segment, capture.dt).some(f => f.kind === 'jump'));
 });
 
-test('every corpus entry still applies to the current Poppy scenes, and names its events', async () => {
+test('every corpus entry applies to the frozen Poppy scenes, and names its events', async () => {
   const files = new Map<string, string>();
   for (const e of CORPUS) {
     for (const edit of e.edits) {
-      if (!files.has(edit.file)) files.set(edit.file, await readFile(join(ROOT, 'scenes/explainers', edit.file), 'utf8'));
+      if (!files.has(edit.file)) files.set(edit.file, await readFile(join(ROOT, FROZEN_POPPY, edit.file), 'utf8'));
     }
     const byFile = new Map<string, typeof e.edits[number][]>();
     for (const edit of e.edits) byFile.set(edit.file, [...(byFile.get(edit.file) ?? []), edit]);
@@ -157,7 +158,7 @@ test('every corpus entry still applies to the current Poppy scenes, and names it
 test('a sample of the corpus: geometry, occlusion and authored context are caught', async () => {
   const entries = CORPUS.filter((e) => SAMPLE.has(e.id));
   assert.equal(entries.length, SAMPLE.size);
-  // The catalog's gate keeps the scenes as they are free of findings, so no baseline is run here.
+  // The full run requires the frozen baselines to be free of findings, so no baseline is run here.
   const { results } = await runCorpus(entries, { bases: false, jobs: 2 });
   assert.equal(results.length, SAMPLE.size);
   for (const r of results) {
@@ -172,7 +173,14 @@ test('a sample of the corpus: geometry, occlusion and authored context are caugh
 });
 
 test('the whole corpus: each historical ID retains its diagnosis or its explicit current construction obligation', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it replays all 59 reconstructed mutations' }, async () => {
-  const { results } = await runCorpus(CORPUS, { bases: false, jobs: 2 });
+  // The catalog's gate keeps today's scenes clean, not the frozen copy: each frozen chapter's
+  // baseline must itself replay every event without a finding, so no entry's catch is inherited.
+  const { results, baselines } = await runCorpus(CORPUS, { bases: true, jobs: 2 });
+  for (const b of baselines) {
+    assert.equal(b.error, undefined, `${b.id}: ${b.error}`);
+    assert.equal(b.status, 'complete', `${b.id} did not replay completely`);
+    assert.deepEqual(b.findings.map(f => f.line), [], `${b.id}: the frozen baseline has findings`);
+  }
   for (const r of results) assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
   const caught = results.filter((r) => r.caught).map((r) => r.id);
   assert.deepEqual(Object.keys(CURRENT_CONSTRUCTION_OBLIGATIONS),['sign-in-ask-people-slide'],'one independently reviewed current construction owner; the original 39 IDs and targets remain historical');

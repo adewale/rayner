@@ -60,6 +60,8 @@ Use Node 24 or later. Every browser check launches Chromium through `tools/lib/b
 | Narrow openings | Independently claimed main-step subjects open fresh at 320×568; their labels must reach 12 CSS px and retain their painted glyph cores |
 | Interaction | Dedicated Chromium owners cover keyboard, touch, history, resize, motion, audio, CSP and cross-origin messages |
 | Packaging and platforms | Fresh installed-package checks on Linux and Intel/ARM Mac, on minimum and current Node 24 |
+| Motion corpus | `motion-corpus.test.ts` measures the keyed motion check by editing a frozen copy of the Poppy chapters (`test/fixtures/motion-corpus/poppy/`), never the current ones; its full run requires every frozen baseline to replay with no finding |
+| Evidence and citations | `evidence-archive.test.ts` checks each archived audit on the `evidence` branch against its hash in `docs/evidence/archive.json`; `commit-citations.test.ts` requires every Rayner commit a living doc or corpus entry cites to resolve, and every permalink's path to exist at its commit. Both need full history (CI's `fetch-depth: 0`) |
 | Browser diversity | ARM Mac/current Node runs WebKit story review and the real Safari reader through `safaridriver` |
 
 ## Triage a failed random campaign
