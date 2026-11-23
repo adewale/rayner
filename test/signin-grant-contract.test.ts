@@ -7,6 +7,7 @@ import { rasterize } from '../tools/lib/explain-raster.ts';
 import SignIn from '../scenes/explainers/poppy-sign-in/scene.ts';
 import { CARDS, type SignInEvent } from '../scenes/explainers/poppy-sign-in/model.ts';
 import { DESK } from '../scenes/explainers/poppy-sign-in/picture.ts';
+import {occlusionPixels,occlusionSnapshot} from './lib/native-contribution.ts';
 
 const referenceKeys = ['agent:station', 'agent:seal', 'agent:name', 'agent:ring'] as const;
 const visible = (part: Mobject) => part.family().some(m => m.style.opacity > 0.01 && (m.style.fill !== 'none' || m.style.stroke !== 'none'));
@@ -38,6 +39,7 @@ test('published SignIn reader grants keep one native recipient, issue both produ
     const {base} = await liveBase(scenario.Scene, 'sign-out', place); assert.ok(base);
     const log: SignInEvent[] = replacement ? ['ask', 'approve-read', 'collect', 'ask', 'approve-all', 'collect'] : ['ask', 'approve-read', 'collect'];
     const origins = new Set<string>(), samples: ReturnType<typeof knockout>[] = [], old: ReturnType<typeof knockout>[] = [];
+    const priorWords = new Map<string,ReturnType<typeof occlusionSnapshot>[]>(), priorInverse:ReturnType<typeof occlusionSnapshot>[]=[];
     let reference: Map<string, number[]> | undefined, frames = 0, poisoned = false;
     let causalInverse = false;
     let start = 0, end = 0;
@@ -62,6 +64,17 @@ test('published SignIn reader grants keep one native recipient, issue both produ
       for (const key of ['agent:key:flight', 'tag:flight']) {
         const traveller = scene.find(key);
         if (!traveller || !visible(traveller)) continue;
+        if(replacement&&key==='tag:flight'){
+          const prior=scene.familyMembers().find(m=>m.key==='tag'&&m.family().some(p=>p instanceof Text&&p.text===CARDS[0]));
+          if(prior)for(const word of prior.family().filter((p):p is Text=>p instanceof Text&&p.style.opacity>0.5)){
+            const rows=priorWords.get(word.text)??[],pair=occlusionSnapshot(scene,word,traveller);
+            if(rows.length<2)rows.push(pair);else rows[1]=pair;priorWords.set(word.text,rows);
+            if(word.text===CARDS[0]&&priorInverse.length===0&&traveller.family().every(m=>m.style.opacity===1)){
+              const at=traveller.center();traveller.moveTo(word.children[0]!.center());
+              try{priorInverse.push(occlusionSnapshot(scene,word,traveller));}finally{traveller.moveTo(at);}
+            }
+          }
+        }
         if (!origins.has(key)) {
           assert.ok(Math.hypot(traveller.center()[0] - DESK[0], traveller.center()[1] - DESK[1]) < 1e-6, `${key}: Company desk is the source`);
           origins.add(key);
@@ -92,5 +105,8 @@ test('published SignIn reader grants keep one native recipient, issue both produ
     assert.ok(end - start <= 4.5 + 2 / host.fps + 1e-6, 'the actual response retains its chapter clock policy');
     assert.equal(samples.length, 6); for (const sample of samples) assert.equal(await paints(sample), true, 'recipient contributes actual native ink');
     assert.equal(old.length, replacement ? 2 : 0); for (const sample of old) assert.equal(await paints(sample), true, 'old credential contributes until replacement is on its way');
+    assert.equal(priorWords.size,replacement?2:0);
+    for(const [literal,rows]of priorWords){assert.equal(rows.length,2);for(const row of rows){const ink=await occlusionPixels(row);assert.ok(ink.owned>0);assert.equal(ink.lost,0,`replacement preserves actual prior ${literal} glyphs up to its punched handoff`);}}
+    if(replacement){assert.equal(priorInverse.length,1);assert.ok((await occlusionPixels(priorInverse[0]!)).lost>0,'displacing the same incoming carrier onto the old credential obscures its actual glyph ink');}
   }
 });

@@ -81,6 +81,10 @@ export async function check(trace: Trace, values: Record<string, string>, {scena
     const protectedKeys = new Set([...keys, 'agent:station', 'agent:seal', 'page:orders:read:line', 'page:orders:write:line']);
     // A presentation gives way to its printed card. A returning tag leaves its own source.
     protectedKeys.delete(mover === 'card:flight' ? 'card' : 'tag');
+    // The physical tag leaves its punched-hole attachment. Its retiring cord is
+    // source ink at that attachment, not an unrelated surface the route crosses.
+    // The event's absence contract independently requires cord/key retirement.
+    if (mover === 'tag:return') protectedKeys.delete('tag:cord');
     // The empty-key guide is deliberately behind the first displayed card.
     if (mover === 'card:flight' && log.length === 1) protectedKeys.delete('agent:key:slot');
     await runLive(scenario.Scene, 'sign-out', place, log, {from: base.from, animate: {
@@ -92,7 +96,7 @@ export async function check(trace: Trace, values: Record<string, string>, {scena
         await clearance.frame(scene, mover, parts);
       },
     }});
-    clearance.assertClear(log.join(', ') + ' ' + mover, required);
+    clearance.assertClear(log.join(', ') + ' ' + mover, mover === 'tag:return' ? required.filter(k => k !== 'tag:cord') : required);
   }
 }
 

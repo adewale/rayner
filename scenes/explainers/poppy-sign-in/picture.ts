@@ -176,6 +176,13 @@ export function tag(s: DrawContext, { at, value, foreign = false, holeRight = fa
   return new Group(...parts);
 }
 
+/** Physical attachment shared by the printed credential, transit tag and cord. */
+export function tagPunch(part: Mobject): Vec {
+  // The second physical child is the punched circle. Read the actual point,
+  // including scaling/rotation, independently of text's metric bounds.
+  return part.children[1]!.center();
+}
+
 /** Your password, as a card: PAPER, 1.8 × 0.86, six PRINT dots in a field ruled under them. One unkeyed Group. */
 export function passwordCard(_s: DrawContext, { at }: { at: Vec }): Group {
   const [x, y] = at;
@@ -286,7 +293,7 @@ function agentWith(s: DrawContext, at: Ring, teeth: number, card: string | null,
   if (teeth > 0) out.push(keyed(key(s, { at: at.key, size: at.size, teeth, facing }), 'agent:key'));
   if (card) {
     const t = tag(s, { at: at.tag, value: card, holeRight: direction < 0 });
-    const hole: Vec = [at.tag[0] - direction * (t.width() / 2 - 0.3), at.tag[1] + 0.72 - 0.3];
+    const hole = tagPunch(t);
     const from: Vec = [at.ring[0], at.ring[1] - 0.2];
     const dx = hole[0] - from[0], dy = hole[1] - from[1], len = Math.hypot(dx, dy), nx = (-dy / len) * 0.035, ny = (dx / len) * 0.035;
     out.push(keyed(outline([[from[0] + nx, from[1] + ny], [hole[0] + nx, hole[1] + ny], [hole[0] - nx, hole[1] - ny], [from[0] - nx, from[1] - ny]], TONE.brassDeep), 'tag:cord'));

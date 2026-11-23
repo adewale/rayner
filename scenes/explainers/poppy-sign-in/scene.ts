@@ -7,8 +7,8 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { CARDS, SIGN_IN_EVENTS, STORY, next, start } from './model.ts';
 import type { SignInEvent, World } from './model.ts';
 import {
-  ADDRESS_AT, DESK, PALETTE, THIEF_AT,
-  codeToken, drawWorld, requestToken, sayWorld, tag as keyTag,
+  ADDRESS_AT, DESK, FACE, PALETTE, THIEF_AT,
+  codeToken, drawWorld, requestToken, sayWorld, tag as keyTag, tagPunch,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -88,15 +88,15 @@ export default class SignIn extends Scene {
      * the strip and the keyring (y LANE), then up to the address bar or across to the counter's desk,
      * so they pass over no label on the way.
      */
-    const LANE = -1.62, FACE_LEFT = DESK[0] - 2.2;
+    const LANE = -1.62;
     const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
     const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];
     const request = () => requestToken(s.drawing).scale(0.55);
     const code = () => codeToken(s.drawing);
     /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
     const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 },
-      {retire, token, replaceInPlace = false}: {retire?: Animation; token?: Mobject; replaceInPlace?: boolean} = {}): Beat[] => {
-      const part = c.to(k), walk = c.travel(`${k}:flight`, token ?? part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
+      {retire, token, replaceInPlace = false, destination}: {retire?: Animation; token?: Mobject; replaceInPlace?: boolean; destination?: Pt} = {}): Beat[] => {
+      const part = c.to(k), walk = c.travel(`${k}:flight`, token ?? part.copy(), route(via[0]!, ...via.slice(1), destination ?? part.center() as Pt), times);
       const arrival = new AnimationGroup([walk.leave, replaceInPlace ? c.morph(k, {runTime: times.leave}) : c.enter(k, {}, { runTime: times.leave })]);
       return [walk.appear, walk.move, retire ? new Succession([retire, arrival]) : arrival];
     };
@@ -169,12 +169,22 @@ export default class SignIn extends Scene {
           // A wordless refresh-token tag travels around the held key and then
           // hands off to its complete printed tag. No small lettering or swept
           // paper can erase the still-usable grant at the recipient's ring.
-          const targetTag = c.to('tag'), tagToken = keyTag(s.drawing, {at: [0, 0], value: null});
-          const edgeX = device ? targetKey.box()![0] - tagToken.width() / 2 - 0.08
-            : targetKey.box()![2] + tagToken.width() / 2 + 0.08;
-          const tagRoute: Pt[] = [out, [edgeX, out[1]], [edgeX, targetTag.center()[1]]];
+          const targetTag = c.to('tag'), tagToken = keyTag(s.drawing, {at: [0, 0], value: null, holeRight: device});
+          const hole = tagPunch(targetTag), printed = targetTag.family().find(m=>m instanceof Text&&m.text==='refresh token')!.box()!;
+          const margin = device ? hole[0]-printed[2] : printed[0]-hole[0];
+          // Reserve the printed name's real footprint at the punched attachment.
+          // A wordless carrier fits this gutter instead of sweeping the prior
+          // credential's printing as it approaches a replacement handoff.
+          const paper = tagToken.children[0]!.box()!, initialHole = tagPunch(tagToken);
+          const inward = device ? initialHole[0]-paper[0] : paper[2]-initialHole[0];
+          tagToken.scale(Math.min(1,(margin-0.06)/inward));
+          const offset = tagPunch(tagToken);
+          const tagLanding: Pt = [hole[0] - offset[0], hole[1] - offset[1]];
+          const edgeX = device ? targetTag.box()![2] + tagToken.width() / 2 + 0.08
+            : targetTag.box()![0] - tagToken.width() / 2 - 0.08;
+          const tagRoute: Pt[] = [out, [edgeX, out[1]], [edgeX, tagLanding[1]]];
           const key = fly(c, 'agent:key', [out, [clearX, out[1]], [clearX, targetKey.center()[1]]], timing(undefined), {replaceInPlace: old.includes('agent:key')}),
-            tag = fly(c, 'tag', tagRoute, timing(retireTag), {retire: retireTag, token: tagToken});
+            tag = fly(c, 'tag', tagRoute, timing(retireTag), {retire: retireTag, token: tagToken, destination: tagLanding});
           return [
             run[0]!, run[1]!, gone,
             new AnimationGroup([...fadeIn(c, moved), key[0]!]),
@@ -217,13 +227,20 @@ export default class SignIn extends Scene {
       const heldDevice = device;
       // In the stable device composition the station is between the tag and desk.
       // Release the printed original into the same punched tag, seen in transit.
-      const token = heldDevice ? keyTag(s.drawing, { at: from, value: null }) : c.from('tag').copy();
-      const halfHeight = token.height() / 2 + 0.06;
-      const acrossY = heldDevice ? Math.max(from[1], c.from('agent:name').box()![3] + halfHeight) : from[1];
-      const dockX = heldDevice ? DESK[0] - token.width() / 2 : FACE_LEFT;
-      const dockY = c.has('card', 'from') ? Math.min(-2.25, c.from('card').box()![1] - halfHeight) : DESK[1];
+      const scale = heldDevice ? 0.25 : 1;
+      const token = keyTag(s.drawing, { at: [0, 0], value: null, holeRight: device }).scale(scale);
+      const punch = tagPunch(c.from('tag')), offset = tagPunch(token);
+      const start: Pt = [punch[0] - offset[0], punch[1] - offset[1]];
+      // In device flow the station blocks the upper rail. The small wordless
+      // return goes below the actual name ink, then rises outside both the name
+      // and the complete device card to the visible Company's counter face.
+      const name = c.from('agent:name'), inkBottom = Math.min(...name.children.map(m => m.box()?.[1] ?? Infinity));
+      const acrossY = heldDevice ? inkBottom - token.height() / 2 - 0.05 : from[1];
+      const dockX = heldDevice ? Math.max(FACE-token.width()/2+0.04, name.box()![2]+token.width()/2+0.06,
+        c.has('card','from') ? c.from('card').box()![2]+token.width()/2+0.06 : -Infinity) : DESK[0];
+      const dockY = DESK[1];
       const to: Pt = [dockX, dockY];
-      const via: Pt[] = heldDevice ? [from, [from[0], acrossY], [dockX, acrossY], to] : [from, [dockX, from[1]], to];
+      const via: Pt[] = heldDevice ? [start, from, [from[0], acrossY], [dockX, acrossY], to] : [start, from, [dockX, from[1]], to];
       const going = ['agent:key', 'tag:cord'].filter((k) => c.has(k, 'from') && !c.has(k, 'to'));
       const moved = heldDevice ? relaid(c) : [];
       return beats(c, () => {
@@ -275,6 +292,7 @@ export default class SignIn extends Scene {
         // Revocation retires the access, rather than leaving a second held key/tag.
         if ((event === 'sign-out' || event === 'disconnect') && before.holds) return [{
           view: world, during: 'tag:return', absent: ['tag', 'agent:key', 'tag:cord'],
+          present: ['agent:name', ...(world.current.find('you:password') ? ['you:password'] : [])], clearText: ['agent:name'],
         }];
         return [];
       },
