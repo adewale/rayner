@@ -1,0 +1,78 @@
+{
+  "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "method": "I opened each original PNG using view_image. The separate eight canonical case images are enumerated in native-opened.json. Other frames in automatic comparisons do not enter this inventory.",
+  "opened": [
+    {
+      "path": "reader-return/device-first-disconnect-30.png",
+      "sha256": "85f6c6cebca5de8ae8bc0bd50dd784cd0f4641d2e6333099781c1aa36b6e50b1",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "White traveller stays wholly visible above the station name at its device return gutter."
+    },
+    {
+      "path": "reader-return/device-replacement-disconnect-39.png",
+      "sha256": "faa2809ab8745b23b51b5c3aee304e5aab5b9fd90a4d9fbf4fcb9dfca132093c",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "Small punched traveller approaching the Company after clearing the device station."
+    },
+    {
+      "path": "reader-return/direct-first-disconnect-30.png",
+      "sha256": "7e6b93618109dce13721d7895b894729beb01892e80dcfff6c70acef3449a95d",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "Direct return stays to the right of the station name and below the password sign."
+    },
+    {
+      "path": "../../../../rayner/out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-first-disconnect-30.png",
+      "sha256": "6f586156660a2723470771ff7b9fd587f1695c46b3d86f759c3f3839257eeb81",
+      "source": "8151582fc8a4ff2d06d6b4e5607633e0474c0dbf",
+      "note": "Earlier device route clips the punched traveller at the bottom edge."
+    },
+    {
+      "path": "card-lifecycle/device-domain-on-moving-parent.png",
+      "sha256": "42a05c3e4fd772a6671b227b663156f7ec6c2ca6f4e0130af2634523f21ed7fa",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "All three lines of black printed text travel on the cream card."
+    },
+    {
+      "path": "card-lifecycle/device-faceup-outgoing-poll.png",
+      "sha256": "1bb18b4ef2e353d08a7f219502192ee31a89245d694291138ab0c152f1cd9ed0",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "Face-up code, Company and domain are distinct printed lines during the outgoing poll."
+    },
+    {
+      "path": "card-lifecycle/device-approved-outgoing-poll-without-faceup-card.png",
+      "sha256": "87350fedb7e498eeecedff412c061e772d9fb5758250b109b154d64953949b60",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "The approved poll is present after the face-up card has departed."
+    },
+    {
+      "path": "card-lifecycle/device-foreign-card.png",
+      "sha256": "22769639e25eb265661ccee26534c97c892469ff339b618b0d8cf92e003d7824",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "The separate face-down gray card has decorative dashes, no visible domain line."
+    },
+    {
+      "path": "reader-grants/device-first-102.png",
+      "sha256": "6b47ca7abf4cb4bb6b221541e7299a72eab292c4faf98d9a54bad54d952a84e4",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "Delivered access key beside the station with a wordless punched carrier arriving."
+    },
+    {
+      "path": "reader-grants/device-first-110.png",
+      "sha256": "8fe078f646765776de9957e4698b483718e06fd3e9ebde5686a366315824c490",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "Printed refresh credential is present after that carrier arrives."
+    },
+    {
+      "path": "reader-grants/direct-replacement-102.png",
+      "sha256": "07649d35f5baacf8cc3659a51e0cf21f390e7540e2eee8b07ee8c9ec9e1452d3",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "The existing printed replacement-flow credential is readable during delivery."
+    },
+    {
+      "path": "reader-grants/direct-replacement-119.png",
+      "sha256": "dc506f4356153fbebeed283c4a86c7eb7463d65e6b434dc78166d3bc9a235b79",
+      "source": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "note": "Replacement credential prints at the same station after the handoff."
+    }
+  ]
+}

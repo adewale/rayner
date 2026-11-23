@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "kind": "consumer validation of preserved source-39 native review and workers",
+  "consumerRevision": "7b95f4435a4a1b2209c6de7c924cf5c00c98d085",
+  "measuredRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "measuredRun": "root-causes-39b75450",
+  "approvedReview": {
+    "path": "review.json",
+    "sha256": "792ce312ad3fa76e73b2e479e7bb2b80aa1ea388c6508622e4c1353c2d686c2b"
+  },
+  "originalCapture": {
+    "path": "../../root-causes-review-39b75450/capture.json",
+    "sha256": "6928a1428f13eec45f22fda312b1831e12a4836f7e3cc2565297369454aaad5d"
+  },
+  "originalMeasurementEnvelope": {
+    "path": "../attempt3-assessment/measurement-envelope.json",
+    "sha256": "442a61243f27bfc7bd8489f5666fca5a1775b92b7d89c2f81a8501bd18e5fd60"
+  },
+  "originalMeasurementSha256": "86f67874816e7b930a8c403fea0440d303c2f875f2f18739deecc05386150d7d",
+  "runtimeEquivalence": {
+    "reference": "39b75450eeb4ef9082ec22a93be099770365d715",
+    "paths": [
+      "src",
+      "explain",
+      "app",
+      "scenes",
+      "tools/lib",
+      "test/fixtures/motion-corpus",
+      "vendor",
+      "package.json",
+      "package-lock.json",
+      "tools/repo/motion-current-audit.ts",
+      "tools/repo/motion-audit-routes.ts",
+      "tools/repo/motion-corpus-lib.ts",
+      "tools/repo/motion-corpus.ts"
+    ],
+    "diffEmpty": true,
+    "allChangedPaths": [
+      "test/motion-semantic.test.ts",
+      "tools/repo/motion-semantic.ts"
+    ]
+  },
+  "caseCounts": {
+    "observed": 45,
+    "typed-prevention": 4,
+    "non-reproducing": 4,
+    "editorial": 6,
+    "unresolved": 0
+  },
+  "semantic": [
+    {
+      "id": "poppy-key-over-station-name",
+      "version": "poppy-key-over-station-name@semantic-2026-11-22.1",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "run": "root-causes-39b75450",
+      "actor": "agent:key:flight",
+      "victim": "lane:sign-in:name",
+      "literal": "Sign-in",
+      "event": "sign-in",
+      "phase": "inbound key move",
+      "ratified": true,
+      "status": "semantic-target-match"
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "version": "refusals-key-over-lane-name@semantic-2026-11-22.1",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "run": "root-causes-39b75450",
+      "actor": "agent:key:flight",
+      "victim": "lane:api:name",
+      "literal": "API",
+      "event": "answer",
+      "phase": "refreshed API key move",
+      "ratified": true,
+      "status": "semantic-target-match"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "version": "sign-in-poll-over-card@semantic-2026-11-22.1",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "run": "root-causes-39b75450",
+      "actor": "poll",
+      "victim": "card",
+      "literal": "example.com",
+      "event": "collect",
+      "phase": "outgoing device poll move",
+      "ratified": true,
+      "status": "semantic-target-miss"
+    },
+    {
+      "id": "browser-forge-across-stage",
+      "version": "browser-forge-across-stage@semantic-2026-11-22.1",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "run": "root-causes-39b75450",
+      "actor": "forged",
+      "victim": "page:sid",
+      "literal": "Yx2b7Q",
+      "event": "forge",
+      "phase": "forged slip move across SID value",
+      "ratified": true,
+      "status": "semantic-target-match"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "version": "sign-in-poll-over-card@domain-clearance-2026-11-23.1",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "run": "root-causes-39b75450",
+      "actor": "poll",
+      "victim": "card",
+      "literal": "example.com",
+      "event": "collect",
+      "phase": "outgoing device poll move",
+      "ratified": true,
+      "status": "semantic-target-match"
+    }
+  ],
+  "policy": "The consumer is newer; all native captures, independent reviews and detector workers retain source39/runroot-causes-39b75450. This is not a source7b95 native capture or new worker measurement. Consumer fixes alter artifact admission only."
+}

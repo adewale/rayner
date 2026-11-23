@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "consumerRevision": "7b95f4435a4a1b2209c6de7c924cf5c00c98d085",
+  "nativeAndWorkerRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "archiveSha256": "de2f8ee777d201f53578c2d182a3b7eefc8cffbc144d70f359d144974a473d1c",
+  "archiveBytes": 1131460,
+  "policy": "Unchanged original independent consumer report, controls and source-qualified readback. Temporary full native relocation fixture directories are excluded; the raw control script and outcomes remain. Original absolute references are retained, so this is not a standalone rerunnable environment. No native or worker source label is rewritten.",
+  "files": [
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/REPORT.md",
+      "bytes": 4612,
+      "sha256": "db72ed5d188a123489954ac9499827c897d86d63a58f511220b3255d4e2ad6f8"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/ambiguous-worker-envelope.json",
+      "bytes": 481,
+      "sha256": "e5d79c1dd4a09d0b91598cf279300f04a5bdc3a4c8ebc7f0fb1bd15faa5e794e"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/ambiguous-worker-payload.json",
+      "bytes": 12854,
+      "sha256": "beabdefddc0998621e4d9991e3f23681a93d4ebbb324ca1dd0265400b5e45557"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/contradictory-nonrep.json",
+      "bytes": 715614,
+      "sha256": "3902b63e150c4f72ef2e0c93895e3a187c383520b2139353e8faf7d7ff932a4c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/positive-envelope.json",
+      "bytes": 473,
+      "sha256": "b5d7a16df8d31c807020c5dd106927711f5f219aa60fb2aaadd61ad44d203dd9"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/positive-payload.json",
+      "bytes": 12088,
+      "sha256": "977a30dad724a74be94567709673b93875130e86c1d6290fa6b0d0221f87bc9c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/relabeled-capture.json",
+      "bytes": 1593413,
+      "sha256": "4e458d2c692c801688a847187cdc89446a14a73f408122a386ffc8a45a5b34c1"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/relabeled-review.json",
+      "bytes": 730579,
+      "sha256": "5b9f8f15726cac68ed149ef615578762bac923e0ad989fcb0ef8ace99c1c479b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/results.json",
+      "bytes": 3301,
+      "sha256": "c72fbe0a84a6781b01288962874e58614ed36a68f5dd26b4cc4daba5c87fc969"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/typed-as-observed.json",
+      "bytes": 725678,
+      "sha256": "1f0c455630ffb2f626027e0d89896ca770eae25d558c5b9cd0bdb8d4bf16239a"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/unsubtracted-envelope.json",
+      "bytes": 477,
+      "sha256": "76e3c03ad2b1ae21b536f710c78dbf0fefdc7b81b48418ac065d0c0e7bbd2fb2"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/unsubtracted-payload.json",
+      "bytes": 13374,
+      "sha256": "2fee3ce1d233533df7dfe37c2e183e8dec7b3e8e5341e01cc7c1ba309f3c4600"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/variants-only-envelope.json",
+      "bytes": 478,
+      "sha256": "b257521b7e11c66b66d6af4567c5aed877b1d55264d0217d42a99c65b1060745"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/variants-only-payload.json",
+      "bytes": 10853,
+      "sha256": "6f756e8a2fa83710d10ae6cfb49e5cffb5be891b45d3a57419391b80379411cd"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/wrong-review.json",
+      "bytes": 720987,
+      "sha256": "7610c4b7e101916cb91a3b0be4fdef8e3bd9cef786697bcca3251d884ab0b4c5"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/wrong-route.json",
+      "bytes": 723156,
+      "sha256": "686cd1688f9c10dc903b176237f7a48f815252d315ac5f036bbb03857ce46cd9"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/wrong-source-envelope.json",
+      "bytes": 479,
+      "sha256": "9f7330ffed3c5915b5dad74474d617c1635846a6da8e0d356294b61432788a7c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-controls/wrong-source-payload.json",
+      "bytes": 12088,
+      "sha256": "977a30dad724a74be94567709673b93875130e86c1d6290fa6b0d0221f87bc9c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/admission-replay.ts",
+      "bytes": 7866,
+      "sha256": "442df58b4a128c7d8dbc58cc83c3fe1fc24cc2d9d9601851432b24a2e4f8c073"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/final-verdict.json",
+      "bytes": 4249,
+      "sha256": "f167d2c855d5e11ba2aab16173a6dd800fbaa4d751554ba95ba1dcea100c0131"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/independent-controls.json",
+      "bytes": 6400,
+      "sha256": "72690cc8edc2752adc0cb605a791508b9a7b10eb5f55fb171b0d8d718bc3e431"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/independent-controls.ts",
+      "bytes": 9793,
+      "sha256": "0ca23e7c4e7244a4b5bfcc110d06e61dd7907f72c3b8b2db5424ad18abaf9531"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/source-bound-readback.json",
+      "bytes": 26568,
+      "sha256": "a43ce422de053ff403cbaaf74731612cbd3165dddfe5ec2de7027c994151fad0"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/source-bound-readback.ts",
+      "bytes": 6585,
+      "sha256": "44deeef11ba859f20a96813dbb73b3b9c2bde4844a54e6a7e35cdd9cf041b501"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-4/unchanged-runtime.json",
+      "bytes": 2493,
+      "sha256": "94c162d2e11a6a1bdf8f26dd1cafed019b24dd6e39618a61b9fd348381fdba0c"
+    }
+  ]
+}

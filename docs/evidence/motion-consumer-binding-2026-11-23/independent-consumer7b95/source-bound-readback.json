@@ -1,0 +1,741 @@
+{
+  "source": {
+    "consumer": "7b95f4435a4a1b2209c6de7c924cf5c00c98d085",
+    "old": "8151582fc8a4ff2d06d6b4e5607633e0474c0dbf",
+    "current": "39b75450eeb4ef9082ec22a93be099770365d715"
+  },
+  "changedTrackedFiles": [
+    "test/motion-semantic.test.ts",
+    "tools/repo/motion-semantic.ts"
+  ],
+  "consumerSourceSha": "ba6cf0548cd679098cdaff14fa97e08d739f1d50eb5eb4c89b08200d01c25b82",
+  "records": [
+    {
+      "sourceRevision": "8151582fc8a4ff2d06d6b4e5607633e0474c0dbf",
+      "run": "root-causes-8151582f",
+      "reviewSha": "9c7d347d03c9545f14a28a416ddc75557dcb05927bcbd0ce5fffcac5d5917db5",
+      "approvedObservationsSha": "d04186278e462162bc904bb04d3e985d0c93bae49dfea289fc7543c91809cb40",
+      "originalBoundReceipt": {
+        "path": "../attempt2-assessment/bound-ratification-receipt.json",
+        "sha256": "e2c81d8a50a6aff3db16ef539c6ef0cf6f01df01046f8aaf22630d069d5454ee"
+      },
+      "producerEnd": {
+        "path": "../attempt2-assessment/source-attestation-end.json",
+        "sha256": "7baa9278b4d882dfa249ed82f8d9c5fad9d4e72dc2128c9188190254819b2b0b"
+      },
+      "measurementPayload": {
+        "path": "../../root-causes-measurement-8151582f.json",
+        "sha256": "5a08d2e2abd79caead0d4bd70a24a527c9e1b6e993980c4b50c496e4910da132"
+      },
+      "caseCounts": {
+        "observed": 45,
+        "typed-prevention": 4,
+        "non-reproducing": 4,
+        "editorial": 6,
+        "unresolved": 0
+      },
+      "variantStatuses": {
+        "complete": 52,
+        "refused": 7
+      },
+      "baselines": [
+        {
+          "id": "base-poppy",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-refusals",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-sessions",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-sign-in",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-browser",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-conversations",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-coverage",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-discovery",
+          "status": "complete",
+          "findings": 0
+        }
+      ],
+      "summary": {
+        "caught": 41,
+        "of": 59,
+        "byKind": {
+          "passes over": {
+            "caught": 22,
+            "of": 28
+          },
+          "result before cause": {
+            "caught": 4,
+            "of": 5
+          },
+          "layout motion": {
+            "caught": 1,
+            "of": 8
+          },
+          "two copies": {
+            "caught": 4,
+            "of": 4
+          },
+          "squeezed": {
+            "caught": 3,
+            "of": 3
+          },
+          "too long": {
+            "caught": 0,
+            "of": 3
+          },
+          "small label in flight": {
+            "caught": 3,
+            "of": 3
+          },
+          "glyph dissolve": {
+            "caught": 0,
+            "of": 1
+          },
+          "flicker": {
+            "caught": 4,
+            "of": 4
+          }
+        },
+        "evidence": {
+          "rejected": 41,
+          "attributedFindings": 9,
+          "declaredRefusals": 0,
+          "guardOnly": 6,
+          "unattributedWarnings": 26,
+          "exactTargets": 12,
+          "exactMatches": 9
+        }
+      },
+      "registeredRepresentations": [
+        {
+          "id": "poppy-key-over-station-name",
+          "version": "poppy-key-over-station-name@semantic-2026-11-22.1",
+          "targetSha256": "c825738f963aed25a5525e72ef01ab98aa42a0d604ef7e5d2647bffa725a6c84",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{\"approve\":\"read-write\"}",
+              "line": "step \"approve\", event \"sign-in\": motion contract: during \"agent:key:flight\", text subject \"lane:sign-in:name\" must remain clear at +0.967 s",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"approve\", event \"sign-in\"",
+                "kind": "motion contract",
+                "path": "agent:key:flight",
+                "detail": "text subject \"lane:sign-in:name\" must remain clear",
+                "subjects": [
+                  "lane:sign-in:name"
+                ],
+                "requirement": "clear",
+                "victim": "lane:sign-in:name",
+                "masks": [
+                  "agent:key:flight"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "refusals-key-over-lane-name",
+          "version": "refusals-key-over-lane-name@semantic-2026-11-22.1",
+          "targetSha256": "bcd68d7556eb9860e90ae9e3628fafc0b4f7ef60586db50cdc8239afc082a083",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{}",
+              "line": "step \"slip\", event \"answer\": motion contract: during \"agent:key:flight\", text subject \"lane:api:name\" must remain clear at +1.200 s",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"slip\", event \"answer\"",
+                "kind": "motion contract",
+                "path": "agent:key:flight",
+                "detail": "text subject \"lane:api:name\" must remain clear",
+                "subjects": [
+                  "lane:api:name"
+                ],
+                "requirement": "clear",
+                "victim": "lane:api:name",
+                "masks": [
+                  "agent:key:flight"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "sign-in-poll-over-card",
+          "version": "sign-in-poll-over-card@semantic-2026-11-22.1",
+          "targetSha256": "7676bba803cc619b15bbcda5912286ef268db1e4e7158dbc9c8c60401e8967b1",
+          "status": "semantic-target-miss",
+          "matchedFreshFindings": []
+        },
+        {
+          "id": "browser-forge-across-stage",
+          "version": "browser-forge-across-stage@semantic-2026-11-22.1",
+          "targetSha256": "bb7acd71b6ecdeabd2a8f3981751d1cb391152f17a6778a17a75c49dc6cc2d63",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{\"signin\":\"signed-in\"}",
+              "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"forge\", play 3, event 1",
+                "kind": "covers",
+                "path": "forged",
+                "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+                "subjects": [
+                  "Yx2b7Q",
+                  "page:sid"
+                ],
+                "victim": "page:sid",
+                "masks": [
+                  "forged"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "historicalMissing": [
+        "sign-in-ask-people-slide"
+      ],
+      "currentOtherCredit": [
+        "poppy-key-over-station-name",
+        "refusals-mcp-key-over-label",
+        "refusals-key-over-lane-name"
+      ],
+      "freshSignInPoll": [],
+      "authenticAssessmentEqualsOldConsumer": true
+    },
+    {
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "run": "root-causes-39b75450",
+      "reviewSha": "792ce312ad3fa76e73b2e479e7bb2b80aa1ea388c6508622e4c1353c2d686c2b",
+      "approvedObservationsSha": "38b448b0891e78ff7dbbf6dbedb93918620c3c6a08a2fe1a47939609d8550630",
+      "originalBoundReceipt": {
+        "path": "../../../../rayner-attempt3/out/remaining-fixes-2026-11-22/attempt3-assessment/bound-ratification-receipt.json",
+        "sha256": "5c02cc95998198cd04e1a37304445855686d8586388df3e73dea50ac62dbff6b"
+      },
+      "producerEnd": {
+        "path": "../../../../rayner-attempt3/out/remaining-fixes-2026-11-22/attempt3-assessment/source-attestation-end.json",
+        "sha256": "11152d2785d591777c7d08fef4c0b1b888538291720fad960aad226fe9784949"
+      },
+      "measurementPayload": {
+        "path": "../../../../rayner-attempt3/out/root-causes-measurement-39b75450.json",
+        "sha256": "86f67874816e7b930a8c403fea0440d303c2f875f2f18739deecc05386150d7d"
+      },
+      "caseCounts": {
+        "observed": 45,
+        "typed-prevention": 4,
+        "non-reproducing": 4,
+        "editorial": 6,
+        "unresolved": 0
+      },
+      "variantStatuses": {
+        "complete": 52,
+        "refused": 7
+      },
+      "baselines": [
+        {
+          "id": "base-poppy",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-refusals",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-sessions",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-sign-in",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-browser",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-conversations",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-coverage",
+          "status": "complete",
+          "findings": 0
+        },
+        {
+          "id": "base-poppy-discovery",
+          "status": "complete",
+          "findings": 0
+        }
+      ],
+      "summary": {
+        "caught": 41,
+        "of": 59,
+        "byKind": {
+          "passes over": {
+            "caught": 22,
+            "of": 28
+          },
+          "result before cause": {
+            "caught": 4,
+            "of": 5
+          },
+          "layout motion": {
+            "caught": 1,
+            "of": 8
+          },
+          "two copies": {
+            "caught": 4,
+            "of": 4
+          },
+          "squeezed": {
+            "caught": 3,
+            "of": 3
+          },
+          "too long": {
+            "caught": 0,
+            "of": 3
+          },
+          "small label in flight": {
+            "caught": 3,
+            "of": 3
+          },
+          "glyph dissolve": {
+            "caught": 0,
+            "of": 1
+          },
+          "flicker": {
+            "caught": 4,
+            "of": 4
+          }
+        },
+        "evidence": {
+          "rejected": 42,
+          "attributedFindings": 9,
+          "declaredRefusals": 0,
+          "guardOnly": 6,
+          "unattributedWarnings": 27,
+          "exactTargets": 12,
+          "exactMatches": 9
+        }
+      },
+      "registeredRepresentations": [
+        {
+          "id": "poppy-key-over-station-name",
+          "version": "poppy-key-over-station-name@semantic-2026-11-22.1",
+          "targetSha256": "c825738f963aed25a5525e72ef01ab98aa42a0d604ef7e5d2647bffa725a6c84",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{\"approve\":\"read-write\"}",
+              "line": "step \"approve\", event \"sign-in\": motion contract: during \"agent:key:flight\", text subject \"lane:sign-in:name\" must remain clear at +0.967 s",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"approve\", event \"sign-in\"",
+                "kind": "motion contract",
+                "path": "agent:key:flight",
+                "detail": "text subject \"lane:sign-in:name\" must remain clear",
+                "subjects": [
+                  "lane:sign-in:name"
+                ],
+                "requirement": "clear",
+                "victim": "lane:sign-in:name",
+                "masks": [
+                  "agent:key:flight"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "refusals-key-over-lane-name",
+          "version": "refusals-key-over-lane-name@semantic-2026-11-22.1",
+          "targetSha256": "bcd68d7556eb9860e90ae9e3628fafc0b4f7ef60586db50cdc8239afc082a083",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{}",
+              "line": "step \"slip\", event \"answer\": motion contract: during \"agent:key:flight\", text subject \"lane:api:name\" must remain clear at +1.200 s",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"slip\", event \"answer\"",
+                "kind": "motion contract",
+                "path": "agent:key:flight",
+                "detail": "text subject \"lane:api:name\" must remain clear",
+                "subjects": [
+                  "lane:api:name"
+                ],
+                "requirement": "clear",
+                "victim": "lane:api:name",
+                "masks": [
+                  "agent:key:flight"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "sign-in-poll-over-card",
+          "version": "sign-in-poll-over-card@semantic-2026-11-22.1",
+          "targetSha256": "7676bba803cc619b15bbcda5912286ef268db1e4e7158dbc9c8c60401e8967b1",
+          "status": "semantic-target-miss",
+          "matchedFreshFindings": []
+        },
+        {
+          "id": "browser-forge-across-stage",
+          "version": "browser-forge-across-stage@semantic-2026-11-22.1",
+          "targetSha256": "bb7acd71b6ecdeabd2a8f3981751d1cb391152f17a6778a17a75c49dc6cc2d63",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{\"signin\":\"signed-in\"}",
+              "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"forge\", play 3, event 1",
+                "kind": "covers",
+                "path": "forged",
+                "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+                "subjects": [
+                  "Yx2b7Q",
+                  "page:sid"
+                ],
+                "victim": "page:sid",
+                "masks": [
+                  "forged"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "sign-in-poll-over-card",
+          "version": "sign-in-poll-over-card@domain-clearance-2026-11-23.1",
+          "targetSha256": "5aea8e4d5f2692d418d6c70ec824a4e58bd7ae2d081dd606b168d58ea48f48d2",
+          "status": "semantic-target-match",
+          "matchedFreshFindings": [
+            {
+              "scenario": "{\"flow\":\"device\"}",
+              "line": "step \"ask\", event \"collect\": motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+              "observation": {
+                "type": "finding",
+                "transition": "step \"ask\", event \"collect\"",
+                "kind": "motion contract",
+                "path": "poll",
+                "detail": "text subject \"card:domain\" must remain clear",
+                "subjects": [
+                  "card:domain"
+                ],
+                "requirement": "clear",
+                "victim": "card:domain",
+                "masks": [
+                  "poll"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "historicalMissing": [
+        "sign-in-ask-people-slide"
+      ],
+      "currentOtherCredit": [
+        "poppy-key-over-station-name",
+        "refusals-mcp-key-over-label",
+        "refusals-key-over-lane-name"
+      ],
+      "freshSignInPoll": [
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "step \"ask\", event \"collect\": motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"ask\", event \"collect\"",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, collect, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.833 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-all, collect, sign-out, ask, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-all, collect, sign-out, ask, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, collect, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.833 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, collect, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, thief, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.833 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, thief, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, sign-out, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, sign-out, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, disconnect, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, disconnect, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-all, collect, sign-out, ask, collect, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-all, collect, sign-out, ask, collect, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, approve-read, collect, ask, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.833 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, approve-read, collect, ask, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, approve-read, collect, ask, collect, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.833 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, approve-read, collect, ask, collect, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, approve-read, collect, ask, thief, collect: motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.833 s",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, approve-read, collect, ask, thief, collect",
+            "kind": "motion contract",
+            "path": "poll",
+            "detail": "text subject \"card:domain\" must remain clear",
+            "subjects": [
+              "card:domain"
+            ],
+            "requirement": "clear",
+            "victim": "card:domain",
+            "masks": [
+              "poll"
+            ]
+          }
+        }
+      ],
+      "authenticAssessmentEqualsOldConsumer": true
+    }
+  ],
+  "preservedAstra3": {
+    "finalVerdict": {
+      "path": "../../../../rayner-attempt3/out/remaining-fixes-2026-11-22/astra-attempt-3/final-verdict.json",
+      "sha256": "f31e4d3691052d125b8f10e51a705027bc8c76426c7dadf9f745cab9d2156c65"
+    },
+    "rankedArtifactRefsVerified": 34
+  },
+  "conclusion": "Stored independent observations and both historical and source-39 worker payloads were evaluated with the new consumer. No new capture, independent visual review or all-59 worker execution is claimed at the consumer revision."
+}
