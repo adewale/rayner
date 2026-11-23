@@ -221,8 +221,9 @@ const PHONE_WHOLE = PHONE_UNIT / STAGE_PX_PER_UNIT;
 /** The smallest font size, in stage units with the camera at home, that reads READ_PX on the whole picture on a phone (0.54). */
 export const PHONE_WHOLE_MIN_SIZE = READ_PX / PHONE_UNIT;
 /**
- * The keyed motion sink `rayner check` runs (src/keyed-motion.ts), able to judge words by size:
- * a label's reading size, and the size that reads on a phone showing the whole picture.
+ * The keyed motion sink `rayner check` runs (src/keyed-motion.ts), able to judge words by size (a
+ * label's reading size, and the size that reads on a phone showing the whole picture), with each
+ * machine's declared motion contracts (MachineSpec.motion) checked on the same frames.
  */
 class CheckedMotionSink extends KeyedMotionSink {
   readonly rules: MachineMotionCheck;
@@ -644,12 +645,14 @@ export class LegibilitySink implements Sink {
  * picture or whole inside one of the step's close-ups (livePhoneProblems). `layouts` are the scene's
  * step layouts (stepLayouts), worked out here when not given.
  *
- * Each machine of `scene` (a run of `Source`, the scene's class) is explored on the stage the reader
- * drives it on: `Source` run again to the end of the step it last played in, by the live player's
- * own run (`runLive`, which refuses a run that made a different machine there), and explored there,
- * while that scene can still play, so the state exploration starts from is the one the reader's
- * events start from, and each transition plays in a play of its own, as a reader's event plays it.
- * A machine that never played is explored on a fresh run of `Source` as it ends. `diagrams` says
+ * Each machine of `scene` (a run of `Source`, the scene's class) is explored on each stage the reader
+ * drives it on: `Source` run again to the end of every step that offers its controls (`machine.offer()`),
+ * or, with no offer, of the step it last played in (`machineSteps`), by the live player's own run
+ * (`runLive`, which refuses a run that made a different machine there), and explored there, while
+ * that scene can still play. Exploration starts from the machine's start and, for the machine whose
+ * controls that step shows, also from the state the reader's events start from; each transition
+ * plays in a play of its own, as a reader's event plays it. A machine that never played and is never
+ * offered is explored on a fresh run of `Source` as it ends. One entry per explored stage. `diagrams` says
  * whether exploring the machine made a diagram, which a page without diagram code could not draw.
  * `only.events` plays the transitions of those events alone (the motion corpus's focused runs);
  * `rayner check` plays every event's.
@@ -687,7 +690,7 @@ export async function exploreMachines(
   return explored;
 }
 
-/** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
+/** One machine explored on `host`, which may still play, as `step` (one offering its controls, or the one it last played in) ends, or as the run ends when it never played; `active` when that step's controls are this machine's, so the reader's origin is explored too; `draw` routes the host's frames. */
 async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, active: boolean, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[], onMotion?: (line: string, finding?: Parameters<typeof keyedMotionLine>[0]) => void) {
   const diagramsBefore = diagramsOn(host);
   const problems: string[] = [], motion: string[] = [], phoneWarnings: string[] = [];
@@ -988,7 +991,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // picture is read as the step ends, the last-frame comparison first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    // Every keyed part followed from frame to frame within each play: jumps, flicker, early words, covers and small words (src/keyed-motion.ts).
+    // Every keyed part followed from frame to frame within each play: jumps, flicker, early words, covers, occluded,
+    // small and duplicate words and long transitions (src/keyed-motion.ts), and declared motion contracts.
     const keyedMotion = keyedMotionSink();
     const playback = new v.Scene(new FanSink([invariants, motion, keyedMotion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys]));
     const ran = await keyedMotion.rules.during(playback, () => playback.run());
@@ -1124,11 +1128,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
       // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
       claims: claimsReport(project.Scene.meta, v.trace.steps, looks.words),
-      // What each step changed of the state the author watches (meta.watch), as readers see it, and
-      // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
+      // Each step's readouts of what the author watches (meta.watch: model changes and current local,
+      // shown and derived values), as readers see them, and the selections skipped because their value
+      // cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch
         ? {
-            watch: v.trace.steps.map((s, index) => {
+            watch: v.trace.steps.map((s) => {
               const unformatted: string[] = [];
               const changes = watchedReadings(s, project.Scene.meta!.watch, project.Scene.meta!.lang, unformatted);
               return { step: s.step, changes, unformatted };

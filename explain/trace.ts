@@ -42,7 +42,7 @@ export interface PictureEntry {
   /** The other parts in reading order, dimmed ones last. */
   items: string[];
 }
-/** What a step's resting picture shows; the stage records it in each step's state as `picture`. */
+/** What a step's resting picture shows; the stage records it in each step's derived observations as `picture`. */
 export interface Picture {
   entries: PictureEntry[];
   /** Parts that arrived or changed during the step; absent when everything did. */
@@ -72,7 +72,7 @@ export function stepWords(s: { step: string; meta: Record<string, unknown> }): {
 export function wordsHtml(words: { line: string; caption: string }, dir: (text: string) => string = () => ''): string {
   return `${words.line ? `<p${dir(words.line)}><strong>${htmlEscape(words.line)}</strong></p>` : ''}<p${dir(words.caption)}>${htmlEscape(words.caption)}</p>`;
 }
-/** The most entries `meta.watch` may name, and the most changes one step shows. */
+/** The most readouts (model changes and current values) one step shows. */
 export const CHANGES_MAX = 4;
 type StateRecord = Pick<StepRecord, 'before' | 'after' | 'state'>;
 /** The state a reader sees on either side of this step, including staged specimens. */
@@ -266,7 +266,7 @@ export function pictureChange(state: unknown, previous?: unknown): string {
 }
 /**
  * The picture as nested lists, each thing's emphasised parts first, punctuated so it
- * reads as sentences when flattened. Given the previous step's state, a thing whose
+ * reads as sentences when flattened. Given the previous step's derived picture, a thing whose
  * parts are all as they were lists only its emphasis.
  */
 export function pictureHtml(state: unknown, previous?: unknown): string {

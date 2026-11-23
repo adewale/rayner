@@ -32,9 +32,8 @@ async function paintsOnStage(scene: Scene, part: Mobject, cache: WeakMap<Mobject
   const bounds = part.box();
   if (!bounds || !records.length) return false;
   // Render a small crop on the same pixel grid as an 800 x 450 stage. The box only prunes work.
-  const stroke = Math.max(0, ...part.family().map(m => m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4)));
   const scale = Math.min(800 / (camera[2] - camera[0]), 450 / (camera[3] - camera[1]));
-  const patch = intersect(clip, pad(bounds, stroke + 1 / scale));
+  const patch = intersect(clip, pad(bounds, paintReach(part) + 1 / scale));
   if (!patch) return false;
   const x0 = Math.floor((patch[0] - camera[0]) * scale), x1 = Math.ceil((patch[2] - camera[0]) * scale);
   const y0 = Math.floor((camera[3] - patch[3]) * scale), y1 = Math.ceil((camera[3] - patch[1]) * scale);
@@ -183,11 +182,17 @@ async function visiblePosition(scene: Scene, part: Mobject): Promise<VisiblePain
   const records = renderElements(scene, {width, cull: true});
   if (!records.some(record => ids.has(record.id))) return null;
   const [left, top, right, bottom] = userBox(scene.frame.box()!);
-  const rect = [left, top, right - left, bottom - top].map(Math.round);
+  const rect = [left, top, right - left, bottom - top].map(Math.round) as [number, number, number, number];
+  // World boxes to pixels as the SVG below draws them: its rounded user-unit viewBox, centred
+  // and letterboxed ('meet') in the 800 x 450 picture, as nativePatch does for a non-16:9 camera.
+  const unit = Math.min(width / rect[2], height / rect[3]), ox = (width - rect[2] * unit) / 2, oy = (height - rect[3] * unit) / 2;
+  const pixels = (b: Box): Box => {
+    const u = userBox(b);
+    return [ox + (u[0] - rect[0]) * unit - 1, oy + (u[1] - rect[1]) * unit - 1, ox + (u[2] - rect[0]) * unit + 1, oy + (u[3] - rect[1]) * unit + 1];
+  };
   const clips = new Map<string, string>();
   const all: string[] = [], without: string[] = [], black: string[] = [], white: string[] = [];
   const objects = new Map(scene.familyMembers().map(m => [mobjectId(m), m]));
-  const camera = scene.frame.box()!, scale = width / (camera[2] - camera[0]);
   const foreground: Occluder[] = [];
   let afterSubject = false;
   for (const record of records) {
@@ -201,9 +206,8 @@ async function visiblePosition(scene: Scene, part: Mobject): Promise<VisiblePain
       without.push(svg); black.push(svg); white.push(svg);
       if (afterSubject) {
         const object = objects.get(record.id), bounds = object?.box();
-        const stroke = object ? Math.max(0, ...object.family().map(m => m.style.stroke === 'none' ? 0 : m.style.strokeWidth * Math.max(1, m.style.miterLimit ?? 4))) : 0;
-        const box: Box | undefined = bounds ? [(bounds[0] - stroke - camera[0]) * scale, (camera[3] - bounds[3] - stroke) * scale,
-          (bounds[2] + stroke - camera[0]) * scale, (camera[3] - bounds[1] + stroke) * scale] : undefined;
+        // Its painted reach (strokes, caps, miter joins) and one antialiased pixel beyond.
+        const box: Box | undefined = bounds && object ? pixels(pad(bounds, paintReach(object) + 1 / UNITS)) : undefined;
         foreground.push({svg, box});
       }
     } else {
@@ -282,16 +286,16 @@ export class MachineMotionCheck implements Sink {
     const previous = motionObservers.get(scene);
     const observe: ObserveMotion = (machine, event, rules, views, target) => {
       this.#close(machine);
-      if (!Array.isArray(rules)) throw new TypeError('machine.motion(): return an array of rules');
+      if (!Array.isArray(rules)) throw new TypeError('MachineSpec.motion(): return an array of rules');
       const where = this.#segment?.(scene) ?? `step "${scene.currentStep?.path ?? '(opening)'}", event "${event}"`;
       const checks: Check[] = rules.map((rule: MotionRule) => {
         const {view, during, present = [], absent = [], clearText = []} = rule;
-        if (!views.includes(view)) throw new RangeError('machine.motion(): the rule must name a view of this machine');
-        if (![present, absent, clearText].every(Array.isArray)) throw new TypeError('machine.motion(): present, absent and clearText must be lists of exact keys');
+        if (!views.includes(view)) throw new RangeError('MachineSpec.motion(): the rule must name a view of this machine');
+        if (![present, absent, clearText].every(Array.isArray)) throw new TypeError('MachineSpec.motion(): present, absent and clearText must be lists of exact keys');
         const subjects = [...new Set([...present, ...absent, ...clearText])];
         if (!subjects.length || ![during, ...subjects].every(k => typeof k === 'string' && k.trim()) || [...present, ...clearText].some(k => absent.includes(k)) ||
           [present, absent, clearText].some(keys => new Set(keys).size !== keys.length))
-          throw new RangeError('machine.motion(): provide a travel key and distinct, nonempty subject keys');
+          throw new RangeError('MachineSpec.motion(): provide a travel key and distinct, nonempty subject keys');
         const issues = new Set<string>();
         for (const key of subjects) {
           const source = view.current.findAll(key).length, destination = target(view).findAll(key).length;

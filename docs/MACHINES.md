@@ -62,6 +62,8 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
 | `end(state)` | Where the story ends: the reason when `state` is finished, else `undefined`. From a finished state every event the model would take is beyond the story with this reason, and its refusals stay refusals, so a live step that ends finished starts the reader from `start` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
+| `result({ event, before, after })` | A transient response for an accepted event, kept as `shown.result` outside durable state identity ([transient responses](#transient-responses)) |
+| `motion({ event, before, after, target })` | Keyed context that must be present, absent or clear of text during a travel beat, checked by `rayner check` ([context during a trip](#context-during-a-trip)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) of this machine's scene; a view of another scene is refused at construction |
 | `match` | How the views morph without an authored transition (default `{ by: 'key', text: 'whole' }`, a [`Match`](MATCHING.md): keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
@@ -96,7 +98,8 @@ checks the events and each final configuration against the XState fixture.
 **Views read the state, and nothing else that changes.** Exploration redraws each state after
 the run, so a picture that also read a variable outside the state would be drawn wrongly. Every
 `View` is made from `(scene, draw)`, and a draw may read `scene.shown` as well: which picture a
-chapter shows belongs there, not in the model. A machine never changes `shown`, but what is shown
+chapter shows belongs there, not in the model. A machine changes only `shown.result`, and only with a
+[`result`](#transient-responses) callback, but what is shown
 may change between its events (a guided tour moving a code panel's lit line). The checker
 and the player both use the presentation belonging to the live step.
 
@@ -189,8 +192,8 @@ events leave the picture alone. A request answered with a 401 is an accepted tra
 produces a response; a request that cannot be sent is a refusal.
 
 Keep the callback pure. For a typed scene, declare the presentation shape separately, for
-example `Scene<State,{result?:{status:number}}>` with `override shown = {}` typed as that shown
-shape. The durable `State` then needs no last-response field.
+example `override shown: {result?:{status:number}} = {}`; the scene takes its shown type from
+that field. The durable `State` then needs no last-response field.
 
 The result is JSON data recorded in traces and replayed from live URLs. It is excluded from
 durable state identity and the exploration limit. `check` still draws and plays every accepted

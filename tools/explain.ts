@@ -124,10 +124,12 @@ export async function main(args: string[], io: CommandIO): Promise<void> {
       const layouts = await stepLayouts(scenario.Scene), height = 358 * narrowAspect(layouts.values(), 358);
       for (const layout of layouts.values()) views = Math.max(views, closeUps(layout, 358, height).length);
     }
+    // A sum over explorations: each scenario's machines, once per step offering controls.
     const states = scenarios.reduce((n, s) => n + (s.machines ?? []).reduce((m, machine) => m + machine.states, 0), 0);
+    const explorations = scenarios.reduce((n, s) => n + (s.machines ?? []).length, 0);
     const sampled = scenarios.some(s => s.machines?.some(machine => machine.sampled));
     const tests = (report.model as {passed?: number} | undefined)?.passed ?? 0;
-    (flags.json ? (text: string) => io.stderr(text + '\n') : print)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} checked states${sampled ? ' (bounded sample)' : ''}, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
+    (flags.json ? (text: string) => io.stderr(text + '\n') : print)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} checked states${explorations > 1 ? ` over ${explorations} machine explorations` : ''}${sampled ? ' (bounded sample)' : ''}, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
     return;
   }
   /** The scenario every --scenario id=value chooses, other settings at their defaults. */

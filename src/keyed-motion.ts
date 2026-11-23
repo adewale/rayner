@@ -109,10 +109,12 @@ export const KEYED_MOTION_LIMITS = {
   cover: 0.3,
   /** ...for at least this many seconds in a row (three frames at 30 fps), before it reaches its landing... */
   covering: 0.1,
-  /** Temporary occlusion: a nearly opaque foreground fill hides this share of two glyph boxes. */
-  glyphCover: 0.9,
   /** ...which it has reached when it has under this many units left to travel (its landing is its resting picture's, judged at rest). */
   landed: 0.05,
+  /** A foreground fill at least this opaque hides the letters under it, for every word check alike. */
+  opaque: 0.95,
+  /** Temporary occlusion: an opaque foreground fill hides this share of two glyph boxes. */
+  glyphCover: 0.9,
   /** Small words: a token's words are smaller than this share of the smallest readable label at rest in the transition's first and last frames... */
   smaller: 0.85,
 } as const;
@@ -250,7 +252,7 @@ export class KeyedMotionSink implements Sink {
   /**
    * `segmentOf` names the transition a frame belongs to. By default each play() of a run is one
    * transition, named by its step and its place there (`step "burst", play 2`), and so is each
-   * machine event a play sends (`step "fill", play 2, event 3`), since a replay sends several in one
+   * machine event a play sends (`step "fill", play 2, event 3`), since a sendSequence() sends several in one
    * play; a wait's frames belong to the play before them. `options` lets it judge words by size.
    */
   constructor(segmentOf?: (scene: Scene) => string | null, options: KeyedMotionOptions = {}) {
@@ -477,7 +479,7 @@ function filledArea(mask: Leaf, box: Box, depth = 0): number {
 function visibleGlyphs(frame: Frame, index: number, omitted?: ReadonlySet<number>): Box[] {
   const label = frame.leaves[index]!;
   return (label.glyphs ?? []).filter(glyph => !frame.leaves.some((mask, r) => {
-    if (r <= index || omitted?.has(r) || mask.text !== undefined || (mask.fillAlpha ?? 0) < 0.99) return false;
+    if (r <= index || omitted?.has(r) || mask.text !== undefined || (mask.fillAlpha ?? 0) < KEYED_MOTION_LIMITS.opaque) return false;
     const clipped = mask.clip ? intersect(glyph, mask.clip) : glyph;
     return !!clipped && !!intersect(mask.box, clipped) && (fillsBox(mask, clipped) || !!crossesBox(mask, clipped));
   }));
@@ -536,7 +538,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   // nor its last, as c.travel, the kit's flight and pass make one), the frames it sets off and lands
   // in, how far it travels and how far it still has to go at each frame. A part that moves and stays
   // is the picture settling, not a cause arriving. One key may make several trips in one play (a
-  // machine's replay sends the same token once per event), so each time on screen is a trip of its own.
+  // machine's sendSequence() sends the same token once per event), so each time on screen is a trip of its own.
   type Trip = { p: string; start: number; end: number; from: number; to: number; length: number; left: number[]; lands: Box };
   const trips: Trip[] = [];
   for (const p of paths)
@@ -830,7 +832,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       let source = '';
       for (let r = q + 1; r < f.leaves.length; r++) {
         const mask = f.leaves[r]!;
-        if (mask.text !== undefined || !mask.fillPath || (mask.fillAlpha ?? 0) < 0.95 || !intersect(mask.box, label.box)) continue;
+        if (mask.text !== undefined || !mask.fillPath || (mask.fillAlpha ?? 0) < L.opaque || !intersect(mask.box, label.box)) continue;
         const maskPath = mask.path;
         // Deduplicate only this victim and this interval. One traveller's longest
         // covers finding must not silence another label it hides later.

@@ -348,9 +348,12 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   private placements!: ViewPlacement[];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
+  /** The call a refusal names: view.tween() or tweenState(). */
+  private readonly call: string;
 
   constructor(host: SceneInputs<S, Sh>, views: readonly View<Mobject, S, Sh>[], stateAt: (t: number) => S, opts: TweenOptions, call: string) {
     super(views[0]!.current, opts);
+    this.call = call;
     this.host = host;
     this.views = views;
     this.draw = (t) => {
@@ -371,7 +374,7 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   /** The Follow's own time is linear: this tween's rate function eases it. */
   protected override enclose(): Follow {
     const targets = this.views.map((v) => v.current), members = targets.flatMap((m) => m.family());
-    if (new Set(members).size !== members.length) throw new Error('tweenState(): views overlap; list independent views, not a view and one inside it');
+    if (new Set(members).size !== members.length) throw new Error(`${this.call}: views overlap; list independent views, not a view and one inside it`);
     this.placements = this.views.map(v => v.placement());
     this.mobject = targets[0]!;
     return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets, rateFunc: linear }));

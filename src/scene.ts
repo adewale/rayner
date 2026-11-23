@@ -400,7 +400,8 @@ export class Scene {
   state: object = {};
   /**
    * What is shown of it, apart from the model: which picture a phase shows, say. JSON. A view's
-   * draw may read it; a machine never changes it. Kept apart so the model holds only the domain.
+   * draw may read it. A machine with `result()` replaces only its `result` field; nothing else in a
+   * machine changes it. Kept apart so the model holds only the domain.
    */
   shown: object = {};
   /** Every Scene.record() so far, in order, across steps. */

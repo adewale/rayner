@@ -107,6 +107,7 @@ advances both on each request.
 
 ```ts
 view(scene: Scene & { state: S, shown: Sh }, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
+view(scene, (state, shown, drawing) => M, { drawing: s.drawing, place? })   // the bound DrawContext, snapshotted once, is the draw's third argument on every redraw
 having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one chapter (below)
 
 view.current            // the picture on screen (the View's one child)
@@ -238,8 +239,8 @@ is not on screen adds it abruptly.
 equal the program's". `assertStepState` in `rayner/testing` checks the state side.
 A View adds the picture side with `assertViewFollowsState`, also in `rayner/testing`.
 **At the end of every step, the View shows what its state input and the scene's
-authored shown fields draw.** Helpers can add evidence to the recorded trace with
-`addJson()`. The check redraws with the same inputs the View receives.
+authored shown fields draw.** Helpers can add derived data to the recorded trace with
+`addJson(part)`, traced as `derived` and never a draw input; evidence uses `record()`. The check redraws with the same inputs the View receives.
 
 ```ts
 import { assertViewFollowsState } from 'rayner/testing';

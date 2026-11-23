@@ -18,7 +18,7 @@ One row per idea.
 | --- | --- | --- | --- |
 | Model | (plain functions) | Pure, tested functions in `model.ts`; `next(state, event)` for a machine | |
 | Model state | `scene.state` | JSON only; the domain (a bucket's tokens, a statechart's configuration) and nothing about how it is shown; a step records it as `before` and `after` | |
-| What is shown | `scene.shown` | Authored presentation as JSON: which chapter is visible (`shown.chapter`) or which row is emphasised; a view's draw may read it, a machine never changes it; the trace records it as `shown` | `phase` and `reader` inside `scene.state`; `shown.phase`; helper descriptions mixed into presentation |
+| What is shown | `scene.shown` | Authored presentation as JSON: which chapter is visible (`shown.chapter`) or which row is emphasised; a view's draw may read it, a machine changes only its `result` field ([transient responses](MACHINES.md#transient-responses)); the trace records it as `shown` | `phase` and `reader` inside `scene.state`; `shown.phase`; helper descriptions mixed into presentation |
 | Derived data | `addJson(part)`, `derivedJson()`, a trace step's `derived` | Computed observations separate from authored state and presentation; the stage registers its picture description as `derived.picture` | Helpers adding fields to `stateJson()` or `shownJson()` |
 | Step | `scene.step(id, meta)` | A stop with a title, line and caption | |
 | Reader questions | `meta.questions`, the script's `## Check yourself` list | The questions the player asks after the last step, each answer behind a disclosure; "check" is kept for verification | `meta.checks` |

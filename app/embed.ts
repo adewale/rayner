@@ -29,7 +29,8 @@ import type { Exploration, ExploreAction } from './embed-live.ts';
 
 /**
  * The default scenario as the build traced it: its settings, its trace as the player reads it
- * (`playerTrace`: each step's state only for the watched keys, as every scenario the page runs),
+ * (`playerTrace`: formatted selected readouts and picture descriptions, no raw state, as every
+ * scenario the page runs),
  * the stage's palette and paper when it ends, and each live step's machine by its place in
  * `machinesOf` (`liveSteps`).
  * The page shows it without running the scene first; another scenario runs once when it is chosen.
@@ -873,7 +874,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     for (const b of predictOptions.querySelectorAll<HTMLButtonElement>('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.option) === chosen));
     say(predictSaid, chosen === undefined ? t.predictHint : t.predictChosen(asks.options[chosen]!, asks.revealAt === adjacentStep(trace.steps, asks.at, 1)));
   }
-  /** The resting picture in words: the step's, or what the scene shows after the reader's events (`shown`). */
+  /** The resting picture in words: the step's, or what the scene shows after the reader's events (`derived`). */
   let describedDerived: unknown;
   function describePicture(step: PlayerStep, derived?: SceneStateLike) {
     const said = describedDerived = derived ?? step.derived;

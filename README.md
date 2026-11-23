@@ -231,13 +231,13 @@ A picture is drawn from the model's state by a function you write, with the [dra
 ```ts
 import { TYPE, addAll, connector, keyedParts, label, tile } from 'rayner/drawing';
 
-const cache = view(this, (st) => {
+const cache = view(this, (st, _shown, drawing) => {
   const parts = keyedParts();
-  st.slots.forEach((item, i) => addAll(parts, tile(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
-  parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
-  parts.add(label(s, `${st.hits} hits`, { at: [0, -2] }), 'hits');
+  st.slots.forEach((item, i) => addAll(parts, tile(drawing, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
+  parts.add(connector(drawing, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
+  parts.add(label(drawing, `${st.hits} hits`, { at: [0, -2] }), 'hits');
   return parts.group();
-});
+}, { drawing: s.drawing });
 ```
 
 The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, `label` and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).

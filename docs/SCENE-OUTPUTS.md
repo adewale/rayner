@@ -89,7 +89,7 @@ cannot see the picture.
 | --- | --- | --- |
 | One SVG | `toSvgString` of the scene `renderFrame` returns at a frame, such as a step's `frame1` | `/frame.svg` |
 | A step's picture in words and as text | `describeExplainer`, whose steps carry both | `/text` |
-| Full step/state trace, with each step's timing and the duration | `traceScene`, a `Trace` (`{ fps, duration, frames, steps }`) | `/trace.json`, `/index.json` |
+| Full step/state trace, with each step's timing and the duration | `traceScene`, a `Trace` (`{ fps, duration, frames, steps, evidence? }`) | `/trace.json`, `/index.json` |
 | Every SVG frame | `new SceneClass(new StringSink()).run()`; read sink's `frames` | frame-sequence rendering (`/render`) |
 
 These are capability correspondences, not restored HTTP routes or wire schemas.
@@ -109,7 +109,7 @@ draws it, hands that frame to the sink it is given (none by default) and returns
 a number past the end gives the final frame. It counts the frames before it
 without drawing them, and never finds a frame by a rounded time. Frame `k` is at time
 `k / fps`. `traceScene` returns a `Trace`,
-`{ fps, duration, frames, steps }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the persistent model before and after each step, an optional local `state` for a staged specimen, and what was shown at its end, not every
+`{ fps, duration, frames, steps, evidence? }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the persistent model before and after each step, an optional local `state` for a staged specimen, what was shown and the `derived` data at its end, and evidence recorded before the first step at the top level; not every
 intermediate value; call `scene.stateJson()` at chosen sample times for those. It runs the
 scene into a `TraceSink`, whose `steps()` are those records: hand one to a run of your own to
 trace it beside other output.

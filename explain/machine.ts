@@ -46,7 +46,7 @@ export type ObserveMotion = (machine: object, event: string, rules: readonly Mot
 export const motionObservers = new WeakMap<Scene, ObserveMotion>();
 
 export interface MachineSpec<S extends object, E extends string> {
-  /** Pure JSON observation the picture must distinguish. Omitted means the full model. Never changes exploration identity or which events are checked. */
+  /** Pure observation the picture must distinguish; it must return a JSON value, which is checked when it runs (typed `unknown` so a value of an interface type is accepted). Omitted means the full model. Never changes exploration identity or which events are checked. */
   observe?: (state: Readonly<S>) => unknown;
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
   start: S;

@@ -374,7 +374,7 @@ export function stage<S extends object, Sh extends object>(scene: SceneInputs<S,
       });
     return seen;
   }
-  // Each step's state records its resting picture and what changed since the step began.
+  // Each step's derived observations record its resting picture and what changed since the step began.
   let before = new Set<string>();
   scene.onStep(() => {
     before = shownNames(look());
