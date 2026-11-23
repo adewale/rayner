@@ -29,6 +29,15 @@ export const SEMANTIC_V3: readonly SemanticTarget[] = [
     actor: 'forged', victim: 'page:sid', literal: 'Yx2b7Q', event: 'forge', phase: 'forged slip move across SID value',
     representations: [{kind: 'covers', path: 'forged', subjects: ['Yx2b7Q', 'page:sid'], victim: 'page:sid', masks: ['forged'], transition: 'step "forge", play 3, event 1'}]},
 ];
+/** Preregistered separately before the next candidate's worker measurement.
+ * This is the same poll/card/domain relation as v3, with an opt-in authored
+ * reading obligation. It never replaces or retrospectively credits v3's miss. */
+export const DOMAIN_CLEARANCE_V1: readonly SemanticTarget[] = [{
+  id: 'sign-in-poll-over-card', version: 'sign-in-poll-over-card@domain-clearance-2026-11-23.1', scenario: '{"flow":"device"}',
+  actor: 'poll', victim: 'card', literal: 'example.com', event: 'collect', phase: 'outgoing device poll move',
+  representations: [{kind: 'motion contract', path: 'poll', subjects: ['card:domain'], victim: 'card:domain', masks: ['poll'],
+    requirement: 'clear', transition: 'step "ask", event "collect"'}],
+}];
 export const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 export const semanticDigest = (target: SemanticTarget) => digest(JSON.stringify(target));
 

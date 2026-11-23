@@ -1,0 +1,44 @@
+{
+  "status": "prospective implementation recommendation; not a final new-source visual or worker ratification",
+  "preregisteredAgainst": "8151582fc8a4ff2d06d6b4e5607633e0474c0dbf",
+  "caseId": "sign-in-poll-over-card",
+  "priorVisual": {
+    "path": "ratifications-before-measurement.json",
+    "sha256": "d04186278e462162bc904bb04d3e985d0c93bae49dfea289fc7543c91809cb40"
+  },
+  "priorMeasuredGenericMiss": {
+    "path": "after-measurement-readback.json",
+    "sha256": "ef236030ce4579ecc0c2bd4cfa4af284a7e29154a6c44455281b22272b744186"
+  },
+  "expectedRelation": {
+    "actor": "poll",
+    "victim": "card",
+    "literal": "example.com",
+    "event": "collect",
+    "phase": "outgoing device poll move",
+    "scenario": {
+      "flow": "device"
+    }
+  },
+  "proposedNewDistinctRepresentation": {
+    "kind": "motion contract",
+    "path": "poll",
+    "subjects": [
+      "card:domain"
+    ],
+    "victim": "card:domain",
+    "masks": [
+      "poll"
+    ],
+    "requirement": "clear",
+    "transition": "step \"ask\", event \"collect\""
+  },
+  "registrationPolicy": "Retain existing v2/v3 targets and scores. Assign a separately versioned new representation. Bind actual face-up domain Text and current native event witnesses before reading that new implementation’s worker measurement.",
+  "controls": [
+    "fixed outgoing device poll keeps face-up domain glyphs clear",
+    "actual original variant obscures final m and yields exact authored relation",
+    "a Company-line-only crossing with clear domain cannot satisfy the domain match",
+    "no face-up card on legitimate direct or approved-device history",
+    "normal parent card appearance, trip, ownership and retirement remain intact"
+  ]
+}
