@@ -1,0 +1,77 @@
+{
+  "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "originals": [
+    {
+      "id": "poppy-key-over-station-name",
+      "side": "variant",
+      "sequence": 37,
+      "step": "approve",
+      "absolute": 3639,
+      "path": "../../root-causes-native-39b75450/poppy-key-over-station-name/variant/f3a5800c1c6ea87d682e873483df7dfa9ed961768ad05159a40a10920241f1aa.png",
+      "sha256": "12bbffff8b70687300b91f7c9fe144d39b9e22ebe5869fd31aabd1bcb8f47ca0"
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "side": "variant",
+      "sequence": 38,
+      "step": "slip",
+      "absolute": 702,
+      "path": "../../root-causes-native-39b75450/refusals-key-over-lane-name/variant/acc9af6aeb85403462c88e436bc9720b669a827ad4ca1de1fae492d6b443eecd.png",
+      "sha256": "49153591a2a66f8a7bcd3767d717ba8b226bb4b5bc88514df44776ee130019de"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "side": "baseline",
+      "sequence": 26,
+      "step": "ask",
+      "absolute": 972,
+      "path": "../../root-causes-native-39b75450/sign-in-poll-over-card/baseline/593b027f762a16e16d6d905abdce210b650937ac38890dce7bc306ea9259f6c8.png",
+      "sha256": "16daab56369b9fe35653a6785464f12dbb0fa2aa190145345643a5857818f47f"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "side": "variant",
+      "sequence": 24,
+      "step": "ask",
+      "absolute": 970,
+      "path": "../../root-causes-native-39b75450/sign-in-poll-over-card/variant/a275b9b0017d4cf220cce961f078a0cea869929312bb7156f8d4d6de80cb36ca.png",
+      "sha256": "3bcb4ffafa0cc18119122d19a7ebab429571268c8cd1fc7ac357ff239d66003e"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "side": "variant",
+      "sequence": 26,
+      "step": "ask",
+      "absolute": 972,
+      "path": "../../root-causes-native-39b75450/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.png",
+      "sha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "side": "variant",
+      "sequence": 30,
+      "step": "ask",
+      "absolute": 976,
+      "path": "../../root-causes-native-39b75450/sign-in-poll-over-card/variant/bb335a7b1834be7243a5401694c8b2b9823a72f380472e9d108872f7ba77a416.png",
+      "sha256": "72915e33594ebe29f83f6c203ea42bc6b681cc9e19f4ad0ec00a0dc9a43a84fa"
+    },
+    {
+      "id": "browser-forge-across-stage",
+      "side": "variant",
+      "sequence": 36,
+      "step": "forge",
+      "absolute": 4690,
+      "path": "../../root-causes-native-39b75450/browser-forge-across-stage/variant/1a5a5fb6bad25e4579d1c4e5247b4e7897df8698a0bd4c76a430dcba1da13104.png",
+      "sha256": "c5abd1c4c099e229828cd6020881032a382119490d4ad8c04a8852b3a4d3b1bf"
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "side": "baseline",
+      "sequence": 45,
+      "step": "sign-out",
+      "absolute": 5830,
+      "path": "../../root-causes-native-39b75450/sign-in-tag-over-scopes/baseline/c89f2c510ce712561134ff6ca4edb95e9c8ab88a1719a740cbd1b97e0c812fd0.png",
+      "sha256": "b16ff9040877c2fa4df8fd14b237f517d1b9be871e8297e3c6c066de1c385a9a"
+    }
+  ]
+}

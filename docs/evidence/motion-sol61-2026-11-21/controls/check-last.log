@@ -1,0 +1,4 @@
+
+> rayner@0.2.0 check
+> tsc -b && node tools/repo/copy-vendor.ts && tsc -p test/consumer/tsconfig.json
+

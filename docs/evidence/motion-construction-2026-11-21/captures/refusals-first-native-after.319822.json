@@ -1,0 +1,16 @@
+{
+  "complete": true,
+  "pid": 319822,
+  "node": "v24.22.1",
+  "beforeHelper": false,
+  "syncConstructors": 0,
+  "syncRenders": 0,
+  "asyncStarted": 245,
+  "asyncCompleted": 245,
+  "inFlight": 0,
+  "peakInFlight": 1,
+  "maxRssKiB": 283312,
+  "currentRssBytes": 278786048,
+  "elapsedMs": 8463.574654,
+  "renderInputSequenceSha256": "32d118c1e1d1b3b8757f718b8d621cf507efaf6fcf7ac24f85ff1b4f994dd7cf"
+}

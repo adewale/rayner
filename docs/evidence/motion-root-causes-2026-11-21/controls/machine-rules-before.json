@@ -1,0 +1,429 @@
+{
+  "sourceMarker": "5e9cca13d81d37b01adf31c805ea5a11e21fe6338cf074f4b171db5ae81e9a33",
+  "note": "Per-frame native 800x450 red/green/purple thresholds in machine-probe.ts. generic is the independent ordinary keyed motion sink. ruleFindings are the unmodified rule checker at the review point.",
+  "cases": [
+    {
+      "trial": "normal",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 35,
+          "first": 54,
+          "last": 88,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "constructed-only",
+      "ruleFindings": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame"
+      ],
+      "genericFindings": [],
+      "exception": null,
+      "events": []
+    },
+    {
+      "trial": "wrong-view",
+      "ruleFindings": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", the declared travel was never constructed",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", the declared travel was never constructed"
+      ],
+      "genericFindings": [],
+      "exception": null,
+      "events": []
+    },
+    {
+      "trial": "grouped-same-key",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 32,
+          "first": 5,
+          "last": 36,
+          "framesWithRedTokenInk": 32,
+          "distinctVisibleRedMasks": 32,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 32,
+          "first": 54,
+          "last": 85,
+          "framesWithRedTokenInk": 32,
+          "distinctVisibleRedMasks": 32,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "repeat-missing",
+      "ruleFindings": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel had no sampled, visibly moving frame"
+      ],
+      "genericFindings": [
+        [
+          "flicker",
+          "parcel"
+        ]
+      ],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 30,
+          "first": 4,
+          "last": 33,
+          "framesWithRedTokenInk": 30,
+          "distinctVisibleRedMasks": 30,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 30,
+          "first": 53,
+          "last": 82,
+          "framesWithRedTokenInk": 30,
+          "distinctVisibleRedMasks": 30,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "ring-clipped-absent",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            0,
+            0
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 35,
+          "first": 54,
+          "last": 88,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "ring-painted-absent",
+      "ruleFindings": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"sealed\" must be absent at +0.167 s",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", subject \"sealed\" must be absent at +0.167 s"
+      ],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 35,
+          "first": 54,
+          "last": 88,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            306,
+            320
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "aperture-flash",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 1,
+          "distinctVisibleRedMasks": 1,
+          "tokenPixelsRange": [
+            0,
+            4
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 35,
+          "first": 54,
+          "last": 88,
+          "framesWithRedTokenInk": 1,
+          "distinctVisibleRedMasks": 1,
+          "tokenPixelsRange": [
+            0,
+            4
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "context-lost-offstage",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 26,
+          "distinctVisibleRedMasks": 22,
+          "tokenPixelsRange": [
+            0,
+            320
+          ],
+          "captionMissingFrames": [
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 35,
+          "first": 54,
+          "last": 88,
+          "framesWithRedTokenInk": 26,
+          "distinctVisibleRedMasks": 22,
+          "tokenPixelsRange": [
+            0,
+            320
+          ],
+          "captionMissingFrames": [
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78
+          ],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "existing-destination",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": "Error: t.choreograph(): leave \"dest\" must play before its replacement enters",
+      "events": []
+    },
+    {
+      "trial": "opaque-foreground",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 0,
+          "distinctVisibleRedMasks": 0,
+          "tokenPixelsRange": [
+            0,
+            0
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        },
+        {
+          "event": 2,
+          "activeFrames": 35,
+          "first": 54,
+          "last": 88,
+          "framesWithRedTokenInk": 0,
+          "distinctVisibleRedMasks": 0,
+          "tokenPixelsRange": [
+            0,
+            0
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    },
+    {
+      "trial": "clipped-source",
+      "ruleFindings": [],
+      "genericFindings": [],
+      "exception": null,
+      "events": [
+        {
+          "event": 1,
+          "activeFrames": 35,
+          "first": 5,
+          "last": 39,
+          "framesWithRedTokenInk": 35,
+          "distinctVisibleRedMasks": 35,
+          "tokenPixelsRange": [
+            182,
+            196
+          ],
+          "captionMissingFrames": [],
+          "primaryRingInkRange": [
+            942,
+            942
+          ]
+        }
+      ]
+    }
+  ],
+  "assertion": "Captured prior to the three review fixes. Identical probes are rerun for the repaired checker.",
+  "caseCount": 12,
+  "probeSourceSha256": "0466395eed3520eb06ab83cd204ccb18f320dde74fd8c482672809fcea6086d9",
+  "fullFrameReceipt": "machine-rules-before.frames.json.gz"
+}

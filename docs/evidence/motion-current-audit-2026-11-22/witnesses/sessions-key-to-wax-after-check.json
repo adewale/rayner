@@ -1,0 +1,823 @@
+{
+  "policy": "Matched native offsets; blank cells explicitly indicate absent frames. All crops are ordinary native PNG inputs; no generated artwork.",
+  "samples": [
+    {
+      "step": "signer",
+      "frame": 0
+    },
+    {
+      "step": "signer",
+      "frame": 15
+    },
+    {
+      "step": "signer",
+      "frame": 29
+    },
+    {
+      "step": "signer",
+      "frame": 44
+    },
+    {
+      "step": "signer",
+      "frame": 59
+    },
+    {
+      "step": "signer",
+      "frame": 73
+    },
+    {
+      "step": "signer",
+      "frame": 88
+    },
+    {
+      "step": "signer",
+      "frame": 102
+    },
+    {
+      "step": "signer",
+      "frame": 117
+    }
+  ],
+  "regions": [
+    {
+      "name": "whole-stage",
+      "crop": {
+        "name": "whole-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "471984afdafdf041c77df4f16f00e99af2bcc8faec6636d01c15233bd9fae16b"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "0aa939b1e0dbef5e0158d80671e52429859ee3fa4b7abd5c113deaa1969a167b"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "2bd5443b98b6faac9a8989c513ac2084b2e60900809a5bb15d7afc4a306ed2c7"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "46c1a17d22a23e8723603bed3e39e62379b50347430ccfda91a3f3053d343c82"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "415837a4a82b7e7363e36dfd28fe645e4c08b2cc0615f5ff3d085f8849b93fcc"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "44e4910f0d67392629146db1fc700a1883e36d44435bde508f41324c512ea930"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "87d58ada20e8eaaa185223302263b4ca9bd8f247a186085aac4951fb3079cbd7"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "9f5432124293fea426c37763f83d26a2e039e2b8c44965dc73013d47509c6df4"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "aa31a1dc45e0d53f1b16f260a80286c34547703015e290aadc0ad5fe6aebef93"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "a25df1f536d2d126a5283a3f4336e2dd7a40c93e8a1a0c7cbbad565e9100be79"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "3f6a581c53395b28bdbb9cbb0eb6639ab2eb5d9307287274b7b5bdbe3cd3c6f2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "13a28a892efc4ebb97656f22048a342d53953034cff8f1ad3b99f56cde2a59e4"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "a4aaa17638a871d80166637f03f3fc07c67c737cd58ce592d7bd3a55bd46ccea"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "7e3422e4e81360f99f932d5564e7b20fa4ed7e60f1a7448bd76475c681147f51"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "a1e3417455700ef5bc3e021448c4b5c24ad96b76b7b85c96cad62f8e34f261b1"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "e4127e4b27d492f13a16c96105be429c4eae3aca409ba55421d4c99b9f13ff4b"
+        }
+      ]
+    },
+    {
+      "name": "upper-stage",
+      "crop": {
+        "name": "upper-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "471984afdafdf041c77df4f16f00e99af2bcc8faec6636d01c15233bd9fae16b"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "0aa939b1e0dbef5e0158d80671e52429859ee3fa4b7abd5c113deaa1969a167b"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "2bd5443b98b6faac9a8989c513ac2084b2e60900809a5bb15d7afc4a306ed2c7"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "46c1a17d22a23e8723603bed3e39e62379b50347430ccfda91a3f3053d343c82"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "415837a4a82b7e7363e36dfd28fe645e4c08b2cc0615f5ff3d085f8849b93fcc"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "44e4910f0d67392629146db1fc700a1883e36d44435bde508f41324c512ea930"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "87d58ada20e8eaaa185223302263b4ca9bd8f247a186085aac4951fb3079cbd7"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "9f5432124293fea426c37763f83d26a2e039e2b8c44965dc73013d47509c6df4"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "aa31a1dc45e0d53f1b16f260a80286c34547703015e290aadc0ad5fe6aebef93"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "a25df1f536d2d126a5283a3f4336e2dd7a40c93e8a1a0c7cbbad565e9100be79"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "3f6a581c53395b28bdbb9cbb0eb6639ab2eb5d9307287274b7b5bdbe3cd3c6f2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "13a28a892efc4ebb97656f22048a342d53953034cff8f1ad3b99f56cde2a59e4"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "a4aaa17638a871d80166637f03f3fc07c67c737cd58ce592d7bd3a55bd46ccea"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "7e3422e4e81360f99f932d5564e7b20fa4ed7e60f1a7448bd76475c681147f51"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "a1e3417455700ef5bc3e021448c4b5c24ad96b76b7b85c96cad62f8e34f261b1"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "e4127e4b27d492f13a16c96105be429c4eae3aca409ba55421d4c99b9f13ff4b"
+        }
+      ]
+    },
+    {
+      "name": "lower-stage",
+      "crop": {
+        "name": "lower-stage",
+        "x": 0,
+        "y": 225,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "471984afdafdf041c77df4f16f00e99af2bcc8faec6636d01c15233bd9fae16b"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "0aa939b1e0dbef5e0158d80671e52429859ee3fa4b7abd5c113deaa1969a167b"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "2bd5443b98b6faac9a8989c513ac2084b2e60900809a5bb15d7afc4a306ed2c7"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "46c1a17d22a23e8723603bed3e39e62379b50347430ccfda91a3f3053d343c82"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "415837a4a82b7e7363e36dfd28fe645e4c08b2cc0615f5ff3d085f8849b93fcc"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "44e4910f0d67392629146db1fc700a1883e36d44435bde508f41324c512ea930"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "87d58ada20e8eaaa185223302263b4ca9bd8f247a186085aac4951fb3079cbd7"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "9f5432124293fea426c37763f83d26a2e039e2b8c44965dc73013d47509c6df4"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "aa31a1dc45e0d53f1b16f260a80286c34547703015e290aadc0ad5fe6aebef93"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "a25df1f536d2d126a5283a3f4336e2dd7a40c93e8a1a0c7cbbad565e9100be79"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "3f6a581c53395b28bdbb9cbb0eb6639ab2eb5d9307287274b7b5bdbe3cd3c6f2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "13a28a892efc4ebb97656f22048a342d53953034cff8f1ad3b99f56cde2a59e4"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "a4aaa17638a871d80166637f03f3fc07c67c737cd58ce592d7bd3a55bd46ccea"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "7e3422e4e81360f99f932d5564e7b20fa4ed7e60f1a7448bd76475c681147f51"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "a1e3417455700ef5bc3e021448c4b5c24ad96b76b7b85c96cad62f8e34f261b1"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "e4127e4b27d492f13a16c96105be429c4eae3aca409ba55421d4c99b9f13ff4b"
+        }
+      ]
+    },
+    {
+      "name": "left-stage",
+      "crop": {
+        "name": "left-stage",
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "471984afdafdf041c77df4f16f00e99af2bcc8faec6636d01c15233bd9fae16b"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "0aa939b1e0dbef5e0158d80671e52429859ee3fa4b7abd5c113deaa1969a167b"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "2bd5443b98b6faac9a8989c513ac2084b2e60900809a5bb15d7afc4a306ed2c7"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "46c1a17d22a23e8723603bed3e39e62379b50347430ccfda91a3f3053d343c82"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "415837a4a82b7e7363e36dfd28fe645e4c08b2cc0615f5ff3d085f8849b93fcc"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "44e4910f0d67392629146db1fc700a1883e36d44435bde508f41324c512ea930"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "87d58ada20e8eaaa185223302263b4ca9bd8f247a186085aac4951fb3079cbd7"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "9f5432124293fea426c37763f83d26a2e039e2b8c44965dc73013d47509c6df4"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "aa31a1dc45e0d53f1b16f260a80286c34547703015e290aadc0ad5fe6aebef93"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "a25df1f536d2d126a5283a3f4336e2dd7a40c93e8a1a0c7cbbad565e9100be79"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "3f6a581c53395b28bdbb9cbb0eb6639ab2eb5d9307287274b7b5bdbe3cd3c6f2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "13a28a892efc4ebb97656f22048a342d53953034cff8f1ad3b99f56cde2a59e4"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "a4aaa17638a871d80166637f03f3fc07c67c737cd58ce592d7bd3a55bd46ccea"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "7e3422e4e81360f99f932d5564e7b20fa4ed7e60f1a7448bd76475c681147f51"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "a1e3417455700ef5bc3e021448c4b5c24ad96b76b7b85c96cad62f8e34f261b1"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "e4127e4b27d492f13a16c96105be429c4eae3aca409ba55421d4c99b9f13ff4b"
+        }
+      ]
+    },
+    {
+      "name": "right-stage",
+      "crop": {
+        "name": "right-stage",
+        "x": 400,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "signer",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "022ef6b0db6358818bff46937df328657470eaa87c4eecbc391ae22e0c0975cb"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "471984afdafdf041c77df4f16f00e99af2bcc8faec6636d01c15233bd9fae16b"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "signer",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "0aa939b1e0dbef5e0158d80671e52429859ee3fa4b7abd5c113deaa1969a167b"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "2bd5443b98b6faac9a8989c513ac2084b2e60900809a5bb15d7afc4a306ed2c7"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "signer",
+          "frame": 29,
+          "sequence": 29,
+          "asset": "46c1a17d22a23e8723603bed3e39e62379b50347430ccfda91a3f3053d343c82"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "415837a4a82b7e7363e36dfd28fe645e4c08b2cc0615f5ff3d085f8849b93fcc"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "signer",
+          "frame": 44,
+          "sequence": 44,
+          "asset": "44e4910f0d67392629146db1fc700a1883e36d44435bde508f41324c512ea930"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "87d58ada20e8eaaa185223302263b4ca9bd8f247a186085aac4951fb3079cbd7"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "signer",
+          "frame": 59,
+          "sequence": 59,
+          "asset": "9f5432124293fea426c37763f83d26a2e039e2b8c44965dc73013d47509c6df4"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "aa31a1dc45e0d53f1b16f260a80286c34547703015e290aadc0ad5fe6aebef93"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "signer",
+          "frame": 73,
+          "sequence": 73,
+          "asset": "a25df1f536d2d126a5283a3f4336e2dd7a40c93e8a1a0c7cbbad565e9100be79"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "3f6a581c53395b28bdbb9cbb0eb6639ab2eb5d9307287274b7b5bdbe3cd3c6f2"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "signer",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "13a28a892efc4ebb97656f22048a342d53953034cff8f1ad3b99f56cde2a59e4"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "a4aaa17638a871d80166637f03f3fc07c67c737cd58ce592d7bd3a55bd46ccea"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "signer",
+          "frame": 102,
+          "sequence": 102,
+          "asset": "7e3422e4e81360f99f932d5564e7b20fa4ed7e60f1a7448bd76475c681147f51"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "a1e3417455700ef5bc3e021448c4b5c24ad96b76b7b85c96cad62f8e34f261b1"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "signer",
+          "frame": 117,
+          "sequence": 117,
+          "asset": "e4127e4b27d492f13a16c96105be429c4eae3aca409ba55421d4c99b9f13ff4b"
+        }
+      ]
+    }
+  ]
+}

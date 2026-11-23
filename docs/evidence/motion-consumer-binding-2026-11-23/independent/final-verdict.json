@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "revision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "run": "root-causes-39b75450",
+  "reviewer": "Astra 6.2 Max independent review /root/astra62_max_remaining_review",
+  "verdict": "return-for-two-evidence-consumer-fixes",
+  "rankedChanges": [
+    {
+      "rank": 1,
+      "function": "nativeCase",
+      "defect": "An authentic side summary and side receipt from the wrong source tree can be mixed into a current case.",
+      "fix": "Require the verified case receipt at the authenticated native producer root/id/case.json, and both verified side receipts at the actual case directory/side/receipt.json. Keep existing equality of copied versus loaded side provenance.",
+      "control": "full-producer-controls/results.json#genuine-old-side"
+    },
+    {
+      "rank": 2,
+      "function": "nativeFrames",
+      "defect": "A missing extra citation with an authentic frame digest is admitted.",
+      "fix": "Require every citation to have an exact resolved path and digest in the set of individually verified, frame-bound native PNGs.",
+      "control": "full-producer-controls/results.json#missing-extra-witness"
+    }
+  ],
+  "categories": {
+    "knownEvidenceContradictions": "pass: genuine positive; five earlier negatives/newer five control rows covering four prior contradictions, with unrelated route tried at both public entry points",
+    "producerSideSourceAndCompleteCitations": "fail: two independently reproduced full-inventory controls",
+    "nativeCameraAndPhysicalReturn": "pass: 16 legal histories; 704 native extent samples; 416 moving with visible native contribution; zero offstage native pixels",
+    "grantCausalityAndOldCredential": "pass: four actual 137-frame reader histories, all 52 sparse original native/serialized samples equal to prior review",
+    "namedDomainModelAndNativeOwnership": "pass: genuine parent/child sibling mapping, four independent positive/inverse variants, five versioned representations of four physical relations",
+    "nativeAll59Review": "pass: exact current case/side/asset lineage and independent scoped classification",
+    "historicalPolicyAndSevereOwner": "pass: original 39 case IDs retained with one named no-op obligation; true separate severe generic positive and clear inverse",
+    "packageLinks": "author owner passes 3/3; the final revision changes only a guide URL from core 2c84fcf6",
+    "finalFullNativeWorkerAndIntegration": "pending at time of this handoff; root owns existing source-qualified run and CI"
+  },
+  "independentNative": {
+    "counts": {
+      "observed": 45,
+      "editorial": 6,
+      "typed-prevention": 4,
+      "non-reproducing": 4,
+      "unresolved": 0
+    },
+    "primaryComplete": 55,
+    "primaryTypedPrevented": 4,
+    "uniqueNativeAssetSha": 6329,
+    "verifiedFrameOccurrences": 13391,
+    "distinctNativeRelations": 4,
+    "versionedApprovals": 5,
+    "newIndividuallyOpenedPrimaryPngs": 8,
+    "otherIndividuallyOpenedExamplesIncludingOneOldSource": 12,
+    "allAdditionalBlindClausesAreDetectionCredit": false
+  },
+  "priorSourcePreservation": "Matched all 19 artifact references recorded in the 815 final handoff and ranked verdict. Preserved earlier independent files in place.",
+  "currentWorkerScoresRead": false,
+  "rankedEvidence": {
+    "REPORT.md": {
+      "path": "REPORT.md",
+      "sha256": "d8f9588c3fbd08e208877ef712ddce9bda7e3753a5b4d22a76eaa922bd589ede"
+    },
+    "review-receipt.json": {
+      "path": "review-receipt.json",
+      "sha256": "9b5f0fdece883576d406ba0b20238e73c9c148dae62710f1129dfe7bc50b7400"
+    },
+    "review.json": {
+      "path": "review.json",
+      "sha256": "792ce312ad3fa76e73b2e479e7bb2b80aa1ea388c6508622e4c1353c2d686c2b"
+    },
+    "ratifications-before-measurement.json": {
+      "path": "ratifications-before-measurement.json",
+      "sha256": "38b448b0891e78ff7dbbf6dbedb93918620c3c6a08a2fe1a47939609d8550630"
+    },
+    "v3-ratifications-before-measurement.json": {
+      "path": "v3-ratifications-before-measurement.json",
+      "sha256": "f1d515abf781721adde1c5844b8ba0a8b81a8831feb0c7478f37449c6bc6b62b"
+    },
+    "domain-ratification-before-measurement.json": {
+      "path": "domain-ratification-before-measurement.json",
+      "sha256": "7e7b6b14f5568d4dd4dae80f5f606493e464f9fe09db0d1ae056bea464f42511"
+    },
+    "review-validation.json": {
+      "path": "review-validation.json",
+      "sha256": "e11d08e448e07111bbe56b64e38e501402de128376f7949fd8fba4d84585f1ed"
+    },
+    "route-lineage-39b75450.json": {
+      "path": "route-lineage-39b75450.json",
+      "sha256": "5ee2197fef04e30b6a62c6a625a99684b913dd9a729bf24072ebbda71787434e"
+    },
+    "native-knockout-39b75450.json": {
+      "path": "native-knockout-39b75450.json",
+      "sha256": "292d2d76e18c7022d65138b76cdf66beba98abb03d80e644ac2f529c6c123715"
+    },
+    "native-opened.json": {
+      "path": "native-opened.json",
+      "sha256": "f722b4bbd9bd8388ec60dc68a0130d1a340ce4a2f61ecf74571d412cca185fc9"
+    },
+    "visual-inspection.json": {
+      "path": "visual-inspection.json",
+      "sha256": "d24415248acbb4c6bbd5b4e3ec049dbbff12e9ba39b136b35b58e40c12d7b481"
+    },
+    "supplementary-inspection.json": {
+      "path": "supplementary-inspection.json",
+      "sha256": "29d6806fd0382b27fb56eb88e483c7e62758cbcccbd842eca594cd2afe663de4"
+    },
+    "independent-clause-targets.json": {
+      "path": "independent-clause-targets.json",
+      "sha256": "02ac5879ec8b16c6d71a7dd789abf14db8784ee38e9c4cca8fa5b8b31ea8637c"
+    },
+    "reader-return/return-reader-scan.json": {
+      "path": "reader-return/return-reader-scan.json",
+      "sha256": "15d9ddc2b54d71cc6af1a7399ebae199dc092b2ea2dadcc27ee0fd55cdeeaa28"
+    },
+    "grant-lineage.json": {
+      "path": "grant-lineage.json",
+      "sha256": "6a5a06df55591db9d1a5d8b26e6bf11d5a5c3692573fcd4494b8301c432ced12"
+    },
+    "reader-grants/reader-grants.json": {
+      "path": "reader-grants/reader-grants.json",
+      "sha256": "e6626dac19ca56e148cb7dd9e231feec74e15dac0f896917486577b18ab9622c"
+    },
+    "card-lifecycle/lifecycle.json": {
+      "path": "card-lifecycle/lifecycle.json",
+      "sha256": "ffdeb439c8bd1cc970c2a2cd6efd955e20c25cb696281dbfc1319459229b6092"
+    },
+    "domain-authoring-controls.json": {
+      "path": "domain-authoring-controls.json",
+      "sha256": "8adc24ef217b3c35808f2fe9b9a79b948f9a50a42e695df267f710f05f8a5bd1"
+    },
+    "focused-readback.json": {
+      "path": "focused-readback.json",
+      "sha256": "71abae7b9d7dc85b52e0eddf2b0c902a8f3728abe5ca894b4376929249b3b373"
+    },
+    "clearance-probe.json": {
+      "path": "clearance-probe.json",
+      "sha256": "3462dec25bc6615189eeffe9a22069f58e7f3c1d952696e476c5723bff5a1d91"
+    },
+    "admission-controls/results.json": {
+      "path": "admission-controls/results.json",
+      "sha256": "c72fbe0a84a6781b01288962874e58614ed36a68f5dd26b4cc4daba5c87fc969"
+    },
+    "producer-controls/results.json": {
+      "path": "producer-controls/results.json",
+      "sha256": "17ebf6797bd8a315a203f8de9a3e93e6d22e16c369df20031fca3a167a052c46"
+    },
+    "full-producer-controls/results.json": {
+      "path": "full-producer-controls/results.json",
+      "sha256": "bedb30ddde6c7aeed5367631be71712401c0da52f6c5c0f1a47dc1908a08d271"
+    },
+    "admission-replay.ts": {
+      "path": "admission-replay.ts",
+      "sha256": "442df58b4a128c7d8dbc58cc83c3fe1fc24cc2d9d9601851432b24a2e4f8c073"
+    },
+    "producer-edges.ts": {
+      "path": "producer-edges.ts",
+      "sha256": "91f4cdc8a301c044ce5b464e83a44204b43d940edb9f089f65ea0c3e298bdbde"
+    },
+    "full-producer-controls.ts": {
+      "path": "full-producer-controls.ts",
+      "sha256": "a7aa0492ff8efe8d62a39114f1c85f0f322d111f434d0e966c37dffe4dc2fd05"
+    },
+    "camera-review.ts": {
+      "path": "camera-review.ts",
+      "sha256": "1257eef0ace761a86aa6282343de3d6a17cf78c98ab5ebfc586ac8f4f7a80230"
+    },
+    "grant-reader.ts": {
+      "path": "grant-reader.ts",
+      "sha256": "836033aac46ac09a6a79483706ed7cd74ffa5fb9c1bb93c51bde6752c52d30e1"
+    },
+    "card-lifecycle.ts": {
+      "path": "card-lifecycle.ts",
+      "sha256": "1d173399247d0b76752ae5e86df3f31e0285149dd1370cf3d6f40ee95106de21"
+    },
+    "domain-authoring-controls.ts": {
+      "path": "domain-authoring-controls.ts",
+      "sha256": "99d847a6014625c6161ecc574549ff9d7ab9fd05c0bf6191cbbd0106db4f4f41"
+    },
+    "clearance-replay.ts": {
+      "path": "clearance-replay.ts",
+      "sha256": "e6343f8f799a8ecb871a5dc63551ca285cf6e5c3e21ceed1f66f453a71668a58"
+    },
+    "lineage.py": {
+      "path": "lineage.py",
+      "sha256": "648a46c0ac426b5fe824a8f0cc46c1adcef46bcd4a892601efb05f8b5b8fd770"
+    },
+    "bind-current.py": {
+      "path": "bind-current.py",
+      "sha256": "38bfcd9107602899cd0e669b50dfcca2bb0b491702bee9f732638cc23e6f012c"
+    },
+    "verify-independent.ts": {
+      "path": "verify-independent.ts",
+      "sha256": "2f2c9c231aca8389fa771ced732f15b564aa8b89c4bc43e540445aa351104d0e"
+    }
+  }
+}

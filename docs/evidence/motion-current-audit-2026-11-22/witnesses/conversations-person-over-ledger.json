@@ -1,0 +1,823 @@
+{
+  "policy": "Matched native offsets; blank cells explicitly indicate absent frames. All crops are ordinary native PNG inputs; no generated artwork.",
+  "samples": [
+    {
+      "step": "person",
+      "frame": 0
+    },
+    {
+      "step": "person",
+      "frame": 8
+    },
+    {
+      "step": "person",
+      "frame": 15
+    },
+    {
+      "step": "person",
+      "frame": 23
+    },
+    {
+      "step": "person",
+      "frame": 30
+    },
+    {
+      "step": "person",
+      "frame": 38
+    },
+    {
+      "step": "person",
+      "frame": 45
+    },
+    {
+      "step": "person",
+      "frame": 53
+    },
+    {
+      "step": "person",
+      "frame": 60
+    }
+  ],
+  "regions": [
+    {
+      "name": "whole-stage",
+      "crop": {
+        "name": "whole-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "b1f5a9abdfadeec29e1767ba8e053bbec87e0be4db2968e01677a85c9acc2a4f"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "5c546b5d9da621cb13d4fce9dfd3a8d1ade35354c953fb03999c55c314e45c87"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "1de4384476f44128ed3b7a33b352eb72d39d7ed152d3ccc6e58963312fe28cb1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "cde194dcf837440ed7e843f57dbac31348c7a205d0ec2391954a10cd705e9b21"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "9902d7dafe59164921245408b51cc62eeeb9962217558a5193efdc2a099edb49"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "c3035ff6f8ea729c0175c80da0e6894e7ba1507fbe7a0c3a328aa2b900a991e9"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "229b01feb73fdc02174aa5acc780c3f724f5506d257b48eda06188a560dcd564"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "accc757240074838eb51a6849295a542b752b0fbf9609ddd9c5c61bb1f4ac528"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "80cb37a4108c42a94a32e63f159a2c3b763655d4ab565a5ce375183942ec997d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "4832bd9baca891aefc7e32e1dc50151765c9b7d1e0741ee800923a1fbf22c675"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        }
+      ]
+    },
+    {
+      "name": "upper-stage",
+      "crop": {
+        "name": "upper-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "b1f5a9abdfadeec29e1767ba8e053bbec87e0be4db2968e01677a85c9acc2a4f"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "5c546b5d9da621cb13d4fce9dfd3a8d1ade35354c953fb03999c55c314e45c87"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "1de4384476f44128ed3b7a33b352eb72d39d7ed152d3ccc6e58963312fe28cb1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "cde194dcf837440ed7e843f57dbac31348c7a205d0ec2391954a10cd705e9b21"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "9902d7dafe59164921245408b51cc62eeeb9962217558a5193efdc2a099edb49"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "c3035ff6f8ea729c0175c80da0e6894e7ba1507fbe7a0c3a328aa2b900a991e9"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "229b01feb73fdc02174aa5acc780c3f724f5506d257b48eda06188a560dcd564"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "accc757240074838eb51a6849295a542b752b0fbf9609ddd9c5c61bb1f4ac528"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "80cb37a4108c42a94a32e63f159a2c3b763655d4ab565a5ce375183942ec997d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "4832bd9baca891aefc7e32e1dc50151765c9b7d1e0741ee800923a1fbf22c675"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        }
+      ]
+    },
+    {
+      "name": "lower-stage",
+      "crop": {
+        "name": "lower-stage",
+        "x": 0,
+        "y": 225,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "b1f5a9abdfadeec29e1767ba8e053bbec87e0be4db2968e01677a85c9acc2a4f"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "5c546b5d9da621cb13d4fce9dfd3a8d1ade35354c953fb03999c55c314e45c87"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "1de4384476f44128ed3b7a33b352eb72d39d7ed152d3ccc6e58963312fe28cb1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "cde194dcf837440ed7e843f57dbac31348c7a205d0ec2391954a10cd705e9b21"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "9902d7dafe59164921245408b51cc62eeeb9962217558a5193efdc2a099edb49"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "c3035ff6f8ea729c0175c80da0e6894e7ba1507fbe7a0c3a328aa2b900a991e9"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "229b01feb73fdc02174aa5acc780c3f724f5506d257b48eda06188a560dcd564"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "accc757240074838eb51a6849295a542b752b0fbf9609ddd9c5c61bb1f4ac528"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "80cb37a4108c42a94a32e63f159a2c3b763655d4ab565a5ce375183942ec997d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "4832bd9baca891aefc7e32e1dc50151765c9b7d1e0741ee800923a1fbf22c675"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        }
+      ]
+    },
+    {
+      "name": "left-stage",
+      "crop": {
+        "name": "left-stage",
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "b1f5a9abdfadeec29e1767ba8e053bbec87e0be4db2968e01677a85c9acc2a4f"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "5c546b5d9da621cb13d4fce9dfd3a8d1ade35354c953fb03999c55c314e45c87"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "1de4384476f44128ed3b7a33b352eb72d39d7ed152d3ccc6e58963312fe28cb1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "cde194dcf837440ed7e843f57dbac31348c7a205d0ec2391954a10cd705e9b21"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "9902d7dafe59164921245408b51cc62eeeb9962217558a5193efdc2a099edb49"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "c3035ff6f8ea729c0175c80da0e6894e7ba1507fbe7a0c3a328aa2b900a991e9"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "229b01feb73fdc02174aa5acc780c3f724f5506d257b48eda06188a560dcd564"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "accc757240074838eb51a6849295a542b752b0fbf9609ddd9c5c61bb1f4ac528"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "80cb37a4108c42a94a32e63f159a2c3b763655d4ab565a5ce375183942ec997d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "4832bd9baca891aefc7e32e1dc50151765c9b7d1e0741ee800923a1fbf22c675"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        }
+      ]
+    },
+    {
+      "name": "right-stage",
+      "crop": {
+        "name": "right-stage",
+        "x": 400,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "person",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "1d3ce1c4b765418769181ab11587a994b951a4cfb8af088a1ea6788fdb85b43a"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "b1f5a9abdfadeec29e1767ba8e053bbec87e0be4db2968e01677a85c9acc2a4f"
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "person",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "5c546b5d9da621cb13d4fce9dfd3a8d1ade35354c953fb03999c55c314e45c87"
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "1de4384476f44128ed3b7a33b352eb72d39d7ed152d3ccc6e58963312fe28cb1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "person",
+          "frame": 15,
+          "sequence": 15,
+          "asset": "cde194dcf837440ed7e843f57dbac31348c7a205d0ec2391954a10cd705e9b21"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "9902d7dafe59164921245408b51cc62eeeb9962217558a5193efdc2a099edb49"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "person",
+          "frame": 23,
+          "sequence": 23,
+          "asset": "c3035ff6f8ea729c0175c80da0e6894e7ba1507fbe7a0c3a328aa2b900a991e9"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "229b01feb73fdc02174aa5acc780c3f724f5506d257b48eda06188a560dcd564"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "person",
+          "frame": 30,
+          "sequence": 30,
+          "asset": "accc757240074838eb51a6849295a542b752b0fbf9609ddd9c5c61bb1f4ac528"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "80cb37a4108c42a94a32e63f159a2c3b763655d4ab565a5ce375183942ec997d"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "person",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "4832bd9baca891aefc7e32e1dc50151765c9b7d1e0741ee800923a1fbf22c675"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "person",
+          "frame": 45,
+          "sequence": 45,
+          "asset": "c4c31d74620f3d7aa5c0c6cb9d36f1f22ac2c2b56dd2e63d1ce82419e64202f8"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "person",
+          "frame": 53,
+          "sequence": 53,
+          "asset": "7b234fb6f8d0f355724e66d17e20c3a241ca6e6bb8ec316f7ef0e4d96e01dfec"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "person",
+          "frame": 60,
+          "sequence": 60,
+          "asset": "2427f55de7528daadcbde21a75cce723c8cd00c9bb7c3bc232718cfbaa053897"
+        }
+      ]
+    }
+  ]
+}

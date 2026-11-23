@@ -1,0 +1,1464 @@
+[
+  {
+    "chapter": "coverage",
+    "settings": {
+      "company": "hostile"
+    },
+    "kind": "story",
+    "step": "search",
+    "from": "rest",
+    "rows": [
+      {
+        "key": "report/report:sent/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 30,
+        "broad": 5,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 30,
+        "broad": 6,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/skill/skill",
+        "text": "skill",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/skill/skill",
+        "text": "skill",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      }
+    ],
+    "routes": {
+      "report/report:sent": [
+        [
+          -6.349999904632568,
+          3.065000057220459
+        ],
+        [
+          -6.349999904632568,
+          2.7753636837005615
+        ],
+        [
+          -6.349999904632568,
+          2.4029741287231445
+        ],
+        [
+          -6.349999904632568,
+          2.0305845141410828
+        ],
+        [
+          -6.079005718231201,
+          1.929189145565033
+        ],
+        [
+          -5.706615924835205,
+          1.929189145565033
+        ],
+        [
+          -5.334226608276367,
+          1.929189145565033
+        ],
+        [
+          -4.961836814880371,
+          1.929189145565033
+        ],
+        [
+          -4.589447021484375,
+          1.929189145565033
+        ],
+        [
+          -4.327057838439941,
+          1.8191890716552734
+        ],
+        [
+          -3.9546680450439453,
+          1.8191890716552734
+        ],
+        [
+          -3.5822784900665283,
+          1.8191890716552734
+        ],
+        [
+          -3.2098886966705322,
+          1.8191890716552734
+        ],
+        [
+          -2.8374991416931152,
+          1.8191890716552734
+        ],
+        [
+          -2.4651095867156982,
+          1.8191890716552734
+        ],
+        [
+          -2.0927200317382812,
+          1.8191890716552734
+        ],
+        [
+          -1.7203304171562195,
+          1.8191890716552734
+        ],
+        [
+          -1.66783607006073,
+          1.4992938041687012
+        ],
+        [
+          -1.4947402477264404,
+          1.2999999523162842
+        ],
+        [
+          -1.122350662946701,
+          1.2999999523162842
+        ],
+        [
+          -0.7499610334634781,
+          1.2999999523162842
+        ],
+        [
+          -0.3775714486837387,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000596046448,
+          1.2999999523162842
+        ]
+      ],
+      "report/report:reply": [
+        [
+          -0.15000000037252903,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000037252903,
+          1.0556817948818207
+        ],
+        [
+          -0.15000000037252903,
+          0.7038636058568954
+        ],
+        [
+          -0.15000000037252903,
+          0.3520454131066799
+        ],
+        [
+          -0.15000000037252903,
+          0.00022724270820617676
+        ],
+        [
+          -0.15000000037252903,
+          -0.35159093886613846
+        ],
+        [
+          -0.15000000037252903,
+          -0.7034091353416443
+        ],
+        [
+          -0.15000000223517418,
+          -1.055227279663086
+        ],
+        [
+          -0.15000000223517418,
+          -1.4070454835891724
+        ],
+        [
+          -0.15000000223517418,
+          -1.758863627910614
+        ],
+        [
+          -0.039318159222602844,
+          -2.0000000596046448
+        ],
+        [
+          0.3125000074505806,
+          -2.0000000596046448
+        ],
+        [
+          0.6643182039260864,
+          -2.0000000596046448
+        ],
+        [
+          1.0161363780498505,
+          -2.0000000596046448
+        ],
+        [
+          1.3679545521736145,
+          -2.0000000596046448
+        ],
+        [
+          1.7197726964950562,
+          -2.0000000596046448
+        ],
+        [
+          2.0715909600257874,
+          -2.0000000596046448
+        ],
+        [
+          2.423409104347229,
+          -2.0000000596046448
+        ],
+        [
+          2.775227189064026,
+          -2.0000000596046448
+        ],
+        [
+          3,
+          -2.0000000596046448
+        ]
+      ]
+    }
+  },
+  {
+    "chapter": "coverage",
+    "settings": {
+      "company": "hostile"
+    },
+    "kind": "reader",
+    "step": "search",
+    "from": "rest",
+    "log": [
+      "read tasks",
+      "gift card",
+      "report"
+    ],
+    "rows": [
+      {
+        "key": "search/report:sent/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 30,
+        "broad": 5,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 30,
+        "broad": 6,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/skill/skill",
+        "text": "skill",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/skill/skill",
+        "text": "skill",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      }
+    ],
+    "routes": {
+      "search/report:sent": [
+        [
+          -6.349999904632568,
+          3.065000057220459
+        ],
+        [
+          -6.349999904632568,
+          2.7753636837005615
+        ],
+        [
+          -6.349999904632568,
+          2.4029741287231445
+        ],
+        [
+          -6.349999904632568,
+          2.0305845141410828
+        ],
+        [
+          -6.079005718231201,
+          1.929189145565033
+        ],
+        [
+          -5.706615924835205,
+          1.929189145565033
+        ],
+        [
+          -5.334226608276367,
+          1.929189145565033
+        ],
+        [
+          -4.961836814880371,
+          1.929189145565033
+        ],
+        [
+          -4.589447021484375,
+          1.929189145565033
+        ],
+        [
+          -4.327057838439941,
+          1.8191890716552734
+        ],
+        [
+          -3.9546680450439453,
+          1.8191890716552734
+        ],
+        [
+          -3.5822784900665283,
+          1.8191890716552734
+        ],
+        [
+          -3.2098886966705322,
+          1.8191890716552734
+        ],
+        [
+          -2.8374991416931152,
+          1.8191890716552734
+        ],
+        [
+          -2.4651095867156982,
+          1.8191890716552734
+        ],
+        [
+          -2.0927200317382812,
+          1.8191890716552734
+        ],
+        [
+          -1.7203304171562195,
+          1.8191890716552734
+        ],
+        [
+          -1.66783607006073,
+          1.4992938041687012
+        ],
+        [
+          -1.4947402477264404,
+          1.2999999523162842
+        ],
+        [
+          -1.122350662946701,
+          1.2999999523162842
+        ],
+        [
+          -0.7499610334634781,
+          1.2999999523162842
+        ],
+        [
+          -0.3775714486837387,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000596046448,
+          1.2999999523162842
+        ]
+      ],
+      "search/report:reply": [
+        [
+          -0.15000000037252903,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000037252903,
+          1.0556817948818207
+        ],
+        [
+          -0.15000000037252903,
+          0.7038636058568954
+        ],
+        [
+          -0.15000000037252903,
+          0.3520454131066799
+        ],
+        [
+          -0.15000000037252903,
+          0.00022724270820617676
+        ],
+        [
+          -0.15000000037252903,
+          -0.35159093886613846
+        ],
+        [
+          -0.15000000037252903,
+          -0.7034091353416443
+        ],
+        [
+          -0.15000000223517418,
+          -1.055227279663086
+        ],
+        [
+          -0.15000000223517418,
+          -1.4070454835891724
+        ],
+        [
+          -0.15000000223517418,
+          -1.758863627910614
+        ],
+        [
+          -0.039318159222602844,
+          -2.0000000596046448
+        ],
+        [
+          0.3125000074505806,
+          -2.0000000596046448
+        ],
+        [
+          0.6643182039260864,
+          -2.0000000596046448
+        ],
+        [
+          1.0161363780498505,
+          -2.0000000596046448
+        ],
+        [
+          1.3679545521736145,
+          -2.0000000596046448
+        ],
+        [
+          1.7197726964950562,
+          -2.0000000596046448
+        ],
+        [
+          2.0715909600257874,
+          -2.0000000596046448
+        ],
+        [
+          2.423409104347229,
+          -2.0000000596046448
+        ],
+        [
+          2.775227189064026,
+          -2.0000000596046448
+        ],
+        [
+          3,
+          -2.0000000596046448
+        ]
+      ]
+    }
+  },
+  {
+    "chapter": "coverage",
+    "settings": {
+      "company": "honest"
+    },
+    "kind": "story",
+    "step": "search",
+    "from": "rest",
+    "rows": [
+      {
+        "key": "report/report:sent/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 30,
+        "broad": 5,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 30,
+        "broad": 6,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/skill/skill",
+        "text": "skill",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:sent/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/skill/skill",
+        "text": "skill",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "report/report:reply/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      }
+    ],
+    "routes": {
+      "report/report:sent": [
+        [
+          -6.349999904632568,
+          3.065000057220459
+        ],
+        [
+          -6.349999904632568,
+          2.7753636837005615
+        ],
+        [
+          -6.349999904632568,
+          2.4029741287231445
+        ],
+        [
+          -6.349999904632568,
+          2.0305845141410828
+        ],
+        [
+          -6.079005718231201,
+          1.929189145565033
+        ],
+        [
+          -5.706615924835205,
+          1.929189145565033
+        ],
+        [
+          -5.334226608276367,
+          1.929189145565033
+        ],
+        [
+          -4.961836814880371,
+          1.929189145565033
+        ],
+        [
+          -4.589447021484375,
+          1.929189145565033
+        ],
+        [
+          -4.327057838439941,
+          1.8191890716552734
+        ],
+        [
+          -3.9546680450439453,
+          1.8191890716552734
+        ],
+        [
+          -3.5822784900665283,
+          1.8191890716552734
+        ],
+        [
+          -3.2098886966705322,
+          1.8191890716552734
+        ],
+        [
+          -2.8374991416931152,
+          1.8191890716552734
+        ],
+        [
+          -2.4651095867156982,
+          1.8191890716552734
+        ],
+        [
+          -2.0927200317382812,
+          1.8191890716552734
+        ],
+        [
+          -1.7203304171562195,
+          1.8191890716552734
+        ],
+        [
+          -1.66783607006073,
+          1.4992938041687012
+        ],
+        [
+          -1.4947402477264404,
+          1.2999999523162842
+        ],
+        [
+          -1.122350662946701,
+          1.2999999523162842
+        ],
+        [
+          -0.7499610334634781,
+          1.2999999523162842
+        ],
+        [
+          -0.3775714486837387,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000596046448,
+          1.2999999523162842
+        ]
+      ],
+      "report/report:reply": [
+        [
+          -0.15000000037252903,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000037252903,
+          1.0556817948818207
+        ],
+        [
+          -0.15000000037252903,
+          0.7038636058568954
+        ],
+        [
+          -0.15000000037252903,
+          0.3520454131066799
+        ],
+        [
+          -0.15000000037252903,
+          0.00022724270820617676
+        ],
+        [
+          -0.15000000037252903,
+          -0.35159093886613846
+        ],
+        [
+          -0.15000000037252903,
+          -0.7034091353416443
+        ],
+        [
+          -0.15000000223517418,
+          -1.055227279663086
+        ],
+        [
+          -0.15000000223517418,
+          -1.4070454835891724
+        ],
+        [
+          -0.15000000223517418,
+          -1.758863627910614
+        ],
+        [
+          -0.039318159222602844,
+          -2.0000000596046448
+        ],
+        [
+          0.3125000074505806,
+          -2.0000000596046448
+        ],
+        [
+          0.6643182039260864,
+          -2.0000000596046448
+        ],
+        [
+          1.0161363780498505,
+          -2.0000000596046448
+        ],
+        [
+          1.3679545521736145,
+          -2.0000000596046448
+        ],
+        [
+          1.7197726964950562,
+          -2.0000000596046448
+        ],
+        [
+          2.0715909600257874,
+          -2.0000000596046448
+        ],
+        [
+          2.423409104347229,
+          -2.0000000596046448
+        ],
+        [
+          2.775227189064026,
+          -2.0000000596046448
+        ],
+        [
+          3,
+          -2.0000000596046448
+        ]
+      ]
+    }
+  },
+  {
+    "chapter": "coverage",
+    "settings": {
+      "company": "honest"
+    },
+    "kind": "reader",
+    "step": "search",
+    "from": "rest",
+    "log": [
+      "read tasks",
+      "gift card",
+      "report"
+    ],
+    "rows": [
+      {
+        "key": "search/report:sent/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 30,
+        "broad": 5,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 30,
+        "broad": 6,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/skill/skill",
+        "text": "skill",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:sent/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 30,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/agent:name/your agent",
+        "victimKey": "agent:name",
+        "text": "your agent",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/lane:api:name/API",
+        "victimKey": "lane:api:name",
+        "text": "API",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/lane:web:name/Website",
+        "victimKey": "lane:web:name",
+        "text": "Website",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/lane:chat:name/Chat",
+        "victimKey": "lane:chat:name",
+        "text": "Chat",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/Not offered here/Not offered here",
+        "text": "Not offered here",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/board:line/Close an account",
+        "victimKey": "board:line",
+        "text": "Close an account",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/skill/skill",
+        "text": "skill",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/feedback:name/feedback",
+        "victimKey": "feedback:name",
+        "text": "feedback",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/trayname/what its model reads",
+        "victimKey": "trayname",
+        "text": "what its model reads",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      },
+      {
+        "key": "search/report:reply/Use my gift card/Use my gift card",
+        "text": "Use my gift card",
+        "coexisting": 27,
+        "broad": 0,
+        "damaged": 0,
+        "maxLost": 0
+      }
+    ],
+    "routes": {
+      "search/report:sent": [
+        [
+          -6.349999904632568,
+          3.065000057220459
+        ],
+        [
+          -6.349999904632568,
+          2.7753636837005615
+        ],
+        [
+          -6.349999904632568,
+          2.4029741287231445
+        ],
+        [
+          -6.349999904632568,
+          2.0305845141410828
+        ],
+        [
+          -6.079005718231201,
+          1.929189145565033
+        ],
+        [
+          -5.706615924835205,
+          1.929189145565033
+        ],
+        [
+          -5.334226608276367,
+          1.929189145565033
+        ],
+        [
+          -4.961836814880371,
+          1.929189145565033
+        ],
+        [
+          -4.589447021484375,
+          1.929189145565033
+        ],
+        [
+          -4.327057838439941,
+          1.8191890716552734
+        ],
+        [
+          -3.9546680450439453,
+          1.8191890716552734
+        ],
+        [
+          -3.5822784900665283,
+          1.8191890716552734
+        ],
+        [
+          -3.2098886966705322,
+          1.8191890716552734
+        ],
+        [
+          -2.8374991416931152,
+          1.8191890716552734
+        ],
+        [
+          -2.4651095867156982,
+          1.8191890716552734
+        ],
+        [
+          -2.0927200317382812,
+          1.8191890716552734
+        ],
+        [
+          -1.7203304171562195,
+          1.8191890716552734
+        ],
+        [
+          -1.66783607006073,
+          1.4992938041687012
+        ],
+        [
+          -1.4947402477264404,
+          1.2999999523162842
+        ],
+        [
+          -1.122350662946701,
+          1.2999999523162842
+        ],
+        [
+          -0.7499610334634781,
+          1.2999999523162842
+        ],
+        [
+          -0.3775714486837387,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000596046448,
+          1.2999999523162842
+        ]
+      ],
+      "search/report:reply": [
+        [
+          -0.15000000037252903,
+          1.2999999523162842
+        ],
+        [
+          -0.15000000037252903,
+          1.0556817948818207
+        ],
+        [
+          -0.15000000037252903,
+          0.7038636058568954
+        ],
+        [
+          -0.15000000037252903,
+          0.3520454131066799
+        ],
+        [
+          -0.15000000037252903,
+          0.00022724270820617676
+        ],
+        [
+          -0.15000000037252903,
+          -0.35159093886613846
+        ],
+        [
+          -0.15000000037252903,
+          -0.7034091353416443
+        ],
+        [
+          -0.15000000223517418,
+          -1.055227279663086
+        ],
+        [
+          -0.15000000223517418,
+          -1.4070454835891724
+        ],
+        [
+          -0.15000000223517418,
+          -1.758863627910614
+        ],
+        [
+          -0.039318159222602844,
+          -2.0000000596046448
+        ],
+        [
+          0.3125000074505806,
+          -2.0000000596046448
+        ],
+        [
+          0.6643182039260864,
+          -2.0000000596046448
+        ],
+        [
+          1.0161363780498505,
+          -2.0000000596046448
+        ],
+        [
+          1.3679545521736145,
+          -2.0000000596046448
+        ],
+        [
+          1.7197726964950562,
+          -2.0000000596046448
+        ],
+        [
+          2.0715909600257874,
+          -2.0000000596046448
+        ],
+        [
+          2.423409104347229,
+          -2.0000000596046448
+        ],
+        [
+          2.775227189064026,
+          -2.0000000596046448
+        ],
+        [
+          3,
+          -2.0000000596046448
+        ]
+      ]
+    }
+  }
+]

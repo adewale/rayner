@@ -1,0 +1,1063 @@
+{
+  "source": "current-audit-2026-11-22/measurement/corpus.json",
+  "frozenRevision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+  "policy": "Diagnostic addendum only; original targets and16/20 frozen assessment unchanged.",
+  "rows": [
+    {
+      "id": "poppy-key-over-station-name",
+      "workerStatus": "complete",
+      "totalFindings": 0,
+      "freshFindings": 0,
+      "frozenMissTargets": [
+        {
+          "version": "poppy-key-over-station-name@visual-2026-11-22.1",
+          "basis": "current_audit_first, review-first.json index1; review-first-witnesses/poppy-key-lane-clearance.png frames37-38: inbound key crosses Sign-in S. Station-name and sign-out clauses unconfirmed. Source lane:sign-in:name and flight(agent:key) bind observed ink.",
+          "phase": "inbound sign-in key flight",
+          "finding": {
+            "type": "finding",
+            "scenario": "{\"approve\":\"read-write\"}",
+            "transition": "(?:event \"sign-in\"$|, sign-in$)",
+            "kind": "covers",
+            "path": "agent:key:flight",
+            "subjects": [
+              "Sign-in"
+            ],
+            "victim": "lane:sign-in:name",
+            "masks": [
+              "agent:key:flight"
+            ]
+          },
+          "findingMatch": false,
+          "preventionMatch": false,
+          "independentlyConfirmed": true,
+          "outcome": "target-miss",
+          "matchedFindings": [],
+          "matchedPreventions": []
+        }
+      ],
+      "observations": []
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "workerStatus": "complete",
+      "totalFindings": 0,
+      "freshFindings": 0,
+      "frozenMissTargets": [
+        {
+          "version": "refusals-key-over-lane-name@visual-2026-11-22.1",
+          "basis": "current_audit_first, review-first.json index9; refusals-key-over-lane-name/contacts/upper-stage.png +1.267s: refreshed key crosses API. Source apiKey(), flight(agent:key) and lane:api:name bind observed ink.",
+          "phase": "refreshed API key return on answer",
+          "finding": {
+            "type": "finding",
+            "scenario": "{}",
+            "transition": "(?:event \"answer\"$|, answer$)",
+            "kind": "covers",
+            "path": "agent:key:flight",
+            "subjects": [
+              "API"
+            ],
+            "victim": "lane:api:name",
+            "masks": [
+              "agent:key:flight"
+            ]
+          },
+          "findingMatch": false,
+          "preventionMatch": false,
+          "independentlyConfirmed": true,
+          "outcome": "target-miss",
+          "matchedFindings": [],
+          "matchedPreventions": []
+        }
+      ],
+      "observations": []
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "workerStatus": "complete",
+      "totalFindings": 7,
+      "freshFindings": 7,
+      "frozenMissTargets": [
+        {
+          "version": "sign-in-poll-over-card@domain-2026-11-22.1",
+          "replacesObservation": "sign-in-poll-over-card@historical",
+          "basis": "Independent native pixel proof tools/repo/motion-occlusion-proof.ts and restored card domain in picture.ts; changed victim explicitly separate from Example Company.",
+          "phase": "outgoing device poll",
+          "finding": {
+            "type": "finding",
+            "scenario": "{\"flow\":\"device\"}",
+            "transition": "^(?:step \"ask\", play 1, event 2|after .+, collect)$",
+            "kind": "occluded words",
+            "path": "card",
+            "subjects": [
+              "example.com",
+              "poll"
+            ]
+          },
+          "findingMatch": false,
+          "preventionMatch": false,
+          "independentlyConfirmed": true,
+          "outcome": "target-miss",
+          "matchedFindings": [],
+          "matchedPreventions": []
+        }
+      ],
+      "observations": [
+        {
+          "index": 0,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "step \"ask\", play 1, event 2: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"ask\", play 1, event 2",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, collect, collect: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, collect, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "index": 3,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-all, collect, sign-out, ask, collect: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-all, collect, sign-out, ask, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, sign-out, collect: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, sign-out, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-read, collect, ask, disconnect, collect: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-read, collect, ask, disconnect, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        },
+        {
+          "index": 6,
+          "scenario": "{\"flow\":\"device\"}",
+          "line": "after ask, approve-all, collect, sign-out, ask, collect, collect: covers: part “poll” at 0.733 s travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after ask, approve-all, collect, sign-out, ask, collect, collect",
+            "kind": "covers",
+            "path": "poll",
+            "detail": "travels over “example.com” (part “card”), covering at least 34% of its visible glyph boxes, for 0.10 s before it lands",
+            "subjects": [
+              "example.com",
+              "card"
+            ],
+            "victim": "card",
+            "masks": [
+              "poll"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "browser-forge-across-stage",
+      "workerStatus": "complete",
+      "totalFindings": 39,
+      "freshFindings": 39,
+      "frozenMissTargets": [
+        {
+          "version": "browser-forge-across-stage@visual-2026-11-22.1",
+          "basis": "current_audit_second, review-second.json index31; review-second-witness/browser-forge-across-stage--25-32-42.png frame32: current K9wd slip crosses Session. Historical full-size-stub clause is not reconstructed. Source pass(forged) and page:session bind observed ink.",
+          "phase": "current code slip crosses Session on forge",
+          "finding": {
+            "type": "finding",
+            "scenario": "{\"signin\":\"signed-in\"}",
+            "transition": "(?:event \"forge\"$|, forge$)",
+            "kind": "covers",
+            "path": "forged",
+            "subjects": [
+              "Session"
+            ],
+            "victim": "page:session",
+            "masks": [
+              "forged"
+            ]
+          },
+          "findingMatch": false,
+          "preventionMatch": false,
+          "independentlyConfirmed": true,
+          "outcome": "target-miss",
+          "matchedFindings": [],
+          "matchedPreventions": []
+        }
+      ],
+      "observations": [
+        {
+          "index": 0,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"forge\", play 3, event 1",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 3,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, phish, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, phish, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 6,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, authorize, submit, phish, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 7,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 8,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 9,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 10,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, phish, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 11,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, phish, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 12,
+          "scenario": "{\"signin\":\"signed-in\"}",
+          "line": "after load, submit, load, authorize, submit, phish, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 13,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"forge\", play 3, event 1",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 14,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, authorize, submit, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 15,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, authorize, submit, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 16,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, authorize, submit, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 17,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, authorize, submit, phish, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 18,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, authorize, submit, phish, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 19,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, authorize, submit, phish, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, phish, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 20,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, submit, load, authorize, submit, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 21,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, submit, load, authorize, submit, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 22,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, submit, load, authorize, submit, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 23,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, submit, load, authorize, submit, phish, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 24,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, submit, load, authorize, submit, phish, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 25,
+          "scenario": "{\"signin\":\"signed-out\"}",
+          "line": "after load, submit, load, authorize, submit, phish, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, submit, load, authorize, submit, phish, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 26,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "step \"forge\", play 3, event 1: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "step \"forge\", play 3, event 1",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 27,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, authorize, submit, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 28,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, authorize, submit, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, authorize, submit, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 29,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, authorize, submit, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, authorize, submit, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 30,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, authorize, submit, phish, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, authorize, submit, phish, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 31,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, authorize, submit, phish, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, authorize, submit, phish, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 32,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, authorize, submit, phish, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, authorize, submit, phish, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 33,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, submit, load, authorize, submit, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, load, authorize, submit, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 34,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, submit, load, authorize, submit, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, load, authorize, submit, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 35,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, submit, load, authorize, submit, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, load, authorize, submit, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 36,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, submit, load, authorize, submit, phish, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, load, authorize, submit, phish, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 37,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, submit, load, authorize, submit, phish, fetch, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, load, authorize, submit, phish, fetch, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        },
+        {
+          "index": 38,
+          "scenario": "{\"signin\":\"no-scope\"}",
+          "line": "after load, authorize, submit, load, authorize, submit, phish, browse, forge: covers: part “forged” at 1.067 s travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands; fix: route it round the label (or under it, scaled down), or move the label off its way",
+          "observation": {
+            "type": "finding",
+            "transition": "after load, authorize, submit, load, authorize, submit, phish, browse, forge",
+            "kind": "covers",
+            "path": "forged",
+            "detail": "travels over “Yx2b7Q” (part “page:sid”), covering at least 72% of its visible glyph boxes, for 0.20 s before it lands",
+            "subjects": [
+              "Yx2b7Q",
+              "page:sid"
+            ],
+            "victim": "page:sid",
+            "masks": [
+              "forged"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

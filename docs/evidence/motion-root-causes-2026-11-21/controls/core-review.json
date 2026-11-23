@@ -1,0 +1,319 @@
+{
+  "renderer": {
+    "engine": "@resvg/resvg-js",
+    "width": 480,
+    "height": 270,
+    "fps": 30,
+    "redPixels": "R > 160, G < 90, B < 90; counts in left and right halves"
+  },
+  "occlusionControls": [
+    {
+      "names": "distinct",
+      "arrangement": "nested",
+      "observed": {
+        "2": [
+          251,
+          221
+        ],
+        "18": [
+          0,
+          0
+        ],
+        "40": [
+          251,
+          221
+        ]
+      },
+      "beforeFindings": [
+        "overview"
+      ],
+      "fixedFindings": [
+        "overview",
+        "overview/detail"
+      ]
+    },
+    {
+      "names": "distinct",
+      "arrangement": "siblings",
+      "observed": {
+        "2": [
+          251,
+          221
+        ],
+        "18": [
+          0,
+          0
+        ],
+        "40": [
+          251,
+          221
+        ]
+      },
+      "beforeFindings": [
+        "overview",
+        "detail"
+      ],
+      "fixedFindings": [
+        "overview",
+        "detail"
+      ]
+    },
+    {
+      "names": "distinct",
+      "arrangement": "nested-clipped",
+      "observed": {
+        "2": [
+          251,
+          221
+        ],
+        "18": [
+          0,
+          221
+        ],
+        "40": [
+          251,
+          221
+        ]
+      },
+      "beforeFindings": [
+        "overview"
+      ],
+      "fixedFindings": [
+        "overview"
+      ]
+    },
+    {
+      "names": "repeat",
+      "arrangement": "nested",
+      "observed": {
+        "2": [
+          251,
+          251
+        ],
+        "18": [
+          0,
+          0
+        ],
+        "40": [
+          251,
+          251
+        ]
+      },
+      "beforeFindings": [
+        "overview"
+      ],
+      "fixedFindings": [
+        "overview",
+        "overview/detail"
+      ]
+    },
+    {
+      "names": "repeat",
+      "arrangement": "siblings",
+      "observed": {
+        "2": [
+          251,
+          251
+        ],
+        "18": [
+          0,
+          0
+        ],
+        "40": [
+          251,
+          251
+        ]
+      },
+      "beforeFindings": [
+        "overview",
+        "detail"
+      ],
+      "fixedFindings": [
+        "overview",
+        "detail"
+      ]
+    },
+    {
+      "names": "repeat",
+      "arrangement": "nested-clipped",
+      "observed": {
+        "2": [
+          251,
+          251
+        ],
+        "18": [
+          0,
+          251
+        ],
+        "40": [
+          251,
+          251
+        ]
+      },
+      "beforeFindings": [
+        "overview"
+      ],
+      "fixedFindings": [
+        "overview"
+      ]
+    },
+    {
+      "matchedRepeated": true,
+      "clipped": false,
+      "observed": {
+        "52": [
+          0,
+          0
+        ],
+        "60": [
+          0,
+          0
+        ],
+        "68": [
+          283,
+          283
+        ]
+      },
+      "beforeFindings": [
+        "picture/left",
+        "picture/right"
+      ],
+      "fixedFindings": [
+        "picture/left",
+        "picture/right"
+      ],
+      "beforeSeek": [
+        "picture/left",
+        "picture/right"
+      ],
+      "fixedSeek": [
+        "picture/left",
+        "picture/right"
+      ]
+    },
+    {
+      "matchedRepeated": true,
+      "clipped": true,
+      "observed": {
+        "52": [
+          0,
+          0
+        ],
+        "60": [
+          0,
+          0
+        ],
+        "68": [
+          283,
+          0
+        ]
+      },
+      "beforeFindings": [
+        "picture/left"
+      ],
+      "fixedFindings": [
+        "picture/left"
+      ],
+      "beforeSeek": [
+        "picture/left"
+      ],
+      "fixedSeek": [
+        "picture/left"
+      ]
+    }
+  ],
+  "matchingClipControls": {
+    "before": [
+      {
+        "matchedRepeated": true,
+        "clipped": false,
+        "observed": {
+          "52": [
+            245,
+            245
+          ],
+          "60": [
+            284,
+            284
+          ],
+          "68": [
+            283,
+            283
+          ]
+        },
+        "findings": [],
+        "seek": []
+      },
+      {
+        "matchedRepeated": true,
+        "clipped": true,
+        "observed": {
+          "52": [
+            245,
+            245
+          ],
+          "60": [
+            284,
+            284
+          ],
+          "68": [
+            283,
+            0
+          ]
+        },
+        "findings": [],
+        "seek": []
+      }
+    ],
+    "fixed": [
+      {
+        "matchedRepeated": true,
+        "clipped": false,
+        "observed": {
+          "52": [
+            245,
+            245
+          ],
+          "60": [
+            284,
+            284
+          ],
+          "68": [
+            283,
+            283
+          ]
+        },
+        "findings": [],
+        "seek": []
+      },
+      {
+        "matchedRepeated": true,
+        "clipped": true,
+        "observed": {
+          "52": [
+            245,
+            0
+          ],
+          "60": [
+            284,
+            0
+          ],
+          "68": [
+            283,
+            0
+          ]
+        },
+        "findings": [],
+        "seek": []
+      }
+    ]
+  },
+  "tests": {
+    "fixed": [
+      "nested owners report each independently hidden word, including repeated text and seeked frames",
+      "new matching frames and paths inherit every omitted parent clip during playback and independent seeks"
+    ],
+    "priorFoldReinstated": "actual ['overview'], expected ['overview', 'overview/detail']",
+    "priorAdmissionReinstated": "three intersecting clips, native frame 42 differs from the explicit clipping reference"
+  }
+}

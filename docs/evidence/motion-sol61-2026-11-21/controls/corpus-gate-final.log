@@ -1,0 +1,14 @@
+﹣ the credited poll mutation removes actual letter pixels and its fixed route preserves them (1.054957ms) # set FULL=1: independently rasterizes the credited poll and fixed route
+﹣ the held-token dock preserves each printed word with normal and enlarged historical polls (0.117567ms) # set FULL=1: independently rasterizes both held-token routes
+✔ the recorded exhibit size jump remains rejected after current rest stops reproducing it (7.387055ms)
+✔ every corpus entry still applies to the current Poppy scenes, and names its events (9.013443ms)
+✔ a sample of the corpus: geometry, occlusion and authored context are caught (85154.225712ms)
+﹣ the whole corpus: every defect caught when recall was measured is still caught (0.354624ms) # set FULL=1 (npm run test:full): it replays all 59 reconstructed mutations
+ℹ tests 6
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 3
+ℹ todo 0
+ℹ duration_ms 85957.707837

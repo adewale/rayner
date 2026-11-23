@@ -1,0 +1,270 @@
+{
+  "base": "/workspace/rayner",
+  "cases": [
+    {
+      "name": "duplicate-visibility",
+      "rows": [
+        {
+          "mode": "both paint",
+          "frames": 30,
+          "red": [
+            0,
+            337
+          ],
+          "green": [
+            407,
+            409
+          ],
+          "findings": [
+            {
+              "kind": "duplicate words",
+              "path": "mover",
+              "value": 0.1,
+              "t": 0.233,
+              "detail": "travelling text overlaps another visible copy of the same words"
+            }
+          ]
+        },
+        {
+          "mode": "moving clipped",
+          "frames": 30,
+          "red": [
+            409,
+            409
+          ],
+          "green": [
+            0,
+            0
+          ],
+          "findings": []
+        },
+        {
+          "mode": "fixed fully behind paper",
+          "frames": 30,
+          "red": [
+            0,
+            0
+          ],
+          "green": [
+            497,
+            497
+          ],
+          "findings": []
+        },
+        {
+          "mode": "moving fully behind paper",
+          "frames": 30,
+          "red": [
+            422,
+            422
+          ],
+          "green": [
+            0,
+            0
+          ],
+          "findings": []
+        },
+        {
+          "mode": "contained at different sizes",
+          "frames": 30,
+          "red": [
+            1819,
+            1875
+          ],
+          "green": [
+            203,
+            205
+          ],
+          "findings": [
+            {
+              "kind": "duplicate words",
+              "path": "mover",
+              "value": 0.1,
+              "t": 0.233,
+              "detail": "travelling text overlaps another visible copy of the same words"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "travel-coverage",
+      "rows": [
+        {
+          "mode": "solid",
+          "frames": 30,
+          "movingRed": [
+            0,
+            0
+          ],
+          "standaloneRed": 340,
+          "findings": [
+            {
+              "kind": "covers",
+              "path": "carrier",
+              "value": 0.967,
+              "t": 0.233,
+              "detail": "travels over “ABCD” (part “victim”), covering at least 100% of its visible glyph boxes, for 0.97 s before it lands"
+            }
+          ]
+        },
+        {
+          "mode": "evenodd hole",
+          "frames": 30,
+          "movingRed": [
+            340,
+            340
+          ],
+          "standaloneRed": 340,
+          "findings": []
+        },
+        {
+          "mode": "victim clipped",
+          "frames": 30,
+          "movingRed": [
+            0,
+            0
+          ],
+          "standaloneRed": 0,
+          "findings": []
+        }
+      ]
+    },
+    {
+      "name": "partial-handoff",
+      "rows": [
+        {
+          "mode": "no replacement",
+          "framesCovered": 15,
+          "oldRed": 340,
+          "coveredRed": 0,
+          "replacementGreen": 0,
+          "findings": [
+            {
+              "kind": "occluded words",
+              "path": "reader",
+              "value": 0.467,
+              "t": 0.233,
+              "detail": "“ABCD” stays readable by opacity but “paper”, an opaque foreground shape, covers at least 90% of 4 glyph boxes for 0.47 s"
+            }
+          ]
+        },
+        {
+          "mode": "complete replacement",
+          "framesCovered": 15,
+          "oldRed": 340,
+          "coveredRed": 0,
+          "replacementGreen": 409,
+          "findings": []
+        },
+        {
+          "mode": "one glyph replacement",
+          "framesCovered": 15,
+          "oldRed": 340,
+          "coveredRed": 0,
+          "replacementGreen": 92,
+          "findings": [
+            {
+              "kind": "occluded words",
+              "path": "reader",
+              "value": 0.467,
+              "t": 0.233,
+              "detail": "“ABCD” stays readable by opacity but “paper”, an opaque foreground shape, covers at least 90% of 3 glyph boxes for 0.47 s"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "alternating-victims",
+      "rows": [
+        {
+          "locations": "one label",
+          "maxConsecutiveRedAbsent": 12,
+          "maxConsecutiveGreenAbsent": 0,
+          "alwaysOneCompleteLabel": true,
+          "findings": [
+            {
+              "kind": "occluded words",
+              "path": "row values",
+              "value": 0.367,
+              "t": 0.233,
+              "detail": "“OK” stays readable by opacity but “left cover”, an opaque foreground shape, covers at least 90% of 2 glyph boxes for 0.37 s"
+            }
+          ]
+        },
+        {
+          "locations": "alternating labels",
+          "maxConsecutiveRedAbsent": 2,
+          "maxConsecutiveGreenAbsent": 2,
+          "alwaysOneCompleteLabel": true,
+          "findings": []
+        }
+      ]
+    },
+    {
+      "name": "match-order",
+      "rows": [
+        {
+          "mode": "insert behind retained label",
+          "initialRed": 321,
+          "finalRed": 333,
+          "minimumRed": 321,
+          "zeroFrames": [],
+          "zeroActualLabelContribution": [],
+          "findings": []
+        },
+        {
+          "mode": "paper already behind retained label",
+          "initialRed": 333,
+          "finalRed": 333,
+          "minimumRed": 333,
+          "zeroFrames": [],
+          "zeroActualLabelContribution": [],
+          "findings": []
+        },
+        {
+          "mode": "three later admissions",
+          "initialRed": 321,
+          "finalRed": 333,
+          "minimumRed": 321,
+          "zeroFrames": [],
+          "zeroActualLabelContribution": [],
+          "findings": []
+        }
+      ]
+    },
+    {
+      "name": "match-root-clip",
+      "rows": [
+        {
+          "mode": "target root",
+          "greenAtEnds": [
+            0,
+            0
+          ],
+          "maxGreen": 0,
+          "paintedFrames": 0,
+          "paintedRange": []
+        },
+        {
+          "mode": "entering child",
+          "greenAtEnds": [
+            0,
+            0
+          ],
+          "maxGreen": 0,
+          "paintedFrames": 0,
+          "paintedRange": []
+        }
+      ]
+    },
+    {
+      "name": "route-counterfactual",
+      "framesByteIdentical": true,
+      "worldTravel": 4,
+      "actualPixelChanges": 0,
+      "helper": "counterfactual travel, carrier occurrence 1, must paint the traveller at two distinct screen positions beside the protected drawings"
+    }
+  ]
+}

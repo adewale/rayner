@@ -1,0 +1,143 @@
+{
+  "revision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+  "scope": {
+    "chapters": 8,
+    "scenarios": 14,
+    "offeredRoots": 17,
+    "authoredFinalNativePictures": 115,
+    "liveHistories": 7,
+    "viewedImages": 34,
+    "servedReader": false,
+    "initialJudgmentConsultedOldAuditVerdicts": false,
+    "initialJudgmentConsultedDetectorCounts": false
+  },
+  "cases": [
+    {
+      "id": "E1",
+      "priority": "P1",
+      "classification": "confirmed exercise reachability defect",
+      "chapter": "poppy",
+      "settings": [
+        "read-write",
+        "read-only"
+      ],
+      "step": "sign-out",
+      "history": [],
+      "root": "rest",
+      "completeGraphStates": 12,
+      "unreachableEvents": [
+        "discover",
+        "cart"
+      ],
+      "promise": "drive the whole protocol, from reading poppy.json to signing out",
+      "recommendation": "Preserve authored final state and explicitly start reader exercise from machine start using existing liveStart policy.",
+      "evidence": [
+        "witnesses/roots.json",
+        "witnesses/poppy--read-write/sign-out.png"
+      ],
+      "positiveKeeper": "actual offered liveBase accepts the full legal narrative log in both settings",
+      "negativeKeeper": "remove liveStart and reject unreachable discover/cart despite correct final picture"
+    },
+    {
+      "id": "E2",
+      "priority": "P2",
+      "classification": "confirmed teaching picture coverage gap; model rule present",
+      "chapter": "poppy-sessions",
+      "settings": [
+        "remembers",
+        "required"
+      ],
+      "step": "clock",
+      "storyEvents": [
+        "replay",
+        "expired"
+      ],
+      "missingStoryAndReaderEvent": "late",
+      "promise": "every claim has a reason the reader has watched it serve",
+      "recommendation": "Add a separate authored late-copy visual/detail preserving delegation expiry and eight controls; show signed00:13:20 versus received00:15:20 with iat failure.",
+      "evidence": [
+        "witnesses/roots.json",
+        "witnesses/poppy-sessions--remembers/clock.png",
+        "witnesses/poppy-sessions--required/clock.png"
+      ],
+      "positiveKeeper": "native late-case times plus time-row failure in both policies",
+      "negativeKeeper": "substitute expired-delegation picture with same400 answer and require rejection"
+    },
+    {
+      "id": "E3",
+      "priority": "P3",
+      "classification": "editorial preference; no protocol violation established",
+      "chapter": "poppy-sign-in",
+      "settings": [
+        "direct",
+        "device"
+      ],
+      "step": "sign-out",
+      "history": [
+        "ask",
+        "approve-read",
+        "collect"
+      ],
+      "root": "rest",
+      "nativeIntervalSeconds": 4.5,
+      "evidence": [
+        "witnesses/signin-device-grant/receipt.json",
+        "witnesses/signin-device-grant/0045.png",
+        "witnesses/signin-device-grant/0060.png",
+        "witnesses/signin-direct-grant/0060.png"
+      ],
+      "observation": "Device sample+1.5s removes agent/person/page together; agent reappears in upper layout before key at+2.0s.",
+      "recommendation": "Consider stable agent/ring composition and paired grant handoff; preserve every promised credential and approval fact.",
+      "positiveKeeper": "agent reference retained during response and grant originates at Company",
+      "negativeKeeper": "hide reference during response or emit key before approved request reaches issuer; no global cutoff"
+    }
+  ],
+  "keeperProposals": [
+    {
+      "id": "K1",
+      "chapter": "poppy-sessions",
+      "keep": "published key reaches wax before new ticket validation; one physical key identity and empty slots",
+      "negative": "start validation with old delegated chain still present"
+    },
+    {
+      "id": "K2",
+      "chapter": "poppy-conversations",
+      "keep": "read and close explicit roots plus repeat guidance; semantically moving participants; whole changed text replacement",
+      "negative": "remove read offer while keeping repeat guidance, or dissolve ownership words glyph by glyph"
+    },
+    {
+      "id": "K3",
+      "chapter": "poppy-coverage",
+      "keep": "broad search exercise plus close-account final exercise in both settings",
+      "negative": "remove search offer; final close-only root cannot replace it"
+    },
+    {
+      "id": "K4",
+      "chapter": "poppy-browser",
+      "keep": "start root at finished phish; read code copy versus consumed submit stub; no-scope reauthorization",
+      "negative": "force rest root at finished state or consume page code while merely reading"
+    },
+    {
+      "id": "K5",
+      "chapter": "poppy-discovery",
+      "keep": "two-way issuer relationship with stable readable register",
+      "negative": "present handshake result before register reply arrives"
+    },
+    {
+      "id": "K6",
+      "chapter": "poppy-refusals",
+      "keep": "returned refusal, exact Retry-After and correct versus tempting remedy",
+      "negative": "retain429 number but drop wait value or reason new Session is wrong"
+    },
+    {
+      "id": "K7",
+      "chapters": [
+        "poppy-sign-in",
+        "poppy-sessions"
+      ],
+      "keep": "independent chapter actual-clock pacing checks plus semantic handoffs",
+      "negative": "pure slowdown retains endpoints; separate ordering poison validates too early",
+      "notProposed": "global duration or displacement threshold"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+✖ consecutive masks retain a continuous victim interval and their own measured attribution (32.256129ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 493.531986
+
+✖ failing tests:
+
+test at test/motion-occlusion-adversarial.test.ts:346:1
+✖ consecutive masks retain a continuous victim interval and their own measured attribution (32.256129ms)
+  AssertionError [ERR_ASSERTION]: “ABCD” stays readable by opacity but “first cover”, an opaque foreground shape, covers at least 90% of 4 glyph boxes for 0.33 s
+  
+  0 !== 6
+  
+      at TestContext.<anonymous> (file:///workspace/rayner/test/motion-occlusion-adversarial.test.ts:391:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 6,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

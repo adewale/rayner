@@ -1,0 +1,17 @@
+✔ reader context wrappers retain typed duration refusals without crediting lookalike errors (1.312389ms)
+✔ the Sessions pacing refusal credits only its declared historical budget violation (0.505832ms)
+✔ the baseline removes a shifted finding on the same part and retains findings in another transition or part (0.947528ms)
+✔ a failed baseline or variant preserves its observations and cannot produce a score (0.688418ms)
+✔ credit for the device poll requires fresh observed occlusion of the company name by that poll in a collect transition (0.781228ms)
+✔ a report counts the requested identities and rejects missing, duplicate or unexpected rows (0.373603ms)
+✔ the reconstructed people slide earns credit for its observed tag crossing in the reask step (0.556499ms)
+✔ the fast variant-only run identifies that it omitted comparison scenes (0.472953ms)
+✔ each new semantic gain requires its observed event, trip, subject and requirement (1.221702ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 743.136811

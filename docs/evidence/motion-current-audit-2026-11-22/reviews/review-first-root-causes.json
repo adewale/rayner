@@ -1,0 +1,325 @@
+{
+  "schema": 1,
+  "revision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+  "scope": "First30 current corpus reconstructions; blind judgments saved in review-first.json before this assessment.",
+  "baselineAssessment": "No current baseline pixel defect found in this reviewer\u2019s sampled targeted witnesses. Deliberately reconstructed variants are fault injections and must not be fixed in production. Existing chapter controls already prevent most diagnosed families.",
+  "detectorAttributionReadAfterBlind": true,
+  "oldAttribution": [
+    {
+      "id": "poppy-ticket-over-lane-names",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 352
+    },
+    {
+      "id": "poppy-key-over-station-name",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "poppy-last-object-lingers",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "refusals-ticket-over-station",
+      "rawRejection": true,
+      "rawDiagnostic": "guard-only",
+      "archivedFreshFindings": 1
+    },
+    {
+      "id": "refusals-ticket-over-lane-name",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 215
+    },
+    {
+      "id": "refusals-lanes-slide",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "refusals-lanes-gone-in-flight",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "refusals-delegation-over-station",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 5
+    },
+    {
+      "id": "refusals-mcp-key-over-label",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "refusals-key-over-lane-name",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sessions-ticket-from-under-stamp",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 48
+    },
+    {
+      "id": "sessions-key-to-wax-after-check",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sessions-key-in-two-places",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sessions-squeezed",
+      "rawRejection": true,
+      "rawDiagnostic": "guard-only",
+      "archivedFreshFindings": 1
+    },
+    {
+      "id": "sessions-too-long",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-ask-people-slide",
+      "rawRejection": true,
+      "rawDiagnostic": "attributed secondary finding",
+      "archivedFreshFindings": 23
+    },
+    {
+      "id": "sign-in-collect-people-slide",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-collect-too-long",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-tokens-over-labels",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 12
+    },
+    {
+      "id": "sign-in-password-before-card",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-ask-squeezed",
+      "rawRejection": true,
+      "rawDiagnostic": "guard-only",
+      "archivedFreshFindings": 1
+    },
+    {
+      "id": "sign-in-pages-overlap",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-card-from-desk",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-poll-over-card",
+      "rawRejection": true,
+      "rawDiagnostic": "attributed intended finding",
+      "archivedFreshFindings": 13
+    },
+    {
+      "id": "sign-in-password-hand-and-flight",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-code-tiny-words",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 26
+    },
+    {
+      "id": "sign-in-password-route",
+      "rawRejection": false,
+      "rawDiagnostic": "no fresh finding",
+      "archivedFreshFindings": 0
+    },
+    {
+      "id": "sign-in-tag-over-scopes",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 12
+    },
+    {
+      "id": "browser-ticket-over-road-name",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 129
+    },
+    {
+      "id": "browser-halves-together",
+      "rawRejection": true,
+      "rawDiagnostic": "legacy fresh finding without mandatory attribution",
+      "archivedFreshFindings": 17
+    }
+  ],
+  "families": [
+    {
+      "id": "routes",
+      "cases": [
+        0,
+        1,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10,
+        18,
+        23,
+        26,
+        28
+      ],
+      "cause": "A resting object or handwritten centreline is reused as travel geometry without reserving its complete footprint and named reading surfaces. Reconstructed old coordinates can now touch a different victim, or no victim, after later layout changes.",
+      "construction": "Keep the current scene-owned ports, purpose-sized token and footprint clearance. Select protected subjects from the authored explanation, then derive offsets from their actual geometry. Use existing clearRoute only where a genuine corridor is needed; do not route every drawing globally.",
+      "keeper": "Poppy fidelity.ts journeys; Refusals scene.test.ts native routeInkCheck; SignIn scene.test.ts password/poll checks; Sessions oracle/fidelity.ts protected stamp body.",
+      "remaining": "Retain exact subject identities in v2 and keep secondary clock/domain/object contact separate. No baseline route defect was observed in this review. The MCP old victim is absent from the valid first-refresh flight; its held-key refresh attempt is refused. Do not alter production to recreate that obsolete history."
+    },
+    {
+      "id": "phase-ownership",
+      "cases": [
+        2,
+        6,
+        11,
+        12,
+        19,
+        21,
+        24,
+        27
+      ],
+      "cause": "An omitted fresh/leave/lead beat is repaired only at c.rest(), so final pictures are correct while old context persists, a prerequisite arrives late, or a source copy remains during travel. Prefix lists also confuse transient results with persistent context.",
+      "construction": "Use carry for physical transfers, pass for intentional copies, and explicit before-flight clearing for old pages/results. Keep contextual lanes out of fresh. Preserve event-specific motion present/absent rules independently of choreography.",
+      "keeper": "MachineMotionCheck plus native Sessions handoff/source-bezel controls and explicit Poppy/Refusals/SignIn motion declarations.",
+      "remaining": "Fix the demonstrated present-context compositing gap below. Preserve isolated physical-source absence, so hiding a duplicate behind a plate cannot satisfy retirement. Keep same-sign password reapproval classified as unreachable for the requested accepted log; do not weaken the model to film it."
+    },
+    {
+      "id": "layout",
+      "cases": [
+        5,
+        15,
+        16
+      ],
+      "cause": "Same-key parts that merely change composition are left to c.rest() or lead morphs, which interpolates them into an invented journey.",
+      "construction": "Keep the existing scene-local relaid endpoint crossfade and separately keyed MCP layouts. Movement purpose remains authored policy; a generic checker cannot infer protocol meaning.",
+      "keeper": "SignIn scene.test.ts endpoint-only layout assertion; Refusals scene.test.ts lane-row endpoint checks.",
+      "remaining": "Keep these as editorial constraints with positive travel controls. Do not lower generic jump thresholds to call a smooth layout slide a jump. An Exchange items/tag obstruction is a separately confirmed concrete finding."
+    },
+    {
+      "id": "timing",
+      "cases": [
+        13,
+        14,
+        17,
+        20
+      ],
+      "cause": "Declared event duration and authored beat sum are independent clocks; broad five-second limits cannot express a chapter-specific teaching budget. Later repairs changed the baseline duration, so old numerical comparisons can be stale.",
+      "construction": "Keep Machine WhenItsTurnComes refusal when beats exceed event time. Measure approved chapter budgets on the actual reader clock, separating caption holds and frame bookkeeping.",
+      "keeper": "explain/machine.ts duration guard; Sessions oracle/fidelity.ts pacing and durations.",
+      "remaining": "Root is already repairing Sessions timing ownership. Keep squeezed prevention distinct from filmed defect diagnosis. SignIn 4.8 versus current 4.45 s and Sessions 4.35 versus 3.9 s remain explicit pacing policy, not a reason to lower the global five-second detector limit. The current SignIn 2.2 s ask is accepted, so do not claim a present overrun from its old name."
+    },
+    {
+      "id": "origin",
+      "cases": [
+        22
+      ],
+      "cause": "A card is animated from a convenient desk coordinate rather than its explanatory source; generic geometry sees a legal journey and has no source semantics.",
+      "construction": "Keep current agent presentation port above its actual key slot. Bind a named source/destination to this authored card transfer; use a scene-local assertion rather than infer origins from all drawings.",
+      "keeper": "Current SignIn ask construction (present port).",
+      "remaining": "If an origin keeper is needed, add one local positive/inverse test: the first complete device card contributes native ink above the agent and a desk-start substitute fails the same source-phase assertion. This is a prevention gap; current baseline origin is correct."
+    },
+    {
+      "id": "representation",
+      "cases": [
+        25
+      ],
+      "cause": "Scaling a detailed resting code slip preserves literal text at a size appropriate only to a wordless transit token.",
+      "construction": "Keep the existing wordless codeToken rather than shrinking text or expanding a global legibility exception.",
+      "keeper": "SignIn scene.test.ts wordless code transit assertion.",
+      "remaining": "Strengthen only its witness: require actual composited moving code paint, not just opacity/points and two frame callbacks. Add a fully covered/offstage code challenge; the current test helper painted() can count a hidden object. Do not change the baseline token, which is already correct."
+    },
+    {
+      "id": "issuance",
+      "cases": [
+        29
+      ],
+      "cause": "Two independent products are issued concurrently from one shared port, causing their actual code/cookie ink to coincide.",
+      "construction": "Keep current separate meaningful departure ports and sequential issuance. Parallel submission remains valid and must not be prohibited.",
+      "keeper": "Browser scene.test.ts issuance ordering and motion declaration; current load sequence.",
+      "remaining": "Keep one native overlap challenge on load, separate from valid paired submit. Avoid a generic ban on simultaneous travellers or overlapping boxes."
+    }
+  ],
+  "newCheckerGap": {
+    "source": "tools/lib/explain-motion-rules.ts:17,221",
+    "description": "Required-present context is rasterized alone; unrelated foreground occlusion is discarded. A context fully hidden under an opaque sibling still satisfies present.",
+    "probe": "review-first-witnesses/context-occlusion-probe.ts",
+    "receipt": "review-first-witnesses/context-occlusion-probe.json",
+    "observed": {
+      "findings": [],
+      "contextContributionPixels": 0,
+      "exposedByRemovingCoverPixels": 2160
+    },
+    "fix": "Use actual scene minus exact subject composited contribution for required present; do not cache by isolated subject SVG alone. Keep isolated on-stage physical paint for absent retirement unless an explicit visibility-only contract is introduced.",
+    "controls": [
+      "opaque sibling above subject rejects present",
+      "removing the cover restores positive present",
+      "same-color overpaint cannot falsely supply subject contribution",
+      "camera/ancestor/descendant clip controls remain",
+      "hidden duplicate still rejects physical-source absent"
+    ]
+  },
+  "priority": [
+    {
+      "rank": 1,
+      "action": "Close required-present compositing loophole using bounded same-frame snapshots and native knockout; add one covered-context adversarial test.",
+      "kind": "generic checker correctness; no baseline scene change"
+    },
+    {
+      "rank": 2,
+      "action": "Complete root-owned Poppy published-origin and Sessions actual-clock keeper repairs; retain exact acceptedLog/refusal receipts.",
+      "kind": "keeper validity; avoid duplicate implementation"
+    },
+    {
+      "rank": 3,
+      "action": "Add local device-card source-phase positive/inverse keeper and strengthen wordless-code visible-travel witness only if time permits.",
+      "kind": "small chapter prevention gaps"
+    },
+    {
+      "rank": 4,
+      "action": "Keep current versioned diagnostic registry and report exact observed clauses, secondary victims, blocked and inadmissible histories separately.",
+      "kind": "assessment integrity"
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "inputs": "Same cost() function and state counts as the archived adversarial probe. No outgoing animations selected.",
+  "before": [
+    {
+      "plain": {
+        "states": 32,
+        "sampled": false,
+        "edges": 31,
+        "resultCalls": 0,
+        "nextCalls": 33,
+        "elapsedMs": 4
+      },
+      "responses": {
+        "states": 32,
+        "sampled": false,
+        "edges": 31,
+        "resultCalls": 2480,
+        "nextCalls": 2577,
+        "elapsedMs": 7
+      }
+    },
+    {
+      "plain": {
+        "states": 64,
+        "sampled": false,
+        "edges": 63,
+        "resultCalls": 0,
+        "nextCalls": 65,
+        "elapsedMs": 1
+      },
+      "responses": {
+        "states": 64,
+        "sampled": false,
+        "edges": 63,
+        "resultCalls": 10080,
+        "nextCalls": 10273,
+        "elapsedMs": 21
+      }
+    },
+    {
+      "plain": {
+        "states": 128,
+        "sampled": false,
+        "edges": 127,
+        "resultCalls": 0,
+        "nextCalls": 129,
+        "elapsedMs": 4
+      },
+      "responses": {
+        "states": 128,
+        "sampled": false,
+        "edges": 127,
+        "resultCalls": 40640,
+        "nextCalls": 41025,
+        "elapsedMs": 67
+      }
+    },
+    {
+      "plain": {
+        "states": 256,
+        "sampled": false,
+        "edges": 255,
+        "resultCalls": 0,
+        "nextCalls": 257,
+        "elapsedMs": 5
+      },
+      "responses": {
+        "states": 256,
+        "sampled": false,
+        "edges": 255,
+        "resultCalls": 163200,
+        "nextCalls": 163969,
+        "elapsedMs": 219
+      }
+    }
+  ],
+  "after": [
+    {
+      "plain": {
+        "states": 32,
+        "sampled": false,
+        "edges": 31,
+        "resultCalls": 0,
+        "nextCalls": 33,
+        "elapsedMs": 6
+      },
+      "responses": {
+        "states": 32,
+        "sampled": false,
+        "edges": 31,
+        "resultCalls": 31,
+        "nextCalls": 33,
+        "elapsedMs": 2
+      }
+    },
+    {
+      "plain": {
+        "states": 64,
+        "sampled": false,
+        "edges": 63,
+        "resultCalls": 0,
+        "nextCalls": 65,
+        "elapsedMs": 2
+      },
+      "responses": {
+        "states": 64,
+        "sampled": false,
+        "edges": 63,
+        "resultCalls": 63,
+        "nextCalls": 65,
+        "elapsedMs": 3
+      }
+    },
+    {
+      "plain": {
+        "states": 128,
+        "sampled": false,
+        "edges": 127,
+        "resultCalls": 0,
+        "nextCalls": 129,
+        "elapsedMs": 6
+      },
+      "responses": {
+        "states": 128,
+        "sampled": false,
+        "edges": 127,
+        "resultCalls": 127,
+        "nextCalls": 129,
+        "elapsedMs": 6
+      }
+    },
+    {
+      "plain": {
+        "states": 256,
+        "sampled": false,
+        "edges": 255,
+        "resultCalls": 0,
+        "nextCalls": 257,
+        "elapsedMs": 11
+      },
+      "responses": {
+        "states": 256,
+        "sampled": false,
+        "edges": 255,
+        "resultCalls": 255,
+        "nextCalls": 257,
+        "elapsedMs": 12
+      }
+    }
+  ]
+}

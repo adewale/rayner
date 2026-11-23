@@ -1,0 +1,225 @@
+[
+  {
+    "id": "poppy-coverage",
+    "settings": {
+      "company": "hostile"
+    },
+    "offers": [
+      {
+        "step": "search",
+        "offered": true,
+        "from": "rest",
+        "states": 32,
+        "complete": true,
+        "paths": {
+          "read tasks": [
+            "read tasks"
+          ],
+          "gift card": [
+            "gift card"
+          ],
+          "close account": [
+            "read tasks",
+            "close account"
+          ],
+          "use skill": [
+            "read tasks",
+            "use skill"
+          ],
+          "report": [
+            "read tasks",
+            "gift card",
+            "report"
+          ],
+          "use alternative": [
+            "read tasks",
+            "gift card",
+            "report",
+            "use alternative"
+          ]
+        },
+        "neverAccepted": []
+      },
+      {
+        "step": "skill",
+        "offered": true,
+        "from": "rest",
+        "states": 2,
+        "complete": true,
+        "paths": {
+          "close account": [
+            "close account"
+          ]
+        },
+        "neverAccepted": [
+          "read tasks",
+          "gift card",
+          "report",
+          "use alternative",
+          "use skill"
+        ]
+      }
+    ],
+    "allAccepted": [
+      "read tasks",
+      "close account",
+      "gift card",
+      "report",
+      "use alternative",
+      "use skill"
+    ],
+    "neverAccepted": []
+  },
+  {
+    "id": "poppy-coverage",
+    "settings": {
+      "company": "honest"
+    },
+    "offers": [
+      {
+        "step": "search",
+        "offered": true,
+        "from": "rest",
+        "states": 32,
+        "complete": true,
+        "paths": {
+          "read tasks": [
+            "read tasks"
+          ],
+          "gift card": [
+            "gift card"
+          ],
+          "close account": [
+            "read tasks",
+            "close account"
+          ],
+          "use skill": [
+            "read tasks",
+            "use skill"
+          ],
+          "report": [
+            "read tasks",
+            "gift card",
+            "report"
+          ],
+          "use alternative": [
+            "read tasks",
+            "gift card",
+            "report",
+            "use alternative"
+          ]
+        },
+        "neverAccepted": []
+      },
+      {
+        "step": "skill",
+        "offered": true,
+        "from": "rest",
+        "states": 2,
+        "complete": true,
+        "paths": {
+          "close account": [
+            "close account"
+          ]
+        },
+        "neverAccepted": [
+          "read tasks",
+          "gift card",
+          "report",
+          "use alternative",
+          "use skill"
+        ]
+      }
+    ],
+    "allAccepted": [
+      "read tasks",
+      "close account",
+      "gift card",
+      "report",
+      "use alternative",
+      "use skill"
+    ],
+    "neverAccepted": []
+  },
+  {
+    "id": "poppy-conversations",
+    "settings": {},
+    "offers": [
+      {
+        "step": "read",
+        "offered": true,
+        "from": "rest",
+        "states": 62,
+        "complete": true,
+        "paths": {
+          "ask": [
+            "ask"
+          ],
+          "you": [
+            "you"
+          ],
+          "person": [
+            "person"
+          ],
+          "invite": [
+            "invite"
+          ],
+          "direct": [
+            "direct"
+          ],
+          "close": [
+            "close"
+          ],
+          "read": [
+            "ask",
+            "read"
+          ],
+          "joins": [
+            "person",
+            "joins"
+          ]
+        },
+        "neverAccepted": []
+      },
+      {
+        "step": "close",
+        "offered": true,
+        "from": "rest",
+        "states": 5,
+        "complete": true,
+        "paths": {
+          "ask": [
+            "ask"
+          ],
+          "you": [
+            "you"
+          ],
+          "close": [
+            "close"
+          ],
+          "read": [
+            "ask",
+            "read"
+          ]
+        },
+        "neverAccepted": [
+          "person",
+          "joins",
+          "invite",
+          "direct"
+        ]
+      }
+    ],
+    "allAccepted": [
+      "ask",
+      "you",
+      "read",
+      "person",
+      "joins",
+      "invite",
+      "direct",
+      "close"
+    ],
+    "neverAccepted": []
+  }
+]

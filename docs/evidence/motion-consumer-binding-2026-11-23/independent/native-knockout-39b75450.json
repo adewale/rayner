@@ -1,0 +1,1592 @@
+[
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 24,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "94bd52966cac02b34dd06ed477843ca3c8588b5dddafcfe4b1e8c6c123c5f8bd",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "05e44b507e8e856b824a3f14b97c5c4064746e3e4bf39af4734488c6b04b1d4c",
+    "asset": "0df14bda8a621b32208024a41e07d721ae65d9f6f7dea175759ecbac56b3de5c",
+    "step": "ask",
+    "absolute": 970,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "b9f9163f85add5c6c8a81f00a26b3cdcdb217ee82e7fe85a2670e61e7924a722"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 25,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "94bd52966cac02b34dd06ed477843ca3c8588b5dddafcfe4b1e8c6c123c5f8bd",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "ad6383047e4422a76a8591401234e49835bd1eb7552e805aba19f9cdbb0e0541",
+    "asset": "d7a84536d1c2840035b3605406d8e13b9c3ddfb4859e5157747b7c1f0a181d2d",
+    "step": "ask",
+    "absolute": 971,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "13d480c5ff864a7a6a0091c4baf6d1dd6c40cdd53c98918333c58e8a50a1372a"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 26,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "94bd52966cac02b34dd06ed477843ca3c8588b5dddafcfe4b1e8c6c123c5f8bd",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "2d13306830e1978e86cf93d4bf5fde1a9b86c45e088a7f25175607510dc059a3",
+    "asset": "593b027f762a16e16d6d905abdce210b650937ac38890dce7bc306ea9259f6c8",
+    "step": "ask",
+    "absolute": 972,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "16daab56369b9fe35653a6785464f12dbb0fa2aa190145345643a5857818f47f"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 27,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "94bd52966cac02b34dd06ed477843ca3c8588b5dddafcfe4b1e8c6c123c5f8bd",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "30e9b40f2eb49969587891e4b011b7121769e56639557223686ba0b416335ab5",
+    "asset": "04df48dd522cac4e19e8bc9eae8f87a4d08ea557afb211803a676923c4eb0219",
+    "step": "ask",
+    "absolute": 973,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "0c4bad2b316553f7f0e081d19e8e1fe590ea56565eb889869166e077c42edbd3"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 30,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "94bd52966cac02b34dd06ed477843ca3c8588b5dddafcfe4b1e8c6c123c5f8bd",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "a25aaaa34dc244d21e4ae5a0b08a1fbd277c3ae18e06a658bc0258f83da1c533",
+    "asset": "02c5678054e87ebfa84f37d994eeae16a14502141770e7a80a4fbd0d94763a66",
+    "step": "ask",
+    "absolute": 976,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "dc4421f2768a17700d13a79b805ff35e794d3027f62c053232ca76c538797e6e"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 34,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "94bd52966cac02b34dd06ed477843ca3c8588b5dddafcfe4b1e8c6c123c5f8bd",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "70375418757617301857c7d9b21833e76e69bbb6503cb6f69c5cda43fb2c3353",
+    "asset": "af4d59302b25ee3b9c62fa6680d2f5feb7669dca994b6de8765dd2b9b0fbcb78",
+    "step": "ask",
+    "absolute": 980,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "5f0c70bd97b2332ffe830251f23e57dcc76d44db4617f68680fb606fcceee92b"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 24,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "ef0685d0b3acaedf62a9cf9984f7756fcaad32648204605a454967793a3faae0",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "f7314e160d4ea894cd4dee85bfbdaad962cb2120ed219d6e0f45eba58bed27cb",
+    "asset": "a275b9b0017d4cf220cce961f078a0cea869929312bb7156f8d4d6de80cb36ca",
+    "step": "ask",
+    "absolute": 970,
+    "stagePhase": "playing",
+    "actualPixels": 1384,
+    "freePixels": 1403,
+    "totalLost": 19,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 160,
+        "free": 179
+      }
+    ],
+    "pngSha256": "3bcb4ffafa0cc18119122d19a7ebab429571268c8cd1fc7ac357ff239d66003e"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 25,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "ef0685d0b3acaedf62a9cf9984f7756fcaad32648204605a454967793a3faae0",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "e2b21c8faa76459a5d13ba5e70bcbb19f7295ac3a50cbf842a9bbf462528711f",
+    "asset": "c4a5fdc4cbf9e7b662af2d7a2a1e43fa00e346616629b4e69285aae348c7cc5b",
+    "step": "ask",
+    "absolute": 971,
+    "stagePhase": "playing",
+    "actualPixels": 1373,
+    "freePixels": 1403,
+    "totalLost": 30,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 149,
+        "free": 179
+      }
+    ],
+    "pngSha256": "28ce9f011f90bb878a6aef00a1a53616df61cce32d9bc748844e7af58af84e27"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 26,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "ef0685d0b3acaedf62a9cf9984f7756fcaad32648204605a454967793a3faae0",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "44ec78701dec21c00c3e09e0832d4aa3ce238049e19c7c7d3eb8c820f1ce2e25",
+    "asset": "fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf",
+    "step": "ask",
+    "absolute": 972,
+    "stagePhase": "playing",
+    "actualPixels": 1354,
+    "freePixels": 1403,
+    "totalLost": 49,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 130,
+        "free": 179
+      }
+    ],
+    "pngSha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 27,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "ef0685d0b3acaedf62a9cf9984f7756fcaad32648204605a454967793a3faae0",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "658aa04c0f4f60114210f9f8d0d4f6b88090f28e3226cc71a8bac8da1edb9053",
+    "asset": "b84740724cb066195296d836947a0910beada2251c51f732447459846e01de87",
+    "step": "ask",
+    "absolute": 973,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "abf90772185b4e72ca1e515df3fabc869166c48d7a0e8e11b325a8e4d49bf7f0"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 30,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "ef0685d0b3acaedf62a9cf9984f7756fcaad32648204605a454967793a3faae0",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "1d4dab3946f689e1d8b343b7e6aef042925284a9ed5f5ab8c57932cdfa9937c3",
+    "asset": "bb335a7b1834be7243a5401694c8b2b9823a72f380472e9d108872f7ba77a416",
+    "step": "ask",
+    "absolute": 976,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "72915e33594ebe29f83f6c203ea42bc6b681cc9e19f4ad0ec00a0dc9a43a84fa"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 34,
+    "actor": "poll",
+    "victim": "card:domain",
+    "literal": "example.com",
+    "actorRecords": 16,
+    "victimRecords": 11,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "parentOwnership": {
+      "ownershipSha256": "ef0685d0b3acaedf62a9cf9984f7756fcaad32648204605a454967793a3faae0",
+      "domainKey": "card:domain",
+      "parentKey": "card",
+      "glyphFirst": 148,
+      "glyphLast": 158,
+      "siblingPrintedLiterals": [
+        "WDJB-MJHT",
+        "Example Company"
+      ],
+      "allThreeChildrenAreDistinct": true
+    },
+    "stagePixelSha256": "e598cd9fae8d9640c9f28593ba12e062baee9471b52918448fe68943ee209b3c",
+    "asset": "b5e7d3de36af355dce982424400adec2c4ae2376d48eb0422ac7280a84c56e3d",
+    "step": "ask",
+    "absolute": 980,
+    "stagePhase": "playing",
+    "actualPixels": 1403,
+    "freePixels": 1403,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 142,
+        "free": 142
+      },
+      {
+        "seen": 202,
+        "free": 202
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 16,
+        "free": 16
+      },
+      {
+        "seen": 108,
+        "free": 108
+      },
+      {
+        "seen": 130,
+        "free": 130
+      },
+      {
+        "seen": 179,
+        "free": 179
+      }
+    ],
+    "pngSha256": "8fcfa1a540839fefd252051916bfc38df240c6c1ddf35fbf84f49a7528568097"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 26,
+    "actor": "poll",
+    "victim": "card",
+    "literal": "Example Company",
+    "actorRecords": 16,
+    "victimRecords": 14,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "stagePixelSha256": "2d13306830e1978e86cf93d4bf5fde1a9b86c45e088a7f25175607510dc059a3",
+    "asset": "593b027f762a16e16d6d905abdce210b650937ac38890dce7bc306ea9259f6c8",
+    "step": "ask",
+    "absolute": 972,
+    "stagePhase": "playing",
+    "actualPixels": 1984,
+    "freePixels": 1984,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 150,
+        "free": 150
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 144,
+        "free": 144
+      },
+      {
+        "seen": 192,
+        "free": 192
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 156,
+        "free": 156
+      },
+      {
+        "seen": 128,
+        "free": 128
+      },
+      {
+        "seen": 181,
+        "free": 181
+      },
+      {
+        "seen": 160,
+        "free": 160
+      },
+      {
+        "seen": 140,
+        "free": 140
+      },
+      {
+        "seen": 117,
+        "free": 117
+      },
+      {
+        "seen": 133,
+        "free": 133
+      }
+    ],
+    "pngSha256": "16daab56369b9fe35653a6785464f12dbb0fa2aa190145345643a5857818f47f"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 30,
+    "actor": "poll",
+    "victim": "card",
+    "literal": "Example Company",
+    "actorRecords": 16,
+    "victimRecords": 14,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "stagePixelSha256": "a25aaaa34dc244d21e4ae5a0b08a1fbd277c3ae18e06a658bc0258f83da1c533",
+    "asset": "02c5678054e87ebfa84f37d994eeae16a14502141770e7a80a4fbd0d94763a66",
+    "step": "ask",
+    "absolute": 976,
+    "stagePhase": "playing",
+    "actualPixels": 1984,
+    "freePixels": 1984,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 150,
+        "free": 150
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 144,
+        "free": 144
+      },
+      {
+        "seen": 192,
+        "free": 192
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 156,
+        "free": 156
+      },
+      {
+        "seen": 128,
+        "free": 128
+      },
+      {
+        "seen": 181,
+        "free": 181
+      },
+      {
+        "seen": 160,
+        "free": 160
+      },
+      {
+        "seen": 140,
+        "free": 140
+      },
+      {
+        "seen": 117,
+        "free": 117
+      },
+      {
+        "seen": 133,
+        "free": 133
+      }
+    ],
+    "pngSha256": "dc4421f2768a17700d13a79b805ff35e794d3027f62c053232ca76c538797e6e"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "baseline",
+    "seq": 34,
+    "actor": "poll",
+    "victim": "card",
+    "literal": "Example Company",
+    "actorRecords": 16,
+    "victimRecords": 14,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "stagePixelSha256": "70375418757617301857c7d9b21833e76e69bbb6503cb6f69c5cda43fb2c3353",
+    "asset": "af4d59302b25ee3b9c62fa6680d2f5feb7669dca994b6de8765dd2b9b0fbcb78",
+    "step": "ask",
+    "absolute": 980,
+    "stagePhase": "playing",
+    "actualPixels": 1984,
+    "freePixels": 1984,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 150,
+        "free": 150
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 144,
+        "free": 144
+      },
+      {
+        "seen": 192,
+        "free": 192
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 156,
+        "free": 156
+      },
+      {
+        "seen": 128,
+        "free": 128
+      },
+      {
+        "seen": 181,
+        "free": 181
+      },
+      {
+        "seen": 160,
+        "free": 160
+      },
+      {
+        "seen": 140,
+        "free": 140
+      },
+      {
+        "seen": 117,
+        "free": 117
+      },
+      {
+        "seen": 133,
+        "free": 133
+      }
+    ],
+    "pngSha256": "5f0c70bd97b2332ffe830251f23e57dcc76d44db4617f68680fb606fcceee92b"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 26,
+    "actor": "poll",
+    "victim": "card",
+    "literal": "Example Company",
+    "actorRecords": 16,
+    "victimRecords": 14,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "stagePixelSha256": "44ec78701dec21c00c3e09e0832d4aa3ce238049e19c7c7d3eb8c820f1ce2e25",
+    "asset": "fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf",
+    "step": "ask",
+    "absolute": 972,
+    "stagePhase": "playing",
+    "actualPixels": 1984,
+    "freePixels": 1984,
+    "totalLost": 0,
+    "glyphs": [
+      {
+        "seen": 150,
+        "free": 150
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 144,
+        "free": 144
+      },
+      {
+        "seen": 192,
+        "free": 192
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 156,
+        "free": 156
+      },
+      {
+        "seen": 128,
+        "free": 128
+      },
+      {
+        "seen": 181,
+        "free": 181
+      },
+      {
+        "seen": 160,
+        "free": 160
+      },
+      {
+        "seen": 140,
+        "free": 140
+      },
+      {
+        "seen": 117,
+        "free": 117
+      },
+      {
+        "seen": 133,
+        "free": 133
+      }
+    ],
+    "pngSha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 30,
+    "actor": "poll",
+    "victim": "card",
+    "literal": "Example Company",
+    "actorRecords": 16,
+    "victimRecords": 14,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "stagePixelSha256": "1d4dab3946f689e1d8b343b7e6aef042925284a9ed5f5ab8c57932cdfa9937c3",
+    "asset": "bb335a7b1834be7243a5401694c8b2b9823a72f380472e9d108872f7ba77a416",
+    "step": "ask",
+    "absolute": 976,
+    "stagePhase": "playing",
+    "actualPixels": 1968,
+    "freePixels": 1984,
+    "totalLost": 16,
+    "glyphs": [
+      {
+        "seen": 150,
+        "free": 150
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 144,
+        "free": 144
+      },
+      {
+        "seen": 192,
+        "free": 192
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 156,
+        "free": 156
+      },
+      {
+        "seen": 128,
+        "free": 128
+      },
+      {
+        "seen": 181,
+        "free": 181
+      },
+      {
+        "seen": 160,
+        "free": 160
+      },
+      {
+        "seen": 140,
+        "free": 140
+      },
+      {
+        "seen": 117,
+        "free": 117
+      },
+      {
+        "seen": 117,
+        "free": 133
+      }
+    ],
+    "pngSha256": "72915e33594ebe29f83f6c203ea42bc6b681cc9e19f4ad0ec00a0dc9a43a84fa"
+  },
+  {
+    "id": "sign-in-poll-over-card",
+    "side": "variant",
+    "seq": 34,
+    "actor": "poll",
+    "victim": "card",
+    "literal": "Example Company",
+    "actorRecords": 16,
+    "victimRecords": 14,
+    "actorAllAfterVictim": true,
+    "perGlyph": true,
+    "stagePixelSha256": "e598cd9fae8d9640c9f28593ba12e062baee9471b52918448fe68943ee209b3c",
+    "asset": "b5e7d3de36af355dce982424400adec2c4ae2376d48eb0422ac7280a84c56e3d",
+    "step": "ask",
+    "absolute": 980,
+    "stagePhase": "playing",
+    "actualPixels": 1881,
+    "freePixels": 1984,
+    "totalLost": 103,
+    "glyphs": [
+      {
+        "seen": 150,
+        "free": 150
+      },
+      {
+        "seen": 116,
+        "free": 116
+      },
+      {
+        "seen": 144,
+        "free": 144
+      },
+      {
+        "seen": 192,
+        "free": 192
+      },
+      {
+        "seen": 161,
+        "free": 161
+      },
+      {
+        "seen": 63,
+        "free": 63
+      },
+      {
+        "seen": 143,
+        "free": 143
+      },
+      {
+        "seen": 156,
+        "free": 156
+      },
+      {
+        "seen": 128,
+        "free": 128
+      },
+      {
+        "seen": 181,
+        "free": 181
+      },
+      {
+        "seen": 160,
+        "free": 160
+      },
+      {
+        "seen": 140,
+        "free": 140
+      },
+      {
+        "seen": 117,
+        "free": 117
+      },
+      {
+        "seen": 30,
+        "free": 133
+      }
+    ],
+    "pngSha256": "8fcfa1a540839fefd252051916bfc38df240c6c1ddf35fbf84f49a7528568097"
+  },
+  {
+    "id": "poppy-key-over-station-name",
+    "side": "baseline",
+    "seq": 37,
+    "actor": "agent:key:flight",
+    "victim": "lane:sign-in:name",
+    "literal": "Sign-in",
+    "actorRecords": 4,
+    "victimRecords": 7,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "b8647117da7f16be3dcf5acc6912e2c86681be3722874445351fcc795785ceec",
+    "asset": "8bd9e1a390edfbe818d820366068975a7722c7c8b44868e35d7168520843e04e",
+    "step": "approve",
+    "absolute": 3639,
+    "stagePhase": "playing",
+    "actualPixels": 1122,
+    "freePixels": 1122,
+    "totalLost": 0,
+    "pngSha256": "54e4ece16db528f9ef4f9986018756f5ca1171b4f93d3e161feafda5f0957207"
+  },
+  {
+    "id": "poppy-key-over-station-name",
+    "side": "variant",
+    "seq": 37,
+    "actor": "agent:key:flight",
+    "victim": "lane:sign-in:name",
+    "literal": "Sign-in",
+    "actorRecords": 4,
+    "victimRecords": 7,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "75cb501aeee7731b9bb9a39129a0a3b63393aeadc4b497d0b739b1e872274865",
+    "asset": "f3a5800c1c6ea87d682e873483df7dfa9ed961768ad05159a40a10920241f1aa",
+    "step": "approve",
+    "absolute": 3639,
+    "stagePhase": "playing",
+    "actualPixels": 1102,
+    "freePixels": 1122,
+    "totalLost": 20,
+    "pngSha256": "12bbffff8b70687300b91f7c9fe144d39b9e22ebe5869fd31aabd1bcb8f47ca0"
+  },
+  {
+    "id": "refusals-key-over-lane-name",
+    "side": "baseline",
+    "seq": 38,
+    "actor": "agent:key:flight",
+    "victim": "lane:api:name",
+    "literal": "API",
+    "actorRecords": 4,
+    "victimRecords": 3,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "50558fe1a1bcdac6612639de15130e091e1b5ef98ba5b55a927e8ac4b98e0edb",
+    "asset": "7c8297add2f542a6a02185c7ee44acc8c46b6bdb5c75cb79ea5e83aadef845e4",
+    "step": "slip",
+    "absolute": 702,
+    "stagePhase": "playing",
+    "actualPixels": 555,
+    "freePixels": 555,
+    "totalLost": 0,
+    "pngSha256": "1a94131d951a3bb8ae993fbdb302b6477876a7e8f40af76ba6af3d9415651d64"
+  },
+  {
+    "id": "refusals-key-over-lane-name",
+    "side": "variant",
+    "seq": 38,
+    "actor": "agent:key:flight",
+    "victim": "lane:api:name",
+    "literal": "API",
+    "actorRecords": 4,
+    "victimRecords": 3,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "46616c8f7442d6ac5ddb9aba6cc69cd7488f90494c328edfe43fb230059803a2",
+    "asset": "acc9af6aeb85403462c88e436bc9720b669a827ad4ca1de1fae492d6b443eecd",
+    "step": "slip",
+    "absolute": 702,
+    "stagePhase": "playing",
+    "actualPixels": 417,
+    "freePixels": 555,
+    "totalLost": 138,
+    "pngSha256": "49153591a2a66f8a7bcd3767d717ba8b226bb4b5bc88514df44776ee130019de"
+  },
+  {
+    "id": "browser-forge-across-stage",
+    "side": "baseline",
+    "seq": 36,
+    "actor": "forged",
+    "victim": "page:sid",
+    "literal": "Yx2b7Q",
+    "actorRecords": 5,
+    "victimRecords": 6,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "07d960917a9e264dc7124b6cfc0556905b2343188fa2eaddee1812d17a58aab6",
+    "asset": "c88dbaf7f2136918156c1c8e0441d9e31514d269ecd94f699a0f2c8d2d66faa5",
+    "step": "forge",
+    "absolute": 4690,
+    "stagePhase": "playing",
+    "actualPixels": 833,
+    "freePixels": 833,
+    "totalLost": 0,
+    "pngSha256": "7b574ba3620cef0baad08b420594f2b7278c169a7fa501872e2d0676d4c4b6c9"
+  },
+  {
+    "id": "browser-forge-across-stage",
+    "side": "variant",
+    "seq": 36,
+    "actor": "forged",
+    "victim": "page:sid",
+    "literal": "Yx2b7Q",
+    "actorRecords": 5,
+    "victimRecords": 6,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "514dd9ac6e982dd8e899669f052ab90b2c861380ee97be6b0555163575b154d4",
+    "asset": "1a5a5fb6bad25e4579d1c4e5247b4e7897df8698a0bd4c76a430dcba1da13104",
+    "step": "forge",
+    "absolute": 4690,
+    "stagePhase": "playing",
+    "actualPixels": 183,
+    "freePixels": 833,
+    "totalLost": 650,
+    "pngSha256": "c5abd1c4c099e229828cd6020881032a382119490d4ad8c04a8852b3a4d3b1bf"
+  },
+  {
+    "id": "browser-forge-across-stage",
+    "side": "baseline",
+    "seq": 36,
+    "actor": "forged",
+    "victim": "page:session",
+    "literal": "Session",
+    "actorRecords": 5,
+    "victimRecords": 7,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "07d960917a9e264dc7124b6cfc0556905b2343188fa2eaddee1812d17a58aab6",
+    "asset": "c88dbaf7f2136918156c1c8e0441d9e31514d269ecd94f699a0f2c8d2d66faa5",
+    "step": "forge",
+    "absolute": 4690,
+    "stagePhase": "playing",
+    "actualPixels": 879,
+    "freePixels": 879,
+    "totalLost": 0,
+    "pngSha256": "7b574ba3620cef0baad08b420594f2b7278c169a7fa501872e2d0676d4c4b6c9"
+  },
+  {
+    "id": "browser-forge-across-stage",
+    "side": "variant",
+    "seq": 36,
+    "actor": "forged",
+    "victim": "page:session",
+    "literal": "Session",
+    "actorRecords": 5,
+    "victimRecords": 7,
+    "actorAllAfterVictim": true,
+    "perGlyph": false,
+    "stagePixelSha256": "514dd9ac6e982dd8e899669f052ab90b2c861380ee97be6b0555163575b154d4",
+    "asset": "1a5a5fb6bad25e4579d1c4e5247b4e7897df8698a0bd4c76a430dcba1da13104",
+    "step": "forge",
+    "absolute": 4690,
+    "stagePhase": "playing",
+    "actualPixels": 879,
+    "freePixels": 879,
+    "totalLost": 0,
+    "pngSha256": "c5abd1c4c099e229828cd6020881032a382119490d4ad8c04a8852b3a4d3b1bf"
+  }
+]

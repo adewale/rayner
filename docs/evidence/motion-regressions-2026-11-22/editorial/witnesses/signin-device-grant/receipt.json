@@ -1,0 +1,113 @@
+{
+  "chapter": "poppy-sign-in",
+  "settings": {
+    "flow": "device"
+  },
+  "step": "sign-out",
+  "log": [
+    "ask",
+    "approve-read",
+    "collect"
+  ],
+  "id": "signin-device-grant",
+  "from": "rest",
+  "base": {
+    "flow": "device",
+    "sign": null,
+    "holds": null,
+    "ended": true,
+    "last": {
+      "kind": "sign-out"
+    }
+  },
+  "frames": [
+    {
+      "absolute": 6669,
+      "offset": 0,
+      "time": 222.3,
+      "seconds": 0,
+      "pixelsSha256": "fbe606720eb5e579074b14d13fa0252c41275205bc19b7d0b014474d7c4645b0",
+      "svgSha256": "1aec42da282de460d8f5788f14185749fd6f36619f54eaf8f75a5d780da7a089"
+    },
+    {
+      "absolute": 6684,
+      "offset": 15,
+      "time": 222.8,
+      "seconds": 0.5,
+      "pixelsSha256": "89d407a4be7636b046355a961654deffbc498ee19c6f7a7d2092bdbd96cda0f1",
+      "svgSha256": "4f7182cb7b4fbb6baf19c76ae10d91da9a0d4ede76dc1fd72ef3b97b77b07382"
+    },
+    {
+      "absolute": 6699,
+      "offset": 30,
+      "time": 223.3,
+      "seconds": 1,
+      "pixelsSha256": "e947ef54c545e4d75cecd1484a577267022af05d7f29cfc3b323a8b4b187debf",
+      "svgSha256": "20ecf3d7e8ce38c7ed5ffd0b59208d289ae3be3fcdfde2167aba435b93a03066"
+    },
+    {
+      "absolute": 6714,
+      "offset": 45,
+      "time": 223.8,
+      "seconds": 1.5,
+      "pixelsSha256": "8c167c6c4173d60f1cc748d11a56007b54f3886ca49973fbc213354996ea93b9",
+      "svgSha256": "860e6508f0750368f5f63f3cb1d90023c3bf9b61bd01f619bc119a84dd1281ad"
+    },
+    {
+      "absolute": 6729,
+      "offset": 60,
+      "time": 224.3,
+      "seconds": 2,
+      "pixelsSha256": "abfc230f45cdf29b1bf9c7eb3256074bfac54d12c3f5495456fafc8d9a583617",
+      "svgSha256": "44807ee7a81a96f517c702fc178e9a110e7764bba2c54c8f2feb873211bf5bd9"
+    },
+    {
+      "absolute": 6744,
+      "offset": 75,
+      "time": 224.8,
+      "seconds": 2.5,
+      "pixelsSha256": "74328ea67f9bec93abc4987044daa26494e88116f1a3e0254ee3f26c27ae3125",
+      "svgSha256": "7fb5880713723b60d4dd3730fb44fd4fdab95457955170ac0647a4c5a1bf6167"
+    },
+    {
+      "absolute": 6759,
+      "offset": 90,
+      "time": 225.3,
+      "seconds": 3,
+      "pixelsSha256": "abdc024679c3ad2f84a321d7bd6b88e12f09f7d59d761c760d7db27df979e086",
+      "svgSha256": "3f6512d34e4f3cdf3ea902f2f34ff71c9e05fd89daf26c12ac8712e6e4b3fd83"
+    },
+    {
+      "absolute": 6774,
+      "offset": 105,
+      "time": 225.8,
+      "seconds": 3.5,
+      "pixelsSha256": "14bfbc5603136609cae316fe41be247b98b69ae5e49e259d3c8ffaf6fa02d2fc",
+      "svgSha256": "a3747b1273bd2a5d844b2b18d5d63002948e5e4fe926212503b912dbdee989cc"
+    },
+    {
+      "absolute": 6789,
+      "offset": 120,
+      "time": 226.3,
+      "seconds": 4,
+      "pixelsSha256": "d02fd92cd4f56eacf6a2d55206d6e2f20035f3e51d9805cea00bfca496e3d9f2",
+      "svgSha256": "9d798bee8ae5f5a83980a6f8beb1b431d56f81358506b4d8f21a6379fd606a75"
+    },
+    {
+      "absolute": 6804,
+      "offset": 135,
+      "time": 226.8,
+      "seconds": 4.5,
+      "pixelsSha256": "583ae08619aae8386bdfadf20c122610d1fcd0837ec397e20a761137f40640dd",
+      "svgSha256": "136432c8e19e596724c4f915e7a169a48249b02261f016777106976ee4563106"
+    },
+    {
+      "absolute": 6804,
+      "offset": 135,
+      "time": 226.8,
+      "seconds": 4.5,
+      "pixelsSha256": "583ae08619aae8386bdfadf20c122610d1fcd0837ec397e20a761137f40640dd",
+      "svgSha256": "136432c8e19e596724c4f915e7a169a48249b02261f016777106976ee4563106"
+    }
+  ]
+}

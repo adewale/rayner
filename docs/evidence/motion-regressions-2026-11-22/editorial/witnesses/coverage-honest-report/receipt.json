@@ -1,0 +1,92 @@
+{
+  "chapter": "poppy-coverage",
+  "settings": {
+    "company": "honest"
+  },
+  "step": "search",
+  "log": [
+    "read tasks",
+    "gift card",
+    "report"
+  ],
+  "id": "coverage-honest-report",
+  "from": "rest",
+  "base": {
+    "company": "honest",
+    "approves": [
+      "orders:read",
+      "orders:write"
+    ],
+    "board": false,
+    "close": "searched",
+    "gift": "no",
+    "skill": false,
+    "last": {
+      "kind": "searched",
+      "task": "close",
+      "tried": [
+        "api",
+        "web",
+        "chat"
+      ]
+    }
+  },
+  "frames": [
+    {
+      "absolute": 921,
+      "offset": 0,
+      "time": 30.7,
+      "seconds": 0,
+      "pixelsSha256": "7fbb4e9309c36a6fd9d5b58a13723d04ed5aacb8625b25bcdad26449dbb459f5",
+      "svgSha256": "89c50040a4c46cfc6cb742a470b4500335e0955e43f81fddb7d50748aedfbf30"
+    },
+    {
+      "absolute": 936,
+      "offset": 15,
+      "time": 31.2,
+      "seconds": 0.5,
+      "pixelsSha256": "df9697ea30162d979657bf2f31f5ff243f090531be2825a6bd3c8082c451593f",
+      "svgSha256": "7daa11cba705c14b538fb114a69426d076da4f62df7dee9eace1a4413f43439e"
+    },
+    {
+      "absolute": 951,
+      "offset": 30,
+      "time": 31.7,
+      "seconds": 1,
+      "pixelsSha256": "420f8c41093f0ca617880e581354382b559ff907367b79d1d47f421ebd8486ea",
+      "svgSha256": "b611b3a31651dd9b05757fb3c583fb761266680e5ae59f73a677477032ff2128"
+    },
+    {
+      "absolute": 966,
+      "offset": 45,
+      "time": 32.2,
+      "seconds": 1.5,
+      "pixelsSha256": "f9ee94f0e9b1d7e5182156e6390703df8ed5efd805a8987b653822aa9b4f2c04",
+      "svgSha256": "1ccf257140f116e0ec6997a53889424a8d1c5f334413bf15d4f2f624bd241798"
+    },
+    {
+      "absolute": 981,
+      "offset": 60,
+      "time": 32.7,
+      "seconds": 2,
+      "pixelsSha256": "b42954df0e94c14fc82760c3969d0e5a4c2ff8087b952ab27e1f8d878f752fe0",
+      "svgSha256": "0369ba3dfbcb4ef720fd15e26da2d8091888a25dc717b96a7e58f098134f6cb2"
+    },
+    {
+      "absolute": 996,
+      "offset": 75,
+      "time": 33.2,
+      "seconds": 2.5,
+      "pixelsSha256": "7b26aeafea733ad4b576002f790bfb325fa28b414abd580c822e961dfba4571a",
+      "svgSha256": "fa9f2bed8e62ae50cdae421756c2ef36137155edb794c5ab431d18f2d6ee5837"
+    },
+    {
+      "absolute": 1005,
+      "offset": 84,
+      "time": 33.5,
+      "seconds": 2.8,
+      "pixelsSha256": "c43db6bf2488d54d5ac8c710d27d9cece7a85c8b1e567251454c6f242ed6f4b0",
+      "svgSha256": "9f415e640e40a6bf981f23ecc8852a00441291e4a5c53f9a09d78153b88d5859"
+    }
+  ]
+}

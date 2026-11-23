@@ -1,0 +1,807 @@
+{
+  "policy": "Matched native offsets; blank cells explicitly indicate absent frames. All crops are ordinary native PNG inputs; no generated artwork.",
+  "samples": [
+    {
+      "step": "forge",
+      "frame": 0
+    },
+    {
+      "step": "phish",
+      "frame": 0
+    },
+    {
+      "step": "phish",
+      "frame": 13
+    },
+    {
+      "step": "phish",
+      "frame": 25
+    },
+    {
+      "step": "phish",
+      "frame": 38
+    },
+    {
+      "step": "phish",
+      "frame": 51
+    },
+    {
+      "step": "phish",
+      "frame": 63
+    },
+    {
+      "step": "phish",
+      "frame": 76
+    },
+    {
+      "step": "phish",
+      "frame": 88
+    },
+    {
+      "step": "phish",
+      "frame": 101
+    }
+  ],
+  "regions": [
+    {
+      "name": "whole-stage",
+      "crop": {
+        "name": "whole-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 13,
+          "sequence": 13,
+          "asset": "7f0f7113ab4de59a43831a4f7bc121d6c72dd20335e3c1197d6f14551d0909f1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "phish",
+          "frame": 13
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 25,
+          "sequence": 25,
+          "asset": "06c0a446ebf263469d826d5b3d26c51efe5791766c6d0d1642f26b3e2f016031"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "phish",
+          "frame": 25
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "a7e221279ea35252249b3570f7223626ef7c523fb91a1e4c4f107a66b65f00f1"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "phish",
+          "frame": 38
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 51,
+          "sequence": 51,
+          "asset": "a8415b1d8d772046d31c58a014b77cbc057f1b194108da4b5ba5b5064657f183"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "phish",
+          "frame": 51
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "219474b1259a8916855b27fab0e97d6476e8b07f74cafbc9cab6a7be8c5cf5db"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "phish",
+          "frame": 63
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 76,
+          "sequence": 76,
+          "asset": "16ebbb398589eb8d9acc5dcbf0ea73b794525d0b40c851ea55e5534bf67723a5"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "phish",
+          "frame": 76
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "b1ca9d427ec1b16a02434ff94d8227455a35a936380e318bcb77fc4614f26930"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "phish",
+          "frame": 88
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 101,
+          "sequence": 101,
+          "asset": "6f126e33ca201abbc8c3ca48db06f09573a9c7eb3c5d633ab8ac6ae0ce03fea5"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "phish",
+          "frame": 101
+        }
+      ]
+    },
+    {
+      "name": "upper-stage",
+      "crop": {
+        "name": "upper-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 13,
+          "sequence": 13,
+          "asset": "7f0f7113ab4de59a43831a4f7bc121d6c72dd20335e3c1197d6f14551d0909f1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "phish",
+          "frame": 13
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 25,
+          "sequence": 25,
+          "asset": "06c0a446ebf263469d826d5b3d26c51efe5791766c6d0d1642f26b3e2f016031"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "phish",
+          "frame": 25
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "a7e221279ea35252249b3570f7223626ef7c523fb91a1e4c4f107a66b65f00f1"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "phish",
+          "frame": 38
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 51,
+          "sequence": 51,
+          "asset": "a8415b1d8d772046d31c58a014b77cbc057f1b194108da4b5ba5b5064657f183"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "phish",
+          "frame": 51
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "219474b1259a8916855b27fab0e97d6476e8b07f74cafbc9cab6a7be8c5cf5db"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "phish",
+          "frame": 63
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 76,
+          "sequence": 76,
+          "asset": "16ebbb398589eb8d9acc5dcbf0ea73b794525d0b40c851ea55e5534bf67723a5"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "phish",
+          "frame": 76
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "b1ca9d427ec1b16a02434ff94d8227455a35a936380e318bcb77fc4614f26930"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "phish",
+          "frame": 88
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 101,
+          "sequence": 101,
+          "asset": "6f126e33ca201abbc8c3ca48db06f09573a9c7eb3c5d633ab8ac6ae0ce03fea5"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "phish",
+          "frame": 101
+        }
+      ]
+    },
+    {
+      "name": "lower-stage",
+      "crop": {
+        "name": "lower-stage",
+        "x": 0,
+        "y": 225,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 13,
+          "sequence": 13,
+          "asset": "7f0f7113ab4de59a43831a4f7bc121d6c72dd20335e3c1197d6f14551d0909f1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "phish",
+          "frame": 13
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 25,
+          "sequence": 25,
+          "asset": "06c0a446ebf263469d826d5b3d26c51efe5791766c6d0d1642f26b3e2f016031"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "phish",
+          "frame": 25
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "a7e221279ea35252249b3570f7223626ef7c523fb91a1e4c4f107a66b65f00f1"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "phish",
+          "frame": 38
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 51,
+          "sequence": 51,
+          "asset": "a8415b1d8d772046d31c58a014b77cbc057f1b194108da4b5ba5b5064657f183"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "phish",
+          "frame": 51
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "219474b1259a8916855b27fab0e97d6476e8b07f74cafbc9cab6a7be8c5cf5db"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "phish",
+          "frame": 63
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 76,
+          "sequence": 76,
+          "asset": "16ebbb398589eb8d9acc5dcbf0ea73b794525d0b40c851ea55e5534bf67723a5"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "phish",
+          "frame": 76
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "b1ca9d427ec1b16a02434ff94d8227455a35a936380e318bcb77fc4614f26930"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "phish",
+          "frame": 88
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 101,
+          "sequence": 101,
+          "asset": "6f126e33ca201abbc8c3ca48db06f09573a9c7eb3c5d633ab8ac6ae0ce03fea5"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "phish",
+          "frame": 101
+        }
+      ]
+    },
+    {
+      "name": "left-stage",
+      "crop": {
+        "name": "left-stage",
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 13,
+          "sequence": 13,
+          "asset": "7f0f7113ab4de59a43831a4f7bc121d6c72dd20335e3c1197d6f14551d0909f1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "phish",
+          "frame": 13
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 25,
+          "sequence": 25,
+          "asset": "06c0a446ebf263469d826d5b3d26c51efe5791766c6d0d1642f26b3e2f016031"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "phish",
+          "frame": 25
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "a7e221279ea35252249b3570f7223626ef7c523fb91a1e4c4f107a66b65f00f1"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "phish",
+          "frame": 38
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 51,
+          "sequence": 51,
+          "asset": "a8415b1d8d772046d31c58a014b77cbc057f1b194108da4b5ba5b5064657f183"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "phish",
+          "frame": 51
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "219474b1259a8916855b27fab0e97d6476e8b07f74cafbc9cab6a7be8c5cf5db"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "phish",
+          "frame": 63
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 76,
+          "sequence": 76,
+          "asset": "16ebbb398589eb8d9acc5dcbf0ea73b794525d0b40c851ea55e5534bf67723a5"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "phish",
+          "frame": 76
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "b1ca9d427ec1b16a02434ff94d8227455a35a936380e318bcb77fc4614f26930"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "phish",
+          "frame": 88
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 101,
+          "sequence": 101,
+          "asset": "6f126e33ca201abbc8c3ca48db06f09573a9c7eb3c5d633ab8ac6ae0ce03fea5"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "phish",
+          "frame": 101
+        }
+      ]
+    },
+    {
+      "name": "right-stage",
+      "crop": {
+        "name": "right-stage",
+        "x": 400,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "forge",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "c99856e9226e8b712ed936ef744f5de93b384657bc0b748d336399618deacec9"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "phish",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 13,
+          "sequence": 13,
+          "asset": "7f0f7113ab4de59a43831a4f7bc121d6c72dd20335e3c1197d6f14551d0909f1"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "phish",
+          "frame": 13
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 25,
+          "sequence": 25,
+          "asset": "06c0a446ebf263469d826d5b3d26c51efe5791766c6d0d1642f26b3e2f016031"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "phish",
+          "frame": 25
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 38,
+          "sequence": 38,
+          "asset": "a7e221279ea35252249b3570f7223626ef7c523fb91a1e4c4f107a66b65f00f1"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "phish",
+          "frame": 38
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 51,
+          "sequence": 51,
+          "asset": "a8415b1d8d772046d31c58a014b77cbc057f1b194108da4b5ba5b5064657f183"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "phish",
+          "frame": 51
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "219474b1259a8916855b27fab0e97d6476e8b07f74cafbc9cab6a7be8c5cf5db"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "phish",
+          "frame": 63
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 76,
+          "sequence": 76,
+          "asset": "16ebbb398589eb8d9acc5dcbf0ea73b794525d0b40c851ea55e5534bf67723a5"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "phish",
+          "frame": 76
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 88,
+          "sequence": 88,
+          "asset": "b1ca9d427ec1b16a02434ff94d8227455a35a936380e318bcb77fc4614f26930"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "phish",
+          "frame": 88
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "phish",
+          "frame": 101,
+          "sequence": 101,
+          "asset": "6f126e33ca201abbc8c3ca48db06f09573a9c7eb3c5d633ab8ac6ae0ce03fea5"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "phish",
+          "frame": 101
+        }
+      ]
+    }
+  ]
+}

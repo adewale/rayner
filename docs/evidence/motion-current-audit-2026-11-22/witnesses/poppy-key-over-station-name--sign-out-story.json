@@ -1,0 +1,887 @@
+{
+  "policy": "Matched native offsets; blank cells explicitly indicate absent frames. All crops are ordinary native PNG inputs; no generated artwork.",
+  "samples": [
+    {
+      "step": "thief",
+      "frame": 0
+    },
+    {
+      "step": "sign-out",
+      "frame": 0
+    },
+    {
+      "step": "sign-out",
+      "frame": 8
+    },
+    {
+      "step": "sign-out",
+      "frame": 16
+    },
+    {
+      "step": "sign-out",
+      "frame": 24
+    },
+    {
+      "step": "sign-out",
+      "frame": 32
+    },
+    {
+      "step": "sign-out",
+      "frame": 39
+    },
+    {
+      "step": "sign-out",
+      "frame": 47
+    },
+    {
+      "step": "sign-out",
+      "frame": 55
+    },
+    {
+      "step": "sign-out",
+      "frame": 63
+    }
+  ],
+  "regions": [
+    {
+      "name": "whole-stage",
+      "crop": {
+        "name": "whole-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "c85563a7c5f87d52acf1528c8b155dfaf40899343b177492cf30b61cc95bedc2"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "db56db0ee9371c5011ef7b4a0980243d40105d3e77fab64a7332f834853eb2e6"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "0648ab37eab9198a434c8a666252974d8950ea1e7a191f8cb1bec8ee531c5f7f"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "f3c7417c785b7e14ab73d38513b8f44c99c1f83753a1c319e0b37eeabd8fd6cc"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "a308d36b2d652c83ce436cfea9fed10ba2f3683c19a412fd0bb9b87fb3f82d19"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8492cd7b37d2a17ef67bfee4fabc98c79740ce1f98367a9e676feea405951d78"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "a619bd2655ee283167b55aadfe0339c322610d83ead3a64ef0a0c1affc7e0912"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "0b9d161f06a1e223dc68d589d92b17f9649349ea698294d991a667ff510f4c4f"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "ebdcae7e5ed945fc65ffc82cc7f00012780163e2a43e3b709b55b5833c9f8cd0"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "8e8118f6323cae00dd3ee64b00399d3c3055ed363b9b7d1714515f5bbe416694"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        }
+      ]
+    },
+    {
+      "name": "upper-stage",
+      "crop": {
+        "name": "upper-stage",
+        "x": 0,
+        "y": 0,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "c85563a7c5f87d52acf1528c8b155dfaf40899343b177492cf30b61cc95bedc2"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "db56db0ee9371c5011ef7b4a0980243d40105d3e77fab64a7332f834853eb2e6"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "0648ab37eab9198a434c8a666252974d8950ea1e7a191f8cb1bec8ee531c5f7f"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "f3c7417c785b7e14ab73d38513b8f44c99c1f83753a1c319e0b37eeabd8fd6cc"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "a308d36b2d652c83ce436cfea9fed10ba2f3683c19a412fd0bb9b87fb3f82d19"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8492cd7b37d2a17ef67bfee4fabc98c79740ce1f98367a9e676feea405951d78"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "a619bd2655ee283167b55aadfe0339c322610d83ead3a64ef0a0c1affc7e0912"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "0b9d161f06a1e223dc68d589d92b17f9649349ea698294d991a667ff510f4c4f"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "ebdcae7e5ed945fc65ffc82cc7f00012780163e2a43e3b709b55b5833c9f8cd0"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "8e8118f6323cae00dd3ee64b00399d3c3055ed363b9b7d1714515f5bbe416694"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        }
+      ]
+    },
+    {
+      "name": "lower-stage",
+      "crop": {
+        "name": "lower-stage",
+        "x": 0,
+        "y": 225,
+        "w": 800,
+        "h": 225
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "c85563a7c5f87d52acf1528c8b155dfaf40899343b177492cf30b61cc95bedc2"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "db56db0ee9371c5011ef7b4a0980243d40105d3e77fab64a7332f834853eb2e6"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "0648ab37eab9198a434c8a666252974d8950ea1e7a191f8cb1bec8ee531c5f7f"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "f3c7417c785b7e14ab73d38513b8f44c99c1f83753a1c319e0b37eeabd8fd6cc"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "a308d36b2d652c83ce436cfea9fed10ba2f3683c19a412fd0bb9b87fb3f82d19"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8492cd7b37d2a17ef67bfee4fabc98c79740ce1f98367a9e676feea405951d78"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "a619bd2655ee283167b55aadfe0339c322610d83ead3a64ef0a0c1affc7e0912"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "0b9d161f06a1e223dc68d589d92b17f9649349ea698294d991a667ff510f4c4f"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "ebdcae7e5ed945fc65ffc82cc7f00012780163e2a43e3b709b55b5833c9f8cd0"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "8e8118f6323cae00dd3ee64b00399d3c3055ed363b9b7d1714515f5bbe416694"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        }
+      ]
+    },
+    {
+      "name": "left-stage",
+      "crop": {
+        "name": "left-stage",
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "c85563a7c5f87d52acf1528c8b155dfaf40899343b177492cf30b61cc95bedc2"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "db56db0ee9371c5011ef7b4a0980243d40105d3e77fab64a7332f834853eb2e6"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "0648ab37eab9198a434c8a666252974d8950ea1e7a191f8cb1bec8ee531c5f7f"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "f3c7417c785b7e14ab73d38513b8f44c99c1f83753a1c319e0b37eeabd8fd6cc"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "a308d36b2d652c83ce436cfea9fed10ba2f3683c19a412fd0bb9b87fb3f82d19"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8492cd7b37d2a17ef67bfee4fabc98c79740ce1f98367a9e676feea405951d78"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "a619bd2655ee283167b55aadfe0339c322610d83ead3a64ef0a0c1affc7e0912"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "0b9d161f06a1e223dc68d589d92b17f9649349ea698294d991a667ff510f4c4f"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "ebdcae7e5ed945fc65ffc82cc7f00012780163e2a43e3b709b55b5833c9f8cd0"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "8e8118f6323cae00dd3ee64b00399d3c3055ed363b9b7d1714515f5bbe416694"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        }
+      ]
+    },
+    {
+      "name": "right-stage",
+      "crop": {
+        "name": "right-stage",
+        "x": 400,
+        "y": 0,
+        "w": 400,
+        "h": 450
+      },
+      "rows": [
+        {
+          "row": 0,
+          "side": "baseline",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 0,
+          "side": "variant",
+          "step": "thief",
+          "frame": 0,
+          "sequence": 0,
+          "asset": "3f48b7d1763cb7df0fc830e2702ca9f5c26601f1c1bcc37b887ce6df975d6c8f"
+        },
+        {
+          "row": 1,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 1,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 0
+        },
+        {
+          "row": 2,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 2,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 8,
+          "sequence": 8,
+          "asset": "cfed71fc0232027115ac1fd100226818ab40b2aa6edc624f1bb934da0ab73605"
+        },
+        {
+          "row": 3,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "c85563a7c5f87d52acf1528c8b155dfaf40899343b177492cf30b61cc95bedc2"
+        },
+        {
+          "row": 3,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 16,
+          "sequence": 16,
+          "asset": "db56db0ee9371c5011ef7b4a0980243d40105d3e77fab64a7332f834853eb2e6"
+        },
+        {
+          "row": 4,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "0648ab37eab9198a434c8a666252974d8950ea1e7a191f8cb1bec8ee531c5f7f"
+        },
+        {
+          "row": 4,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 24,
+          "sequence": 24,
+          "asset": "f3c7417c785b7e14ab73d38513b8f44c99c1f83753a1c319e0b37eeabd8fd6cc"
+        },
+        {
+          "row": 5,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "a308d36b2d652c83ce436cfea9fed10ba2f3683c19a412fd0bb9b87fb3f82d19"
+        },
+        {
+          "row": 5,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 32,
+          "sequence": 32,
+          "asset": "8492cd7b37d2a17ef67bfee4fabc98c79740ce1f98367a9e676feea405951d78"
+        },
+        {
+          "row": 6,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "a619bd2655ee283167b55aadfe0339c322610d83ead3a64ef0a0c1affc7e0912"
+        },
+        {
+          "row": 6,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 39,
+          "sequence": 39,
+          "asset": "0b9d161f06a1e223dc68d589d92b17f9649349ea698294d991a667ff510f4c4f"
+        },
+        {
+          "row": 7,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "ebdcae7e5ed945fc65ffc82cc7f00012780163e2a43e3b709b55b5833c9f8cd0"
+        },
+        {
+          "row": 7,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 47,
+          "sequence": 47,
+          "asset": "8e8118f6323cae00dd3ee64b00399d3c3055ed363b9b7d1714515f5bbe416694"
+        },
+        {
+          "row": 8,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 8,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 55,
+          "sequence": 55,
+          "asset": "aec0c5bd436083b1bd20fe2954643710628acf004e2443f42ad567cc39d6e173"
+        },
+        {
+          "row": 9,
+          "side": "baseline",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        },
+        {
+          "row": 9,
+          "side": "variant",
+          "step": "sign-out",
+          "frame": 63,
+          "sequence": 63,
+          "asset": "e07af977504f8f18bdccf6b8b2d996731add346f84f3d9aab8f74284851fe2be"
+        }
+      ]
+    }
+  ]
+}

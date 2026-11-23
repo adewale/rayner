@@ -1,0 +1,35 @@
+✖ the borrowed skill leaves its hook while it travels and returns with the ticket landing (1634.143436ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1913.718693
+
+✖ failing tests:
+
+test at ../../tmp/coverage-controls/skill-card-twice/motion.test.ts:78:1
+✖ the borrowed skill leaves its hook while it travels and returns with the ticket landing (1634.143436ms)
+  AssertionError [ERR_ASSERTION]: the borrowed card cannot remain painted on its hook during the trip
+  
+  2995 !== 0
+  
+      at Object.frame (file:///tmp/coverage-controls/skill-card-twice/motion.test.ts:99:16)
+      at file:///workspace/rayner/src/scene.ts:857:47
+      at #toSink (file:///workspace/rayner/src/scene.ts:487:17)
+      at #emitFrame (file:///workspace/rayner/src/scene.ts:857:29)
+      at #playFrames (file:///workspace/rayner/src/scene.ts:948:28)
+      at async #play (file:///workspace/rayner/src/scene.ts:902:11)
+      at async #exclusive (file:///workspace/rayner/src/scene.ts:503:18)
+      at async Bound.play (file:///workspace/rayner/src/scene.ts:864:5)
+      at async Bound.construct (file:///tmp/coverage-controls/skill-card-twice/scene.ts:214:5)
+      at async file:///workspace/rayner/src/scene.ts:615:9 {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2995,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

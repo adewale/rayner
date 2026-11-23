@@ -1,0 +1,342 @@
+[
+  {
+    "operations": "wrap",
+    "rows": [
+      {
+        "time": 0,
+        "source": 246,
+        "proxy": 0,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 0.4000000000000057,
+        "source": 246,
+        "proxy": 0,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 0.5,
+        "source": 244,
+        "proxy": 105,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 0.6333333333333542,
+        "source": 246,
+        "proxy": 212,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 1,
+        "source": 246,
+        "proxy": 602,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 1.4000000000000057,
+        "source": 246,
+        "proxy": 0,
+        "receipt": 640,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#706960",
+          "fillOpacity": 0.6799422859522815
+        }
+      },
+      {
+        "time": 2.0999999999999943,
+        "source": 0,
+        "proxy": 0,
+        "receipt": 640,
+        "headBase": [
+          -4.841787815093994,
+          2.643594980239868
+        ],
+        "slotPaint": {
+          "fill": "#2A2521",
+          "fillOpacity": 1
+        }
+      }
+    ],
+    "duplicates": [
+      {
+        "kind": "duplicate words",
+        "segment": "last reader pop",
+        "key": "ring:tray:2:source:0:ring:value:4",
+        "path": "ring:tray:2:source:0:ring:value:4",
+        "t": 0.5,
+        "value": 0.1,
+        "detail": "travelling text overlaps another visible copy of the same words",
+        "fix": "hide the resting copy until the travelling copy has landed"
+      }
+    ],
+    "finalState": {
+      "head": 0,
+      "tail": 0,
+      "length": 0,
+      "data": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "used": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "reused": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "next": 6,
+      "operation": "pop",
+      "error": null,
+      "returned": [
+        5
+      ],
+      "marks": [
+        {
+          "slot": 2,
+          "kind": "pop"
+        },
+        {
+          "slot": 3,
+          "kind": "pop"
+        },
+        {
+          "slot": 4,
+          "kind": "pop"
+        }
+      ],
+      "tray": {
+        "label": "popped:",
+        "values": [
+          3,
+          4,
+          5
+        ],
+        "refused": false
+      }
+    }
+  },
+  {
+    "operations": "full",
+    "rows": [
+      {
+        "time": 0,
+        "source": 246,
+        "proxy": 0,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 0.4000000000000057,
+        "source": 246,
+        "proxy": 0,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 0.5,
+        "source": 244,
+        "proxy": 105,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 0.6333333333333258,
+        "source": 246,
+        "proxy": 212,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 1,
+        "source": 246,
+        "proxy": 602,
+        "receipt": 0,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#E9DFCC",
+          "fillOpacity": 0.13
+        }
+      },
+      {
+        "time": 1.4000000000000057,
+        "source": 246,
+        "proxy": 0,
+        "receipt": 640,
+        "headBase": [
+          -7.305957794189453,
+          -0.1519559919834137
+        ],
+        "slotPaint": {
+          "fill": "#706960",
+          "fillOpacity": 0.6799422859522815
+        }
+      },
+      {
+        "time": 2.0999999999999943,
+        "source": 0,
+        "proxy": 0,
+        "receipt": 640,
+        "headBase": [
+          -4.841787815093994,
+          2.643594980239868
+        ],
+        "slotPaint": {
+          "fill": "#2A2521",
+          "fillOpacity": 1
+        }
+      }
+    ],
+    "duplicates": [
+      {
+        "kind": "duplicate words",
+        "segment": "last reader pop",
+        "key": "ring:tray:2:source:0:ring:value:4",
+        "path": "ring:tray:2:source:0:ring:value:4",
+        "t": 0.5,
+        "value": 0.1,
+        "detail": "travelling text overlaps another visible copy of the same words",
+        "fix": "hide the resting copy until the travelling copy has landed"
+      }
+    ],
+    "finalState": {
+      "head": 0,
+      "tail": 0,
+      "length": 0,
+      "data": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "used": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "reused": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "next": 6,
+      "operation": "pop",
+      "error": null,
+      "returned": [
+        5
+      ],
+      "marks": [
+        {
+          "slot": 2,
+          "kind": "pop"
+        },
+        {
+          "slot": 3,
+          "kind": "pop"
+        },
+        {
+          "slot": 4,
+          "kind": "pop"
+        }
+      ],
+      "tray": {
+        "label": "popped:",
+        "values": [
+          3,
+          4,
+          5
+        ],
+        "refused": false
+      }
+    }
+  }
+]

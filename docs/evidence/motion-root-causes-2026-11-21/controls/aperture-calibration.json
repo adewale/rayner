@@ -1,0 +1,128 @@
+{
+  "renderer": "@resvg/resvg-js, 800 x 450, 30 fps, complete scene RGB",
+  "measurement": "Count every red contribution, including antialiasing, where R > G, R > B and G = B. peak is maximum R-G, total is its sum, cx is its weighted horizontal centre. Static context uses distinct green, blue and purple colors.",
+  "initialCheckerGitCommit": "903e522",
+  "repairedCheckerGitBlob": "a06d2c1456ea8cce9d5e542360c7b4f63dc7a861",
+  "cases": {
+    "originalAperture": {
+      "apertureHalfExtent": 0.075,
+      "totalBegunMoveFrames": 70,
+      "everyNonzeroRedFrame": [
+        {
+          "n": 21,
+          "event": 1,
+          "red": 4,
+          "redExtent": [
+            396,
+            396
+          ],
+          "peak": 144,
+          "total": 432,
+          "cx": 396
+        },
+        {
+          "n": 22,
+          "event": 1,
+          "red": 16,
+          "redExtent": [
+            399,
+            402
+          ],
+          "peak": 255,
+          "total": 2298,
+          "cx": 400.5
+        },
+        {
+          "n": 70,
+          "event": 2,
+          "red": 4,
+          "redExtent": [
+            396,
+            396
+          ],
+          "peak": 144,
+          "total": 432,
+          "cx": 396
+        },
+        {
+          "n": 71,
+          "event": 2,
+          "red": 16,
+          "redExtent": [
+            399,
+            402
+          ],
+          "peak": 255,
+          "total": 2298,
+          "cx": 400.5
+        }
+      ],
+      "findings": []
+    },
+    "singlePositionBefore": {
+      "apertureHalfExtent": 0.025,
+      "totalBegunMoveFrames": 70,
+      "everyNonzeroRedFrame": [
+        {
+          "n": 22,
+          "event": 1,
+          "red": 12,
+          "redExtent": [
+            399,
+            401
+          ],
+          "peak": 255,
+          "total": 1006,
+          "cx": 399.8568588469185
+        },
+        {
+          "n": 71,
+          "event": 2,
+          "red": 12,
+          "redExtent": [
+            399,
+            401
+          ],
+          "peak": 255,
+          "total": 1006,
+          "cx": 399.8568588469185
+        }
+      ],
+      "findings": []
+    },
+    "singlePositionAfter": {
+      "apertureHalfExtent": 0.025,
+      "totalBegunMoveFrames": 70,
+      "everyNonzeroRedFrame": [
+        {
+          "n": 22,
+          "event": 1,
+          "red": 12,
+          "redExtent": [
+            399,
+            401
+          ],
+          "peak": 255,
+          "total": 1006,
+          "cx": 399.8568588469185
+        },
+        {
+          "n": 71,
+          "event": 2,
+          "red": 12,
+          "redExtent": [
+            399,
+            401
+          ],
+          "peak": 255,
+          "total": 1006,
+          "cx": 399.8568588469185
+        }
+      ],
+      "findings": [
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move",
+        "step \"shipment\", event \"ship\": motion contract: during \"parcel\", a declared travel did not paint at two distinct screen positions during its move"
+      ]
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "run": "root-causes-39b75450",
+  "reviewer": "Astra 6.2 Max independent review /root/astra62_max_remaining_review",
+  "capture": {
+    "path": "../../root-causes-review-39b75450/capture.json",
+    "sha256": "6928a1428f13eec45f22fda312b1831e12a4836f7e3cc2565297369454aaad5d"
+  },
+  "review": {
+    "path": "review.json",
+    "sha256": "792ce312ad3fa76e73b2e479e7bb2b80aa1ea388c6508622e4c1353c2d686c2b"
+  },
+  "ratifications": {
+    "path": "ratifications-before-measurement.json",
+    "sha256": "38b448b0891e78ff7dbbf6dbedb93918620c3c6a08a2fe1a47939609d8550630"
+  },
+  "v3Ratifications": {
+    "path": "v3-ratifications-before-measurement.json",
+    "sha256": "f1d515abf781721adde1c5844b8ba0a8b81a8831feb0c7478f37449c6bc6b62b"
+  },
+  "domainClearanceRatification": {
+    "path": "domain-ratification-before-measurement.json",
+    "sha256": "7e7b6b14f5568d4dd4dae80f5f606493e464f9fe09db0d1ae056bea464f42511"
+  },
+  "visualInspection": {
+    "path": "visual-inspection.json",
+    "sha256": "d24415248acbb4c6bbd5b4e3ec049dbbff12e9ba39b136b35b58e40c12d7b481"
+  },
+  "independentClauses": {
+    "path": "independent-clause-targets.json",
+    "sha256": "02ac5879ec8b16c6d71a7dd789abf14db8784ee38e9c4cca8fa5b8b31ea8637c"
+  },
+  "routeLineage": {
+    "path": "route-lineage-39b75450.json",
+    "sha256": "5ee2197fef04e30b6a62c6a625a99684b913dd9a729bf24072ebbda71787434e"
+  },
+  "nativeOwnership": {
+    "path": "native-knockout-39b75450.json",
+    "sha256": "292d2d76e18c7022d65138b76cdf66beba98abb03d80e644ac2f529c6c123715"
+  },
+  "cases": 59,
+  "counts": {
+    "observed": 45,
+    "editorial": 6,
+    "typed-prevention": 4,
+    "non-reproducing": 4,
+    "unresolved": 0
+  },
+  "positiveClauses": 45,
+  "distinctRatifiedRelations": 4,
+  "separatelyVersionedRepresentations": 5,
+  "measurement": "pending"
+}

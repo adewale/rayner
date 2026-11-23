@@ -1,0 +1,503 @@
+[
+  {
+    "id": "sign-in-password-route",
+    "name": "primary",
+    "dir": "out/motion-all59-audit/sign-in-password-route--final-held-primary",
+    "route": {
+      "step": "approve",
+      "event": "approve-read"
+    },
+    "frames": 72,
+    "beforeAfterSamePixels": {
+      "baseline": 72,
+      "variant": 72
+    },
+    "currentPairedIdenticalFrames": 45,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "9f1e4b952338e17088cd41e03fab5ef1e2a9881887a0e44d8e6d8ecfd8d1e2ab"
+    },
+    "before": {
+      "flow": "direct",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "ask",
+        "scopes": [
+          "orders:read",
+          "orders:write"
+        ]
+      }
+    },
+    "after": {
+      "flow": "direct",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": [
+          "orders:read"
+        ]
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "approve",
+        "approved": [
+          "orders:read"
+        ]
+      }
+    },
+    "baseline": {},
+    "variant": {}
+  },
+  {
+    "id": "sign-in-password-route",
+    "name": "device-approve",
+    "dir": "out/motion-all59-audit/sign-in-password-route--final-held-device-approve",
+    "route": {
+      "step": "approve",
+      "event": "approve-read",
+      "settings": {
+        "flow": "device"
+      }
+    },
+    "frames": 72,
+    "beforeAfterSamePixels": {
+      "baseline": 0,
+      "variant": 0
+    },
+    "currentPairedIdenticalFrames": 72,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "9f1e4b952338e17088cd41e03fab5ef1e2a9881887a0e44d8e6d8ecfd8d1e2ab"
+    },
+    "before": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "pending"
+      }
+    },
+    "after": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": [
+          "orders:read"
+        ]
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "approve",
+        "approved": [
+          "orders:read"
+        ]
+      }
+    },
+    "baseline": {},
+    "variant": {}
+  },
+  {
+    "id": "sign-in-password-hand-and-flight",
+    "name": "primary",
+    "dir": "out/motion-all59-audit/sign-in-password-hand-and-flight--final-held-primary",
+    "route": {
+      "step": "approve",
+      "event": "approve-read"
+    },
+    "frames": 72,
+    "beforeAfterSamePixels": {
+      "baseline": 72,
+      "variant": 72
+    },
+    "currentPairedIdenticalFrames": 3,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "031bed02a09d024fe228bc8c3756de646980135bf3f8c2cf38d431b449b95b93"
+    },
+    "before": {
+      "flow": "direct",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "ask",
+        "scopes": [
+          "orders:read",
+          "orders:write"
+        ]
+      }
+    },
+    "after": {
+      "flow": "direct",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": [
+          "orders:read"
+        ]
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "approve",
+        "approved": [
+          "orders:read"
+        ]
+      }
+    },
+    "baseline": {},
+    "variant": {}
+  },
+  {
+    "id": "sign-in-tokens-over-labels",
+    "name": "primary",
+    "dir": "out/motion-all59-audit/sign-in-tokens-over-labels--final-held-primary",
+    "route": {
+      "step": "reask",
+      "event": "ask"
+    },
+    "frames": 124,
+    "beforeAfterSamePixels": {
+      "baseline": 124,
+      "variant": 124
+    },
+    "currentPairedIdenticalFrames": 68,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "6ed8df87fbc42da786aa9d1da388b9e6d5ad83c0dfaa9b5108b735ad0a9a2091"
+    },
+    "before": {
+      "flow": "direct",
+      "sign": null,
+      "holds": {
+        "scopes": [
+          "orders:read"
+        ],
+        "card": 0
+      },
+      "ended": false,
+      "last": {
+        "kind": "tokens",
+        "granted": [
+          "orders:read"
+        ],
+        "saysScope": true,
+        "replaced": false
+      }
+    },
+    "after": {
+      "flow": "direct",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": {
+        "scopes": [
+          "orders:read"
+        ],
+        "card": 0
+      },
+      "ended": false,
+      "last": {
+        "kind": "ask",
+        "scopes": [
+          "orders:read",
+          "orders:write"
+        ]
+      }
+    },
+    "baseline": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0
+    },
+    "variant": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0
+    }
+  },
+  {
+    "id": "sign-in-tokens-over-labels",
+    "name": "device-ask-collect",
+    "dir": "out/motion-all59-audit/sign-in-tokens-over-labels--final-held-device-ask-collect",
+    "route": {
+      "step": "ask",
+      "event": "collect",
+      "settings": {
+        "flow": "device"
+      }
+    },
+    "frames": 85,
+    "beforeAfterSamePixels": {
+      "baseline": 0,
+      "variant": 0
+    },
+    "currentPairedIdenticalFrames": 22,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "6ed8df87fbc42da786aa9d1da388b9e6d5ad83c0dfaa9b5108b735ad0a9a2091"
+    },
+    "before": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "ask",
+        "scopes": [
+          "orders:read",
+          "orders:write"
+        ],
+        "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+      }
+    },
+    "after": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "pending"
+      }
+    },
+    "baseline": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0
+    },
+    "variant": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0
+    }
+  },
+  {
+    "id": "sign-in-tokens-over-labels",
+    "name": "device-approved-collect",
+    "dir": "out/motion-all59-audit/sign-in-tokens-over-labels--final-held-device-approved-collect",
+    "route": {
+      "step": "key",
+      "event": "collect",
+      "settings": {
+        "flow": "device"
+      }
+    },
+    "frames": 135,
+    "beforeAfterSamePixels": {
+      "baseline": 116,
+      "variant": 116
+    },
+    "currentPairedIdenticalFrames": 101,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "6ed8df87fbc42da786aa9d1da388b9e6d5ad83c0dfaa9b5108b735ad0a9a2091"
+    },
+    "before": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": [
+          "orders:read"
+        ]
+      },
+      "holds": null,
+      "ended": false,
+      "last": {
+        "kind": "approve",
+        "approved": [
+          "orders:read"
+        ]
+      }
+    },
+    "after": {
+      "flow": "device",
+      "sign": null,
+      "holds": {
+        "scopes": [
+          "orders:read"
+        ],
+        "card": 0
+      },
+      "ended": false,
+      "last": {
+        "kind": "tokens",
+        "granted": [
+          "orders:read"
+        ],
+        "saysScope": true,
+        "replaced": false
+      }
+    },
+    "baseline": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0
+    },
+    "variant": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0
+    }
+  },
+  {
+    "id": "sign-in-tokens-over-labels",
+    "name": "device-pending-with-tag",
+    "dir": "out/motion-all59-audit/sign-in-tokens-over-labels--final-held-device-pending-with-tag",
+    "route": {
+      "step": "sign-out",
+      "event": "collect",
+      "settings": {
+        "flow": "device"
+      },
+      "log": [
+        "ask",
+        "approve-read",
+        "collect",
+        "ask",
+        "collect"
+      ]
+    },
+    "frames": 86,
+    "beforeAfterSamePixels": {
+      "baseline": 0,
+      "variant": 0
+    },
+    "currentPairedIdenticalFrames": 23,
+    "sourceBySide": {
+      "baseline": "89623dc9f161cb2209a8e5c330d45dd59c73ae1b5594df9fdf68bca0831bc487",
+      "variant": "6ed8df87fbc42da786aa9d1da388b9e6d5ad83c0dfaa9b5108b735ad0a9a2091"
+    },
+    "before": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": {
+        "scopes": [
+          "orders:read"
+        ],
+        "card": 0
+      },
+      "ended": false,
+      "last": {
+        "kind": "ask",
+        "scopes": [
+          "orders:read",
+          "orders:write"
+        ],
+        "link": "https://auth.example.com/device?user_code=WDJB-MJHT"
+      }
+    },
+    "after": {
+      "flow": "device",
+      "sign": {
+        "lists": [
+          "orders:read",
+          "orders:write"
+        ],
+        "approved": null
+      },
+      "holds": {
+        "scopes": [
+          "orders:read"
+        ],
+        "card": 0
+      },
+      "ended": false,
+      "last": {
+        "kind": "pending"
+      }
+    },
+    "baseline": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0,
+      "refresh token letters under poll": 0,
+      "refresh token letters under poll:back": 0
+    },
+    "variant": {
+      "request masks any lettering": 0,
+      "request masks company name": 0,
+      "poll masks any lettering": 0,
+      "poll masks company name": 0,
+      "poll:back masks any lettering": 0,
+      "poll:back masks company name": 0,
+      "refresh token letters under poll": 0,
+      "refresh token letters under poll:back": 0
+    }
+  }
+]

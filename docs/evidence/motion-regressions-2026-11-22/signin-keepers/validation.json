@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "commit": "e693f7623c07315ccda8c7b127bbac2250cef082",
+  "base": "d41c54ea",
+  "scope": "Only scenes/explainers/poppy-sign-in/scene.test.ts; no production source, geometry, timing, target, detector or private reader import changed.",
+  "fixed": [
+    {
+      "name": "each device card first paints completely above the agent key slot rather than at the Company desk",
+      "authoredOccurrences": 2,
+      "assertions": [
+        "all3 exact printed lines contribute complete native ink",
+        "actual agent/key-slot source relation",
+        "first complete source paint, separately for each traveller"
+      ]
+    },
+    {
+      "name": "the code travelling to the token endpoint is wordless and visibly moves in every authored journey",
+      "authoredOccurrences": 2,
+      "nativeCoverage": "first and last complete travelling frames per occurrence; not every frame rasterized",
+      "assertions": [
+        "no Text descendants throughout observed transit",
+        "exact story journey count",
+        "world and composited support positions differ",
+        "actual token ink changes while omitted-token background remains identical at its support"
+      ]
+    }
+  ],
+  "inverse": [
+    {
+      "name": "desk-origin device card",
+      "occurrences": 2,
+      "assertion": "same source relation rejects real card moved to authored DESK; independent actual-minus-card native difference proves the poison paints"
+    },
+    {
+      "name": "fully covered code",
+      "occurrences": 2,
+      "assertion": "same movement predicate rejects zero native traveller contribution despite changing world coordinates"
+    },
+    {
+      "name": "offstage code",
+      "occurrences": 2,
+      "assertion": "same movement predicate rejects zero native traveller contribution"
+    }
+  ],
+  "validation": [
+    {
+      "command": "node --test --test-isolation=none --test-name-pattern='code travelling|each device card' scenes/explainers/poppy-sign-in/scene.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "log": "focused-native.log"
+    },
+    {
+      "command": "node --test --test-isolation=none scenes/explainers/poppy-sign-in/scene.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "log": "all-scene-tests.log"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.node.json --incremental false",
+      "exitCode": 0,
+      "log": "typecheck.log",
+      "preparation": "local library/recipe declarations built with task-owned tsBuildInfo files"
+    },
+    {
+      "command": "node --test --test-isolation=none test/scene-imports.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "log": "public-boundary.log"
+    }
+  ],
+  "resourcePolicy": "Immutable SVG snapshots are collected synchronously and all temporary scene mutations restored before async rendering. Each native pixels getter read once. Code keeps at most2 snapshots per control and journey; source word checks run only once per each of2 cards. No production cache/export or new detector threshold."
+}

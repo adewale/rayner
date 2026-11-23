@@ -1,0 +1,455 @@
+{
+  "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "method": "Independent, bounded current-worktree replay stopped at the authored ask step. Only scratch variant copies under the reviewer directory were rewritten. This is a four-case control and gives no all59 measurement credit.",
+  "controls": [
+    {
+      "control": "fixed",
+      "visiblePoll": 31,
+      "exact": [],
+      "missing": [],
+      "samples": [
+        {
+          "absolute": 959,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 960,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 961,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 962,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 963,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 964,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 965,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 966,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 967,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 968,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 969,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 970,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 971,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 972,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 973,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 974,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 975,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 976,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 977,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 978,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 979,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 980,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 981,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        }
+      ]
+    },
+    {
+      "control": "original",
+      "visiblePoll": 31,
+      "exact": [
+        "step \"ask\", event \"collect\": motion contract: during \"poll\", text subject \"card:domain\" must remain clear at +0.800 s"
+      ],
+      "missing": [],
+      "samples": [
+        {
+          "absolute": 959,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 960,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 961,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 962,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 963,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 964,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 965,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 966,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 967,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 968,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 969,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 970,
+          "domainLost": 27,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 971,
+          "domainLost": 33,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 972,
+          "domainLost": 50,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 973,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 974,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 975,
+          "domainLost": 0,
+          "companyLost": 0,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 976,
+          "domainLost": 0,
+          "companyLost": 18,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 977,
+          "domainLost": 0,
+          "companyLost": 46,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 978,
+          "domainLost": 0,
+          "companyLost": 74,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 979,
+          "domainLost": 0,
+          "companyLost": 100,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 980,
+          "domainLost": 0,
+          "companyLost": 100,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 981,
+          "domainLost": 0,
+          "companyLost": 100,
+          "domainVisibleFree": 1359
+        }
+      ]
+    },
+    {
+      "control": "Company-only",
+      "visiblePoll": 31,
+      "exact": [],
+      "missing": [],
+      "samples": [
+        {
+          "absolute": 959,
+          "domainLost": 0,
+          "companyLost": 379,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 960,
+          "domainLost": 0,
+          "companyLost": 365,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 961,
+          "domainLost": 0,
+          "companyLost": 371,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 962,
+          "domainLost": 0,
+          "companyLost": 386,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 963,
+          "domainLost": 0,
+          "companyLost": 406,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 964,
+          "domainLost": 0,
+          "companyLost": 405,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 965,
+          "domainLost": 0,
+          "companyLost": 371,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 966,
+          "domainLost": 0,
+          "companyLost": 364,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 967,
+          "domainLost": 0,
+          "companyLost": 379,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 968,
+          "domainLost": 0,
+          "companyLost": 391,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 969,
+          "domainLost": 0,
+          "companyLost": 399,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 970,
+          "domainLost": 0,
+          "companyLost": 391,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 971,
+          "domainLost": 0,
+          "companyLost": 379,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 972,
+          "domainLost": 0,
+          "companyLost": 364,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 973,
+          "domainLost": 0,
+          "companyLost": 390,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 974,
+          "domainLost": 0,
+          "companyLost": 405,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 975,
+          "domainLost": 0,
+          "companyLost": 406,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 976,
+          "domainLost": 0,
+          "companyLost": 386,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 977,
+          "domainLost": 0,
+          "companyLost": 371,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 978,
+          "domainLost": 0,
+          "companyLost": 365,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 979,
+          "domainLost": 0,
+          "companyLost": 379,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 980,
+          "domainLost": 0,
+          "companyLost": 391,
+          "domainVisibleFree": 1359
+        },
+        {
+          "absolute": 981,
+          "domainLost": 0,
+          "companyLost": 399,
+          "domainVisibleFree": 1359
+        }
+      ]
+    },
+    {
+      "control": "renamed",
+      "visiblePoll": 31,
+      "exact": [],
+      "missing": [
+        "step \"ask\", event \"collect\": motion contract: during \"poll\", subject \"card:domain\" must identify one part in the source or destination picture"
+      ],
+      "samples": []
+    }
+  ]
+}

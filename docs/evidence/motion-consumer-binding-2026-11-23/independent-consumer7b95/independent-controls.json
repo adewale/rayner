@@ -1,0 +1,217 @@
+{
+  "testedConsumerRevision": "7b95f4435a4a1b2209c6de7c924cf5c00c98d085",
+  "originalSourceWorkspace": "/workspace/rayner-attempt3/out/remaining-fixes-2026-11-22/astra-attempt-3",
+  "relocatedCaseRoot": "relocation-PJ6wmb/moved",
+  "notes": [
+    "Authentic source-39 producer and physical originals; measurements in this file are synthetic.",
+    "The complete 15 MiB paired-case producer directory with both full ledgers and native assets was moved in one operation.",
+    "The fixture for the relocation and alias controls explicitly marks the other 58 IDs unresolved. The original four controls independently use all 59 real case entries."
+  ],
+  "results": [
+    {
+      "label": "original full 59 original",
+      "synthetic": true,
+      "caseCount": 59,
+      "wholeCase": {
+        "accepted": true,
+        "counts": {
+          "observed": 45,
+          "typed-prevention": 4,
+          "non-reproducing": 4,
+          "editorial": 6,
+          "unresolved": 0
+        }
+      },
+      "semantic": {
+        "accepted": true,
+        "status": "semantic-target-match"
+      }
+    },
+    {
+      "label": "original full 59 raw-receipt-with-new-provenance",
+      "synthetic": true,
+      "caseCount": 59,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: native producer/side file role mismatch for sign-in-poll-over-card"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: native producer/side file role mismatch for sign-in-poll-over-card"
+      }
+    },
+    {
+      "label": "original full 59 genuine-old-side",
+      "synthetic": true,
+      "caseCount": 59,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: native producer/side file role mismatch for sign-in-poll-over-card"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: native producer/side file role mismatch for sign-in-poll-over-card"
+      }
+    },
+    {
+      "label": "original full 59 missing-extra-witness",
+      "synthetic": true,
+      "caseCount": 59,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: ENOENT: no such file or directory, open '/workspace/rayner-attempt3/out/remaining-fixes-2026-11-22/astra-attempt-3/never-generated/unsigned-extra.png'"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: ENOENT: no such file or directory, open '/workspace/rayner-attempt3/out/remaining-fixes-2026-11-22/astra-attempt-3/never-generated/unsigned-extra.png'"
+      }
+    },
+    {
+      "label": "relative-only paired archive original",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": true,
+        "counts": {
+          "observed": 1,
+          "typed-prevention": 0,
+          "non-reproducing": 0,
+          "editorial": 0,
+          "unresolved": 58
+        }
+      },
+      "semantic": {
+        "accepted": true,
+        "status": "semantic-target-match"
+      }
+    },
+    {
+      "label": "entire intact archive after moving directory",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": true,
+        "counts": {
+          "observed": 1,
+          "typed-prevention": 0,
+          "non-reproducing": 0,
+          "editorial": 0,
+          "unresolved": 58
+        }
+      },
+      "semantic": {
+        "accepted": true,
+        "status": "semantic-target-match"
+      }
+    },
+    {
+      "label": "symlink to genuine bound PNG",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": true,
+        "counts": {
+          "observed": 1,
+          "typed-prevention": 0,
+          "non-reproducing": 0,
+          "editorial": 0,
+          "unresolved": 58
+        }
+      },
+      "semantic": {
+        "accepted": true,
+        "status": "semantic-target-match"
+      }
+    },
+    {
+      "label": "same SHA existing extra PNG",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: native witness lacks a frame binding for sign-in-poll-over-card"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: native witness lacks a frame binding for sign-in-poll-over-card"
+      }
+    },
+    {
+      "label": "symlink to same SHA other-source PNG",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: native witness lacks a frame binding for sign-in-poll-over-card"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: native witness lacks a frame binding for sign-in-poll-over-card"
+      }
+    },
+    {
+      "label": "equivalent dot-segment producer and PNG paths",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": true,
+        "counts": {
+          "observed": 1,
+          "typed-prevention": 0,
+          "non-reproducing": 0,
+          "editorial": 0,
+          "unresolved": 58
+        }
+      },
+      "semantic": {
+        "accepted": true,
+        "status": "semantic-target-match"
+      }
+    },
+    {
+      "label": "same SHA case copy in wrong role",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: native producer/case file role mismatch for sign-in-poll-over-card"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: native producer/case file role mismatch for sign-in-poll-over-card"
+      }
+    },
+    {
+      "label": "complete archive reached through directory alias",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": true,
+        "counts": {
+          "observed": 1,
+          "typed-prevention": 0,
+          "non-reproducing": 0,
+          "editorial": 0,
+          "unresolved": 58
+        }
+      },
+      "semantic": {
+        "accepted": true,
+        "status": "semantic-target-match"
+      }
+    },
+    {
+      "label": "canonical side name symlinked to old producer receipt",
+      "synthetic": true,
+      "caseCount": 1,
+      "wholeCase": {
+        "accepted": false,
+        "reason": "Error: native producer/side file role mismatch for sign-in-poll-over-card"
+      },
+      "semantic": {
+        "accepted": false,
+        "reason": "Error: native producer/side file role mismatch for sign-in-poll-over-card"
+      }
+    }
+  ]
+}

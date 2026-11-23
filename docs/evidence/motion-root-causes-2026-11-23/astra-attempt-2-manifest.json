@@ -1,0 +1,1450 @@
+{
+  "policy": "Original independent bytes and compact native witnesses. All59 case/side ledgers plus8 precise relation PNG/SVG inputs; full raw media remains in original out directory. Extract archive at repository root. No fresh judgment or final-source claim is inferred.",
+  "files": [
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/ADDENDUM-domain-detection.md",
+      "bytes": 2898,
+      "sha256": "9e91c997de9dda85a1a54e7449866c9f9b3b095a5716476ce169a2ca055ff265"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/REPORT.md",
+      "bytes": 16901,
+      "sha256": "940c264dffb3445ecc66cb1c9f3e47f4308ecf0d1ede49de2f56ada5997a468b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/ambiguous-worker-envelope.json",
+      "bytes": 416,
+      "sha256": "9e74daf769698bff490e0a29e0d690af6fee63332d1bcdf8937f9ab327f978a4"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/ambiguous-worker-payload.json",
+      "bytes": 12854,
+      "sha256": "beabdefddc0998621e4d9991e3f23681a93d4ebbb324ca1dd0265400b5e45557"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/contradictory-nonrep.json",
+      "bytes": 715614,
+      "sha256": "3902b63e150c4f72ef2e0c93895e3a187c383520b2139353e8faf7d7ff932a4c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/positive-envelope.json",
+      "bytes": 408,
+      "sha256": "829ea9194d38e3f1f44a026166e4cf34ae265882ab61fab5cfa851700e531fee"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/positive-payload.json",
+      "bytes": 12088,
+      "sha256": "977a30dad724a74be94567709673b93875130e86c1d6290fa6b0d0221f87bc9c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/relabeled-capture.json",
+      "bytes": 1593413,
+      "sha256": "4e458d2c692c801688a847187cdc89446a14a73f408122a386ffc8a45a5b34c1"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/relabeled-review.json",
+      "bytes": 730514,
+      "sha256": "d952714b651267e27ec014c93c367686ab4470783be841c1f122cd290bb4dddd"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/results.json",
+      "bytes": 3197,
+      "sha256": "2c519bfa8c6de72344613aed30d069b387017256bcc78bcb8a21a5f581bf3f7a"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/typed-as-observed.json",
+      "bytes": 725678,
+      "sha256": "1f0c455630ffb2f626027e0d89896ca770eae25d558c5b9cd0bdb8d4bf16239a"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/unsubtracted-envelope.json",
+      "bytes": 412,
+      "sha256": "b1f113eb690387f5e7f4f088b7fe052a31549de371729c13d81c0adabc955a68"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/unsubtracted-payload.json",
+      "bytes": 13374,
+      "sha256": "2fee3ce1d233533df7dfe37c2e183e8dec7b3e8e5341e01cc7c1ba309f3c4600"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/variants-only-envelope.json",
+      "bytes": 413,
+      "sha256": "51e8e8892f7bece55b89fde3ca63ec3d9163d7da46b7dd4b22e88e8bb705524e"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/variants-only-payload.json",
+      "bytes": 10853,
+      "sha256": "6f756e8a2fa83710d10ae6cfb49e5cffb5be891b45d3a57419391b80379411cd"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/wrong-review.json",
+      "bytes": 720987,
+      "sha256": "7610c4b7e101916cb91a3b0be4fdef8e3bd9cef786697bcca3251d884ab0b4c5"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/wrong-route.json",
+      "bytes": 723156,
+      "sha256": "686cd1688f9c10dc903b176237f7a48f815252d315ac5f036bbb03857ce46cd9"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/wrong-source-envelope.json",
+      "bytes": 414,
+      "sha256": "369c49c222dd406961ae81b670e344490570762a64dc436cdbb6206f3347c33b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-controls/wrong-source-payload.json",
+      "bytes": 12088,
+      "sha256": "977a30dad724a74be94567709673b93875130e86c1d6290fa6b0d0221f87bc9c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/admission-probe.ts",
+      "bytes": 7812,
+      "sha256": "70ade0ca977cfdb5402899efcd65ab4e4cc2e3e7a37c9975ce05b548d5433cd5"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/after-measurement-readback.json",
+      "bytes": 7159,
+      "sha256": "ef236030ce4579ecc0c2bd4cfa4af284a7e29154a6c44455281b22272b744186"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/clearance-probe.json",
+      "bytes": 1645,
+      "sha256": "3462dec25bc6615189eeffe9a22069f58e7f3c1d952696e476c5723bff5a1d91"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/clearance-probe.ts",
+      "bytes": 3275,
+      "sha256": "e6343f8f799a8ecb871a5dc63551ca285cf6e5c3e21ceed1f66f453a71668a58"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/current-review.py",
+      "bytes": 10345,
+      "sha256": "c5ac6c37af81ad34e84ff10062da1427e99dc78494f5697958a2067e843acce3"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/device-return-boundary.ts",
+      "bytes": 6285,
+      "sha256": "2ec4830564b8ce2151a476e18be15c355cb71bc1fce926df2e63fd314053d46a"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/final-handoff.json",
+      "bytes": 800,
+      "sha256": "d71ddd300bf214178c9656740b19a759e13abfe988c413c4235df99f5c9bf58c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/final-verdict.json",
+      "bytes": 4412,
+      "sha256": "8a1a145a7559cc0e15ee6fc083d4bca74365f642c2f59f8e1a4e3a71b18e812b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/grant-reader-review.json",
+      "bytes": 13211,
+      "sha256": "5e474f8e049901fda03a63f3df03ae0155c6a7042bf64dffa3231dcd7d238c34"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/grant-reader-review.py",
+      "bytes": 3641,
+      "sha256": "0e7ddec5e6667db079b75e19bf534d8d7e37d996f618cf9fe6845e4e9ebfd97e"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/independent-clause-targets.json",
+      "bytes": 101929,
+      "sha256": "754969d32c265d6f8891f6c8cae34a4c9df0f0ba13114a35dfef08acf6403926"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/grant-device-first.png",
+      "bytes": 233689,
+      "sha256": "fab1d52ab94e1aa1dcaa5d22fdebd7f72ebbdf060f4438fbc557695dbc8f7411"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/grant-device-replacement.png",
+      "bytes": 257209,
+      "sha256": "e899241eabf459096451d633ac01e386a68d0b126fc0819cb16d2622c00dc81c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/grant-direct-first.png",
+      "bytes": 251459,
+      "sha256": "37656fe4d719c16d6b49ce7489b29d1c8dc38c3a0b2ab02ed5c3e6b4cfddf48c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/grant-direct-replacement.png",
+      "bytes": 269610,
+      "sha256": "233eb767cb7627a49d677753edeb2124439ada07171689ad38c0ff2242207d79"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/opened-current-originals.json",
+      "bytes": 2565,
+      "sha256": "23065d3af9aadd64e712f2ed15210d696e40efae0519b5f15591de37a4fd60a3"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/selections.json",
+      "bytes": 18121,
+      "sha256": "1f0b0955738a359cebbad083a154840177626f3323ce7d51f60d94e371d10ff3"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-code-tiny-words-1.png",
+      "bytes": 223480,
+      "sha256": "bdb32205b028d990d7d55ac033d1b5beae857d7f04c2546bc96fd76777604eb7"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-code-tiny-words-2.png",
+      "bytes": 152603,
+      "sha256": "4527d938de17e488f42e38c20472b3f0173f0fa316c9d6582a79478f9662ade2"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-collect-people-slide-1.png",
+      "bytes": 172292,
+      "sha256": "20887acdf42330af623019cf833a0e21db9091ceb96843a9bb2a19eb90993187"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-collect-people-slide-2.png",
+      "bytes": 160197,
+      "sha256": "c1be5471978662bcc5c3ba9e26fb028d7f110f77da20d85cc6cf2049b121e010"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-collect-too-long-1.png",
+      "bytes": 152296,
+      "sha256": "0f154c0ff141436bc0fa178b5d88e16b175e4a908c1c76c5cf1fb8e7bfa2c65f"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-collect-too-long-2.png",
+      "bytes": 219721,
+      "sha256": "56545f0f64a4c268eb420644779fb8244220149f9dc8dc6564e45fda08de60f7"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-tag-over-scopes-1.png",
+      "bytes": 196134,
+      "sha256": "8964abf1b88cfb79d953541c63e52eff8cc4a35fcb6c4c4e3867c8a1ea38b06d"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection/sign-in-tag-over-scopes-2.png",
+      "bytes": 184895,
+      "sha256": "9a17de3822565d843657744ee36dd3c1767db7a41ada4f4ec74b04c91eb770f6"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/inspection.py",
+      "bytes": 1516,
+      "sha256": "2d553cb177b12ab065e0990399f23817846a13ce2d00a7a177f36837e36905d7"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/lineage.py",
+      "bytes": 6837,
+      "sha256": "8ae6f87543cf09598ebde5b53c0bcabf4e4e66abee76ea672a1cc30e5acee6cb"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/measurement-readback.ts",
+      "bytes": 3278,
+      "sha256": "24a0666ddfddc8f4eec4ff28cfc51beb60a40c7867c6f90bcf8457321e54ab24"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/native-knockout.json",
+      "bytes": 51544,
+      "sha256": "0897061fbbebd26bcfa6741cc2e0dc59f8958a15f5a2d016e65e95849e244e16"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/native-knockout.ts",
+      "bytes": 3986,
+      "sha256": "cc19c622dcc598ffe772d2948fbd2f5fbc9301aedca5486c36eef068fe53e94e"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/prospective-domain-contract.json",
+      "bytes": 1706,
+      "sha256": "c21550b644515cc9e44783006b74f636452246342447dfe06c9e197280a0a99b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/ratifications-before-measurement.json",
+      "bytes": 10626,
+      "sha256": "d04186278e462162bc904bb04d3e985d0c93bae49dfea289fc7543c91809cb40"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-first-disconnect-17.png",
+      "bytes": 38209,
+      "sha256": "de5c5cab0b446e57790f5494c05616ecd64fb3560a6b0cc764d97b1e8f9fddec"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-first-disconnect-30.png",
+      "bytes": 36247,
+      "sha256": "6f586156660a2723470771ff7b9fd587f1695c46b3d86f759c3f3839257eeb81"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-first-disconnect-39.png",
+      "bytes": 36282,
+      "sha256": "76cfe0e3620b621f8fad3da03efa7d3a76daa12fc3fefa009cc33292cee029fd"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-first-disconnect-45.png",
+      "bytes": 36355,
+      "sha256": "f267eede9198a8d4cd006b2dbea7479b26ab5a361b3d593593c9094a13566175"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-replacement-disconnect-17.png",
+      "bytes": 39620,
+      "sha256": "0dfc327735c5bfee18a8c67182d687d265446ba3027ac8a4470b371071b6fcae"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-replacement-disconnect-30.png",
+      "bytes": 37586,
+      "sha256": "fadd78f0adfca0e451cd631fa799617187a8bc0da805915eb3a3e22e31a59fdb"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-replacement-disconnect-39.png",
+      "bytes": 37620,
+      "sha256": "f180ac6336d07008f99173634c3ffb000498ccc9f18cc0a14df5a92773a77561"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-replacement-disconnect-45.png",
+      "bytes": 37695,
+      "sha256": "839ba034a2b44beb649fbd69d2e12eb7126e46a11d26a52396164d21a6b7af17"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-return-boundary.json",
+      "bytes": 18843,
+      "sha256": "105c4ddf4b8b62a118593f42e11ad01c95b6d0baa7c8745387153c385d93ea41"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-first-disconnect-17.png",
+      "bytes": 39328,
+      "sha256": "2d4c0b072edade2141c2cd4d9bafc3f5ee2ad562e0cf1d4ec28147fa907f18b9"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-first-disconnect-30.png",
+      "bytes": 37374,
+      "sha256": "7e6b93618109dce13721d7895b894729beb01892e80dcfff6c70acef3449a95d"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-first-disconnect-39.png",
+      "bytes": 37419,
+      "sha256": "07d281866f4f29b9f8179072b6586403ff47d8ad3750ec336fb0123e5bce6492"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-first-disconnect-45.png",
+      "bytes": 37207,
+      "sha256": "26c08dd6e819e5f52347237f526a43fed7f26854dd79cfdae94efa757842ce55"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-replacement-disconnect-17.png",
+      "bytes": 40737,
+      "sha256": "da11c42de9fc167b09f96098763543834f1ecb9594274c9b703cad9b7621331b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-replacement-disconnect-30.png",
+      "bytes": 38739,
+      "sha256": "64cedf60d692d960194a461d4c4b109264840bc862c040feae41fef656be826f"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-replacement-disconnect-39.png",
+      "bytes": 38783,
+      "sha256": "e88cf9254e256146eeb4efa5f1d8be58eb2ff64d5669ac28aaeedab01524c61b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/direct-replacement-disconnect-45.png",
+      "bytes": 38576,
+      "sha256": "b16ff9040877c2fa4df8fd14b237f517d1b9be871e8297e3c6c066de1c385a9a"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/pending-first-device-frame30.png",
+      "bytes": 54950,
+      "sha256": "3fa8ed0e97ae266b61faee1efebb973304f332710190b3a8d2db48640282b88b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/pending-replacement-device-frame30.png",
+      "bytes": 54950,
+      "sha256": "3fa8ed0e97ae266b61faee1efebb973304f332710190b3a8d2db48640282b88b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/rest-first-device-frame30.png",
+      "bytes": 36247,
+      "sha256": "6f586156660a2723470771ff7b9fd587f1695c46b3d86f759c3f3839257eeb81"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/rest-replacement-device-frame30.png",
+      "bytes": 37586,
+      "sha256": "fadd78f0adfca0e451cd631fa799617187a8bc0da805915eb3a3e22e31a59fdb"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/return-reader-scan.json",
+      "bytes": 498398,
+      "sha256": "2ae902b1be9bbf144a24f170b234413af7196bd568b8114d83ce81a050d0549b"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/return-reader-scan.ts",
+      "bytes": 5385,
+      "sha256": "c8405a7eea5a1ec06848d7be3e30ec85f54eb7662cc83d279a40790357f309b3"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/review-receipt.json",
+      "bytes": 1506,
+      "sha256": "b48432b7743ebfdc3f18d06e51b2290764e5f08c94db74af4dfc05eeea5ce88f"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/review.json",
+      "bytes": 730517,
+      "sha256": "9c7d347d03c9545f14a28a416ddc75557dcb05927bcbd0ce5fffcac5d5917db5"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/route-lineage.json",
+      "bytes": 142494,
+      "sha256": "36a4f42ca14310aad654bceb93c0c9ed99a4c29b53042cbb7e4081f923e20769"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/visual-addendum.json",
+      "bytes": 1111,
+      "sha256": "2b6b056e00a88a3b5efd94853c2f8bfb074235cbc82b402a3097182e06e975df"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/astra-attempt-2/visual-inspection.json",
+      "bytes": 468600,
+      "sha256": "8d27054c446434fc57c5c9c2f94c989984da8b6893ab1e71f705ca4b5ea49e3c"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/attempt2-assessment/bound-ratification-receipt.json",
+      "bytes": 10795,
+      "sha256": "e2c81d8a50a6aff3db16ef539c6ef0cf6f01df01046f8aaf22630d069d5454ee"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/attempt2-assessment/case-accounting.json",
+      "bytes": 719735,
+      "sha256": "66c21126255fb678e98cd974dd0ee566bea8a16694a218638b9f509dc3991228"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/attempt2-assessment/measurement-envelope.json",
+      "bytes": 582,
+      "sha256": "5c4b2eb32586779e72c85628866254699dced18151c50037dbcde91b2ddecb4a"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/attempt2-assessment/semantic-assessment.json",
+      "bytes": 1690,
+      "sha256": "1701ce918338d8ee5e457677fbe2188d386fe07e82fea294a8139b682ffbffaf"
+    },
+    {
+      "path": "out/remaining-fixes-2026-11-22/attempt2-assessment/source-attestation-end.json",
+      "bytes": 2207,
+      "sha256": "7baa9278b4d882dfa249ed82f8d9c5fad9d4e72dc2128c9188190254819b2b0b"
+    },
+    {
+      "path": "out/root-causes-measurement-8151582f.json",
+      "bytes": 9083261,
+      "sha256": "5a08d2e2abd79caead0d4bd70a24a527c9e1b6e993980c4b50c496e4910da132"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-attacker-over-shelf/baseline/receipt.json",
+      "bytes": 37190,
+      "sha256": "ef967c093e0a9c35223bab4f657ad01c49bc032c060f0bbf6998da3d4b3c923d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-attacker-over-shelf/case.json",
+      "bytes": 2397,
+      "sha256": "45d2b6fc295c47d9be5a3278be5f8a432cf3b62ea0f943c7b2f7624fa0c1f112"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-attacker-over-shelf/variant/receipt.json",
+      "bytes": 37189,
+      "sha256": "c41abb009e02c8cc01c29aacd6f4b51f0ee561d49946c55778e30510c3c515d8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/baseline/c88dbaf7f2136918156c1c8e0441d9e31514d269ecd94f699a0f2c8d2d66faa5.png",
+      "bytes": 54794,
+      "sha256": "7b574ba3620cef0baad08b420594f2b7278c169a7fa501872e2d0676d4c4b6c9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/baseline/c88dbaf7f2136918156c1c8e0441d9e31514d269ecd94f699a0f2c8d2d66faa5.svg.gz",
+      "bytes": 20463,
+      "sha256": "53e31d85d506056ffde3e353359ab94276cc386fda7e1a7ed3c44495f03025aa"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/baseline/ownership.json.gz",
+      "bytes": 12578,
+      "sha256": "2403f7727c76b0503c7f6221f0f3c2f44971f62fb259ac64fc3d9a273d954ff9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/baseline/receipt.json",
+      "bytes": 37190,
+      "sha256": "ef967c093e0a9c35223bab4f657ad01c49bc032c060f0bbf6998da3d4b3c923d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/case.json",
+      "bytes": 1416,
+      "sha256": "f94c7bdfcae11cfb9e3f81a987267a756f3edc5bd8edff4633308b3093a51ee9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/variant/1a5a5fb6bad25e4579d1c4e5247b4e7897df8698a0bd4c76a430dcba1da13104.png",
+      "bytes": 54237,
+      "sha256": "c5abd1c4c099e229828cd6020881032a382119490d4ad8c04a8852b3a4d3b1bf"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/variant/1a5a5fb6bad25e4579d1c4e5247b4e7897df8698a0bd4c76a430dcba1da13104.svg.gz",
+      "bytes": 20468,
+      "sha256": "37221e13c8290b1802e20cb845a5c45ea849df4002b538d8a8a43549d8375395"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/variant/ownership.json.gz",
+      "bytes": 12077,
+      "sha256": "bdb4b405920021071300646a3c831f6c4d274341f0faaf8a37b9fb36d6c57a8e"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-across-stage/variant/receipt.json",
+      "bytes": 37189,
+      "sha256": "8e5ab4bc4b80bec82a736c184ca705357fbed89aec176eb8c267d04113b817b8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-ends-on-stop/baseline/receipt.json",
+      "bytes": 37190,
+      "sha256": "ef967c093e0a9c35223bab4f657ad01c49bc032c060f0bbf6998da3d4b3c923d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-ends-on-stop/case.json",
+      "bytes": 1325,
+      "sha256": "01af04e43428982f8a95338baf960d74a7261776950f295f5b38658c83b0e0a3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-ends-on-stop/variant/receipt.json",
+      "bytes": 37189,
+      "sha256": "2339eb7ea473f1905a12c47c331f49bd79653f8cfba1c309896e8bade8a8dcc1"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-tiny-words/baseline/receipt.json",
+      "bytes": 37190,
+      "sha256": "ef967c093e0a9c35223bab4f657ad01c49bc032c060f0bbf6998da3d4b3c923d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-tiny-words/case.json",
+      "bytes": 1604,
+      "sha256": "68c76bd3fd41ea41f57f1617c996f2ea378765e3470a0c61e338653dbbc17205"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-forge-tiny-words/variant/receipt.json",
+      "bytes": 37189,
+      "sha256": "26bfda74f24b517326b5982593dc7ae2c5c28322ac2f6c1f48f7eb54486e6241"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-halves-together/baseline/receipt.json",
+      "bytes": 50470,
+      "sha256": "a2a7ebf49a12e0f29ec0ab0aac2c94e211fdddf9a48a48977c498da9bb409ce0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-halves-together/case.json",
+      "bytes": 1789,
+      "sha256": "3a6762376591afa7ac3f3f92b3d4f10bee7325dcdc30c39ed2fceb0f32869486"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-halves-together/variant/receipt.json",
+      "bytes": 50469,
+      "sha256": "1a8479ef330ec4868bc2bff67f58313de080a19a162013191e875cb5cc6b61dd"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-legend-moves/baseline/receipt.json",
+      "bytes": 50470,
+      "sha256": "a2a7ebf49a12e0f29ec0ab0aac2c94e211fdddf9a48a48977c498da9bb409ce0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-legend-moves/case.json",
+      "bytes": 1261,
+      "sha256": "69ff732659179c3a7f433c1d61457887fff305cc547f567c92b277f2aa1180c4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-legend-moves/variant/receipt.json",
+      "bytes": 50469,
+      "sha256": "d03835a00388d5e406a30e2cfabcc92f64d152c09266d57efffb24c61f99a8c7"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-message-across-stage/baseline/receipt.json",
+      "bytes": 43630,
+      "sha256": "f7c91b092843b8ba0fae89251ccd599f837dd5b34d758a0b4c71a81ce39588c0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-message-across-stage/case.json",
+      "bytes": 1450,
+      "sha256": "c23639ef12806a66e7f74c4d3250d13b67fbd2c8ec2a15caf21452177977373b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-message-across-stage/variant/receipt.json",
+      "bytes": 7028,
+      "sha256": "b5d6c4137b50e28e3c5657c523a884064f6cedc36a0b20f751076d698aa4662c"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-message-lingers/baseline/receipt.json",
+      "bytes": 70035,
+      "sha256": "9aca68ffc09d6edfe3bd6331d561f0446f0696dd8883c13f0bfff258f35669d7"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-message-lingers/case.json",
+      "bytes": 1450,
+      "sha256": "79016245d1cabbe56e213a1e5482c6ccf6b173e2af58ff2bc8b43f9e04402ea8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-message-lingers/variant/receipt.json",
+      "bytes": 70034,
+      "sha256": "68193195b06033a7b25e4503717f615b5c1476a167bdd5874dec3a9dce27bbbe"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-across-page/baseline/receipt.json",
+      "bytes": 44284,
+      "sha256": "3139be4610aea74bddd2ba1a156cc7a7d3ab38fb5bf3d04a2070670d845826f8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-across-page/case.json",
+      "bytes": 1504,
+      "sha256": "a8cd3c468499afb257609ea30aa6aee5ebbf73ea544f5780bf92192f6dcb8f4c"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-across-page/variant/receipt.json",
+      "bytes": 44283,
+      "sha256": "7dd95d08c07eb3c88716b976386c3b3a9299bd95063397285bc4130f1cfb6e55"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-over-its-copy/baseline/receipt.json",
+      "bytes": 44284,
+      "sha256": "3139be4610aea74bddd2ba1a156cc7a7d3ab38fb5bf3d04a2070670d845826f8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-over-its-copy/case.json",
+      "bytes": 1652,
+      "sha256": "1f572d29b5e87f704e4e77e4e33f17c645e27f5c76d9295e4265f5c970667e27"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-over-its-copy/variant/receipt.json",
+      "bytes": 44283,
+      "sha256": "797247f6fa6ec25d8233f5fac7c7c4764faf0a92eb1775d262e8ba4cb71690de"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-tiny-words/baseline/receipt.json",
+      "bytes": 44284,
+      "sha256": "3139be4610aea74bddd2ba1a156cc7a7d3ab38fb5bf3d04a2070670d845826f8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-tiny-words/case.json",
+      "bytes": 1373,
+      "sha256": "07aae66a33912fc453a2887002787691ebdd05d8b8bd2da75ec2e771f5231963"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-read-tiny-words/variant/receipt.json",
+      "bytes": 44283,
+      "sha256": "3b1456d83b79d4212fe568aedf9ec7de5904281519ce0c6f71054b25f87f4ad4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-record-after-halves/baseline/receipt.json",
+      "bytes": 50470,
+      "sha256": "a2a7ebf49a12e0f29ec0ab0aac2c94e211fdddf9a48a48977c498da9bb409ce0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-record-after-halves/case.json",
+      "bytes": 1762,
+      "sha256": "dbf3252fa2fe6920fd86b01f25c14e59be25029af9055bc7276e930d71f1232e"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-record-after-halves/variant/receipt.json",
+      "bytes": 50469,
+      "sha256": "751d13195495ee97fae11a013bf76680a282fb64f787e54a12cc23f591e76077"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-submit-meet-on-top/baseline/receipt.json",
+      "bytes": 43125,
+      "sha256": "72d8bdb232b9ab0993620fa0bb36b7bd2ddf818016cdb7d9bdcc3793306735a6"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-submit-meet-on-top/case.json",
+      "bytes": 1801,
+      "sha256": "b09c9b5a999cbd4e79b9728dd80a74fc87bd172572a1944119caec023443d5c5"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-submit-meet-on-top/variant/receipt.json",
+      "bytes": 43124,
+      "sha256": "00c221bd42d38c5fdfdc8ed63a09e82816ff14c63724436b58f859f98ec51b77"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-ticket-over-road-name/baseline/receipt.json",
+      "bytes": 28062,
+      "sha256": "73609a3cefa0f747abd1350a51fa8c10889d41fcc3c8a9d2f936390780954620"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-ticket-over-road-name/case.json",
+      "bytes": 1866,
+      "sha256": "b06bbe8c62f455958c17324d74614c3dfa1f115226d3a72e336dfe02b403e637"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/browser-ticket-over-road-name/variant/receipt.json",
+      "bytes": 28061,
+      "sha256": "d2f2d6ece5bdedbcfe949f110bf2b7c7751b81ce6a14278ef058d4af889ab7a8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-block-crossfades/baseline/receipt.json",
+      "bytes": 21860,
+      "sha256": "ca3b0702d6f4a93f41cccfa3d74d6d7a63f571d57f6141fa94d6d48cf48bc2a3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-block-crossfades/case.json",
+      "bytes": 1491,
+      "sha256": "f5eb4a3a6e421cd1d2b741a5522695d7a4c9ee42c821a0748a76cacf99c78474"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-block-crossfades/variant/receipt.json",
+      "bytes": 21859,
+      "sha256": "7650a33f7f8dcfa825a2fac6cc482ffa430bcb592c89c4e1e47a474e5f87a65e"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-layout-slides/baseline/receipt.json",
+      "bytes": 21860,
+      "sha256": "ca3b0702d6f4a93f41cccfa3d74d6d7a63f571d57f6141fa94d6d48cf48bc2a3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-layout-slides/case.json",
+      "bytes": 1364,
+      "sha256": "80b62fc1f7135fd3d4a360cf0e4c1ea1ab3b08046bddfefb2f7a4ba439e9e9a2"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-layout-slides/variant/receipt.json",
+      "bytes": 21859,
+      "sha256": "80be9291760b550a6b60d9ff94bba8540fb51ab74bd4af57919a97dd861e7da4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-person-over-ledger/baseline/receipt.json",
+      "bytes": 23955,
+      "sha256": "78e57f81d731dd64514d02e922352bebf76ac9f2463363a87269d3f281ec32cd"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-person-over-ledger/case.json",
+      "bytes": 1373,
+      "sha256": "577cb82e410b04aba047a796aaab9dc005794866ca4ed91c8d7972efeeb527e5"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-person-over-ledger/variant/receipt.json",
+      "bytes": 23954,
+      "sha256": "84a520b7911115b65bfccbc8202c314229cb4e0210fe7359397c33ad8da80ff9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-table-block-blinks/baseline/receipt.json",
+      "bytes": 21586,
+      "sha256": "0d0858b667c8a0bec30c28e16cfd00d7c865997a96c9fbcd91a96fa636920df4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-table-block-blinks/case.json",
+      "bytes": 1412,
+      "sha256": "ff0e92da937b998ed398f53cae7d11625bb2a80a3fb8dc0b4d761017574afe72"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-table-block-blinks/variant/receipt.json",
+      "bytes": 21585,
+      "sha256": "9bb862c3c657972515f8f8d548b3f3ea367f388c3fa7ed54992680a9bb6d220e"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-turn-over-seat-name/baseline/receipt.json",
+      "bytes": 21308,
+      "sha256": "ee21b4ceb4eacf32de02a2d373bc2cc85836e649e7b205affd1ddcac0aaa47e7"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-turn-over-seat-name/case.json",
+      "bytes": 1569,
+      "sha256": "745a21a711e1a57d08865e6f6d1de891546c5ca2c3ddc473640b2dadcfc43790"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-turn-over-seat-name/variant/receipt.json",
+      "bytes": 21307,
+      "sha256": "bb107807379d5c07185ba314418703c86b14347179400d21d7ab65e16e832a0f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-words-dissolve/baseline/receipt.json",
+      "bytes": 569283,
+      "sha256": "c78c46a14ae5e80c84ea5dd6fb9e33b773504ce22e43eab821f56374fe6288e6"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-words-dissolve/case.json",
+      "bytes": 1615,
+      "sha256": "3267906027336fe494ae8304be826075c8999cd7d1ed098005dc862edd349bb3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/conversations-words-dissolve/variant/receipt.json",
+      "bytes": 569282,
+      "sha256": "11981caa918209dca1777a5239d6841ff2debbecddd35f2904d2f30b9a23303c"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-desk-blinks/baseline/receipt.json",
+      "bytes": 26398,
+      "sha256": "0b2f651b03c142f0aa3e9ce1973e1be0b3fad05f2af1ee0e902fa5385c57985f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-desk-blinks/case.json",
+      "bytes": 1290,
+      "sha256": "ebdecd1065ce3f2993a01ea17a05afef691ed1e41909b2555a85d76dc8452955"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-desk-blinks/variant/receipt.json",
+      "bytes": 26397,
+      "sha256": "f7d988394a1db89dd156e54741d1d72bb1955714bffa88ee90077894e5885f5d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-list-over-labels/baseline/receipt.json",
+      "bytes": 26398,
+      "sha256": "0b2f651b03c142f0aa3e9ce1973e1be0b3fad05f2af1ee0e902fa5385c57985f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-list-over-labels/case.json",
+      "bytes": 1307,
+      "sha256": "fb5db645d10c7ddfe7be6f6bbc9d982cddcd47ed43e8d0d25fea94db0bba025a"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-list-over-labels/variant/receipt.json",
+      "bytes": 26397,
+      "sha256": "6d4dfd9ded1e170429ae6b564abd257db8112d3029d9608200a4ca9dc6a36866"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-reach-over-strips/baseline/receipt.json",
+      "bytes": 59608,
+      "sha256": "39b590b05162f3014330b02b4718e2af8004c171470a578614647b4dfa1f12a6"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-reach-over-strips/case.json",
+      "bytes": 2368,
+      "sha256": "d7ce0acfca01c771ecf529db1bd04a6dada9af626d9366a36636da330ab84b2d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-reach-over-strips/variant/receipt.json",
+      "bytes": 61878,
+      "sha256": "12cb9a7b501554998e28618c05923229c8ab82aa876c84901eda5d8fabe61b4d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-report-too-long/baseline/receipt.json",
+      "bytes": 33629,
+      "sha256": "590f80eb2b366fae4de93721ac1dbeba24bef1727096d5fc7b27ab6b7c0944aa"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-report-too-long/case.json",
+      "bytes": 2241,
+      "sha256": "82bf5eb4335672856690ed8b1d5c24d6ef7db121909d49256ab83fa6dd59dbb7"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-report-too-long/variant/receipt.json",
+      "bytes": 47544,
+      "sha256": "bf60cad25d7004841862c4163df2113f021445ad71ccf93e9b894c0b41ca10d3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-skill-card-twice/baseline/receipt.json",
+      "bytes": 59608,
+      "sha256": "39b590b05162f3014330b02b4718e2af8004c171470a578614647b4dfa1f12a6"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-skill-card-twice/case.json",
+      "bytes": 2190,
+      "sha256": "4a4b383f3ee9f45eb65b5143fa56d6400db2dafdcad3370f5b3b7814ffccf334"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-skill-card-twice/variant/receipt.json",
+      "bytes": 59607,
+      "sha256": "b3f2049d56333ca5bd931b1bd44cb60398c6e3e286b72c7181f85d9356e17740"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-strips-cross/baseline/receipt.json",
+      "bytes": 30527,
+      "sha256": "a1954cd034fca0f1eb462dc677451f15eb386f5c86ee22b9030606f88d3b1b6f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-strips-cross/case.json",
+      "bytes": 1675,
+      "sha256": "3d71246f4b93a275453e5cf48e719b27b00e8bf205113ef3d9aad9cf6765c59a"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-strips-cross/variant/receipt.json",
+      "bytes": 30526,
+      "sha256": "93f6d45d5972a553790a5cdf5a8f1f12ca573e8ec32db013ce6035b3ffc03b1b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-user-line-blinks/baseline/receipt.json",
+      "bytes": 26398,
+      "sha256": "0b2f651b03c142f0aa3e9ce1973e1be0b3fad05f2af1ee0e902fa5385c57985f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-user-line-blinks/case.json",
+      "bytes": 1674,
+      "sha256": "a5375016b597eac5e1c57c3fe226ea38fdc20860bf9366a5dadbde86139ce029"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/coverage-user-line-blinks/variant/receipt.json",
+      "bytes": 26397,
+      "sha256": "f56574bae2c99e0a26024bbc3d72ca12d423730c495b67228ddd82abfec464d7"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-arm-over-register/baseline/receipt.json",
+      "bytes": 18811,
+      "sha256": "b92525968ca228897cc7fb7151153b736fe1daa82bebb86a2d1a12b9abdc1efe"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-arm-over-register/case.json",
+      "bytes": 1691,
+      "sha256": "aa3ec284dd6eccc65ec23da9251fb9b6a2a73e39b602a56af9c2d854f6f78edb"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-arm-over-register/variant/receipt.json",
+      "bytes": 2223,
+      "sha256": "5d5015cf5faa1257bd629ad7d938bd658bfd8b8b5a2e610209f7d6f437617083"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-fetch-squeezed/baseline/receipt.json",
+      "bytes": 22955,
+      "sha256": "f5c860c80ed6e60a1daa57b1d44a02fc9a9b6da82b3364f29d420ec9ec19e236"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-fetch-squeezed/case.json",
+      "bytes": 1893,
+      "sha256": "f1179a49522a2bf261093debabb519c7e92cf88a725855a6e540bbc06f996a45"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-fetch-squeezed/variant/receipt.json",
+      "bytes": 2185,
+      "sha256": "81d723506adbcdf7e8aed377837a1e3c433a95f7e71248031cad0a635709e2f0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-path-slides/baseline/receipt.json",
+      "bytes": 22955,
+      "sha256": "f5c860c80ed6e60a1daa57b1d44a02fc9a9b6da82b3364f29d420ec9ec19e236"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-path-slides/case.json",
+      "bytes": 1222,
+      "sha256": "e36c699c0ab0205fd9ce64bed4a73b344d5f4d318d9c96444abe78be13cd11cf"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-path-slides/variant/receipt.json",
+      "bytes": 22954,
+      "sha256": "ac89bd39c3c4fb970553b6ceb8e2e35f5f8504a2a10635413747f1ec8c4aed77"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-sheet-over-shop/baseline/receipt.json",
+      "bytes": 22955,
+      "sha256": "f5c860c80ed6e60a1daa57b1d44a02fc9a9b6da82b3364f29d420ec9ec19e236"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-sheet-over-shop/case.json",
+      "bytes": 1487,
+      "sha256": "d5351e765fae7d7f7f7f8e38310410e24daa40b993833806cd253ce901ae7945"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/discovery-sheet-over-shop/variant/receipt.json",
+      "bytes": 22954,
+      "sha256": "382c3cd060e713e25b5985a631c000417eaa50b77c0b5a51def63ff6f373f28b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/index.json",
+      "bytes": 106183,
+      "sha256": "39e7fa0a96c62af7d3b5154fdbf09b4f38677cbab69ba416f386b444d33e3888"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/baseline/8bd9e1a390edfbe818d820366068975a7722c7c8b44868e35d7168520843e04e.png",
+      "bytes": 44211,
+      "sha256": "54e4ece16db528f9ef4f9986018756f5ca1171b4f93d3e161feafda5f0957207"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/baseline/8bd9e1a390edfbe818d820366068975a7722c7c8b44868e35d7168520843e04e.svg.gz",
+      "bytes": 13339,
+      "sha256": "9ff1be53428cb3156f88b8e0aa75c1be5619216ded28fcad50c307d93bf17692"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/baseline/ownership.json.gz",
+      "bytes": 13159,
+      "sha256": "9d8f820b5e07d6940e32e7fc73d362923a1a14efda3879aeac1848e0fa96fd77"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/baseline/receipt.json",
+      "bytes": 26582,
+      "sha256": "ff65a9729b842e6e8988253fe57b3c73cabe872431268a211cd88a06c38bd5f4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/case.json",
+      "bytes": 1463,
+      "sha256": "6907f57cfb84c2a0249373ecd880942eca7a996de0f96ac29bab789a58fb9176"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/variant/f3a5800c1c6ea87d682e873483df7dfa9ed961768ad05159a40a10920241f1aa.png",
+      "bytes": 44489,
+      "sha256": "12bbffff8b70687300b91f7c9fe144d39b9e22ebe5869fd31aabd1bcb8f47ca0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/variant/f3a5800c1c6ea87d682e873483df7dfa9ed961768ad05159a40a10920241f1aa.svg.gz",
+      "bytes": 13353,
+      "sha256": "a957aac4de37f30d29a693dc9a72db3030f22865380196b144a95ad1af96c8f7"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/variant/ownership.json.gz",
+      "bytes": 13076,
+      "sha256": "5e58d9fa63b30df2b779dd410914aee745dd28f18b0a31ca96f10daa1b026bf6"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-key-over-station-name/variant/receipt.json",
+      "bytes": 26581,
+      "sha256": "150a4c3b351bbb9fd31b06aa664e8253b3a7e37cdcbc68cd1a21e76bdbaf8419"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-last-object-lingers/baseline/receipt.json",
+      "bytes": 26400,
+      "sha256": "5070e35c0fa229d19ee1fd0d8a2a592890991481f1a71be890bdfaa265a86e17"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-last-object-lingers/case.json",
+      "bytes": 1375,
+      "sha256": "f1806a41e52761c955c292e3c962792fbd808f308d6ee96e1f62a7ada23f8825"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-last-object-lingers/variant/receipt.json",
+      "bytes": 26399,
+      "sha256": "fc608e303f20e0a6e437bfaa9d8b436ca3e693c6dc0f1f9e8266ba2665dc8e32"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-ticket-over-lane-names/baseline/receipt.json",
+      "bytes": 26282,
+      "sha256": "dc5a8372629409421f10a2bc3d7367b9b39f46a220a393e799d13507c078ede2"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-ticket-over-lane-names/case.json",
+      "bytes": 1704,
+      "sha256": "820d4d1d919d489df8a2ddd3670343588eb9884c2b2a828b2e5bd254d724d621"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/poppy-ticket-over-lane-names/variant/receipt.json",
+      "bytes": 26281,
+      "sha256": "5d78decc1e38af7622d17c22231c86c222d1de3e5aba52eacb6810beccdb5f5c"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/provenance.json",
+      "bytes": 580,
+      "sha256": "1903e37075ff211d7cf9741c6caec86ee52fd019a8a1732d7393763b9cac2af1"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-delegation-over-station/baseline/receipt.json",
+      "bytes": 39693,
+      "sha256": "7d508146728d2bd156eb28d0cf60fab763868188eea1c92207d73846db4c409c"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-delegation-over-station/case.json",
+      "bytes": 1361,
+      "sha256": "362dc2dba2fff154e0e4ac58ec6168280cb6dd6769657ce1c1f30f23f46b92d5"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-delegation-over-station/variant/receipt.json",
+      "bytes": 39692,
+      "sha256": "dfd7e9defa0347481ad13d204fed7c423e504cffa46945e3cc18804c33fa0efb"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/baseline/7c8297add2f542a6a02185c7ee44acc8c46b6bdb5c75cb79ea5e83aadef845e4.png",
+      "bytes": 51772,
+      "sha256": "1a94131d951a3bb8ae993fbdb302b6477876a7e8f40af76ba6af3d9415651d64"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/baseline/7c8297add2f542a6a02185c7ee44acc8c46b6bdb5c75cb79ea5e83aadef845e4.svg.gz",
+      "bytes": 18411,
+      "sha256": "081a2b966004e93f0f34f684ba27d552700c5aa26a281e13acb5b4074d2252d4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/baseline/ownership.json.gz",
+      "bytes": 21811,
+      "sha256": "fe3f9f6d41efb5279339c61ed901f037537c1b9485afe59a71c4a6115383b1cb"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/baseline/receipt.json",
+      "bytes": 39398,
+      "sha256": "5ddb687611d6d58ad002ec58cb6d7699eba494547903fa34d0b64628e4e6ae1f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/case.json",
+      "bytes": 1643,
+      "sha256": "38d0880928d05d92275e43eee8fa1138a19cee1c91672c9c54390094342f3ba5"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/variant/acc9af6aeb85403462c88e436bc9720b669a827ad4ca1de1fae492d6b443eecd.png",
+      "bytes": 51580,
+      "sha256": "49153591a2a66f8a7bcd3767d717ba8b226bb4b5bc88514df44776ee130019de"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/variant/acc9af6aeb85403462c88e436bc9720b669a827ad4ca1de1fae492d6b443eecd.svg.gz",
+      "bytes": 18409,
+      "sha256": "2c415d2b2ea7522d1e76c160bd9271f95a98aa7873ee7099a25bf3ed5d3213c9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/variant/ownership.json.gz",
+      "bytes": 21404,
+      "sha256": "f9358f9aba6d73e0e6a502c8c20767d338d19648d48272a1987454d150af2b27"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-key-over-lane-name/variant/receipt.json",
+      "bytes": 39397,
+      "sha256": "3548066579fe6920c11b464cbdaef265abe264ca17fca7d1ae3094830e410ddf"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-lanes-gone-in-flight/baseline/receipt.json",
+      "bytes": 34123,
+      "sha256": "87a03fe3ec1c5c1885b051afaa73d994129e6b5c727fbac2afcf30ff5089cae3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-lanes-gone-in-flight/case.json",
+      "bytes": 1549,
+      "sha256": "d1c8506a84e04effe41ae58472bee733e0418987dee1db3f4a61c73e19d16555"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-lanes-gone-in-flight/variant/receipt.json",
+      "bytes": 34122,
+      "sha256": "05ddd7d112b75feb5bbcb19efc61afbc65fe4b5f707a6458a46b41265f9d90a4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-lanes-slide/baseline/receipt.json",
+      "bytes": 34123,
+      "sha256": "87a03fe3ec1c5c1885b051afaa73d994129e6b5c727fbac2afcf30ff5089cae3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-lanes-slide/case.json",
+      "bytes": 1809,
+      "sha256": "eb5214db834aee9192b2a511752fcb9acbc511f1909ee740f7bded615041d27d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-lanes-slide/variant/receipt.json",
+      "bytes": 34122,
+      "sha256": "f9a6bf5ffa53b12808b9b9c64c683ee2707eb331ee42fafebccf48680c231324"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-mcp-key-over-label/baseline/receipt.json",
+      "bytes": 40262,
+      "sha256": "404f1e9677433d5a59cdf919de4c0dc71b0c1b8c7ef206fe07d37f2b145778cc"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-mcp-key-over-label/case.json",
+      "bytes": 1317,
+      "sha256": "a7d4ea952cb3968c54d8a309f3cb94c6b0c85384c82bb6bac4b4b6d3342784b0"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-mcp-key-over-label/variant/receipt.json",
+      "bytes": 40261,
+      "sha256": "48e8aaa5381f8f77aed83a53150b9891355b7b473dc17e016377646256b3d357"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-ticket-over-lane-name/baseline/receipt.json",
+      "bytes": 33750,
+      "sha256": "5a57f30c7771a99598cb5e524ce3bb569b75671e3ef2f4bb7e756926774c321f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-ticket-over-lane-name/case.json",
+      "bytes": 1376,
+      "sha256": "525899104c95703abf6655e206b02f812cb73b5059f701dbaa42f8bdf29578a9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-ticket-over-lane-name/variant/receipt.json",
+      "bytes": 33749,
+      "sha256": "84cc07183a703e35234e73540ad2f92b7f24bae3fc27ed0bcf9b6dc48c282eba"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-ticket-over-station/baseline/receipt.json",
+      "bytes": 33750,
+      "sha256": "5a57f30c7771a99598cb5e524ce3bb569b75671e3ef2f4bb7e756926774c321f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-ticket-over-station/case.json",
+      "bytes": 1839,
+      "sha256": "2b72145eeed42ce9330fc720b9597163afda8e616e9dc8523b766e4b1a2f9c4a"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/refusals-ticket-over-station/variant/receipt.json",
+      "bytes": 33749,
+      "sha256": "9d8280e9085ea22e3a2a8ca116cfb1ac432f401712f9ea5ec53aa8fa2c4ece50"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-key-in-two-places/baseline/receipt.json",
+      "bytes": 46273,
+      "sha256": "168137feca2c615bc00b2807211c18d7887d4910b8534fdcd846457b373e8388"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-key-in-two-places/case.json",
+      "bytes": 1359,
+      "sha256": "7499940e13740ce3eb77eb76f4b648ad56e1f7a2a2e87f577d3326acea89bfad"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-key-in-two-places/variant/receipt.json",
+      "bytes": 46272,
+      "sha256": "399bd0472b2af5ce32158274b5d4e66e019953ad3336f8e5011e644e300a9627"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-key-to-wax-after-check/baseline/receipt.json",
+      "bytes": 46273,
+      "sha256": "168137feca2c615bc00b2807211c18d7887d4910b8534fdcd846457b373e8388"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-key-to-wax-after-check/case.json",
+      "bytes": 1614,
+      "sha256": "fa44afda0d86dec5cdb37a4402f3dc3c535b5ee0d033570bae94ef9246ca8e7d"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-key-to-wax-after-check/variant/receipt.json",
+      "bytes": 46272,
+      "sha256": "114ecd3c2e1fc906f2f9caf185fc6709e981625afdf2c3bc6650b7262bfbc993"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-squeezed/baseline/receipt.json",
+      "bytes": 33817,
+      "sha256": "903d267e544652cd31dbb23e3cc1ce1d639c4e8f16ae29e48038ae053be483b3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-squeezed/case.json",
+      "bytes": 2454,
+      "sha256": "3dd3ce8b52c093ab0864761ad8dbdeff354f5d2f98d035c2f0b26c113df83f9a"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-squeezed/variant/receipt.json",
+      "bytes": 2915,
+      "sha256": "a05b0c299e5777a40ac8d62736f71103471a282e61773b1c3ea43b03847541d3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-ticket-from-under-stamp/baseline/receipt.json",
+      "bytes": 33817,
+      "sha256": "903d267e544652cd31dbb23e3cc1ce1d639c4e8f16ae29e48038ae053be483b3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-ticket-from-under-stamp/case.json",
+      "bytes": 1301,
+      "sha256": "fb683fac89ea9476abaced969ccf5dcc0828b6ba67756e74f696fc3c3b636b6e"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-ticket-from-under-stamp/variant/receipt.json",
+      "bytes": 33816,
+      "sha256": "c5c0b794f52daa7e97a7f08a51090d92535072a1b4698c01c8e70a9555ca1aad"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-too-long/baseline/receipt.json",
+      "bytes": 46273,
+      "sha256": "168137feca2c615bc00b2807211c18d7887d4910b8534fdcd846457b373e8388"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-too-long/case.json",
+      "bytes": 2364,
+      "sha256": "21744a0eaeb6e232d36b47819ef86ffb081692402305367966e7b8b1bf0c295a"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sessions-too-long/variant/receipt.json",
+      "bytes": 51536,
+      "sha256": "16707e68cb5860ac922d88cf5408da13d8cd7a90dc1d6037308ba1fd901ac02b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-ask-people-slide/baseline/receipt.json",
+      "bytes": 47802,
+      "sha256": "c3715d40dd422f2e7aec0d91acab13d8a4c9985a97c24d1f4823fec6c63203b9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-ask-people-slide/case.json",
+      "bytes": 1400,
+      "sha256": "1fd39f77037a184683ea3e5807fb3405b035bcff7e7913c9b75d6842094ab9f4"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-ask-people-slide/variant/receipt.json",
+      "bytes": 47801,
+      "sha256": "182722a552aac49d1ce14506247b188d85313c97a1aa0496221a717daa931a8c"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-ask-squeezed/baseline/receipt.json",
+      "bytes": 47066,
+      "sha256": "029d969eabf7058604da2ecc367f0f721a75a4bfb80518015ca4ce3a4970cfba"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-ask-squeezed/case.json",
+      "bytes": 1807,
+      "sha256": "b43e5a383f3a835a0f31c051268bd179137a67cb7e4b4a8ae72fdd0992c19678"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-ask-squeezed/variant/receipt.json",
+      "bytes": 25868,
+      "sha256": "75a274f7cc8801a80994ed9070dfce525effbc18b1a90e3baaf7246b65f21eba"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-card-from-desk/baseline/receipt.json",
+      "bytes": 47185,
+      "sha256": "4ffc9794ecfdb073f335e2b170b4ab178d7a4dc9a0d8a7559371322a9dafdd00"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-card-from-desk/case.json",
+      "bytes": 1367,
+      "sha256": "23d64982e6a49609f762155fe28d81c18c059ebfb5b2c77abfa3d8db1d3d6cd5"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-card-from-desk/variant/receipt.json",
+      "bytes": 47184,
+      "sha256": "b79ec0d8d4d5752166ca4cf27f85e2d13825e8159a93e6018a143cc4c20f8c07"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-code-tiny-words/baseline/receipt.json",
+      "bytes": 51655,
+      "sha256": "bceec64d11f83e68970c7475c2b06b87471ec1491fb931763e04762e1bc9bc99"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-code-tiny-words/case.json",
+      "bytes": 1649,
+      "sha256": "03a97d5e128890d78cd198250e95b72e2146b2071bc5b80aa58439c6aba38f66"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-code-tiny-words/variant/receipt.json",
+      "bytes": 51654,
+      "sha256": "9f7c0a5ae74b5f3a25e926f187b9744f6dce48aec269960ece3f4cec22086afc"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-collect-people-slide/baseline/receipt.json",
+      "bytes": 51655,
+      "sha256": "bceec64d11f83e68970c7475c2b06b87471ec1491fb931763e04762e1bc9bc99"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-collect-people-slide/case.json",
+      "bytes": 1277,
+      "sha256": "3e77fdfb76bd9823e8e86da66dbdca9755f11385ab7a6cfbdff8df59d09f2c0a"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-collect-people-slide/variant/receipt.json",
+      "bytes": 51654,
+      "sha256": "c229235184a50cee7efbc72e5be2188cb1e8b35ee4b06a9a8a901fa00c43eacd"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-collect-too-long/baseline/receipt.json",
+      "bytes": 51655,
+      "sha256": "bceec64d11f83e68970c7475c2b06b87471ec1491fb931763e04762e1bc9bc99"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-collect-too-long/case.json",
+      "bytes": 1227,
+      "sha256": "ed8979e6af6e8f2ac29165223936e851f0f0683026823c9cfd307624d706a6c3"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-collect-too-long/variant/receipt.json",
+      "bytes": 55393,
+      "sha256": "8f712f6f4ec39bcb02b1b069c310af0b007ac527630499afc17fa3fb57c2c0a1"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-pages-overlap/baseline/receipt.json",
+      "bytes": 47185,
+      "sha256": "4ffc9794ecfdb073f335e2b170b4ab178d7a4dc9a0d8a7559371322a9dafdd00"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-pages-overlap/case.json",
+      "bytes": 1599,
+      "sha256": "300437df7353356d006ecdee7131a1642ee1a444c7d758c482528a7dad2a365f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-pages-overlap/variant/receipt.json",
+      "bytes": 47184,
+      "sha256": "051978b91eed99bf43d4ddca9b848421ba54119d4a01c0d563b19e73aeaf199b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-before-card/baseline/receipt.json",
+      "bytes": 28465,
+      "sha256": "30f0eb30f7ed2d05b5bb1fa8531ed037f3ee8b708aa29bd023cfd1edbb681164"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-before-card/case.json",
+      "bytes": 1314,
+      "sha256": "de6eb18faff4f45b900b8b1c224a80706f8ba034baf0a2e3893e148b12fe297b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-before-card/variant/receipt.json",
+      "bytes": 28464,
+      "sha256": "3e5520bef2236a6afe10001840a17d06c8277881232a20031b7890383f23a846"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-hand-and-flight/baseline/receipt.json",
+      "bytes": 28337,
+      "sha256": "d23e7379166f3c1386fb9b53a5b2750f63e6ae2e3b2c0954900e9c8022204f82"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-hand-and-flight/case.json",
+      "bytes": 1998,
+      "sha256": "7ea4f283431bb9b1fd4c9853fad7627ab4049321c0054a75de4f4de28f59a33f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-hand-and-flight/variant/receipt.json",
+      "bytes": 28336,
+      "sha256": "4eca073705a637fd02f42a0762f228fe9e02f265c61202e0c8694706c79bdd52"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-route/baseline/receipt.json",
+      "bytes": 28337,
+      "sha256": "d23e7379166f3c1386fb9b53a5b2750f63e6ae2e3b2c0954900e9c8022204f82"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-route/case.json",
+      "bytes": 1306,
+      "sha256": "c844f5c0daf3072df60a3eccc0ef56866e86b9cd834a19eb13e152df9f21b37b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-password-route/variant/receipt.json",
+      "bytes": 28336,
+      "sha256": "b001f6025694b9e635314e7418ed8e044eea77010d7f1b531aebbffe222f41a6"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/baseline/593b027f762a16e16d6d905abdce210b650937ac38890dce7bc306ea9259f6c8.png",
+      "bytes": 55962,
+      "sha256": "16daab56369b9fe35653a6785464f12dbb0fa2aa190145345643a5857818f47f"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/baseline/593b027f762a16e16d6d905abdce210b650937ac38890dce7bc306ea9259f6c8.svg.gz",
+      "bytes": 18734,
+      "sha256": "791e4d8dd68d4ffd22e73419571e6a6ecba6d3959a6cedc8c00be47d4e75fcba"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/baseline/ownership.json.gz",
+      "bytes": 11688,
+      "sha256": "68fd5077c456f20b8d1f69e3fe974c504efca18f508e95e5b175deb0232e84cc"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/baseline/receipt.json",
+      "bytes": 32851,
+      "sha256": "80419b09d5f996bd6a2c4c96d1768c09583ecc1f3a5f69ab185038ec3d422b00"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/case.json",
+      "bytes": 1695,
+      "sha256": "cb31d1afacd9cf36d7a6e80fd977a8d550afed01f855d065c6334de035b3817b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.png",
+      "bytes": 55782,
+      "sha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.svg.gz",
+      "bytes": 18731,
+      "sha256": "be0b3970a88a18b9f4bf54c89596409f54877b30cd8b02cc9d18a107eea899d8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/variant/ownership.json.gz",
+      "bytes": 11199,
+      "sha256": "a3589d138fbd8ff7a6138680e90d85f219c7a019df6f2956f95e49384a3d6aff"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-poll-over-card/variant/receipt.json",
+      "bytes": 32850,
+      "sha256": "194e5a378a9d9493031e498b41dbb7c1027edf138a58ab8e75fbdc07b1f9498b"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-tag-over-scopes/baseline/receipt.json",
+      "bytes": 28364,
+      "sha256": "99627e935e55a80941527366ddf6a1a62544236a0d55e93676dcc22e956437bb"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-tag-over-scopes/case.json",
+      "bytes": 2000,
+      "sha256": "86c344b86453978a875a16851ce9ae137f319eb199bcf276add1b8977a7ac9e9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-tag-over-scopes/variant/receipt.json",
+      "bytes": 28363,
+      "sha256": "45856cd2e519cbcadb187815fb064d25f7203ed48de5e7e06cafb9da77de77a8"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-tokens-over-labels/baseline/receipt.json",
+      "bytes": 47802,
+      "sha256": "c3715d40dd422f2e7aec0d91acab13d8a4c9985a97c24d1f4823fec6c63203b9"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-tokens-over-labels/case.json",
+      "bytes": 1967,
+      "sha256": "d525bd9394c4060b8f019480f191092e5033f5fb1001b1f5b49eddff2495fd52"
+    },
+    {
+      "path": "out/root-causes-native-8151582f/sign-in-tokens-over-labels/variant/receipt.json",
+      "bytes": 47801,
+      "sha256": "5d55f013e06e6224a8174bfc7433957fb9aa3444cfb861b64bde5da0a9e2747e"
+    },
+    {
+      "path": "out/root-causes-review-8151582f/capture.json",
+      "bytes": 1591989,
+      "sha256": "b7870fa00cf1c3cd17881668486709693c5055c29eb3803a6e595e9a8ad70fd8"
+    }
+  ]
+}

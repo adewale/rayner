@@ -1,0 +1,123 @@
+{
+  "stage": "800 x 450 at 30 fps",
+  "bands": "Green source at x < 40% stage width, green destination at x > 60%, magenta traveller crosses the central 46\u201354%. Native RGB threshold counts come from each full composited scene.",
+  "controls": {
+    "clear": {
+      "before": {
+        "source": 560,
+        "destination": 0,
+        "traveller": 0
+      },
+      "inFlight": [
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 108
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 288
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 360
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 360
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 368
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 359
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 360
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 306
+        },
+        {
+          "source": 0,
+          "destination": 0,
+          "traveller": 128
+        }
+      ],
+      "after": {
+        "source": 0,
+        "destination": 560,
+        "traveller": 0
+      },
+      "findings": []
+    },
+    "retained": {
+      "before": {
+        "source": 560,
+        "destination": 0,
+        "traveller": 0
+      },
+      "inFlight": [
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 126
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 324
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 356
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 364
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 366
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 360
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 274
+        },
+        {
+          "source": 560,
+          "destination": 0,
+          "traveller": 68
+        }
+      ],
+      "after": {
+        "source": 0,
+        "destination": 560,
+        "traveller": 0
+      },
+      "findings": [
+        "step \"deliver\", event \"send\": motion contract: during \"parcel\", subject \"on hook\" must be absent at +0.200 s"
+      ]
+    }
+  }
+}

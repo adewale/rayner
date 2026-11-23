@@ -1,0 +1,273 @@
+{
+  "referenceCode": "20fe61ee4afd9fa7be55e9b34501e67674c32bf1",
+  "reviewedRendering": "39b75450eeb4ef9082ec22a93be099770365d715",
+  "presentationManifestSha256": "8219b20cdd0dc78cb03f11d5601dd9567d80dc8899f7d84f5ff5ba8a2035bd6a",
+  "verifiedNativeCopies": {
+    "media/grant-before.png": {
+      "source": "/workspace/rayner-audit/out/current-audit-2026-11-22/sign-in-collect-people-slide/baseline/a15c23f3342929d81d37097ab8417d9bb2ca5b0add5f6767ad0197c1e47e5d08.png",
+      "sourceRevision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+      "pngSha256": "901365ff8aa5f4087fabf1339f86c5b615febb3da95f7d360e7f7f5303a42d74",
+      "nativeRgbaSha256": "9eb1144da121a1045ebc03888a65d2a62c3300eecf320ca29fbc83ffbccbe137",
+      "sequence": 60
+    },
+    "media/grant-reviewed.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/sign-in-collect-people-slide/baseline/589a2f2b9d23c786d570fa34ad957000990c78667ade33d03826dd4601fb04b4.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "c76935e5dee47249e7c290d4dd92ea308d9a46aef4844eb18cabb93284d153a0",
+      "nativeRgbaSha256": "b51c812c845df5ba05d91f673b2ef90ccc3ea0c4f6fe68434a2ee924f3caeda0",
+      "sequence": 60
+    },
+    "media/words-before.png": {
+      "source": "/workspace/rayner-audit/out/current-audit-2026-11-22/conversations-words-dissolve/baseline/b73166dfe5c4598aafa9e40ef05853bca6411cd0fba08bcad10df57431ffded3.png",
+      "sourceRevision": "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+      "pngSha256": "1f1ca850eaba67114190b56cfc34ee2cc3bf841115be3302eb1c4f4424c59748",
+      "nativeRgbaSha256": "652aab4b6d279cc1834f90c723e4da16416e4827df242cf1bf1dfa5aa8968811",
+      "sequence": 9
+    },
+    "media/words-reviewed.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/conversations-words-dissolve/baseline/31b540759ddde7b97f3fed80ceeaf483d4946fc1842846b92f10850005138269.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "9244347f21aea4e4c9c3ad284177a5777bd4bf0e0f6b41daf74e101e7c4f46d4",
+      "nativeRgbaSha256": "49508783d6c842d866f12bcae0cec69849481bfc22bb7baef2675126395bfc7e",
+      "sequence": 9
+    },
+    "media/return-before.png": {
+      "source": "/workspace/rayner/out/remaining-fixes-2026-11-22/astra-attempt-2/reader-return/device-first-disconnect-30.png",
+      "sourceRevision": "8151582fc8a4ff2d06d6b4e5607633e0474c0dbf",
+      "pngSha256": "6f586156660a2723470771ff7b9fd587f1695c46b3d86f759c3f3839257eeb81",
+      "nativeRgbaSha256": "ba80bfb757cdedeef8472bcfa7f9f20f476292effe6623392bbb85f35a2129f4",
+      "sequence": 30
+    },
+    "media/return-reviewed.png": {
+      "source": "/workspace/rayner-attempt3/out/remaining-fixes-2026-11-22/astra-attempt-3/reader-return/device-first-disconnect-30.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "85f6c6cebca5de8ae8bc0bd50dd784cd0f4641d2e6333099781c1aa36b6e50b1",
+      "nativeRgbaSha256": "610aedf0fe6efb9571ba0a63d209f67aa57cda3167c6f41cb12fc844899587fd",
+      "sequence": 30
+    },
+    "media/poppy-clear.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/poppy-key-over-station-name/baseline/8bd9e1a390edfbe818d820366068975a7722c7c8b44868e35d7168520843e04e.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "54e4ece16db528f9ef4f9986018756f5ca1171b4f93d3e161feafda5f0957207",
+      "nativeRgbaSha256": "b8647117da7f16be3dcf5acc6912e2c86681be3722874445351fcc795785ceec",
+      "sequence": 37
+    },
+    "media/poppy-injected.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/poppy-key-over-station-name/variant/f3a5800c1c6ea87d682e873483df7dfa9ed961768ad05159a40a10920241f1aa.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "12bbffff8b70687300b91f7c9fe144d39b9e22ebe5869fd31aabd1bcb8f47ca0",
+      "nativeRgbaSha256": "75cb501aeee7731b9bb9a39129a0a3b63393aeadc4b497d0b739b1e872274865",
+      "sequence": 37
+    },
+    "media/api-clear.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/refusals-key-over-lane-name/baseline/7c8297add2f542a6a02185c7ee44acc8c46b6bdb5c75cb79ea5e83aadef845e4.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "1a94131d951a3bb8ae993fbdb302b6477876a7e8f40af76ba6af3d9415651d64",
+      "nativeRgbaSha256": "50558fe1a1bcdac6612639de15130e091e1b5ef98ba5b55a927e8ac4b98e0edb",
+      "sequence": 38
+    },
+    "media/api-injected.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/refusals-key-over-lane-name/variant/acc9af6aeb85403462c88e436bc9720b669a827ad4ca1de1fae492d6b443eecd.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "49153591a2a66f8a7bcd3767d717ba8b226bb4b5bc88514df44776ee130019de",
+      "nativeRgbaSha256": "46616c8f7442d6ac5ddb9aba6cc69cd7488f90494c328edfe43fb230059803a2",
+      "sequence": 38
+    },
+    "media/domain-clear.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/sign-in-poll-over-card/baseline/593b027f762a16e16d6d905abdce210b650937ac38890dce7bc306ea9259f6c8.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "16daab56369b9fe35653a6785464f12dbb0fa2aa190145345643a5857818f47f",
+      "nativeRgbaSha256": "2d13306830e1978e86cf93d4bf5fde1a9b86c45e088a7f25175607510dc059a3",
+      "sequence": 26
+    },
+    "media/domain-injected.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206",
+      "nativeRgbaSha256": "44ec78701dec21c00c3e09e0832d4aa3ce238049e19c7c7d3eb8c820f1ce2e25",
+      "sequence": 26
+    },
+    "media/sid-clear.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/browser-forge-across-stage/baseline/c88dbaf7f2136918156c1c8e0441d9e31514d269ecd94f699a0f2c8d2d66faa5.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "7b574ba3620cef0baad08b420594f2b7278c169a7fa501872e2d0676d4c4b6c9",
+      "nativeRgbaSha256": "07d960917a9e264dc7124b6cfc0556905b2343188fa2eaddee1812d17a58aab6",
+      "sequence": 36
+    },
+    "media/sid-injected.png": {
+      "source": "/workspace/rayner-attempt3/out/root-causes-native-39b75450/browser-forge-across-stage/variant/1a5a5fb6bad25e4579d1c4e5247b4e7897df8698a0bd4c76a430dcba1da13104.png",
+      "sourceRevision": "39b75450eeb4ef9082ec22a93be099770365d715",
+      "pngSha256": "c5abd1c4c099e229828cd6020881032a382119490d4ad8c04a8852b3a4d3b1bf",
+      "nativeRgbaSha256": "514dd9ac6e982dd8e899669f052ab90b2c861380ee97be6b0555163575b154d4",
+      "sequence": 36
+    }
+  },
+  "posters": 4,
+  "crops": 10,
+  "mediaOutputs": 34,
+  "clips": [
+    {
+      "id": "grant",
+      "sources": [
+        [
+          "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+          "sign-in-collect-people-slide",
+          "baseline"
+        ],
+        [
+          "39b75450eeb4ef9082ec22a93be099770365d715",
+          "sign-in-collect-people-slide",
+          "baseline"
+        ]
+      ],
+      "frameCount": 135,
+      "panelFramesChecked": 270,
+      "absoluteFrameRangePerSource": [
+        [
+          3151,
+          3285
+        ],
+        [
+          3151,
+          3285
+        ]
+      ],
+      "sameNativeStartingModelAndHistory": true,
+      "nativeMarkedDuration": [
+        4.45,
+        4.45
+      ],
+      "videoDuration": 4.5,
+      "rate": "30/1",
+      "everyDisplayedFrameTimestampOnGrid": true,
+      "gifDecodedFrames": 135,
+      "gifCentisecondDelaysInMilliseconds": {
+        "30": 90,
+        "40": 45
+      },
+      "gifTotalMilliseconds": 4500,
+      "decodedVideoAgainstNativePanels": {
+        "metric": "luma MAE on both untouched 800x450 panels at every frame; separately compare against adjacent input and opposite panel on native pixels with absolute Y difference >=12 where at least 12 pixels distinguish them. Repeated/below-threshold frames retain exact manifest input sequence and PTS checks.",
+        "maximumAcrossFramesAndSidesMeanAbsoluteY": 0.3978277777777778,
+        "maximumAcrossFramesAndSidesMeanSquaredY": 1.881925,
+        "neighbourComparisons": {
+          "no-sufficient-native-change": 86,
+          "expected-closer": 450
+        },
+        "sideOrientationComparisons": {
+          "same-or-below-native-change-cutoff": 34,
+          "expected-closer": 236
+        }
+      }
+    },
+    {
+      "id": "words",
+      "sources": [
+        [
+          "5bff60e0aa5660c2b944fb59fbfe0b59e703db93",
+          "conversations-words-dissolve",
+          "baseline"
+        ],
+        [
+          "39b75450eeb4ef9082ec22a93be099770365d715",
+          "conversations-words-dissolve",
+          "baseline"
+        ]
+      ],
+      "frameCount": 41,
+      "panelFramesChecked": 82,
+      "absoluteFrameRangePerSource": [
+        [
+          4908,
+          4948
+        ],
+        [
+          4739,
+          4779
+        ]
+      ],
+      "sameNativeStartingModelAndHistory": true,
+      "nativeMarkedDuration": [
+        57,
+        49.86666666666667
+      ],
+      "videoDuration": 1.366667,
+      "rate": "30/1",
+      "everyDisplayedFrameTimestampOnGrid": true,
+      "gifDecodedFrames": 41,
+      "gifCentisecondDelaysInMilliseconds": {
+        "30": 28,
+        "40": 13
+      },
+      "gifTotalMilliseconds": 1360,
+      "decodedVideoAgainstNativePanels": {
+        "metric": "luma MAE on both untouched 800x450 panels at every frame; separately compare against adjacent input and opposite panel on native pixels with absolute Y difference >=12 where at least 12 pixels distinguish them. Repeated/below-threshold frames retain exact manifest input sequence and PTS checks.",
+        "maximumAcrossFramesAndSidesMeanAbsoluteY": 0.40781944444444446,
+        "maximumAcrossFramesAndSidesMeanSquaredY": 1.9284861111111111,
+        "neighbourComparisons": {
+          "expected-closer": 92,
+          "no-sufficient-native-change": 68
+        },
+        "sideOrientationComparisons": {
+          "expected-closer": 44,
+          "same-or-below-native-change-cutoff": 38
+        }
+      }
+    },
+    {
+      "id": "domain-control",
+      "sources": [
+        [
+          "39b75450eeb4ef9082ec22a93be099770365d715",
+          "sign-in-poll-over-card",
+          "variant"
+        ],
+        [
+          "39b75450eeb4ef9082ec22a93be099770365d715",
+          "sign-in-poll-over-card",
+          "baseline"
+        ]
+      ],
+      "frameCount": 85,
+      "panelFramesChecked": 170,
+      "absoluteFrameRangePerSource": [
+        [
+          946,
+          1030
+        ],
+        [
+          946,
+          1030
+        ]
+      ],
+      "sameNativeStartingModelAndHistory": true,
+      "nativeMarkedDuration": [
+        2.8,
+        2.8
+      ],
+      "videoDuration": 2.833333,
+      "rate": "30/1",
+      "everyDisplayedFrameTimestampOnGrid": true,
+      "gifDecodedFrames": 85,
+      "gifCentisecondDelaysInMilliseconds": {
+        "30": 57,
+        "40": 28
+      },
+      "gifTotalMilliseconds": 2830,
+      "decodedVideoAgainstNativePanels": {
+        "metric": "luma MAE on both untouched 800x450 panels at every frame; separately compare against adjacent input and opposite panel on native pixels with absolute Y difference >=12 where at least 12 pixels distinguish them. Repeated/below-threshold frames retain exact manifest input sequence and PTS checks.",
+        "maximumAcrossFramesAndSidesMeanAbsoluteY": 0.3613777777777778,
+        "maximumAcrossFramesAndSidesMeanSquaredY": 1.1018555555555556,
+        "neighbourComparisons": {
+          "no-sufficient-native-change": 60,
+          "expected-closer": 276
+        },
+        "sideOrientationComparisons": {
+          "same-or-below-native-change-cutoff": 80,
+          "expected-closer": 90
+        }
+      }
+    }
+  ],
+  "interpretation": "Every disclosed native input checked against actual case and side receipts on the requested source. Encoded visual comparison verifies luma fidelity, side orientation, and order where adjacent content differs; original PNGs retain pixel-proof role. GIF quantization and elapsed time were checked separately."
+}

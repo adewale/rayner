@@ -1,0 +1,50 @@
+{
+  "synthetic": true,
+  "results": [
+    {
+      "mode": "genuine",
+      "admitted": true,
+      "status": "semantic-target-match",
+      "producer": "2c84fcf6a69c5ecc3b2e55682001f5cb3f42b79d",
+      "variantSide": {
+        "file": "/workspace/rayner-attempt3/out/root-causes-native-2c84fcf6/sign-in-poll-over-card/variant/receipt.json",
+        "bundledSource": "f179b4dd7a50adc8aef3a6a0e8c73dc3d42b1d91bd3c56f84a9b44eb71b0c08d"
+      },
+      "variantPng": {
+        "path": "../../root-causes-native-2c84fcf6/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.png",
+        "sha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+      },
+      "supplementaryCitations": 0
+    },
+    {
+      "mode": "mixed-source",
+      "admitted": true,
+      "status": "semantic-target-match",
+      "producer": "2c84fcf6a69c5ecc3b2e55682001f5cb3f42b79d",
+      "variantSide": {
+        "file": "/workspace/rayner/out/root-causes-native-8151582f/sign-in-poll-over-card/variant/receipt.json",
+        "bundledSource": "e65df37dc45a94759872a66c4994c072b1b683de80cb854fe82992866173f6ff"
+      },
+      "variantPng": {
+        "path": "../../../../rayner/out/root-causes-native-8151582f/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.png",
+        "sha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+      },
+      "supplementaryCitations": 0
+    },
+    {
+      "mode": "missing-extra-witness",
+      "admitted": true,
+      "status": "semantic-target-match",
+      "producer": "2c84fcf6a69c5ecc3b2e55682001f5cb3f42b79d",
+      "variantSide": {
+        "file": "/workspace/rayner-attempt3/out/root-causes-native-2c84fcf6/sign-in-poll-over-card/variant/receipt.json",
+        "bundledSource": "f179b4dd7a50adc8aef3a6a0e8c73dc3d42b1d91bd3c56f84a9b44eb71b0c08d"
+      },
+      "variantPng": {
+        "path": "../../root-causes-native-2c84fcf6/sign-in-poll-over-card/variant/fe15c45a82c0082425412876476ead2c002ba53fd8b9a7da069914ba565d57cf.png",
+        "sha256": "b9e0231544c7e051fb541164d7512fddce7a87f6085d7d71fc40241bb8bc4206"
+      },
+      "supplementaryCitations": 1
+    }
+  ]
+}

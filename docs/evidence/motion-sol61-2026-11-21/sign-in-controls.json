@@ -1,0 +1,32 @@
+[
+  {
+    "id": "sign-in-pages-overlap",
+    "findings": [
+      "step \"ask\", event \"ask\": motion contract: during \"request\", subject \"window:frame\" must be absent at +1.200 s",
+      "step \"ask\", event \"ask\": motion contract: during \"request\", subject \"window:page\" must be absent at +1.200 s",
+      "step \"ask\", event \"ask\": motion contract: during \"request\", subject \"page:field\" must be absent at +1.200 s"
+    ]
+  },
+  {
+    "id": "sign-in-password-hand-and-flight",
+    "findings": [
+      "step \"approve\", event \"approve-read\": motion contract: during \"page:password:flight\", subject \"you:password\" must be absent at +0.533 s",
+      "step \"reask\", event \"approve-all\": motion contract: during \"page:password:flight\", subject \"you:password\" must be absent at +0.533 s"
+    ]
+  },
+  {
+    "id": "sign-in-tag-over-scopes",
+    "findings": [
+      "step \"sign-out\", event \"sign-out\": motion contract: during \"tag:return\", subject \"agent:key\" must be absent at +0.567 s",
+      "step \"sign-out\", event \"sign-out\": motion contract: during \"tag:return\", subject \"tag:cord\" must be absent at +0.567 s"
+    ]
+  },
+  {
+    "id": "source-only",
+    "ownerFailure": "one password card leaves the hand as it travels"
+  },
+  {
+    "id": "offstage-presentation",
+    "ownerFailure": "the paper and every printed letter fit onstage throughout presentation"
+  }
+]

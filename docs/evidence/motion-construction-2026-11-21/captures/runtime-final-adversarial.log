@@ -1,0 +1,36 @@
+✔ an outlined carrier can surround its destination lettering and an opaque carrier hides it (338.640424ms)
+✔ clearance includes descendant strokes, miter tips and the protected drawing’s own stroke (797.544366ms)
+✔ a carrier must visibly change position, including when an aperture stays fixed over moving geometry (354.295024ms)
+✔ each physical route occurrence needs its own actual movement and a hidden underlay cannot animate a frozen aperture (809.621545ms)
+✔ moving foreground paper cannot supply a traveller’s movement witness (247.144888ms)
+✔ a stationary panel hides letters for a measurable interval even with no travelling part (47.269923ms)
+✔ one traveller covering two labels retains the second victim after reporting its longest crossing (53.366368ms)
+✔ paint order, translucency, a concave outline and a clipped foreground preserve the visible glyphs (24.643387ms)
+✔ hidden glyphs and off-camera labels supply no visible ink to hide (14.05229ms)
+✔ a moving label carries its plate, a relabel crossfades, and an exact foreground copy keeps the word readable (12.008681ms)
+✔ two lost glyphs in a long label are reported even with a readable copy elsewhere (11.293694ms)
+✔ the SVG fill rule determines whether nested same-winding outlines leave the text visible (7.42741ms)
+✔ a curved mask follows the painted cubic edge on both sides of its chord (6.802418ms)
+✔ a closing wipe takes the old word completely away at the new resting picture (7.007978ms)
+✔ a later closing wipe preserves the earlier finding when the reader saw the word return (56.647581ms)
+✔ a stroke-only word remains readable around a plate that covers just its centerlines (7.654191ms)
+✔ nested owners report each independently hidden word, including repeated text and seeked frames (86.213574ms)
+✔ consecutive masks retain a continuous victim interval and their own measured attribution (769.722813ms)
+✔ travelling coverage measures the visible fill inside its own and ancestor clips (111.990808ms)
+✔ clipped-away or transparent paper cannot suppress a visible travelling duplicate (130.077476ms)
+✔ nested entrants occupy target sibling slots throughout native playback, in either construction order (14.899376ms)
+✔ whole-picture fade has native quarter and blank midpoint frames and restores relative dimming (18.684189ms)
+✔ matched new paper stays below retained text through staggered admissions and owner clips constrain every entering frame (181.013243ms)
+✔ occlusion follows one physical repeated label and a handoff supplies every missing glyph (455.301897ms)
+✔ duplicate words require two visible glyph occurrences, while contained different-sized copies still reject (1640.933382ms)
+✔ travel coverage respects evenodd holes and the victim viewport and never reports more than all glyph ink (849.912316ms)
+✔ native travel proof keeps narrow edge ink and wide offstage strokes and refuses a moving hidden-underlay counterfactual (1622.270977ms)
+✔ the endpoint checker rejects a native stacking reversal and accepts disjoint reordering (24.892369ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9918.271249

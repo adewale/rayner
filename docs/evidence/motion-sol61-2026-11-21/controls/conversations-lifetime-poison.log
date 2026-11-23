@@ -1,0 +1,39 @@
+TAP version 13
+# Subtest: a speaking turn retains unchanged author values while changed values wait for arrival
+not ok 1 - a speaking turn retains unchanged author values while changed values wait for arrival
+  ---
+  duration_ms: 491.110216
+  type: 'test'
+  location: '/workspace/rayner/scenes/explainers/poppy-conversations/scene.test.ts:36:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    written:author.type:value agent blinks although its value is unchanged
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    Object.frame (file:///workspace/rayner/scenes/explainers/poppy-conversations/scene.test.ts:65:16)
+    file:///workspace/rayner/src/scene.ts:857:47
+    #toSink (file:///workspace/rayner/src/scene.ts:487:17)
+    #emitFrame (file:///workspace/rayner/src/scene.ts:857:29)
+    #playFrames (file:///workspace/rayner/src/scene.ts:948:28)
+    async #play (file:///workspace/rayner/src/scene.ts:902:11)
+    async #exclusive (file:///workspace/rayner/src/scene.ts:503:18)
+    async Bound.play (file:///workspace/rayner/src/scene.ts:864:5)
+    async Bound.construct (file:///workspace/rayner/scenes/explainers/poppy-conversations/scene.ts:180:5)
+    async file:///workspace/rayner/src/scene.ts:615:9
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 904.652451

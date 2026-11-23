@@ -1,0 +1,22 @@
+import {loadFonts, loadProject} from '../../explain/testing.ts';
+import {Text, toSvgString} from '../../src/index.ts';
+import {renderAsync} from '@resvg/resvg-js';
+import {writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import PoppyBrowser from '../../scenes/explainers/poppy-browser/scene.ts';
+await loadFonts();
+const project=await loadProject(PoppyBrowser,resolve('scenes/explainers/poppy-browser'));
+const Bound=project.scenarios[0].Scene;
+let captured=false;
+await new Bound({async frame(scene) {
+  if(captured) return;
+  const read=scene.familyMembers().find(m=>m.key==='read'&&m.family().some(x=>x instanceof Text&&x.style.opacity>.9));
+  if(!read) return;
+  captured=true;
+  const svg=toSvgString(scene,{width:1200});
+  await writeFile(new URL('./fixed-browser-port.svg',import.meta.url),svg);
+  const img=await renderAsync(svg,{font:{loadSystemFonts:false}});
+  await writeFile(new URL('./fixed-browser-port.png',import.meta.url),img.asPng());
+}}).run();
+if(!captured) throw new Error('No readable code-copy frame was exercised');
+console.log('Captured the complete source-port frame');

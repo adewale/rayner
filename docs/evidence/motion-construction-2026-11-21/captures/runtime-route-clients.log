@@ -1,0 +1,25 @@
+✔ a speaking turn retains unchanged author values while changed values wait for arrival (1354.110421ms)
+✔ ledger context stays painted through speech and both table layouts while captions use only their authored seats (5653.868552ms)
+✔ speech protects the writer mark and joining people preserve the ledger ink on both tables (6421.662534ms)
+✔ the report explains sending the task and receiving its answer in those two legs (3615.949018ms)
+✔ the list keeps the unchanged desk heading and user request painted throughout its journey (8324.377368ms)
+✔ the borrowed skill leaves its hook while it travels and returns with the ticket landing (2582.199109ms)
+✔ competing paper groups and the secret reach preserve the other strips’ actual ink (7928.57648ms)
+✔ each report leg clears its reading surfaces and the retired search yields the receiving space (9846.373316ms)
+✔ the gift-card search replaces the prior user command before the new request is read (1435.875214ms)
+✔ the tasks list passes the desk headings while the shop and agent readouts stay legible (4892.978606ms)
+✔ redirect replaces the joined address and keeps it present while the fetched document travels (2183.781768ms)
+✔ all seven fetched sheets preserve the actual doorway and fascia lettering, with visible inverse controls (6081.360849ms)
+✔ the issuer arm reaches a cleared register, including a legal-duration serial-order poison (13306.985886ms)
+✔ password cards enter the field with the scope words still visible in each sign-in layout (9436.423937ms)
+✔ the device poll and its reply reach the counter without hiding either line on the device card (7395.371118ms)
+✔ the code travelling to the token endpoint is wordless while its resting credentials stay readable (1001.423377ms)
+✔ layout changes crossfade you and the agent only at their resting endpoints (1769.867515ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 96059.696251

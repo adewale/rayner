@@ -1,0 +1,454 @@
+{
+  "node": "v24.22.1",
+  "inputProvenance": {
+    "beforeRevision": "2954eb36",
+    "beforeCheckerSha256": "07260ed7f37341d2951c0d87db544c4f1f26230366230bdf9eaca5066b2960f1",
+    "afterCheckerSha256": "05245d8045c76fcff83d1299ecb946ae5c39f9e9d0a6016c42cad44879e414a5",
+    "engine": "current shared SVG culling; before/after culling arithmetic is unchanged by paintReach extraction"
+  },
+  "sample": "single scene, one 0.9s traveller, 800x450, one protected text; independent warmup of all four conditions then five alternating pairs in one process",
+  "groups": [
+    {
+      "version": "before",
+      "hit": false,
+      "clear": false,
+      "medianMs": 31.73,
+      "minMs": 25.71,
+      "maxMs": 34.02,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "version": "before",
+      "hit": false,
+      "clear": true,
+      "medianMs": 26.95,
+      "minMs": 23.6,
+      "maxMs": 51.61,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "version": "before",
+      "hit": true,
+      "clear": false,
+      "medianMs": 42.44,
+      "minMs": 38.22,
+      "maxMs": 57.17,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "version": "before",
+      "hit": true,
+      "clear": true,
+      "medianMs": 60.66,
+      "minMs": 53.77,
+      "maxMs": 75.96,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "version": "after",
+      "hit": false,
+      "clear": false,
+      "medianMs": 27.64,
+      "minMs": 21.45,
+      "maxMs": 33.02,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "version": "after",
+      "hit": false,
+      "clear": true,
+      "medianMs": 27.7,
+      "minMs": 25,
+      "maxMs": 29.77,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "version": "after",
+      "hit": true,
+      "clear": false,
+      "medianMs": 42.77,
+      "minMs": 36.84,
+      "maxMs": 47,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "version": "after",
+      "hit": true,
+      "clear": true,
+      "medianMs": 41.32,
+      "minMs": 31.56,
+      "maxMs": 43.63,
+      "frames": 41,
+      "found": 1
+    }
+  ],
+  "data": [
+    {
+      "rep": 0,
+      "version": "before",
+      "hit": true,
+      "clear": true,
+      "ms": 73.99,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 0,
+      "version": "after",
+      "hit": true,
+      "clear": true,
+      "ms": 41.32,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 0,
+      "version": "before",
+      "hit": true,
+      "clear": false,
+      "ms": 47.55,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 0,
+      "version": "after",
+      "hit": true,
+      "clear": false,
+      "ms": 41.28,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 0,
+      "version": "before",
+      "hit": false,
+      "clear": true,
+      "ms": 23.6,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 0,
+      "version": "after",
+      "hit": false,
+      "clear": true,
+      "ms": 27.35,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 0,
+      "version": "before",
+      "hit": false,
+      "clear": false,
+      "ms": 31.73,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 0,
+      "version": "after",
+      "hit": false,
+      "clear": false,
+      "ms": 27.68,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "after",
+      "hit": false,
+      "clear": false,
+      "ms": 33.02,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "before",
+      "hit": false,
+      "clear": false,
+      "ms": 34.02,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "after",
+      "hit": false,
+      "clear": true,
+      "ms": 29.77,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "before",
+      "hit": false,
+      "clear": true,
+      "ms": 51.61,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "after",
+      "hit": true,
+      "clear": false,
+      "ms": 43.1,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "before",
+      "hit": true,
+      "clear": false,
+      "ms": 41.53,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 1,
+      "version": "after",
+      "hit": true,
+      "clear": true,
+      "ms": 42.4,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 1,
+      "version": "before",
+      "hit": true,
+      "clear": true,
+      "ms": 75.96,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 2,
+      "version": "before",
+      "hit": true,
+      "clear": true,
+      "ms": 60.01,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 2,
+      "version": "after",
+      "hit": true,
+      "clear": true,
+      "ms": 43.63,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 2,
+      "version": "before",
+      "hit": true,
+      "clear": false,
+      "ms": 42.44,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 2,
+      "version": "after",
+      "hit": true,
+      "clear": false,
+      "ms": 36.84,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 2,
+      "version": "before",
+      "hit": false,
+      "clear": true,
+      "ms": 29.98,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 2,
+      "version": "after",
+      "hit": false,
+      "clear": true,
+      "ms": 29.23,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 2,
+      "version": "before",
+      "hit": false,
+      "clear": false,
+      "ms": 25.71,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 2,
+      "version": "after",
+      "hit": false,
+      "clear": false,
+      "ms": 27.64,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "after",
+      "hit": false,
+      "clear": false,
+      "ms": 21.45,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "before",
+      "hit": false,
+      "clear": false,
+      "ms": 31.79,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "after",
+      "hit": false,
+      "clear": true,
+      "ms": 25,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "before",
+      "hit": false,
+      "clear": true,
+      "ms": 26.95,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "after",
+      "hit": true,
+      "clear": false,
+      "ms": 42.77,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "before",
+      "hit": true,
+      "clear": false,
+      "ms": 38.22,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 3,
+      "version": "after",
+      "hit": true,
+      "clear": true,
+      "ms": 38.77,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 3,
+      "version": "before",
+      "hit": true,
+      "clear": true,
+      "ms": 60.66,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 4,
+      "version": "before",
+      "hit": true,
+      "clear": true,
+      "ms": 53.77,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 4,
+      "version": "after",
+      "hit": true,
+      "clear": true,
+      "ms": 31.56,
+      "frames": 41,
+      "found": 1
+    },
+    {
+      "rep": 4,
+      "version": "before",
+      "hit": true,
+      "clear": false,
+      "ms": 57.17,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 4,
+      "version": "after",
+      "hit": true,
+      "clear": false,
+      "ms": 47,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 4,
+      "version": "before",
+      "hit": false,
+      "clear": true,
+      "ms": 25.1,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 4,
+      "version": "after",
+      "hit": false,
+      "clear": true,
+      "ms": 27.7,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 4,
+      "version": "before",
+      "hit": false,
+      "clear": false,
+      "ms": 27.09,
+      "frames": 41,
+      "found": 0
+    },
+    {
+      "rep": 4,
+      "version": "after",
+      "hit": false,
+      "clear": false,
+      "ms": 25.73,
+      "frames": 41,
+      "found": 0
+    }
+  ]
+}

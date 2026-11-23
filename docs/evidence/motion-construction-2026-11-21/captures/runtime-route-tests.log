@@ -1,0 +1,14 @@
+✔ an outlined carrier can surround its destination lettering and an opaque carrier hides it (327.489762ms)
+✔ incremental clearance can run before departure without certifying a missing final trip (81.165536ms)
+✔ clearance includes descendant strokes, miter tips and the protected drawing’s own stroke (947.129966ms)
+✔ a carrier must visibly change position, including when an aperture stays fixed over moving geometry (366.872664ms)
+✔ each physical route occurrence needs its own actual movement and a hidden underlay cannot animate a frozen aperture (804.016016ms)
+✔ moving foreground paper cannot supply a traveller’s movement witness (203.287895ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3119.034935
