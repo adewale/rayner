@@ -98,6 +98,7 @@ async function nativeFrames(directory: string, captureArtifact: BoundArtifact, c
       (scenario !== undefined && !same(actual.provenance?.settings, scenario))) throw new Error(`native side/route/scenario mismatch for ${id}`);
     sides.set(side.side, {actual, sha256: side.receipt.sha256});
   }
+  if(sides.size!==2||!sides.has('baseline')||!sides.has('variant')||c.sides.length!==2) throw new Error(`native side inventory mismatch for ${id}`);
   let qualifyingVariant = false;
   const seen = new Set<string>();
   for (const binding of bindings) {
@@ -107,7 +108,8 @@ async function nativeFrames(directory: string, captureArtifact: BoundArtifact, c
     const expectedPng = frame && sidePath && resolve(dirname(sidePath), frame.asset + '.png');
     const png = binding.png ?? witnesses.find(w => w.sha256 === binding.pngSha256 && resolve(directory, w.path) === expectedPng);
     const identity = `${binding.side}:${binding.sequence}`;
-    if (!frame || !png || seen.has(identity) || !Number.isSafeInteger(binding.sequence) || binding.sequence < 0 ||
+    if (!frame || !png || seen.has(identity) || !Number.isSafeInteger(binding.sequence) || binding.sequence < 0 || frame.sequence !== binding.sequence ||
+      !Number.isSafeInteger(frame.absolute) ||
       binding.receiptSha256 !== side.sha256 || binding.absolute !== frame.absolute || binding.step !== frame.step || binding.asset !== frame.asset ||
       (binding.phase !== undefined && binding.phase !== frame.phase) || (binding.frame !== undefined && binding.frame !== frame.frame) ||
       (binding.wholeStagePixelsSha256 !== undefined && binding.wholeStagePixelsSha256 !== frame.pixels) ||
@@ -144,6 +146,7 @@ export async function boundCaseReview(directory: string, reviewArtifact: BoundAr
       (row.disposition === 'typed-prevention' && (!row.prevention || !nonempty([row.prevention.event,row.prevention.name,row.prevention.message]))) ||
       (row.disposition === 'unresolved' && !nonempty([row.blocker]))) throw new Error(`case review: incomplete disposition for ${row.id}`);
     const captured = capture.cases?.find((c: {id: string}) => c.id === row.id);
+    if(row.disposition!=='unresolved'&&!same(row.route,captured?.route)) throw new Error(`case review: route mismatch for ${row.id}`);
     if (row.disposition === 'observed' && captured?.route?.event !== row.clause!.event)
       throw new Error(`case review: observed event is outside the captured route for ${row.id}`);
     if (row.disposition === 'typed-prevention') {
