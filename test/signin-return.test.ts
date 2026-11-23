@@ -3,7 +3,8 @@ import test from 'node:test';
 import {loadProject} from '../explain/testing.ts';
 import {LiveSink,liveBase,liveSteps,runLive} from '../explain/internal.ts';
 import {Text,type Mobject} from '../src/index.ts';
-import {occlusionPixels,occlusionSnapshot} from './lib/native-contribution.ts';
+import {paintReach} from '../src/internal.ts';
+import {occlusionPixels,occlusionSnapshot,extentPixels,extentSnapshot} from './lib/native-contribution.ts';
 import SignIn from '../scenes/explainers/poppy-sign-in/scene.ts';
 import {CARDS,type SignInEvent,type World} from '../scenes/explainers/poppy-sign-in/model.ts';
 import {FACE,DESK,tagPunch} from '../scenes/explainers/poppy-sign-in/picture.ts';
@@ -11,6 +12,8 @@ import {FACE,DESK,tagPunch} from '../scenes/explainers/poppy-sign-in/picture.ts'
 const paints=(m: Mobject|undefined)=>!!m&&m.family().some(p=>p.style.opacity>0.01&&p.hasPoints());
 test('physical first and replacement credential returns preserve password ink and recipient names on legal reader sign-out and disconnect histories',async()=>{
   const project=await loadProject(SignIn,'scenes/explainers/poppy-sign-in');
+  const extentCache=new Map<string,Awaited<ReturnType<typeof extentPixels>>>();
+  const inkCache=new Map<string,Awaited<ReturnType<typeof occlusionPixels>>>();
   for(const scenario of project.scenarios) {
     const device=scenario.values.flow==='device',host=await new scenario.Scene(new LiveSink()).run(),place=liveSteps(host).get('sign-out')!;
     const {base}=await liveBase(scenario.Scene,'sign-out',place); assert.ok(base);
@@ -18,10 +21,16 @@ test('physical first and replacement credential returns preserve password ink an
       const grant: SignInEvent[]=['ask','approve-read','collect'];
       const log: SignInEvent[]=[...grant,...(replacement?['ask',pending?'approve-read':'approve-all','collect'] as SignInEvent[]:[]),...(pending?['ask'] as SignInEvent[]:[]),event];
       const samples=new Map<string,ReturnType<typeof occlusionSnapshot>[]>(), inverses: ReturnType<typeof occlusionSnapshot>[]=[];
-      let origin: readonly number[]|undefined, departed=0,last: readonly number[]|undefined;
+      let origin: readonly number[]|undefined, sourcePunch:readonly number[]|undefined,departed=0,last: readonly number[]|undefined,extentChecks=0,edgeInverse=false;
       await runLive(scenario.Scene,'sign-out',place,log,{from:base!.from,animate:{async frame(scene){
+        if(!origin&&paints(scene.find('tag')))sourcePunch=[...tagPunch(scene.find('tag')!)];
         const actor=scene.find('tag:return'); if(!paints(actor))return;
+        if(!origin){assert.ok(sourcePunch,'the physical source is visible before departure');const p=tagPunch(actor!);assert.ok(Math.hypot(p[0]-sourcePunch[0]!,p[1]-sourcePunch[1]!)<1e-5,'return starts at the original physical punch');}
         origin??=[...actor!.center()];last=[...actor!.center()];
+        const extent=extentSnapshot(scene,actor!),signature=extent.actual+'\n'+extent.without;
+        let nativeExtent=extentCache.get(signature);
+        if(!nativeExtent){nativeExtent=await extentPixels(extent);extentCache.set(signature,nativeExtent);}
+        assert.equal(nativeExtent.outside,0,`${scenario.values.flow} ${log}: complete native travelling paper stays on camera`);extentChecks++;
         if(Math.hypot(last[0]!-origin[0]!,last[1]!-origin[1]!)>0.02) {
           departed++;
           for(const key of ['tag','tag:cord','agent:key']) assert.equal(paints(scene.find(key)),false,`${log}: source ${key} physically retires before movement`);
@@ -35,8 +44,25 @@ test('physical first and replacement credential returns preserve password ink an
             actor!.moveTo(dot.center()); try{inverses.push(occlusionSnapshot(scene,subject!,actor!));}finally{actor!.moveTo(at);}
           }
         }
+        // Metric/stroke reach selects possible contact, never proves a crossing.
+        // Ordinary native ownership resolves every such actual moving sample.
+        for(const key of ['agent:name','you:password','agent:station','card']) {
+          const subject=scene.find(key);if(!paints(subject))continue;
+          const a=actor!.box()!,b=subject!.box()!,d=paintReach(actor!)+paintReach(subject!)+0.04;
+          if(a[2]+d<b[0]||b[2]+d<a[0]||a[3]+d<b[1]||b[3]+d<a[1])continue;
+          const snap=occlusionSnapshot(scene,subject!,actor!),signature=JSON.stringify(snap);let ink=inkCache.get(signature);
+          if(!ink){ink=await occlusionPixels(snap);inkCache.set(signature,ink);}
+          assert.equal(ink.lost,0,`${scenario.values.flow} ${log}: full moving route preserves ${key}`);
+        }
+        if(!edgeInverse&&departed>2) {
+          const at=actor!.center(),camera=scene.frame.box()!;
+          actor!.moveTo([at[0]!,camera[1]+actor!.height()/4]);
+          try{assert.ok((await extentPixels(extentSnapshot(scene,actor!))).outside>0,'actual travelling paper deliberately crossing the camera edge loses native pixels');}
+          finally{actor!.moveTo(at);}edgeInverse=true;
+        }
       }}});
       assert.ok(departed>2&&last,'the physical return actually travels');
+      assert.ok(extentChecks>20&&edgeInverse,'ongoing actual-camera extent and deliberate offstage inverse cover every history');
       assert.ok(Math.abs(last[1]!-DESK[1])<1e-5,'return reaches the Company port height');
       assert.ok(device?last[0]!>=FACE-0.2&&last[0]!<=FACE+0.5:Math.abs(last[0]!-DESK[0])<1e-5,'return reaches the actual visible Company counter');
       for(const key of ['you:password','agent:name']) {

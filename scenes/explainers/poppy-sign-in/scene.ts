@@ -166,9 +166,9 @@ export default class SignIn extends Scene {
           const clearX = Math.max(out[0], name[2] + targetKey.width() / 2 + 0.08);
           const retireTag = old.includes('tag') ? c.leave('tag', {runTime: 0.1, rateFunc: linear}) : undefined;
           const timing = (replacement: Animation | undefined) => ({appear: 0.25, move: 0.6, leave: replacement ? 0.15 : 0.25});
-          // A wordless refresh-token tag travels around the held key and then
-          // hands off to its complete printed tag. No small lettering or swept
-          // paper can erase the still-usable grant at the recipient's ring.
+          // A wordless refresh-token tag approaches the punched gutter and then
+          // hands off to its complete printed tag. It briefly brushes the newly
+          // delivered key's metal bow; the tooth and earlier printing stay clear.
           const targetTag = c.to('tag'), tagToken = keyTag(s.drawing, {at: [0, 0], value: null, holeRight: device});
           const hole = tagPunch(targetTag), printed = targetTag.family().find(m=>m instanceof Text&&m.text==='refresh token')!.box()!;
           const margin = device ? hole[0]-printed[2] : printed[0]-hole[0];
@@ -231,16 +231,18 @@ export default class SignIn extends Scene {
       const token = keyTag(s.drawing, { at: [0, 0], value: null, holeRight: device }).scale(scale);
       const punch = tagPunch(c.from('tag')), offset = tagPunch(token);
       const start: Pt = [punch[0] - offset[0], punch[1] - offset[1]];
-      // In device flow the station blocks the upper rail. The small wordless
-      // return goes below the actual name ink, then rises outside both the name
-      // and the complete device card to the visible Company's counter face.
-      const name = c.from('agent:name'), inkBottom = Math.min(...name.children.map(m => m.box()?.[1] ?? Infinity));
-      const acrossY = heldDevice ? inkBottom - token.height() / 2 - 0.05 : from[1];
+      // The device station and its label leave a paper-width corridor. Pass
+      // below the station, then turn up beyond its right edge before the final
+      // letters. Going below the name instead would leave the camera entirely.
+      const name = c.from('agent:name'), station = c.from('agent:station').box()!;
+      const acrossY = heldDevice ? station[1] - token.height() / 2 - 0.08 : from[1];
       const dockX = heldDevice ? Math.max(FACE-token.width()/2+0.04, name.box()![2]+token.width()/2+0.06,
         c.has('card','from') ? c.from('card').box()![2]+token.width()/2+0.06 : -Infinity) : DESK[0];
       const dockY = DESK[1];
       const to: Pt = [dockX, dockY];
-      const via: Pt[] = heldDevice ? [start, from, [from[0], acrossY], [dockX, acrossY], to] : [start, from, [dockX, from[1]], to];
+      const outsideX = station[2] + token.width() / 2 + 0.075;
+      const via: Pt[] = heldDevice ? [start, [start[0], acrossY], [outsideX, acrossY],
+        [outsideX + 0.04, name.box()![3]], to] : [start, from, [dockX, from[1]], to];
       const going = ['agent:key', 'tag:cord'].filter((k) => c.has(k, 'from') && !c.has(k, 'to'));
       const moved = heldDevice ? relaid(c) : [];
       return beats(c, () => {
@@ -271,7 +273,8 @@ export default class SignIn extends Scene {
           // Company as source and the unchanged ring as recipient. A replacement
           // does not erase usable credentials before the new ones reach that ring.
           return [
-            {view: world, during: input, present: context, absent: ['answer:phrase']},
+            {view: world, during: input, present: context, absent: ['answer:phrase'],
+              ...(device && before.sign && !before.sign.approved ? {clearText: ['card:domain']} : {})},
             ...(!got ? [{view: world, during: 'poll:back', present: context, absent: ['answer:phrase']}] : [
               {view: world, during: 'agent:key:flight', present: [...context, ...(before.holds ? ['agent:key', 'tag'] : [])],
                 absent: ['answer:phrase'], clearText: ['agent:name']},

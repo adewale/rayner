@@ -226,7 +226,7 @@ function deviceCard(s: DrawContext, at: Vec, foreign: boolean): Group {
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo([x, y]),
     code.moveTo([x, y + gap]).setColor(TONE.print),
     name.moveTo([x, y]).setColor(TONE.print),
-    domain.moveTo([x, y - gap]).setColor(TONE.print),
+    keyedAs(domain, 'card:domain').moveTo([x, y - gap]).setColor(TONE.print),
   );
 }
 
