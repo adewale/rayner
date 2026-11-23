@@ -97,6 +97,8 @@ test('the current poll mutation removes actual domain pixels and its fixed route
     assert.equal(proof.severeReplay.observations.length,3);
     assert.equal(proof.severeReplay.clearInverse.length,3);
     assert.ok(proof.severeReplay.genericReplay.positive.length>0);
+    assert.equal(proof.domainPath,'card/card:domain');
+    assert.ok(proof.severeReplay.genericReplay.positive.every((f: {path:string;victim:string})=>f.path===proof.domainPath&&f.victim===proof.domainPath));
     assert.equal(proof.severeReplay.genericReplay.inverse.length,0);
   } finally {
     await rm(directory, { recursive: true, force: true });

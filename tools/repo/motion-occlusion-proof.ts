@@ -149,6 +149,7 @@ async function genericSevereReplay(input:ReplayInput){
     class Replay extends Scene{override async construct(){
       this.colors=input.colors;this.frame.become(input.camera);this.add(...input.objects.map(m=>m.copy()));
       const actor=this.find('poll')!,word=this.find('card')!.family().find((m):m is Text=>m instanceof Text&&m.text===name)!;
+      assert.equal(word.key,'card:domain');assert.equal(word.parent?.key,'card','the actual domain keeps physical card ownership');
       actor.setWidth(word.width()*2+1).setOpacity(1);
       const at=word.center(),clear:[number,number]=[at[0],at[1]-actor.height()/2-word.height()/2-0.3];actor.moveTo(clear);
       await this.wait(0.1);
@@ -156,7 +157,8 @@ async function genericSevereReplay(input:ReplayInput){
       else await this.wait(0.8);
       await this.wait(0.1);
     }}
-    await new Replay(sink).run();return sink.finish().filter(f=>f.kind==='occluded words'&&f.path==='card'&&f.text===name&&f.masks?.includes('poll'));
+    await new Replay(sink).run();return sink.finish().filter(f=>f.kind==='occluded words'&&f.path==='card/card:domain'&&
+      f.victim==='card/card:domain'&&f.text===name&&f.masks?.length===1&&f.masks[0]==='poll');
   };
   const positive=await run(true),inverse=await run(false);
   assert.ok(positive.length>0,'the separately identified severe replay diagnoses this domain under poll');assert.equal(inverse.length,0,'moving the same severe carrier clear cannot diagnose the domain');
@@ -217,7 +219,7 @@ await Promise.all([
   writeFile(join(dir, 'mutation.png'), mutation.png),
   writeFile(join(dir,'deliberate-severe.png'),mutation.severePng),writeFile(join(dir,'deliberate-severe-clear.png'),mutation.severeClearPng),
   writeFile(join(dir, 'report.json'), JSON.stringify({
-    entry: entry.id, scenario: { flow: 'device' }, step: 'ask', event: 'collect', part: 'card', label: name, foreground: 'poll',
+    entry: entry.id, scenario: { flow: 'device' }, step: 'ask', event: 'collect', part: 'card', domainKey:'card:domain',domainPath:'card/card:domain',label: name, foreground: 'poll',
     historicalTarget: 'Example Company', historicalTargetCredit: false,
     currentObservation:'current-partial-domain-contact@2026-11-23.1',
     severeReplay:{id:'deliberate-opaque-centred-poll@2026-11-23.1',policy:'Actual current poll deliberately enlarged/centred and made opaque; separate from the current mutation, retains complete glyph and two 90% losses at all three offsets.',observations:mutation.severe,clearInverse:mutation.severeClear,genericReplay},
