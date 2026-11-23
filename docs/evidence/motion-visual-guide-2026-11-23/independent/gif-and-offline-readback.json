@@ -1,0 +1,61 @@
+{
+  "mediaCount": 34,
+  "zipMembers": 36,
+  "zipSha256": "d25e7274a1af6f3138759d472ead15ab51d10b0eca1f5ec6c35e584fe3a896e5",
+  "htmlSha256": "bbef780affe3d724dc8fcb4396e359f6ba0691c3b66c05472a43600f9b0cda6f",
+  "markdownSha256": "4c1edeb88f7e06811697d3db51fb6ee40a395f38a317302678121e47cb2eb38c",
+  "localLinkedRefs": 41,
+  "externalLinksAreUserNavigatedOnly": [
+    "https://github.com/adewale/rayner/blob/fix/motion-detection/docs/evidence/motion-visual-guide-2026-11-23/README.md",
+    "https://github.com/adewale/rayner/blob/20fe61ee4afd9fa7be55e9b34501e67674c32bf1/docs/evidence/motion-consumer-binding-2026-11-23/README.md",
+    "https://github.com/adewale/rayner/blob/20fe61ee4afd9fa7be55e9b34501e67674c32bf1/docs/evidence/motion-consumer-binding-2026-11-23/independent/REPORT.md"
+  ],
+  "allVideoControlsHavePairedPosters": true,
+  "allThreeVideosRequireUserPlayback": true,
+  "gifDecode": [
+    {
+      "id": "grant",
+      "gifFrames": 135,
+      "milliseconds": 4500,
+      "maxPreviewLumaMae": 0.313222947761194,
+      "sideComparisons": {
+        "too-little-visible-change": 36,
+        "expected-closer": 234
+      },
+      "adjacentComparisons": {
+        "too-little-visible-change": 106,
+        "expected-closer": 430
+      }
+    },
+    {
+      "id": "words",
+      "gifFrames": 41,
+      "milliseconds": 1360,
+      "maxPreviewLumaMae": 0.1755519278606965,
+      "sideComparisons": {
+        "too-little-visible-change": 40,
+        "expected-closer": 42
+      },
+      "adjacentComparisons": {
+        "expected-closer": 90,
+        "too-little-visible-change": 70
+      }
+    },
+    {
+      "id": "domain-control",
+      "gifFrames": 85,
+      "milliseconds": 2830,
+      "maxPreviewLumaMae": 0.20751710199004975,
+      "sideComparisons": {
+        "too-little-visible-change": 80,
+        "expected-closer": 90
+      },
+      "adjacentComparisons": {
+        "too-little-visible-change": 72,
+        "expected-closer": 264
+      }
+    }
+  ],
+  "gifMethod": "All GIF frames compared after reducing source panels to the published scale, using luma in the native stage region, separately checking left/right and neighbouring poses on source-distinguishable pixels. Original PNGs provide color/pixel evidence.",
+  "browserScope": "Static archive membership, source-call requirements and decoded media independently verified. Interactive browser smoke and real playback handled by parent reviewer. No independent file:// success claimed."
+}

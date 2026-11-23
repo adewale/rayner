@@ -1,5 +1,7 @@
 # Native evidence binding and source-39 results
 
+For a quick visual review, open the [curated comparison gallery](../motion-visual-guide-2026-11-23/README.md): matched native before/after pictures, short motion clips, enlarged diagnostic controls and an offline viewer. The original source-qualified evidence and archives remain below.
+
 The consumer checkpoint `7b95f443` repairs two independently reproduced artifact-binding errors. Its only code changes are `tools/repo/motion-semantic.ts` and its root-owned keeper. Rendering, scenes, models, detector policy, corpus edits and capture inputs are byte-identical to `39b75450`. The [validation receipt](consumer7b95-source39-validation.json) lists that exact equivalence scope. It does not relabel the preserved source-39 native captures or detector workers.
 
 The verified producer file now determines its case directory and the two actual side files. Physical canonical paths permit intact archive relocation and equivalent relative references; a genuine same-pixel side from another source tree cannot become the current side. Every submitted PNG citation is read and checked against an individually verified frame's resolved path **and** digest. A missing or unrelated extra path cannot borrow another file's digest. Existing provenance, model, phase, guard and baseline-subtraction checks remain.
