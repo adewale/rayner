@@ -10,7 +10,8 @@ import { CORPUS } from '../../test/fixtures/motion-corpus/corpus.ts';
 import { routes } from './motion-audit-routes.ts';
 import { ROOT } from '../lib/roots.ts';
 const input=resolve(process.argv[2]??join(ROOT,'out/current-audit-2026-11-22'));
-const output=resolve(process.argv[3]??join(ROOT,'docs/evidence/motion-current-audit-2026-11-22'));
+// Archived audits live on the evidence branch (docs/evidence/README.md), not in the source tree.
+const output=resolve(process.argv[3]??join(ROOT,'out/motion-current-audit-2026-11-22'));
 const sha=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
 const json=(v:unknown)=>JSON.stringify(v,null,2)+'\n';
 const receipts:unknown[]=[],assets:unknown[]=[],summary:any[]=[];let totalFrames=0;

@@ -9,7 +9,7 @@ import type { Found } from '../tools/repo/motion-corpus-lib.ts';
 import { SEMANTIC_V3, boundCaseReview, boundSemanticAssessment, digest, matchesSemantic, semanticDigest, type BoundArtifact, type NativeFrameBinding, type SemanticRatification } from '../tools/repo/motion-semantic.ts';
 
 test('separate semantic mappings retain the poll actor orientation and the forged slip exact SID victim', async () => {
-  const frozen = JSON.parse(await readFile(new URL('../docs/evidence/motion-regressions-2026-11-22/calibration/frozen-observations.json', import.meta.url), 'utf8'));
+  const frozen = JSON.parse(await readFile(new URL('./fixtures/motion-corpus/frozen-observations.json', import.meta.url), 'utf8'));
   for (const target of SEMANTIC_V3.slice(2)) {
     const found = frozen.rows.find((r: {id: string}) => r.id === target.id).observations[0] as Found;
     assert.equal(matchesSemantic(found, target), true);

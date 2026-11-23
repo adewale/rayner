@@ -1,2 +1,0 @@
-scenes/explainers/poppy-browser/scene.ts(11,190): error TS6133: 'WIN_LEFT' is declared but its value is never read.
-scenes/explainers/poppy-sessions/oracle/fidelity.ts(297,16): error TS2540: Cannot assign to 'key' because it is a read-only property.
