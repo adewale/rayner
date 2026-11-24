@@ -5,6 +5,7 @@
 import type { ExplainerClass, Settings } from '../explain/index.ts';
 import type { SettingsProblem, WatchReading } from '../explain/internal.ts';
 import { scenarioName, describedIn, primaryLanguage, wordsFor } from '../explain/internal.ts';
+import { frameTitle } from './embed-frame.ts';
 export type { SettingsProblem } from '../explain/internal.ts';
 
 
@@ -166,7 +167,7 @@ const EN: Chrome = {
   stepOf: (i, n, title) => `Step ${i} of ${n}${title ? `: ${title}` : ''}`,
   madeWith: 'Made with Rayner',
   open: 'Open the explainer',
-  frame: 'Interactive explainer',
+  frame: frameTitle('en'),
   reducedMotion: 'Reduced motion is on, so the finished step is shown.',
   copied: 'Link copied.',
   noStep: (step) => `This scenario has no “${step}” step, so it opens at the first step.`,
@@ -245,7 +246,7 @@ const FR: Chrome = {
   stepOf: (i, n, title) => `Étape ${i} sur ${n}${title ? ` : ${title}` : ''}`,
   madeWith: 'Réalisé avec Rayner',
   open: 'Ouvrir l’explication',
-  frame: 'Explication interactive',
+  frame: frameTitle('fr'),
   reducedMotion: 'Les animations sont réduites : l’étape s’affiche terminée.',
   copied: 'Lien copié.',
   noStep: (step) => `Ce scénario n’a pas d’étape « ${step} » : il s’ouvre à la première étape.`,

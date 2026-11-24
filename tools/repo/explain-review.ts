@@ -106,7 +106,11 @@ try {
       const liveStarted = performance.now();
       const live = await reviewLiveStates(page, `${base}/${entry.id}.html`, scenario, await liveSubjects(scenario, project.Scene.meta?.lang), directory);
       liveSeconds += (performance.now() - liveStarted) / 1000;
-      scenarios.push({ scene: entry.id, settings: scenario.values, steps, ...(live.length ? { live } : {}) });
+      const framedDirectory = join(directory, 'framed');
+      await mkdir(framedDirectory, { recursive: true });
+      const framedSteps = await reviewStoryScenario(page, `${base}/${entry.id}.html`, scenario, subjects, framedDirectory, undefined, true);
+      const framedLive = await reviewLiveStates(page, `${base}/${entry.id}.html`, scenario, await liveSubjects(scenario, project.Scene.meta?.lang), framedDirectory, true);
+      scenarios.push({ scene: entry.id, settings: scenario.values, steps, ...(live.length ? { live } : {}), framedSteps, framedLive });
     }
     if (selected) console.log(`${entry.id}: ${selected} selected scenarios, every resting step and visited live state passed both widths`);
   }
@@ -165,6 +169,8 @@ try {
         reviewCodeHash: codeHash,
         scenarios: scenarios.length,
         stepWidths: scenarios.reduce((n, c) => n + c.steps.length, 0),
+        framedStepWidths: scenarios.reduce((n, c) => n + c.framedSteps.length, 0),
+        framedLiveStateWidths: scenarios.reduce((n, c) => n + c.framedLive.length, 0),
         liveStateWidths: scenarios.reduce((n, c) => n + (c.live?.length ?? 0), 0),
         results: scenarios,
         consoleErrors: errors,

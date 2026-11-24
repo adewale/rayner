@@ -174,6 +174,12 @@ export async function buildExplainer(
       duration: v.trace.duration,
     })),
     ...pageSize(html),
+    components: {
+      scriptBytes: Buffer.byteLength(js), styleBytes: Buffer.byteLength(css), posterBytes: Buffer.byteLength(sink.svg),
+      // esbuild's attributed bytes in the minified script, already included in scriptBytes.
+      embeddedFaceBytes: Object.values(bundled.metafile!.outputs).flatMap(output => Object.entries(output.inputs))
+        .filter(([name]) => name.endsWith('vendor/font-data-sfnt.json')).reduce((n, [, input]) => n + input.bytesInOutput, 0),
+    },
     headers: { 'Content-Security-Policy': policy, 'Cache-Control': 'public, max-age=0, must-revalidate' },
     // Only a page that asked for lettering says what it weighs; every other receipt is as it was.
     ...(project.lettering ? { lettering: letteringReport(project.lettering) } : {}),

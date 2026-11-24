@@ -33,6 +33,9 @@ const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'read+write' 
 /** The stage's palette: the series' own. */
 export const PALETTE = KIT_PALETTE;
 
+/** The request's wordless travel representation, shared with the lettering's clearance. */
+export const REQUEST_TOKEN_SCALE = 0.28;
+
 /** The lanes of the wire: the three channels a poppy.json lists, and the Company's sign-in page. */
 export const LANES = ['api', 'web', 'chat', 'sign-in'] as const;
 export type Lane = (typeof LANES)[number];
@@ -105,14 +108,15 @@ const BUNDLE: Record<Lane, number> = { api: 0.33, web: 0.11, chat: -0.11, 'sign-
 export const STOP_X = 0.62;
 /** The counter's extent, under the shop's sign. */
 const COUNTER_TOP = 3.47, COUNTER_BOTTOM = -0.65;
-/** Where the lanes' names start, above their level runs. */
-const NAME_X = -4.2;
 /** The ledger's left edge, behind the counter, and its top. */
 const LEDGER_X = 1.62, LEDGER_TOP = 3.8;
 /** The bottom band: the agent's side starts at the margin, the Company's at the ledger. */
 const BAND_TOP = -1.15;
 /** The corners of a lane, from the station to its stop. */
 export const routeOf = (on: Lane): Vec[] => laneRoute({ from: stationExit(STATION, STATION_R, BUNDLE[on]), trunk: TRUNK_X, y: LANE_Y[on], to: STOP_X, fan: FAN });
+/** Start the lettering after every fan has reached its level run, including the
+ * travelling ticket's horizontal extent and a painted clearance at the bend. */
+const NAME_X = Math.max(...LANES.map(name => routeOf(name)[2]![0])) + TICKET.width * REQUEST_TOKEN_SCALE / 2 + 0.08;
 /** The barrier's place on a lane: just short of the counter. */
 const BARRIER_X = STOP_X - 0.45;
 /** Where a ticket rests on its lane: docked at its stop when delivered, before the barrier when refused. */

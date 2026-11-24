@@ -19,7 +19,7 @@ import type { BeatPlan } from '../src/animation.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
-import { resolverOf } from './diagram-snapshot.ts';
+import { diagramKey, resolverOf } from './diagram-snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from './diagram-snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
@@ -238,9 +238,10 @@ export function stage<S extends object, Sh extends object>(scene: SceneInputs<S,
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
+  let keptZoom: number | undefined;
   /** What each view diagramView made draws: diagramView again with another draw replaces it. */
   const viewDraws = new WeakMap<View<Mobject, S, Sh>, { draw: (state: S, shown: Sh) => DiagramPicture }>();
-  scene.onStep(() => opening(scene, ...kept));
+  scene.onStep(() => opening(scene, ...kept, {zoom: keptZoom}));
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
   stagePalettes.set(scene, () => ({ ...colors }));
@@ -373,7 +374,7 @@ export function stage<S extends object, Sh extends object>(scene: SceneInputs<S,
       });
     return seen;
   }
-  // Each step's state records its resting picture and what changed since the step began.
+  // Each step's derived observations record its resting picture and what changed since the step began.
   let before = new Set<string>();
   scene.onStep(() => {
     before = shownNames(look());
@@ -485,6 +486,29 @@ export function stage<S extends object, Sh extends object>(scene: SceneInputs<S,
       }, { ready: reading, late: true });
     },
     /**
+     * Resolve a finite set of sources before drawing. The returned synchronous function makes a
+     * fresh, complete picture for a declared source, suitable for view(state => draw(sourceOf(state))).
+     */
+    async prepareDiagrams(specs: readonly DiagramSpec[], opts: { box?: Box | StageRegion } = {}):
+      Promise<(spec: DiagramSpec, picture?: DiagramPicture) => Group> {
+      const withStyle = (spec: DiagramSpec): DiagramSpec =>
+        options.style && spec.style == null ? { ...spec, style: options.style } : spec;
+      const prepared = new Map<string, Diagram>();
+      for (const input of specs) {
+        const spec = withStyle(input);
+        const key = diagramKey(spec);
+        if (prepared.has(key)) continue;
+        const snapshot = await resolverOf(scene, 's.prepareDiagrams()').diagram(spec);
+        const d = new Diagram(scene, spec, snapshot, { box: physical(opts.box) }, true);
+        prepared.set(key, d);
+      }
+      return (spec, picture = {}) => {
+        const d = prepared.get(diagramKey(withStyle(spec)));
+        if (!d) throw new RangeError('s.prepareDiagrams(): source was not declared; include every source the model can draw');
+        return d.picture(picture.marks, { notes: picture.notes, dim: picture.dim, prefix: picture.prefix });
+      };
+    },
+    /**
      * Show diagram `d` by a view: `draw(state, shown)` gives what it marks, its notes and what stays
      * undimmed, as `d.picture` takes them, usually from `shown` (how the model is shown), and the view
      * takes the live diagram's place. Change them in `this.shown` and play
@@ -541,12 +565,13 @@ export function stage<S extends object, Sh extends object>(scene: SceneInputs<S,
      * With `{ keep: true }` last, they are the opening of this step and of every later one, until
      * another kept opening replaces them (none clears them); a step's own opening still wins for
      * that step. For a picture that stays on stage while the steps change it, such as a machine's view. */
-    opening(...args: Mobject[] | [...Mobject[], { keep: boolean }]) {
+    opening(...args: Mobject[] | [...Mobject[], { keep?: boolean; zoom?: number }]) {
       const last = args.at(-1);
       const keep = !!last && !(last instanceof Mobject) && (last as { keep: boolean }).keep;
       const subjects = (last && !(last instanceof Mobject) ? args.slice(0, -1) : args) as Mobject[];
-      if (keep) kept = [...subjects];
-      opening(scene, ...subjects);
+      const zoom = last && !(last instanceof Mobject) ? last.zoom : undefined;
+      if (keep) { kept = [...subjects]; keptZoom = zoom; }
+      opening(scene, ...subjects, {zoom});
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
     code(lines: readonly string[], opts: CodeBlockOptions = {}): Action<CodeBlock> {

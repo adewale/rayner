@@ -23,8 +23,30 @@ import type { SceneState } from '../src/scene.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
 import { offerMachine } from './machine-offers.ts';
 
+/** Which keyed parts of a view must draw, or must be gone, during a named travel's move beat. */
+export interface MotionRule {
+  view: View;
+  /** The exact travelling key passed to c.travel or pass; flight uses `<target>:flight`. */
+  during: string;
+  /** Each key identifies one subject in the source picture, destination picture, or both. */
+  present?: readonly string[];
+  absent?: readonly string[];
+  /** Exact reading surfaces which this traveller must leave clear throughout its move.
+   * Unlike present, this protects glyph ink from partial obstruction. Name contextual
+   * text, not a label on the traveller's genuine source/destination attachment. */
+  clearText?: readonly string[];
+}
+
+/** @internal A check attaches to the actual movement animation as the author constructs the trip. */
+type RegisterTrip = (view: View, key: string, move: Animation) => void;
+/** @internal Called at the start of each accepted, inspected event that declares motion. */
+export type ObserveMotion = (machine: object, event: string, rules: readonly MotionRule[], views: readonly View[], target: (v: View) => Mobject) => RegisterTrip;
+
+/** @internal Scene-local, scoped registration keeps the native checker out of the browser/player. */
+export const motionObservers = new WeakMap<Scene, ObserveMotion>();
+
 export interface MachineSpec<S extends object, E extends string> {
-  /** Pure JSON observation the picture must distinguish. Omitted means the full model. Never changes exploration identity or which events are checked. */
+  /** Pure observation the picture must distinguish; it must return a JSON value, which is checked when it runs (typed `unknown` so a value of an interface type is accepted). Omitted means the full model. Never changes exploration identity or which events are checked. */
   observe?: (state: Readonly<S>) => unknown;
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
   start: S;
@@ -40,6 +62,9 @@ export interface MachineSpec<S extends object, E extends string> {
    * refused, why, so the buttons, their reasons and the model cannot disagree.
    */
   next: (state: S, event: E) => S | Refusal | undefined;
+  /** A transient response, kept as shown.result for views and traces, outside durable state identity.
+   * Called only for accepted events. Return undefined to clear the previous response. */
+  result?: (t: { event: E; before: S; after: S }) => SceneState | undefined;
   /**
    * Where the explainer's story stops though the model would go on: the reason, in the reader's
    * words, when `event` from `state` is beyond the story (the client sends ten requests), else
@@ -63,6 +88,8 @@ export interface MachineSpec<S extends object, E extends string> {
    * one that does not end on them, or breaks an invariant on the way.
    */
   transition?: Partial<Record<E, (t: Transition<S, E>) => Animation | AnimationGroup>>;
+  /** Keyed context that must be present or absent during an actual travel beat. Evaluated by rayner check at the event's turn. */
+  motion?: (t: Pick<Transition<S, E>, 'event' | 'before' | 'after' | 'target'>) => readonly MotionRule[];
   /** Pictures of the scene's state, made with view(scene, draw), synced after each event. */
   views: readonly View<Mobject, S>[];
   /**
@@ -77,6 +104,8 @@ export interface MachineSpec<S extends object, E extends string> {
   runTime?: number | ((t: { event: E; before: S; after: S }) => number);
   /** A positive finite integer: the most states explored per origin (default 256); a larger machine is sampled breadth first up to it. */
   limit?: number;
+  /** Start reader events from the model's start even when the authored resting state can still move. */
+  liveStart?: 'start';
 }
 
 /**
@@ -89,6 +118,8 @@ export interface Transition<S, E> {
   event: E;
   before: S;
   after: S;
+  /** The transient response of this accepted event, when the model supplies result(). */
+  result?: SceneState;
   /** `view`'s picture of `after`, placed where the view will finish. Throws for a view the machine does not have. */
   target(view: View): Mobject;
   /** `choreograph(view.current, target(view))`: the view's parts, from what it shows now to its target. */
@@ -148,6 +179,8 @@ export class Machine<S extends object, E extends string> {
   constructor(scene: SceneInputs<S>, spec: MachineSpec<S, E>) {
     // The spec's shape is its type's to check; what a type cannot say is checked here.
     // A scene may read its events from its data (a statechart's arrows), as a list whose type does not carry its length.
+    if (spec.motion !== undefined && typeof spec.motion !== 'function') throw new TypeError('new Machine(): motion must be a function of the event and its states');
+    if (spec.liveStart !== undefined && spec.liveStart !== 'start') throw new RangeError("new Machine(): liveStart must be 'start' when supplied");
     if (!spec.events.length) throw new RangeError('new Machine(): it needs at least one event');
     for (const event of spec.events)
       if (!isIdentifier('event', event)) throw new RangeError(`new Machine(): ${JSON.stringify(event)} is not an event name; an event is ${identifierRule('event')}`);
@@ -171,8 +204,8 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * @internal What the scene showed when this machine last played (`scene.shown`), or null before it played.
-   * A machine never changes what is shown; a guided tour may change it between events. Exploration
-   * draws every reachable state under the last, and the live player explores under it too.
+   * A guided tour may change presentation between events. A machine with result() also replaces
+   * shown.result. Exploration and the live player retain the other presentation fields.
    */
   get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
 
@@ -189,7 +222,12 @@ export class Machine<S extends object, E extends string> {
    * machines with the same events in another order, or another start, are different machines.
    */
   get identity(): string {
-    return canonicalJson({ events: this.spec.events, start: this.spec.start, views: this.spec.views.map((v) => v.key ?? null) });
+    return canonicalJson({
+      events: this.spec.events,
+      start: this.spec.start,
+      views: this.spec.views.map((v) => v.key ?? null),
+      ...(this.spec.liveStart ? { liveStart: this.spec.liveStart } : {}),
+    });
   }
 
   /**
@@ -230,7 +268,23 @@ export class Machine<S extends object, E extends string> {
       if (!placed.has(view)) placed.set(view, view.placed(after));
       return placed.get(view)!;
     };
-    return { event, before, after, target, choreograph: (view) => choreograph(view.current, target(view)) };
+    const result = this.spec.result?.({event, before, after});
+    const observe = motionObservers.get(this.scene);
+    const register = observe && this.spec.motion
+      ? observe(this, event, this.spec.motion({event, before, after, target}), views, target)
+      : undefined;
+    return {
+      event, before, after, ...(result === undefined ? {} : {result}), target,
+      choreograph: view => choreograph(view.current, target(view), register && ((key, move) => register(view, key, move))),
+    };
+  }
+
+  /** @internal Adopt an accepted event's transient result; exploration uses the same presentation path. */
+  present(event: E, before: S, after: S): void {
+    if (!this.spec.result) return;
+    const {result: _previous, ...shown} = this.scene.shownJson();
+    const result = this.spec.result({event, before, after});
+    this.scene.shown = result === undefined ? shown : {...shown, result: cloneJson(result, 'machine.result()', 'result')};
   }
 
   /**
@@ -258,8 +312,9 @@ export class Machine<S extends object, E extends string> {
     return new Succession([
       new SetState(this.scene, (current) => {
         if (canonicalJson(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${JSON.stringify(before)} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
-        this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
+        this.present(event, before, after);
+        this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         return after;
       }, { event }),
       transition
@@ -278,7 +333,16 @@ export class Machine<S extends object, E extends string> {
    */
   defaultPlay(event: E, before: S, after: S): AnimationGroup {
     const { views, match } = this.spec;
-    return new AnimationGroup(views.map((v) => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) })));
+    const syncs = views.map(v => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) }));
+    if (!this.spec.motion) return new AnimationGroup(syncs);
+    // A declaration still needs a witness when an author removes the whole travel transition.
+    const machine = this;
+    return new class extends AnimationGroup {
+      protected override doBegin(): void {
+        if (motionObservers.has(machine.scene)) machine.transitionFor(event, before, after);
+        super.doBegin();
+      }
+    }(syncs);
   }
 
   /** The run time of `event` from `before` to `after`: the spec's, or what its function gives. */
@@ -400,6 +464,12 @@ class WhenItsTurnComes extends MadeAtTurn {
   }
   protected override make(): ScheduledAnimation[] {
     return [this.#make()];
+  }
+  protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
+    const duration = Math.max(0, ...made.map(a => a.runTime));
+    if (duration > this.runTime + 1e-8)
+      throw new RangeError(`${this.call}: authored transition lasts ${duration.toFixed(3)} s but the event allows ${this.runTime.toFixed(3)} s; increase the machine runTime or shorten the transition instead of compressing its fades`);
+    return super.slots(made);
   }
 }
 

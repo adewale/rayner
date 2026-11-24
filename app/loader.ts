@@ -1,6 +1,6 @@
 import { STEP_TYPE, exactHttpOrigin, gotoMessage, resizeHeight, stepDetail } from './embed-protocol.ts';
 import type { StepDetail } from './embed-protocol.ts';
-import { chromeFor } from './embed-strings.ts';
+import { frameTitle } from './embed-frame.ts';
 import { PAGE_QUERY } from '../explain/internal.ts';
 
 /**
@@ -78,7 +78,7 @@ if (script?.dataset.src) {
     : script.parentElement;
   if (target)
     mountExplainer(target, script.dataset.src, {
-      title: script.dataset.title ?? chromeFor(hostLang(script.dataset.lang)).frame,
+      title: script.dataset.title ?? frameTitle(hostLang(script.dataset.lang)),
       theme: (script.dataset.theme ?? 'auto') as 'auto',
       lang: script.dataset.lang,
     });

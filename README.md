@@ -4,7 +4,7 @@ Rayner makes an explanation of what this version of this system does, drawn from
 
 The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Rayner checks pictures against that model with documented limits on visual fidelity and state exploration. The page states the author's declared grounding; its build receipt identifies the inputs and output. The result is one HTML page of steps and a transcript, with no runtime network requests.
 
-Each step records the model's state; a staged step also records its own local input without replacing that model. At the end of every step, `rayner check` compares each view's structure and rendered SVG records with a fresh drawing of its bound input. This includes paint, path shape, draw fraction, paint order and effective clips at the renderer's precision. It is redraw agreement in Node, not an independent browser-pixel comparison. Machines are explored up to their declared limit (256 states per origin by default); larger machines are sampled, and readers can reach states no check visited. A Mermaid diagram is checked against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. [What the checks establish](docs/REFERENCE.md#checks) and [machine limits](docs/MACHINES.md#what-check-does-with-a-machine) describe the boundaries. The page opens from a file, a static host or an embed.
+Each step records the model's state; a staged step also records its own local input without replacing that model. At the end of every step, `rayner check` compares each view's structure and rendered SVG records with a fresh drawing of its bound input. This includes paint, path shape, draw fraction, paint order and effective clips at the renderer's precision. It is redraw agreement in Node, not an independent browser-pixel comparison. Machines are explored up to their declared limit (256 states per origin by default); larger machines are sampled, and readers can reach states no check visited. A Mermaid diagram selected from prepared sources in a view receives the same redraw checks. Imperative diagrams are checked against the renderer's output pinned beside the scene. A hand-placed callout relies on the scene's own tests. [What the checks establish](docs/REFERENCE.md#checks) and [machine limits](docs/MACHINES.md#what-check-does-with-a-machine) describe the boundaries. The page opens from a file, a static host or an embed.
 
 A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, and each step is drawn from the model's state. The view checks can catch the wrong slot label; the model's independent tests establish which label belongs there.
 
@@ -205,7 +205,7 @@ From a clone of this repository, `npm run rayner -- preview scenes/tutorial/hano
 What the checks leave to you:
 
 - View redraw checks compare structure and rendered SVG records, including paint, paths and clips. Browser paint, caption meaning and motion quality still need their own checks and review.
-- A Mermaid diagram is checked against the renderer’s output pinned beside the scene, and a hand-placed callout only by the scene’s own tests.
+- Diagrams selected from prepared sources in a view receive redraw checks. Imperative diagrams use pinned renderer output. The scene’s own tests check hand-placed callouts.
 - Phone label sizes are estimated from the minimum stage geometry; `rayner review` checks the served layout.
 - `meta.claims` links prose to named tests, but does not run them or verify their assertions.
 - No check can tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), look at the screenshots, and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
@@ -231,13 +231,13 @@ A picture is drawn from the model's state by a function you write, with the [dra
 ```ts
 import { TYPE, addAll, connector, keyedParts, label, tile } from 'rayner/drawing';
 
-const cache = view(this, (st) => {
+const cache = view(this, (st, _shown, drawing) => {
   const parts = keyedParts();
-  st.slots.forEach((item, i) => addAll(parts, tile(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
-  parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
-  parts.add(label(s, `${st.hits} hits`, { at: [0, -2] }), 'hits');
+  st.slots.forEach((item, i) => addAll(parts, tile(drawing, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
+  parts.add(connector(drawing, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
+  parts.add(label(drawing, `${st.hits} hits`, { at: [0, -2] }), 'hits');
   return parts.group();
-});
+}, { drawing: s.drawing });
 ```
 
 The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, `label` and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).

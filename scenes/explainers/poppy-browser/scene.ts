@@ -1,14 +1,15 @@
-import { AnimationGroup, Group, Rectangle, Scene } from '../../../src/index.ts';
+import { clearRoute } from '../lib/clear-route.ts';
+import { AnimationGroup, Group, Rectangle, Scene, Text } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, DrawContext, Transition } from '../../../explain/index.ts';
-import { TONE, beats, codeSlip, cookie, flight, pass } from '../lib/poppy-kit.ts';
+import { TONE, beats, carry, codeSlip, cookie, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
 import type { JoinEvent, SignIn, World } from './model.ts';
 import {
-  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, EVIL_SIDE_X, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, READ_FROM, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_LEFT, WIN_RIGHT,
-  drawLogins, drawWorld, sayLogins, sayWorld, shortCode,
+  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, EVIL_SIDE_X, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_RIGHT,
+  drawLogins, drawWorld, readingPort, sayLogins, sayWorld, shortCode,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -32,8 +33,9 @@ const browserRequest = (s?: DrawContext, withCookie = false) => new Group(
   new Rectangle({ width: 0.35, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([-0.15, -0.1]),
   ...(withCookie && s ? [cookie(s, { at: [0.62, 0], r: 0.24 })] : []),
 );
-/** Parts of the last event, which leave before the next one's flight: its ticket, barrier and answer, the declined message, and the rack's empty notice. */
-const FRESH = ['answer:', 'ticket', 'barrier', 'message', 'rack:none'];
+/** Event output retires at the next event. The empty rack belongs to issuance. */
+const FRESH = ['answer:', 'ticket', 'barrier', 'message'];
+const ISSUE_FRESH = [...FRESH, 'rack:none'];
 
 // The agent's browser joining the Session, as a machine: each step of section 6 and each of the
 // attacker's tries is an event of the model; the picture is a view of its state; the last step is
@@ -95,7 +97,7 @@ export default class PoppyBrowser extends Scene {
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
     const world = view(this, (w, sh, drawing) => drawWorld(w, drawing, sh), { drawing: s.drawing, place: false });
 
-    const codeOf = (t: Transition<World, JoinEvent>) => {
+    const codeOf = (t: Pick<Transition<World, JoinEvent>, 'event' | 'after'>) => {
       const last = t.after.last;
       if (!last || !('code' in last)) throw new Error(`${t.event} left no code`);
       return shortCode(last.code);
@@ -112,16 +114,36 @@ export default class PoppyBrowser extends Scene {
       bound,
       end,
       views: [world],
-      runTime: ({ event }) => ({ fetch: 1.8, load: 2.6, authorize: 2.8, submit: 2.8, browse: 1.6, forge: 2.4, phish: 3.0 })[event],
+      motion: t => {
+        if (t.before.last?.event === 'phish') {
+          const nextTrip = t.event === 'forge' ? 'forged' : t.event === 'fetch' ? 'ticket:flight' : t.event === 'browse' ? 'request' : undefined;
+          if (nextTrip) return [{view: world, during: nextTrip, absent: ['message', 'message:note']}];
+        }
+        // A read duplicates information; the page remains available while the agent reads it.
+        if (t.event === 'authorize') return [{view: world, during: 'read', present: ['page:stub']}];
+        // A submitted form consumes its page stub. Cookies are information copies and have their
+        // own lifetime: the attacker's cookie stays readable while its request is sent.
+        if (t.event === 'submit') return [{view: world, during: 'carried', absent: ['page:stub']}];
+        if (t.event === 'phish') return [{view: world, during: 'carried:half', present: ['evil:half']}];
+        if (t.event !== 'load') return [];
+        const record = `row:${codeOf(t)}`;
+        const emptyRack = !!world.current.find('rack:none');
+        return [...(emptyRack ? ['request'] : []), 'page:stub:flight', 'shelf:join:flight'].map(during => ({
+          view: world, during, ...(during !== 'request' ? {present: [`${record}:stub`, `${record}:ring`]} : {}),
+          absent: emptyRack ? ['rack:none'] : [],
+        }));
+      },
+      runTime: ({ event }) => ({ fetch: 2.2, load: 4.15, authorize: 3.5, submit: 3.35, browse: 1.75, forge: 2.8, phish: 3.35 })[event],
       transition: {
         // The agent's own fetch: a ticket with its seal, and no key, on its own road.
         fetch: (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM]), { lead: AGENT_ROAD });
+          return beats(c, flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM]), { fresh: FRESH, lead: AGENT_ROAD });
         },
         // The browser asks for the join page; the code comes back into the page, then the cookie half down onto the shelf.
         load: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
+          // Make room in the rack before the new record occupies its slot.
           return beats(c, () => [
             ...pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.45, leave: 0.25 }),
             // The Company keeps its record of the new code before handing out the two halves.
@@ -129,15 +151,18 @@ export default class PoppyBrowser extends Scene {
             ...flight(c, 'page:stub', [[COUNTER_X - 1.2, ROAD_B], PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
             ...flight(c, 'shelf:join', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
             // A failed form's error page goes before the new code comes into the page, not under it.
-          ], { fresh: [...FRESH, 'page:error'], lead: BROWSER_ROAD });
+          ], { fresh: [...ISSUE_FRESH, 'page:error'], lead: [...BROWSER_ROAD, 'row:'] });
         },
         // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
         // pressed on the Company's stub only once the ticket lands, and covers the ring.
         authorize: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
           const read = codeSlip(s.drawing, { code: shortCode(t.after.page ?? '') });
+          const labels = [c.from('browser'), c.from('page:stub'), c.from('agent:name')].flatMap(part => part.family().filter((m): m is Text => m instanceof Text));
+          const from = readingPort(c.from('browser'), c.from('page:stub'), c.from('agent:name'), read);
+          const reading = clearRoute(from, SEAL_AT, read, labels, this.frame.box()!);
           return beats(c, () => [
-            ...pass(c, 'read', read, [[WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
+            ...pass(c, 'read', read, reading, { appear: 0.2, move: 0.75, leave: 0.2 }),
             ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM], { appear: 0.2, move: 0.9, leave: 0.2 })(),
           ], { fresh: FRESH, lead: AGENT_ROAD, then: ['barrier', `row:${id}:stamp`, `row:${id}:key`] });
         },
@@ -148,9 +173,9 @@ export default class PoppyBrowser extends Scene {
           const c = t.choreograph(world), id = codeOf(t);
           const joined = t.after.last?.event === 'submit' && t.after.last.answer.status === 303;
           return beats(c, () => {
-            const stubTrip = pass(c, 'carried', c.from('page:stub').copy(), [PAGE_AT, MEET_STUB], { appear: 0.2, move: 0.8, leave: 0.25 });
+            const stubTrip = carry(c, 'carried', 'page:stub', [PAGE_AT, MEET_STUB], { appear: 0.2, move: 0.8, leave: 0.25 });
             const halfTrip = pass(c, 'carried:half', c.from('shelf:join').copy(), [JOIN_AT, [SIDE_X, JOIN_AT[1]], [SIDE_X, ROAD_B], MEET_HALF], { appear: 0.2, move: 0.8, leave: 0.25 });
-            const away = [c.leave('page:stub', { runTime: 0.2 }), ...(!c.has('shelf:join', 'to') ? [c.leave('shelf:join', { runTime: 0.2 })] : [])];
+            const away = c.has('shelf:join', 'to') ? [] : [c.leave('shelf:join', {runTime: 0.2})];
             const seat = c.has(`row:${id}:half`, 'to') ? [new AnimationGroup([c.enter(`row:${id}:half`, {}, { runTime: 0.3 })])] : [];
             const back = joined ? flight(c, 'shelf:session', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, SESSION_AT[1]], SESSION_AT], { appear: 0.2, move: 0.6, leave: 0.25 })() : [];
             return [new AnimationGroup([...away, stubTrip[0]!, halfTrip[0]!]), ...together(stubTrip.slice(1), halfTrip.slice(1)), ...seat, ...back];
@@ -166,7 +191,10 @@ export default class PoppyBrowser extends Scene {
         forge: (t) => {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE);
           const token = codeSlip(s.drawing, { code: shortCode(ATTACK_CODE) });
-          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_SIDE_X, 0.95], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, [COUNTER_X - 0.75, ROAD_B]], { appear: 0.25, move: 1.3, leave: 0.2 }),
+          // A refused form stops before the painted stop. Reserve the complete slip footprint,
+          // not just its centre; an earlier crossing of the road remains part of the itinerary.
+          const forgedStop: Vec = [c.to('road:browser:stop').box()![0] - token.width() / 2 - 0.12, ROAD_B];
+          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_SIDE_X, 0.95], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, forgedStop], { appear: 0.25, move: 1.3, leave: 0.2 }),
             { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
         // A message brings the attacker's code to your agent along the bottom of the stage and stops beside it, declined.

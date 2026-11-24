@@ -4,7 +4,7 @@
 // the picture a fresh load of that URL draws. A button that disagrees with `outcome` fails.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Browser, Page } from 'playwright-core';
@@ -85,6 +85,37 @@ const landed = (page: Page, log: readonly string[]) =>
       !document.querySelector('svg.leaving') && !document.querySelector('#content.loading');
   }, encodeLog(log), { timeout: 30_000 });
 const picture = (page: Page) => page.locator('.stage svg:not(.leaving)').evaluate((svg) => svg.outerHTML);
+
+test('phone event controls precede the prose and keep the changed statechart in view', options, async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  try {
+    for (const step of ['parent', 'frother']) {
+      const s = subjects.find(x => x.id === 'statecharts' && x.step === step)!;
+      await page.goto(urlOf(s, []));
+      await page.waitForSelector('[data-ready=true]');
+      await landed(page, []);
+      assert.ok(await page.locator('.player > .live').count(), 'events sit below the picture navigation');
+      assert.equal(await page.locator('.live').evaluate(row => !!(row.compareDocumentPosition(document.querySelector('.words')!) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+      const button = page.locator('.live-events button[data-event="POWER_OFF"]');
+      await button.click();
+      await landed(page, ['POWER_OFF']);
+      const stage = await page.locator('.stage').boundingBox();
+      const event = await button.boundingBox();
+      assert.ok(stage && stage.y >= 0 && stage.y + stage.height <= 844, `${step}: changed picture remains on screen`);
+      assert.ok(event && event.y >= 0 && event.y + event.height <= 844, `${step}: pressed event remains on screen`);
+      if (step === 'frother') {
+        await mkdir('out/validation', { recursive: true });
+        await page.screenshot({ path: 'out/validation/live-controls-phone.png' });
+      }
+      await button.focus();
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.waitForSelector('.rail-body > .live');
+      assert.equal(await button.evaluate(b => document.activeElement === b), true, 'resizing preserves event focus');
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.waitForSelector('.player > .live');
+    }
+  } finally { await page.close(); }
+});
 /** The live row as the reader meets it: each button's event, kind, whether it is aria-disabled, and the reason it gives. */
 const buttons = (page: Page) => page.$$eval('.live-events button', (all) => all.map((b) => ({
   event: (b as HTMLElement).dataset.event!,

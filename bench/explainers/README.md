@@ -53,6 +53,22 @@ Conclusion: the player fixes removed the defects round 1 found, but not the reas
 
 ## Status after the final script rebuild
 
-The two rounds above evaluated earlier statecharts pages, not the final rebuilt scene in this PR. They establish neither success nor failure for that final page. No subsequent blind comparison or newcomer learning study is recorded. Gallery selection, passing rendering checks and evidence-link lint must not be reported as a benchmark win.
+The two rounds above evaluated earlier statecharts pages, not the final rebuilt scene in this PR. They establish neither success nor failure for that final page. Gallery selection, passing rendering checks and evidence-link lint must not be reported as a benchmark win. Round 3 below evaluates a fresh matched pair using the current live-machine capabilities; it does not measure newcomer learning or establish a verdict on the catalog scene.
 
 A new round must retain its pages, transcript, screenshots, manifest and reviewer report so it can be replayed. Compare the final statecharts page with a page built from the same script and author under the plain brief. Include phone use and unseen transfer reasoning. A knowledgeable model answering without the lesson is a prior-knowledge control, not a reason to replace transfer questions with instance trivia.
+
+### Round 3: statecharts, 19 November 2026
+
+Same approved script, one author model in two fresh isolated contexts, using the current unmodified builder and reviewer briefs. The plain builder worked outside this repository. Both pages were newly authored; the Rayner page uses the player at `f982dee`, including live event controls and committed predictions. [Retained round](round-3-2026-11-19/README.md) includes both pages, sources, contact sheets, transcripts, every captured phone/desktop step, filled briefs, seeded manifest, key, and reviewer evidence.
+
+| Author | Preferred | How decisively |
+| --- | --- | --- |
+| Codex, isolated contexts | Rayner (Y) | Slightly |
+
+The [fresh blind reviewer](round-3-2026-11-19/reviewer/primary-report.md) preferred Rayner's connected, directed diagrams and consistent visual structure through parents, regions and their composition. Plain had stronger side-by-side equivalence interaction, immediate feedback, a written state-naming exercise, shorter pacing and better placement of phone controls. Both required meaningful learner actions. The plain coffee diagrams' missing arrowheads and disconnected power-off connector decided the close comparison.
+
+The [unseen camera transfer supplement](round-3-2026-11-19/reviewer/transfer-supplement.md) correctly distinguishes independent choices inside on, independently powered choices, dependent choices inside recording, and re-entry through initial children. This is expert/model reasoning after reading both pages, not a learning measurement or evidence of which page caused understanding. The reviewer identified missing initial-child information in the exercise and gaps in both pages' drawings of changed boundaries.
+
+The primary report was frozen before the transfer exercise and before unblinding. Chromium policy blocked file URLs, so the reviewer served the identical pair files locally. This is one model author and one model judge, with no human newcomer study or prior-knowledge control. Method branding remained visible in the pages, so the assignment key was hidden but the method could be recognizable. The result concerns these artifacts, not a general advantage for either method.
+
+Follow-up in PR #112 moves narrow-page live controls directly below picture navigation, before the prose, addressing the reviewer's observation that a phone event press could leave its picture off-screen. The frozen round pages retain the evaluated layout; the follow-up is checked separately and does not alter this verdict.

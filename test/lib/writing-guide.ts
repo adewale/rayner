@@ -128,7 +128,7 @@ export const withoutNodeWarnings = (stderr: string) => stderr.replace(/^\(node:\
 /** `rayner check` as the guide runs it, from `folder`: its exit status and what it printed. */
 export function check(doc: string, folder: string) {
   const { name } = initCommand(doc);
-  const { status, stdout, stderr } = spawnSync(process.execPath, [CLI, 'check', `${name}/scene.ts`], { cwd: folder, encoding: 'utf8' });
+  const { status, stdout, stderr } = spawnSync(process.execPath, [CLI, 'check', `${name}/scene.ts`, '--json'], { cwd: folder, encoding: 'utf8' });
   return { status, stdout, stderr: withoutNodeWarnings(stderr) };
 }
 

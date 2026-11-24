@@ -35,7 +35,7 @@ export interface StepDescription {
   hold?: number;
   /** The step's local specimen when it has one; otherwise the model, `scene.state`, when the step ends. */
   state: SceneState;
-  /** What was shown apart from the model (`scene.shown`), when anything was; the picture is described in `picture`. */
+  /** Authored presentation apart from the model (`scene.shown`), when anything was; computed observations are in `derived`, and the picture in words in `picture`. */
   shown?: SceneState;
   /** Computed observations at rest; never fed back into the view draw. */
   derived?: SceneState;
@@ -50,7 +50,7 @@ export interface StepDescription {
   picture: string;
   /** The resting picture drawn as text (heading left out), when `drawings` asks for this step. */
   drawing?: string;
-  /** The events a machine replayed in this step, in order (`{ kind: 'event' }` evidence); absent when none. */
+  /** The events machines sent in this step, in order (`{ kind: 'event' }` evidence); absent when none. */
   events?: string[];
   /** The player's resolved prediction: answer is an option index, and reveal names the later step. */
   predict?: Pick<Prediction, 'prompt' | 'options' | 'answer' | 'reveal'>;

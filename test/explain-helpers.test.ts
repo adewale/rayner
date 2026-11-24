@@ -1101,3 +1101,42 @@ test('loadProject holds every scenario to the step rules the command holds', asy
   }
   await assert.rejects(loadProject(Twice, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): two steps of the scenario \{\} share the name "push", ignoring case/);
 });
+
+test('prepared diagram sources draw synchronously from state and reject a stale source picture', async () => {
+  const other = { ...spec, source: 'graph LR\nA -->|different| B' };
+  const changed = { ...fixture(), ...fixedSnapshot(other, fixture().parts, { palette: fixture().palette }) };
+  changed.parts = changed.parts.filter(p => p.id !== 'B');
+  const demo = (sync: boolean) => class Demo extends Scene {
+    override state = { changed: false };
+    override async construct() {
+      const s = stage(this, { style: 'nord' });
+      const before = this.time;
+      const draw = await s.prepareDiagrams([spec, other, spec]);
+      assert.equal(this.time, before, 'preparation does not play a hidden scene');
+      const first = draw(spec);
+      await s.clear();
+      const second = draw(spec);
+      assert.ok(second.family().some(m => m.key === 'B'), 'prepared sources survive clearing the stage');
+      assert.notEqual(first, second);
+      assert.ok(first.family().some(m => m.key === 'B'));
+      assert.ok(!draw(other).family().some(m => m.key === 'B'));
+      assert.throws(() => draw({ source: 'graph LR\nUnknown' }), /source was not declared/);
+      const v = view(this, st => draw(st.changed ? other : spec), { place: false });
+      this.add(v);
+      await this.step('change');
+      this.state.changed = true;
+      if (sync) await this.play(v.sync());
+      await this.step('done');
+      if (sync) assert.ok(!v.family().some(m => m.key === 'B'));
+    }
+  }
+  const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
+  for (const sync of [false, true]) {
+    const checks = new ViewSink();
+    const Bound = bindSnapshots(demo(sync), { [diagramKey(spec)]: fixture(), [diagramKey(other)]: changed });
+    await new Bound(new FanSink([new NullSink(), checks])).run();
+    assert.ok(checks.checked >= 2);
+    if (sync) assert.deepEqual(checks.problems, []);
+    else assert.ok(checks.problems.length > 0, 'rayner check must reject the retained old source');
+  }
+});

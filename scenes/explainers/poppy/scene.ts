@@ -1,18 +1,18 @@
 import { AnimationGroup, Scene } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { beats, flight, pass } from '../lib/poppy-kit.ts';
+import { beats, carry, flight, pass } from '../lib/poppy-kit.ts';
 import { POPPY_EVENTS, STORY, next, start } from './model.ts';
 import type { PoppyEvent, Scope, World } from './model.ts';
-import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, SEAL_AT, THIEF_FROM, documentToken, drawWorld, keyRoute, routeOf, sayWorld } from './picture.ts';
+import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, REQUEST_TOKEN_SCALE, SEAL_AT, THIEF_FROM, documentToken, drawWorld, keyRoute, routeOf, sayWorld } from './picture.ts';
 import type { Lane } from './picture.ts';
 
 /** What lights up before a ticket or a key sets off: the lanes' lines and names. */
 const LEAD = LANES.flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`]);
 /** What belongs to the last event, and goes before the next one moves: the ticket, the barrier, the answer, the step's object, the closed door. */
 const FRESH = ['answer:', 'ticket', 'barrier', 'exhibit:', 'door:'];
-/** A ticket travels as a token half its size, under the lane names, and gives way to the full ticket where it lands. */
-const TOKEN = { scale: 0.28 };
+/** A ticket travels as a compact token, under the lane names, and gives way to the full ticket where it lands. */
+const TOKEN = { scale: REQUEST_TOKEN_SCALE };
 /** The lane whose level run is at this height. */
 const laneOf = (y: number): Lane => LANES.find((name) => Math.abs(LANE_Y[name] - y) < 0.01)!;
 
@@ -82,6 +82,9 @@ export default class Poppy extends Scene {
     };
     const machine = new Machine<World, PoppyEvent>(this, {
       start: start(approves),
+      // The last picture keeps the signed-out Session; the reader's own errand
+      // starts before discovery, so every step of the promised protocol is available.
+      liveStart: 'start',
       events: POPPY_EVENTS,
       labels: {
         discover: 'Read poppy.json', cart: 'Add to cart', browse: 'Browse the site', chat: 'Ask about sizes',
@@ -89,7 +92,21 @@ export default class Poppy extends Scene {
       },
       next,
       views: [world],
-      runTime: ({ event }) => (event === 'sign-out' ? 1.6 : event === 'discover' ? 2.4 : 2.1),
+      motion: ({event, before, after}) => {
+        // These objects explain one completed event. Even an unchanged word belongs to that
+        // event, while the station and counter remain the reference for the next journey.
+        const absent = ['exhibit:asked', 'exhibit:mark', 'exhibit:name', 'exhibit:gloss', 'answer:phrase', 'answer:meaning'];
+        const present = ['agent:name', 'counter:sign'];
+        if (event === 'discover' && !before.found)
+          return [{view: world, during: 'document', present, absent: [...absent, 'door:barrier', 'door:words']}];
+        if (after.last?.kind === 'request')
+          return [{view: world, during: 'ticket:flight', present: [...present, ...LANES.map(name => `lane:${name}:name`)], absent}];
+        if (event === 'sign-in' || event === 'sign-out')
+          return [{view: world, during: event === 'sign-in' ? 'agent:key:flight' : 'agent:key:return', present, absent,
+            clearText: ['counter:sign', ...LANES.map(name => `lane:${name}:name`)]}];
+        return [];
+      },
+      runTime: ({ event }) => (event === 'sign-out' ? 2.1 : event === 'discover' ? 2.7 : event === 'exchange' || event === 'thief' ? 2.5 : 2.2),
       transition: {
         // poppy.json crosses from the Company to the agent, and then the lanes it lists are drawn.
         discover: (t) => {
@@ -117,8 +134,9 @@ export default class Poppy extends Scene {
         'sign-out': (t) => {
           const c = t.choreograph(world);
           return beats(c, () => {
-            const back = pass(c, 'agent:key:return', c.from('agent:key').copy().scale(0.5), [...keyRoute()].reverse(), { appear: 0.2, move: 0.9, leave: 0.25 });
-            return [new AnimationGroup([c.leave('agent:key', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];
+            return carry(c, 'agent:key:return', 'agent:key', [...keyRoute()].reverse().slice(1), {
+              token: c.from('agent:key').copy().scale(0.5), appear: 0.2, move: 0.9, leave: 0.25,
+            });
           }, { lead: LEAD, fresh: FRESH });
         },
       },

@@ -153,7 +153,7 @@ export default class Henge extends Scene {
     const sweep = view(this, (st, _shown, drawing) => year(having(st, 'longitude'), dayAt, drawing), { drawing: s.drawing, place: false });
     s.opening(sweep);
     await s.enter(sweep, { runTime: 0.24, describe: () => yearWords(having(this.state, 'longitude'), dayAt) });
-    await this.play(sweep.tween((t) => ({ ...start, longitude: start.longitude + (270 - start.longitude) * t }), { runTime: 9, rateFunc: linear }));
+    await this.play(sweep.tween((t) => ({ ...start, longitude: start.longitude + (270 - start.longitude) * t }), { runTime: 4.5, rateFunc: linear }));
 
     await s.steps(crossingsStep);
     await s.steps(details);

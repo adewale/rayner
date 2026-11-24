@@ -72,7 +72,10 @@ export function drawOffered(st: SentenceState, c: Ink): Group {
     header.add(new Text(`R${i + 1}`, { fontSize: 0.26, color: c.ink }).moveTo([x0 + i * pitch, 2.05])),
   );
   header.add(new Text('Request', { fontSize: 0.26, color: c.soft, anchor: 'start' }).moveTo([labelX, 2.05], [-1, 0]));
-  const key = new Text('circle: 200, accepted · cross: 429, refused · a request needs 1 token', { fontSize: 0.22, color: c.soft }).moveTo([0, -3.2]);
+  const key = new Group(
+    new Text('circle: 200, accepted · cross: 429, refused', { fontSize: 0.22, color: c.soft }).moveTo([0, -3.05]),
+    new Text('a request needs 1 token', { fontSize: 0.22, color: c.soft }).moveTo([0, -3.5]),
+  );
   return new Group(
     keyed(header, 'fork-header'),
     ...offered.map((r, i) => rateRow(r, i, c)),

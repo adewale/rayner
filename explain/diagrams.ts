@@ -396,6 +396,7 @@ export class Diagram {
     spec: DiagramSpec,
     snapshot: DiagramSnapshot,
     { box: where = 'full' }: ShowOptions = {},
+    complete = false,
   ) {
     made.set(scene, diagramsOn(scene) + 1);
     const box = regionBox(where);
@@ -509,6 +510,11 @@ export class Diagram {
     if (snapshot.family === 'gitgraph')
       this.#order.sort((a, b) => this.get(a).center()[0] - this.get(b).center()[0]);
     for (const p of all) this.base.set(p.info.id, p.mob.family().map((m) => ({ ...m.style })));
+    // Prepared sources stay detached, with every captured part available to a synchronous draw.
+    if (complete) {
+      this.#root.add(...all.map(p => p.mob));
+      this.#visible = new Set(this.#parts.keys());
+    }
   }
 
   /** The verifier's warnings for this diagram, each with the `part` id it names (see `diagramFindings`). */

@@ -14,7 +14,7 @@
 import { Mobject, Group, adoptState, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Enclosing, Transform, knownTransform } from '../src/animation.ts';
+import { Animation as BaseAnimation, Enclosing, Transform, knownTransform } from '../src/animation.ts';
 import type { Animation } from '../src/animation.ts';
 import { linear } from '../src/rate.ts';
 import { Follow, stateTarget } from './state.ts';
@@ -44,11 +44,13 @@ export interface ViewOptions {
 
 /** How sync() runs: a play's options, and how it morphs. */
 export interface SyncOptions extends PlayOptions {
+  /** Replace the complete picture by fading out then in, without shrinking unmatched parts. */
+  how?: 'morph' | 'fade';
   /**
    * How the old picture's parts pair with the new one's, as a Transform's `match` pairs them
    * (see Match): by glyph, by shape, by position in the family, by the keys the picture's parts
-   * carry, or by your own key. Default 'key': parts pair by the keys the picture gives them. A
-   * 'key' sync whose pictures carry no keys below their roots is refused; key the parts, or say
+   * carry, or by your own key. Default 'key': parts pair by the keys the picture gives them,
+   * with changed keyed words replaced whole. A 'key' sync whose pictures carry no keys below their roots is refused; key the parts, or say
    * 'text', 'shapes' or 'index'.
    */
   match?: Match;
@@ -232,6 +234,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   view: View<M, any, any>;
   match: Match;
   staged: boolean;
+  how: 'morph' | 'fade';
   /** @internal Set as it begins: the morph from the current picture to the built one, or null when points and paint agree. */
   inner!: Animation | null;
   /** The new picture, including data a morph cannot interpolate. */
@@ -242,9 +245,10 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
   private fit!: ViewPlacement;
 
-  constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOptions = {}) {
+  constructor(v: View<M, any, any>, { match = 'key', staged = true, how = 'morph', ...opts }: SyncOptions = {}) {
     super(v, opts);
-    this.view = v; this.match = match; this.staged = staged;
+    if (how !== 'morph' && how !== 'fade') throw new RangeError("view.sync(): how must be 'morph' or 'fade'");
+    this.view = v; this.match = match; this.staged = staged; this.how = how;
   }
 
   protected override enclose(): Animation | null {
@@ -253,13 +257,15 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
     this.fit = fit;
     this.inner = null; this.next = next; this.beforeStill = null; this.stillAtEnd = false;
     if (samePicture(old, next)) return null;
+    if (this.how === 'fade') return this.inner = new PictureFade(v, old, next);
     const match = this.match;
     if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
     // morph's own time is linear: this sync's rate function eases it.
     const staged = this.staged, rateFunc = linear;
+    const transformMatch: Match = match === 'key' ? { by: 'key', text: 'whole' } : match;
     const inner = match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
-      : new Transform(old, next, { match, replace: false, staged, rateFunc });
+      : new Transform(old, next, { match: transformMatch, replace: false, staged, rateFunc });
     inner.lagRatio = this.lagRatio;
     this.inner = inner;
     return inner;
@@ -305,6 +311,30 @@ export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   }
 }
 
+/** Fade each drawable family member by the same envelope, preserving its original dimming. */
+class PictureFade extends BaseAnimation {
+  private readonly opacity: [Mobject, number][][];
+  private readonly view: View;
+  private readonly next: Mobject;
+  constructor(view: View, old: Mobject, next: Mobject) {
+    super(view, { rateFunc: linear });
+    this.view = view; this.next = next;
+    this.opacity = [old, next].map(root => root.family().map(member => [member, member.style.opacity ?? 1]));
+  }
+  protected override doBegin(): void { this.view.add(this.next); this.doInterpolate(0); }
+  protected override doInterpolate(t: number): void {
+    for (const [i, family] of this.opacity.entries()) for (const [member, alpha] of family)
+      member.setStyle({ opacity: alpha * Math.max(0, i ? 2 * t - 1 : 1 - 2 * t) }, false);
+  }
+  protected override doFinish(end = 1): void {
+    this.doInterpolate(end);
+    if (end !== 1) {
+      this.view.remove(this.next);
+      for (const family of this.opacity) for (const [member, alpha] of family) member.setStyle({opacity: alpha}, false);
+    }
+  }
+}
+
 /**
  * A sampled model and its dependent views: one Follow draws every view over t from 0 to 1,
  * writing the pictures on screen when it begins. A preceding sync can swap in a new picture;
@@ -318,9 +348,12 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   private placements!: ViewPlacement[];
   /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
+  /** The call a refusal names: view.tween() or tweenState(). */
+  private readonly call: string;
 
   constructor(host: SceneInputs<S, Sh>, views: readonly View<Mobject, S, Sh>[], stateAt: (t: number) => S, opts: TweenOptions, call: string) {
     super(views[0]!.current, opts);
+    this.call = call;
     this.host = host;
     this.views = views;
     this.draw = (t) => {
@@ -341,7 +374,7 @@ class StateTween<S extends object, Sh extends object> extends Enclosing {
   /** The Follow's own time is linear: this tween's rate function eases it. */
   protected override enclose(): Follow {
     const targets = this.views.map((v) => v.current), members = targets.flatMap((m) => m.family());
-    if (new Set(members).size !== members.length) throw new Error('tweenState(): views overlap; list independent views, not a view and one inside it');
+    if (new Set(members).size !== members.length) throw new Error(`${this.call}: views overlap; list independent views, not a view and one inside it`);
     this.placements = this.views.map(v => v.placement());
     this.mobject = targets[0]!;
     return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets, rateFunc: linear }));

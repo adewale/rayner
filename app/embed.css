@@ -69,6 +69,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .stage.narrow{aspect-ratio:auto;height:clamp(calc(100cqw * 9 / 16),var(--stage-narrow-max),calc(100cqw * var(--stage-narrow-aspect,1.25)))}
 .stage{position:relative;min-width:0;aspect-ratio:16/9;overflow:hidden;background:var(--surface);touch-action:pan-y}
 .stage svg{width:100%;height:100%;display:block}
+.stage [data-reader-clipped]{visibility:hidden}
 .stage svg.glide{transition:transform 220ms var(--ease-out)}
 .stage.zoomed{touch-action:none;cursor:grab}
 .stage.zoomed:active{cursor:grabbing}
@@ -94,7 +95,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .overview .part{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 .overview .view{box-shadow:inset 0 0 0 1.5px var(--fg);border-radius:1px;transition:left 220ms var(--ease-out),top 220ms var(--ease-out)}
 @keyframes leave{to{opacity:0}}
-/* A live step's events (docs/MACHINES.md, "The player"), under the caption. A
+/* A live step's events (docs/MACHINES.md, "The player"), beside or directly below the picture. A
    refused event stays focusable and dimmed, one past the story's end is dashed, and each says why
    on hover and on focus; the line under them says what the last event did. */
 .live{display:grid;gap:8px;padding:6px 0 4px}
@@ -127,6 +128,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .predict-reveal p[data-outcome=wrong]::before{content:"\2717\00a0"}
 .rail-body>.predict{margin:0 0 12px}
 .rail-body>.live{padding:8px 10px 12px;margin-block-end:8px;border-block-end:1px solid var(--line)}
+.player>.live{padding:12px var(--inset);border-block-end:1px solid var(--line)}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
 .caption,.caption-ruler{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
@@ -134,8 +136,8 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    own width), so what follows it, the picture's description and the tools, never moves as the
    reader steps; a short caption leaves room below it instead. */
 .words>.caption{min-height:var(--caption-h,0px)}
-/* A prediction or live row under the caption (a narrow page) answers it, so it sits under the caption's words, not under the tallest caption's reserve; the caption still starts where it always does. */
-.words>.caption:has(~ .predict:not([hidden])),.words>.caption:has(~ .live:not([hidden])){min-height:0}
+/* Interactive steps need their own caption's words, without the tallest caption's reserve. */
+.words>.caption:has(~ .predict:not([hidden])),.player:has(>.live:not([hidden]))>.words>.caption{min-height:0}
 .caption-ruler{position:absolute;top:0;left:0;min-height:0;visibility:hidden;pointer-events:none}
 .lede-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
 /* The step's heading on every width: "Step 3 of 4", the title, then the line. */

@@ -60,6 +60,10 @@ test('palette cues validate all thirteen palettes in both themes and reject unsa
       count++;
     }
   assert.equal(count, 26);
+  // The documented opaque stage palette keeps its own contrast in either chrome theme.
+  const blueprint=PALETTES.blueprint!;
+  assert.ok(ratio(blueprint.ink,blueprint.paper)>=7);
+  assert.ok(ratio(blueprint.muted,blueprint.paper)>=4.5);
   for (const bad of ['#777', '#fff0', 'red', '#fff;}body{display:none']) {
     const props = playerProperties(
       { accent: true, paper: true },

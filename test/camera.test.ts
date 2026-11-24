@@ -254,7 +254,7 @@ test('cull: true leaves out what the camera cannot show; off by default', async 
   assert.equal(renderElements(scene, { cull: true }).length, 5);
 });
 
-test('cull: a stroke reaching into the view is kept; a sliver under 2 output pixels is not', () => {
+test('cull: a stroke and a subpixel sliver reaching into the view are both kept', () => {
   const s = new Scene(new NullSink());
   // View x in [-2, 2] (4 units across 1280 px, so 1 px = 1/320 unit). The rectangle's right
   // edge is at -2.05, but its 0.3-wide stroke reaches -1.9: 32 px into the view.
@@ -265,16 +265,16 @@ test('cull: a stroke reaching into the view is kept; a sliver under 2 output pix
   s.frame.fit([-2, -1.125, 2, 1.125] as Box, { margin: 0 });
   const ids = renderElements(s, { cull: true }).map((r) => r.id);
   assert.ok(ids.includes(mobjectId(stroked)), 'the visible stroke was culled');
-  assert.ok(!ids.includes(mobjectId(sliver)), 'the half-pixel sliver was kept');
+  assert.ok(ids.includes(mobjectId(sliver)), 'visible ink cannot be discarded at a pixel threshold');
 });
 
-test('cull: 2 pixels of the output width, so a wider output keeps a thinner strip', () => {
+test('cull: a visible edge strip is kept at every output width', () => {
   const s = new Scene(new NullSink());
   // Home camera, 16 units wide: a strip 0.02 units wide is 1.6 px at 1280 and 4.8 px at 3840
   const strip = new Rectangle({ width: 1, height: 1, stroke: 'none', fill: '#fff', fillOpacity: 1 }).moveTo([-8.5 + 0.02, 0]);
   s.add(strip);
-  assert.ok(!renderElements(s, { cull: true }).some((r) => r.id === mobjectId(strip)), 'under 2 px at the default 1280');
+  assert.ok(renderElements(s, { cull: true }).some((r) => r.id === mobjectId(strip)), '1.6 px at the default 1280 remains visible');
   assert.ok(renderElements(s, { cull: true, width: 3840 }).some((r) => r.id === mobjectId(strip)), '4.8 px at 3840 is kept');
-  assert.equal(toSvgString(s, { cull: true }).match(/<path/g)?.length ?? 0, 0);
+  assert.equal(toSvgString(s, { cull: true }).match(/<path/g)?.length ?? 0, 1);
   assert.equal(toSvgString(s, { cull: true, width: 3840 }).match(/<path/g)?.length ?? 0, 1, 'toSvgString culls for its own width');
 });

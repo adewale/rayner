@@ -48,12 +48,12 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     }
     // What it starts from: a model that refuses with reasons, a view of the state, and a live last step.
     assert.match(readFileSync(join(dir, 'model.ts'), 'utf8'), /refuse\('the door is locked, so unlock it first'\)/);
-    const report = JSON.parse(execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', join(folder, 'checks')], { encoding: 'utf8' }));
+    const report = JSON.parse(execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--json', '--out', join(folder, 'checks')], { encoding: 'utf8' }));
     // check runs the model test beside the scene, which imports rayner: from a folder that installs
     // no Rayner, the Rayner running the check.
     assert.deepEqual(report.model, { file: join(dir, 'model.test.ts'), tests: 2, passed: 2 });
     const scenario = report.scenarios[0];
-    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3, observations: 3 }]);
+    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3, observations: 3, presentations: 3, transitions: 4 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
     assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is not an option of rayner check; use it with rayner init/);
@@ -64,7 +64,7 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
 
 /** `rayner check` on a folder, as a reader of its output sees it: the exit status and what it printed. */
 const checkFolder = (dir: string, out: string) => {
-  const { status, stdout, stderr } = spawnSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', out], { encoding: 'utf8' });
+  const { status, stdout, stderr } = spawnSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--json', '--out', out], { encoding: 'utf8' });
   return { status, stdout, stderr: withoutNodeWarnings(stderr) };
 };
 /** The labels of a script's intent header, in order. */

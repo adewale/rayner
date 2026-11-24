@@ -89,7 +89,9 @@ static meta = {
 // In construct(): stage(this, { style: 'pen-and-ink' })
 ```
 
-The registry accepts `inter`, `eb-garamond`, `jetbrains-mono`, `noto-naskh-arabic`, `noto-sans-devanagari`, `noto-sans-hebrew` and `noto-sans-sc` for `sans` or `mono`, and rejects any other face. A face does not add scripts: Greek text in a replacement face must still request `Grek`. Only faces under the SIL Open Font License 1.1 or the Apache License 2.0 may be in the registry. Capture checks each face's notice, and every check and build from a snapshot checks the stored notices again, so a face under another licence fails the build. Latin Modern Math, for `MathTex` (`math: true`), is the one exception (GUST Font License); its source checksum and notice are checked before subsetting.
+`source-sans-3` is a second sans option for a series, with regular, bold, italic and bold italic cuts. For example, use `meta.lettering: {faces:{sans:'source-sans-3'},styles:['bold','italic']}` and capture its snapshot. Its source is pinned to @fontsource 5.3.0 under the OFL. The capture test compares all four cuts with the source font's independent HarfBuzz output. Recheck the phone layout when changing faces; the same em size can have different widths and x-height.
+
+The registry accepts `inter`, `source-sans-3`, `eb-garamond`, `jetbrains-mono`, `noto-naskh-arabic`, `noto-sans-devanagari`, `noto-sans-hebrew` and `noto-sans-sc` for `sans` or `mono`, and rejects any other face. A face does not add scripts: Greek text in a replacement face must still request `Grek`. Only faces under the SIL Open Font License 1.1 or the Apache License 2.0 may be in the registry. Capture checks each face's notice, and every check and build from a snapshot checks the stored notices again, so a face under another licence fails the build. Latin Modern Math, for `MathTex` (`math: true`), is the one exception (GUST Font License); its source checksum and notice are checked before subsetting.
 
 ## Diagram measurements
 

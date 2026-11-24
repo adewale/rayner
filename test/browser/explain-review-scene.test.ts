@@ -52,15 +52,26 @@ test('an outside author reviews every served scenario and width; a false caption
     assert.equal(createHash('sha256').update(artifact).digest('hex'), result.artifactHash);
     assert.ok((await readFile(result.artifact + '.headers.json', 'utf8')).includes('Content-Security-Policy'));
     assert.ok((await readFile(join(folder, 'public', 'loader.js'), 'utf8')).length);
+    assert.equal(result.embedFile, join(folder, 'public', 'answer.embed.json'));
+    assert.deepEqual(JSON.parse(await readFile(result.embedFile, 'utf8')), result.embedSize);
+    assert.deepEqual(Object.keys(result.embedSize.heights).sort(), ['390', '640', '900']);
     assert.equal(result.scenarios, 2);
     assert.equal(result.stepWidths, 4);
+    assert.equal(result.framedStepWidths, 2);
+    assert.ok(result.results.every(c => c.framedSteps.every(s => s.minimumLabelPxWholeStage !== null && s.minimumLabelPxWholeStage > 0)));
+    assert.ok(result.results.every(c => c.framedSteps.every(s => s.maximumTourOverlap === 0 && s.partiallyVisibleLabels.length === 0)));
+    assert.deepEqual(result.results.map(c => c.framedSteps.map(s => s.width)), [[390], [390]]);
+    assert.ok(existsSync(join(output, '0', 'framed', 'one.390.png')));
     assert.deepEqual(result.results.map(c => c.steps.map(s => s.width)), [[390, 1180], [390, 1180]]);
     assert.deepEqual(result.consoleErrors, []);
     assert.deepEqual(result.runtimeConnections, []);
+    const stale = [join(output, '0', 'one.390.view99.png'), join(output, '0', 'framed', 'one.390.view99.png')];
+    for (const file of stale) await writeFile(file, 'old screenshot');
     await writeFile(claims, JSON.stringify({ version: 2, subjects: [{ step: 'one', targets: [{ text: 'Missing answer' }] }] }));
     await assert.rejects(reviewScene(project, output), /story target Missing answer is missing/);
     await assert.rejects(readFile(join(output, 'review.json')), { code: 'ENOENT' });
     assert.deepEqual(await readFile(published), artifact, 'a failed review preserves the last reviewed page');
+    for (const file of stale) await assert.rejects(readFile(file), { code: 'ENOENT' });
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
@@ -79,9 +90,9 @@ test('companion claims bind to actual scene ink', async () => {
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
-test('trust-proxy range comparisons retain all factual subjects and review every list request at both widths', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for range comparison tours' }, async () => {
+test('trust-proxy retains the framed CDN label and every list request’s factual subjects at both widths', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for range comparison tours' }, async () => {
   const { ROOT } = await import('../../tools/lib/explain-project.ts');
-  const { buildExplainer } = await import('../../tools/lib/explain-build.ts');
+  const { buildExplainer, buildLoader } = await import('../../tools/lib/explain-build.ts');
   const { serve } = await import('../../tools/lib/explain-serve.ts');
   const { launch } = await import('../../tools/lib/browser.ts');
   const { reviewStoryScenario} = await import('../../tools/lib/explain-story-review.ts');
@@ -93,6 +104,7 @@ test('trust-proxy range comparisons retain all factual subjects and review every
     assert.equal(project.scenarios.length, 12);
     const claims = await reviewSubjects(project);
     await buildExplainer(project, join(folder, 'scene.html'));
+    await buildLoader(join(folder, 'loader.js'));
     server = await serve(folder, 0, 'scene.html');
     browser = await launch();
     const page = await browser.newPage();
@@ -102,6 +114,10 @@ test('trust-proxy range comparisons retain all factual subjects and review every
       const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([key, value]) => scenario.values[key] === value));
       const frames = await storyFrames(scenario.Scene, applicable);
       assert.ok(frames.get('ranges'));
+      if (index === 0) {
+        const framed = await reviewStoryScenario(page, server.url + '/scene.html', scenario, claims, undefined, undefined, true);
+        assert.deepEqual(framed.map(r => [r.step, r.width]), scenario.trace.steps.map(s => [s.step, 390]));
+      }
       if (scenario.values.trust !== 'list') continue;
       const output = join(folder, String(index));
       const { mkdir } = await import('node:fs/promises');
@@ -151,6 +167,26 @@ test('trust-proxy range subjects contain both settings and all six independently
   }
 });
 
+test('certificate timeline titles and smaller dates remain complete in standalone and framed phone tours', {skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for mixed-size timeline tours'}, async () => {
+  const {ROOT} = await import('../../tools/lib/explain-project.ts');
+  const {buildExplainer,buildLoader} = await import('../../tools/lib/explain-build.ts');
+  const {serve} = await import('../../tools/lib/explain-serve.ts');
+  const {launch} = await import('../../tools/lib/browser.ts');
+  const {reviewStoryScenario} = await import('../../tools/lib/explain-story-review.ts');
+  const folder=await mkdtemp(join(tmpdir(),'rayner-timeline-tour-'));
+  let server: Awaited<ReturnType<typeof serve>>|undefined, browser: Awaited<ReturnType<typeof launch>>|undefined;
+  try {
+    const project=await collectProject(join(ROOT,'scenes/explainers/cert-renewal'),{write:false});
+    await buildExplainer(project,join(folder,'scene.html'));await buildLoader(join(folder,'loader.js'));
+    server=await serve(folder,0,'scene.html');browser=await launch();
+    const page=await browser.newPage(), scenario=project.scenarios[0]!, claims=await reviewSubjects(project);
+    const standalone=await reviewStoryScenario(page,server.url+'/scene.html',scenario,claims);
+    const framed=await reviewStoryScenario(page,server.url+'/scene.html',scenario,claims,undefined,undefined,true);
+    assert.deepEqual(standalone.filter(r=>r.step==='limit').map(r=>r.width),[390,1180]);
+    assert.deepEqual(framed.map(r=>[r.step,r.width]),scenario.trace.steps.map(s=>[s.step,390]));
+  } finally {await browser?.close();server?.close();await rm(folder,{recursive:true,force:true});}
+});
+
 
 test('dictionary review retains six claim sets and checks four main openings plus two reference steps', async () => {
   const {ROOT} = await import('../../tools/lib/explain-project.ts');
@@ -165,4 +201,51 @@ test('dictionary review retains six claim sets and checks four main openings plu
     assert.deepEqual(openings.filter(o => !o.reviewed).map(o => [o.step, o.reason]),
       [['hash', 'detail-step'], ['collision', 'detail-step']]);
   }
+});
+
+test('framed review rejects paint hidden only inside the loader iframe', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for iframe paint controls' }, async () => {
+  const { buildExplainer, buildLoader } = await import('../../tools/lib/explain-build.ts');
+  const { serve } = await import('../../tools/lib/explain-serve.ts');
+  const { launch } = await import('../../tools/lib/browser.ts');
+  const { reviewStoryScenario } = await import('../../tools/lib/explain-story-review.ts');
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-framed-poison-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    await writeFile(join(directory, 'scene.ts'), source);
+    const project = await collectProject(directory, { write: false });
+    await buildExplainer(project, join(directory, 'scene.html'));
+    await buildLoader(join(directory, 'loader.js'));
+    server = await serve(directory, 0, 'scene.html');
+    const page = await browser.newPage();
+    const scenario = project.scenarios[0]!;
+    const claims = [{ step: 'one', targets: [{ text: 'Answer' }] }];
+    const baseline = await reviewStoryScenario(page, server.url + '/scene.html', scenario, claims, undefined, undefined, true);
+    assert.deepEqual(baseline.map(r => [r.step, r.width]), [['one', 390]]);
+    await page.addInitScript(() => {
+      if (window.parent === window) return;
+      document.addEventListener('rayner:step', () => {
+        const svg = document.querySelector<SVGElement>('.stage svg');
+        if (svg) svg.style.opacity = '0';
+      });
+    });
+    assert.equal((await reviewStoryScenario(page, server.url + '/scene.html', scenario, claims)).length, 2);
+    await assert.rejects(reviewStoryScenario(page, server.url + '/scene.html', scenario, claims, undefined, undefined, true), /hidden|paint|subject|ink/i);
+  } finally {
+    await browser.close(); server?.close(); await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('phone whole-picture measurements use the Whole picture control independently of the opening close-up', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for whole-picture measurements' }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-whole-label-'));
+  try {
+    const small = source.replace("new Text('Answer',{color:s.look.ink})", "new Text('Answer',{color:s.look.ink,fontSize:0.3})");
+    assert.notEqual(small, source);
+    await writeFile(join(directory, 'scene.ts'), small);
+    const result = await reviewScene(await collectProject(directory, { write: false }), join(directory, 'review'));
+    const phone = result.results.flatMap(c => [...c.steps.filter(s => s.width === 390), ...c.framedSteps]);
+    assert.equal(phone.length, 4);
+    assert.ok(phone.every(s => s.minimumLabelPxWholeStage !== null && s.minimumLabelPxWholeStage < 10), JSON.stringify(phone));
+    assert.ok(existsSync(join(directory, 'review', '0', 'one.390.whole.png')));
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

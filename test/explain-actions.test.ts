@@ -239,7 +239,7 @@ test('an action that waits, made in a machine transition, plays there: the play 
   const scene = Object.assign(bare, { state: { n: 0 } });
   const v = view(scene, (st: { n: number }) => new Circle({ radius: 0.5 + st.n / 10 }));
   let shown: ReturnType<typeof s.show> | null = null;
-  const m = new Machine(scene, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => (shown = s.show(spec)) } });
+  const m = new Machine(scene, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], runTime: 3, transition: { UP: () => (shown = s.show(spec)) } });
   scene.add(v);
   await scene.play(m.send('UP'));
   assert.ok(shown!.value instanceof Diagram && scene.mobjects.includes(shown!.value.root));
@@ -270,7 +270,7 @@ test('what an action or a machine transition makes as its turn comes has one wri
   scene.add(v);
   const ring = new Circle({ radius: 2 });
   scene.add(ring);
-  const m = new Machine(counting, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => new AnimationGroup([v.sync(), new Transform(ring, new Circle({ radius: 1 }))]) } });
+  const m = new Machine(counting, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], runTime: 1, transition: { UP: () => new AnimationGroup([v.sync(), new Transform(ring, new Circle({ radius: 1 }))]) } });
   await assert.rejects(scene.play(m.send('UP'), new FadeOut(ring)), (e) => e instanceof Error && e.message.startsWith('machine.send("UP"): ') && ['a Transform', 'a FadeOut', 'a Circle'].every((v) => e.message.includes(v)));
   // Sequenced, the same writers are fine: the beat, then the FadeOut.
   const f = new Circle();

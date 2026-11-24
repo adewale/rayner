@@ -696,3 +696,22 @@ export function pass(c: Choreography, id: string, token: Mobject, via: readonly 
   const walk = c.travel(id, token.moveTo(via[0]!), route(via[0]!, ...via.slice(1)), { appear, move, leave });
   return [walk.appear, walk.move, walk.leave];
 }
+
+/**
+ * Carry one existing object away from its source. The source leaves as the traveller appears.
+ * Supply a travel representation when the resting part is too detailed. With `to`, the route
+ * ends at that target's centre and the traveller gives way to it. Otherwise its final waypoint
+ * is the drop-off, and the caller can restore a borrowed source on a later beat.
+ */
+export function carry(c: Choreography, id: string, from: string, via: readonly Vec[],
+  { token, to, appear = 0.25, move = 0.9, leave = 0.25 }: Omit<FlightTiming, 'scale'> & { token?: Mobject; to?: string } = {}): Beat[] {
+  const source = c.from(from);
+  const destination = to === undefined ? undefined : c.to(to);
+  const start = source.center() as Vec;
+  const points = destination ? [...via, destination.center() as Vec] : via;
+  if (!points.length) throw new RangeError('carry(): give a drop-off point or destination key');
+  const trip = c.travel(id, token ?? source, route(start, ...points), {appear, move, leave});
+  const departure = new AnimationGroup([c.leave(from, {runTime: appear}), trip.appear]);
+  const arrival = to === undefined ? trip.leave : new AnimationGroup([trip.leave, c.enter(to, {}, {runTime: leave})]);
+  return [departure, trip.move, arrival];
+}

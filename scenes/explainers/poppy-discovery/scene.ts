@@ -103,7 +103,12 @@ export default class PoppyDiscovery extends Scene {
       },
       next,
       views: [world],
-      runTime: ({ event, after }) => (event !== 'check' ? 0.35 : after.ran === 1 ? 1.5 : after.ran === 2 ? 0.75 : 1.0),
+      // Fetching reads this address and this shop. The settled document is a result of
+      // the trip, so it must not already be on the pavement (or board) in transit.
+      motion: ({ event, after }) => event === 'check' && after.ran === 1 ? [{
+        view: world, during: 'sheet:token', present: ['url:host', 'url:path', 'shop:name', 'shop:door'], absent: ['sheet'],
+      }] : [],
+      runTime: ({ event, after }) => (event !== 'check' ? 0.7 : after.ran === 1 ? 1.95 : after.ran === 2 ? 1.35 : 1.55),
       transition: {
         check,
         // Choosing a server is a cut to another shop: the last run's parts go, the fascia's name is replaced.

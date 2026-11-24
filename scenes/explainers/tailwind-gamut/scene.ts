@@ -203,7 +203,7 @@ export default class TailwindGamutExplainer extends Scene {
       caption: `Each spoke is one of Tailwind’s ${n} coloured families at shade ${shade}, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, its sRGB edge. A single chroma cutoff would not work: the limit depends on lightness and hue together. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
     });
     await s.clear();
-    const d = await s.show({ source: radar(all, [srgbCurve, twCurve], CHROMA) }, { box: 'main', build: 'frame' });
+    const d = await s.show({ source: radar(all, [srgbCurve, twCurve], CHROMA) }, { box: 'main', build: 'frame', runTime: 0.55 });
     await d.reveal(['curve:srgb']);
     await column(
       d,

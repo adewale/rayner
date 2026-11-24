@@ -1,6 +1,6 @@
 import { blendPaint, contrastRatio, isHex, parseColor } from '../src/color.ts';
-import { Text } from '../src/index.ts';
-import type { Box, Mobject, Scene } from '../src/index.ts';
+import { Text, Mobject } from '../src/index.ts';
+import type { Box, Scene } from '../src/index.ts';
 import { center } from '../src/box.ts';
 import type { Palette } from '../src/color.ts';
 import type { Description } from './trace.ts';
@@ -133,13 +133,16 @@ export function newlyEmphasised(now: ReadonlyMap<Mobject, string>, was: Readonly
   return new Map([...now].filter(([m, what]) => was.get(m) !== what && before.get(emphasisAddress(m)) !== what));
 }
 
-const openingSubjects = new WeakMap<Scene, readonly Mobject[]>();
+const openingSubjects = new WeakMap<Scene, readonly Mobject[] & {zoom?: number}>();
 /** The objects a reader must compare together before exploring the details.
  * This selects an opening; it neither removes artwork nor changes its scale. */
-export function opening(scene: Scene, ...subjects: Mobject[]): void {
-  openingSubjects.set(scene, [...subjects]);
+export function opening(scene: Scene, ...args: (Mobject | {zoom?: number})[]): void {
+  const last = args.at(-1), options = last && !(last instanceof Mobject) ? last : undefined;
+  const subjects = (options ? args.slice(0, -1) : args) as Mobject[];
+  if (options?.zoom !== undefined && (!Number.isFinite(options.zoom) || options.zoom < 1)) throw new RangeError('s.opening(): zoom must be a finite number of at least 1');
+  openingSubjects.set(scene, Object.assign([...subjects], options?.zoom === undefined ? {} : {zoom: options.zoom}));
 }
-export function openingOf(scene: Scene): readonly Mobject[] {
+export function openingOf(scene: Scene): readonly Mobject[] & {zoom?: number} {
   return openingSubjects.get(scene) ?? [];
 }
 /** Success and failure colours that read on the paper, for outcomes such as accepted and rejected. */

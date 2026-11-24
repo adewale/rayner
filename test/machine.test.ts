@@ -21,6 +21,36 @@ import { describeScenario } from '../explain/describe.ts';
 
 await loadFonts();
 
+test('transient machine results reach views and traces without multiplying durable states', async () => {
+  class Responses extends Scene {
+    override state = {on: true};
+    override shown: {guide: string; result?: {status: number}} = {guide: 'keep'};
+    override async construct() {
+      const s = stage(this, {heading: false});
+      await this.step('responses');
+      const picture = view(this, (st, sh) => new Group(keyed(new Text(`${st.on ? 'On' : 'Off'}: ${sh.result?.status ?? 'Ready'}`, {fontSize: 0.6}), 'response')));
+      s.keep(picture);
+      const machine = new Machine(this, {
+        start: {on: true}, events: ['ok', 'denied', 'clear'] as const,
+        next: st => ({...st}), views: [picture], runTime: 0.2,
+        result: ({event}) => event === 'clear' ? undefined : {status: event === 'ok' ? 200 : 403},
+      });
+      await machine.sendSequence(['ok', 'denied']);
+      assert.deepEqual(this.state, {on: true});
+      assert.deepEqual(this.shown, {guide: 'keep', result: {status: 403}});
+      assert.deepEqual(picture.texts, ['On: 403']);
+      assert.equal(machine.reachable().length, 1);
+      await machine.send('clear');
+      assert.deepEqual(this.shown, {guide: 'keep'});
+      assert.deepEqual(picture.texts, ['On: Ready']);
+    }
+  }
+  const scene = await new Responses(new NullSink()).run();
+  const explored = await exploreMachines(scene, Responses);
+  assert.equal(explored[0]!.states, 1);
+  assert.deepEqual(explored[0]!.problems, []);
+});
+
 type Lamp = { level: number };
 class LampHost extends Scene { override state: Lamp = { level: 0 }; }
 const LEVELS = ['off', 'dim', 'bright'] as const;
@@ -50,7 +80,7 @@ test('a machine plays prototype-named events through their own transition or the
       await this.step('press');
       const machine = new Machine<Lamp, string>(this, {
         start: this.state, events: names, views: [], next: s => ({ level: s.level + 1 }),
-        transition: { ['__proto__']: t => { authored.push(t.event); return new Animation(new Group()); } },
+        transition: { ['__proto__']: t => { authored.push(t.event); return new Animation(new Group(), {runTime: 0.2}); } },
       });
       await machine.sendSequence(names);
     }
@@ -266,7 +296,8 @@ test('a live origin already in the start\'s sampled prefix still gets its own ex
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
   const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
-  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, observations: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
+  assert.equal(good[0]!.phoneWarnings.length, 3);
+  assert.deepEqual(good.map(({ phoneWarnings, ...m }) => m), [{ events: ['UP', 'OFF'], states: 3, presentations: 3, transitions: 6, observations: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
   const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different observation',
@@ -324,6 +355,13 @@ test('at a live step, every label a reachable state shows reads 12 px on a phone
   assert.deepEqual(await phoneProblems(notedLamp({ note: 0.56, word: 0.6 })), []);
   // The lamp's word at 0.5 reads 11.2 px whole, but it is what the step changed, so its close-up reads it at 12.
   assert.deepEqual(await phoneProblems(notedLamp({ note: 0.56, word: 0.5 })), []);
+  const closeUpOnly = notedLamp({ note: 0.56, word: 0.5 });
+  const warned = (await exploreMachines(await new closeUpOnly(new NullSink()).run(), closeUpOnly))[0]!;
+  assert.ok(warned.phoneWarnings.length > 0);
+  assert.ok(warned.phoneWarnings.some(p => p.includes('whole picture') && p.includes('after a live event')));
+  const readable = notedLamp({ note: 0.56, word: 0.6 });
+  assert.deepEqual((await exploreMachines(await new readable(new NullSink()).run(), readable))[0]!.phoneWarnings, []);
+
   // A machine that never plays is live nowhere: the reader never drives it, so the phone floor does not apply.
   assert.deepEqual(await phoneProblems(notedLamp({ note: 0.4, word: 0.6, play: false })), []);
 });
@@ -353,7 +391,7 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
         if (!b) return;
         return b[0] >= -8 && b[2] <= 8 ? true : `the box spans ${b[0].toFixed(2)} to ${b[2].toFixed(2)}`;
       });
-      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], transition: { UP: (t) => transition(t, picture) } });
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], runTime: 1.1, transition: { UP: (t) => transition(t, picture) } });
       await this.step('press');
       await this.play(this.machine.sendSequence(['UP', 'UP', 'OFF']));
     }
@@ -879,7 +917,7 @@ test('an authored transition lands a picture whose parts repeat a key by redrawi
       this.add(this.pair);
       const machine = new Machine<N, 'UP'>(this, {
         start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [this.pair], runTime: 0.2,
-        transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair)) },
+        transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair), {runTime: 0.2}) },
       });
       await this.step('up');
       await this.play(machine.sendSequence(['UP', 'UP']));
@@ -913,4 +951,33 @@ test('exploration refuses a run to the live step that made a different machine a
     await assert.rejects(exploreMachines(ran, other), /^Error: runLive\(\): the run to "press" made different machines/);
   const [explored] = await exploreMachines(ran, made(['UP', 'OFF'], { level: 0 }));
   assert.deepEqual(explored!.problems, []);
+});
+
+
+test('a kept reader run resets transient results when its first event starts from the machine start', async () => {
+  class RestingResponse extends Scene {
+    override state = {n: 0};
+    override shown: {result?: {tag: string}} = {};
+    override async construct() {
+      const picture = view(this, (_st, shown) => new Group(keyed(new Text(shown.result?.tag ?? 'Ready'), 'response')));
+      const machine = new Machine(this, {
+        start: this.state, events: ['mark', 'clear'] as const, views: [picture], liveStart: 'start', runTime: 0.2,
+        next: st => ({...st}), result: ({event}) => event === 'mark' ? {tag: 'Marked'} : undefined,
+      });
+      this.add(picture);
+      await this.step('response');
+      await machine.send('mark');
+    }
+  }
+  const scene = await new RestingResponse(new NullSink()).run(), place = liveSteps(scene).get('response')!;
+  const held = await runLive(RestingResponse, 'response', place, [], {from: 'start', keep: true});
+  assert.deepEqual(held.machine.spec.views[0]!.texts, ['Marked'], 'the empty log retains the historic rest');
+  const keptFrames: string[][] = [], freshFrames: string[][] = [];
+  try {
+    await held.session!.send('clear', {animate: {async frame(s) {keptFrames.push(machinesOf(s)[0]!.spec.views[0]!.texts);}}});
+    await runLive(RestingResponse, 'response', place, ['clear'], {from: 'start', animate: {async frame(s) {freshFrames.push(machinesOf(s)[0]!.spec.views[0]!.texts);}}});
+    assert.ok(keptFrames.length > 1);
+    assert.deepEqual(keptFrames, freshFrames);
+    assert.ok(keptFrames.every(words => words.join() === 'Ready'));
+  } finally {held.session!.close();}
 });

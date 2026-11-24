@@ -15,7 +15,7 @@
 2. A nightly job looks up every user exactly once. What does the cache do to its database reads, and to its total work?
    Every lookup misses, so the job still makes one database read per user, as before, and each lookup adds a KV read and a KV write. The cache saves nothing here and costs two extra operations a user.
 3. For a user who does not exist, the query returns null. What happens on the next lookup for that user, and which line decides it?
-   It misses again and reads D1 again. The put stores the text null; get with "json" parses it back to null, and line 3, if (hit), treats null as no saved value. A missing user is never answered from the cache.
+   It misses again and reads D1 again. The put stores the text null; get with "json" parses it back to null, and line 4, if (hit), treats null as no saved value. A missing user is never answered from the cache.
 
 ## Why this explainer
 

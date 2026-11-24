@@ -209,6 +209,14 @@ export default class Ext4SpaceExplainer extends Scene {
     const answerNames = ['Metadata', 'Users can write', 'Kernel reserve', 'Root reserve'].filter((n) =>
       ['Metadata', 'Users can write'].includes(n) || wholePie(sp, 'users').some((x) => x.label === n),
     );
+    const drawAnswer = await s.prepareDiagrams([
+      { source: pie(answerNames, wholeTitle, openPie) },
+      { source: pie(answerNames, wholeTitle, wholePie(sp, 'users')) },
+    ], { box: PIE });
+    const answerSource = (state: Ext4State) => {
+      const recorded = having(state, 'disk', 'df');
+      return { source: pie(answerNames, `Every 4 KiB block of ${recorded.disk.label}`, state.reserve?.pie ?? recorded.df.pie) };
+    };
     await this.step('df', {
       title: `A new ${name} disk: users can write only ${of(sp.users)} of it`,
       line: `Predict: no file is written yet. Where did ${size === '1g' ? bytesOf(gone) : gib(gone)} go?`,
@@ -221,6 +229,12 @@ export default class Ext4SpaceExplainer extends Scene {
     this.state.df = { blocks: l.blocks, users: sp.users, gone, pie: openPie };
     // The pies are drawn from the slices each step records.
     const d3: Diagram = await s.show({ source: pie(answerNames, `Every 4 KiB block of ${name}`, st('df').df.pie) }, { box: PIE });
+    this.shown.answer = {};
+    const answerView = view(this, (state, shown) => drawAnswer(answerSource(state), { marks: shown.answer ?? {} }), { place: false });
+    // Compare the picture the animation landed on with a fresh source selected from state.
+    answerView.current.become(d3.picture());
+    this.add(answerView);
+    d3.showBy(answerView);
     await enterCard(
       cardOf(
         ['disk', 'df'],
@@ -255,6 +269,7 @@ export default class Ext4SpaceExplainer extends Scene {
       pie: wholePie(sp, 'users'),
     };
     // Not available splits into its three parts, re-coloured from the answer's own config.
+    s.liveDiagram(d3);
     await d3.morph(
       { source: pie(answerNames, `Every 4 KiB block of ${name}`, st('reserve').reserve.pie) },
       {
@@ -267,7 +282,11 @@ export default class Ext4SpaceExplainer extends Scene {
         ],
       },
     );
-    await markSlices(pieView(d3, 'answer'), d3, 'answer', ['slice:Root reserve'], 'the answer');
+    answerView.rebuild();
+    answerView.current.become(d3.picture());
+    this.add(answerView);
+    d3.showBy(answerView);
+    await markSlices(answerView, d3, 'answer', ['slice:Root reserve'], 'the answer');
     await enterCard(
       cardOf(
         ['df', 'reserve'],

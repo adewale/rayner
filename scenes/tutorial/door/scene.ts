@@ -1,4 +1,4 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, Succession } from '../../../src/index.ts';
 import { stage, Machine, view } from '../../../explain/index.ts';
 import { DOOR_EVENTS, doorNext, doorStart, type DoorEvent, type DoorState } from './model.ts';
 import { drawDoor } from './picture.ts';
@@ -13,7 +13,14 @@ export default class DoorMachine extends Scene {
     const door = view(this, (st, _shown, drawing) => drawDoor(st, drawing.look), { drawing: s.drawing });
     // The model, its events and the picture of its state. `next` returns refuse(reason) where the
     // door refuses an event, and the player says that reason on the event's button.
-    const machine = new Machine<DoorState, DoorEvent>(this, { start: doorStart(), events: DOOR_EVENTS, next: doorNext, views: [door] });
+    const machine = new Machine<DoorState, DoorEvent>(this, {
+      start: doorStart(), events: DOOR_EVENTS, next: doorNext, views: [door],
+      // Close the panel before its new word appears. All other events use keyed sync.
+      transition: { close(t) {
+        const c = t.choreograph(door);
+        return new Succession([c.morph('door:panel', {runTime: 0.3}), c.rest({runTime: 0.25})]);
+      } },
+    });
 
     await this.step('door', {
       title: 'A door that can lock',

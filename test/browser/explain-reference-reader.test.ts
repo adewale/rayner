@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collectProject } from '../../tools/lib/explain-project.ts';
@@ -225,3 +225,41 @@ test(
     }
   },
 );
+
+test('prepared real Mermaid captures follow model state in the built browser reader', { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for captured-source reader checks' }, async () => {
+  const { loadSnapshots } = await import('../../explain/testing.ts');
+  const { writeSnapshots, ROOT } = await import('../../tools/lib/explain-project.ts');
+  const { ViewSink } = await import('../../tools/lib/explain-check.ts');
+  const store = await loadSnapshots(join(ROOT, 'scenes/explainers/ext4-space'));
+  const entries = Object.entries(store).filter(([, snapshot]) => snapshot.family === 'pie').slice(0, 2);
+  assert.equal(entries.length, 2);
+  const specs = entries.map(([, snapshot]) => snapshot.spec);
+  assert.notEqual(specs[0]!.source, specs[1]!.source);
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-prepared-reader-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    const file = join(directory, 'scene.ts');
+    await writeFile(file, `import {Scene} from 'rayner'; import {stage,view} from 'rayner/explain';
+      export default class Captures extends Scene { static meta={id:'prepared-reader',title:'Prepared captures'}; state={source:0}; async construct(){
+        const s=stage(this,{heading:false}); const sources=${JSON.stringify(specs)};
+        const draw=await s.prepareDiagrams(sources); const v=view(this,st=>draw(sources[st.source]),{place:false});
+        this.add(v); await this.step('before',{caption:'The first disk.'});
+        this.state.source=1; await this.play(v.sync()); await this.step('after',{caption:'The second disk.'});
+      }}
+    `);
+    await writeSnapshots(join(directory, 'scene'), Object.fromEntries(entries));
+    const project = await collectProject(file, { write: false });
+    const sink = new ViewSink();
+    await new project.scenarios[0]!.Scene(sink).run();
+    assert.deepEqual(sink.problems, []);
+    assert.ok(sink.checked >= 2);
+    await buildExplainer(project, join(directory, 'scene.html'));
+    server = await serve(directory, 0, 'scene.html');
+    const page = await browser.newPage();
+    const rows = await reviewStoryScenario(page, server.url + '/scene.html', project.scenarios[0]!, [{ step: 'after', targets: [{ key: 'slice:Metadata' }] }]);
+    assert.deepEqual(rows.map(r => [r.step, r.width]), [['before',390],['after',390],['before',1180],['after',1180]]);
+  } finally {
+    await browser.close(); server?.close(); await rm(directory, { recursive: true, force: true });
+  }
+});

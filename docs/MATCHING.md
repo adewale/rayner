@@ -53,13 +53,15 @@ A keyed `Text` whose words change needs a decision, and `{ by: 'key', text }` ma
 place (the default), its glyphs morph place by place and a glyph with no
 counterpart fades inside it: right for a readout whose digits change. Whole,
 it pairs only with a `Text` of the same key and the same words, so a renamed
-state or event fades out and the new name fades in: right where the words are
+state or event fades out and the new name fades in at its full endpoint size. Its glyphs share
+one fade, including with `lagRatio`; they do not shrink into separated dots. This also applies
+to unmatched Text under keyed containers or with no key. This is right where the words are
 the identity. `statecharts` uses `text: 'whole'`.
 
 ```js
 import { Transform } from 'rayner';
 await this.play(new Transform(before, after, { match: 'key' }));
-// A relabelled node's old name fades and the new one grows in
+// A relabelled node's old name fades and the new one fades in at full size
 diagram.sync({ match: { by: 'key', text: 'whole' } });
 // Keyed cells keep their identity; the same word elsewhere stays put instead of fading
 table.sync({ match: { by: 'key', fallback: (part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined } });

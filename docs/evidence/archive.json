@@ -1,0 +1,120 @@
+{
+  "about": "Dated motion-audit evidence archived on the evidence branch. Each hash is the Git object of docs/evidence/<name> at that commit; test/evidence-archive.test.ts verifies them. Notes correct the archive without editing it.",
+  "repository": "adewale/rayner",
+  "branch": "evidence",
+  "commit": "b0e3c5e03ec7274a96492da699ccf31011743ea9",
+  "movedFrom": {
+    "branch": "fix/motion-detection",
+    "commit": "6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef",
+    "pullRequest": 115
+  },
+  "bundles": [
+    {
+      "name": "conversations-endpoint-2026-11-22",
+      "type": "tree",
+      "hash": "91593969d03fd871f70c3270f0b9922928ff7136",
+      "title": "Direct Conversation endpoint paint"
+    },
+    {
+      "name": "motion-all59-2026-11-21",
+      "type": "tree",
+      "hash": "69ef39b01dbd3a75b2616f678c3c1199d4e0ed2a",
+      "title": "Visual audit of the 59 motion reconstructions"
+    },
+    {
+      "name": "motion-construction-2026-11-21",
+      "type": "tree",
+      "hash": "9bb84db0d0ef74d583ce70c39eb74a4b4bbc280f",
+      "title": "Principled construction repairs for Rayner"
+    },
+    {
+      "name": "motion-consumer-binding-2026-11-23",
+      "type": "tree",
+      "hash": "7468e37c69cc781390e416edc7d4e1b4ef5979c5",
+      "title": "Native evidence binding and source-39 results"
+    },
+    {
+      "name": "motion-current-audit-2026-11-22",
+      "type": "tree",
+      "hash": "fa4867b189dfa0abd4f368a2055ed5c116de6160",
+      "title": "Fresh native capture, 22 November 2026"
+    },
+    {
+      "name": "motion-occlusion-2026-11-20",
+      "type": "tree",
+      "hash": "b303ce7286f5b9967e6159300809df3ce748221e",
+      "title": "Foreground glyph occlusion: 20 November 2026"
+    },
+    {
+      "name": "motion-raster-resource-2026-11-21",
+      "type": "tree",
+      "hash": "0491e2d706ecb070fe384576cfc687be82281337",
+      "title": "Native raster resource investigation"
+    },
+    {
+      "name": "motion-regressions-2026-11-22",
+      "type": "tree",
+      "hash": "ca1538d95336414a9b8f0fdd601d7db7e66bc133",
+      "title": "Regression repairs and independent follow-up, 22 November 2026",
+      "unpushedCommits": [
+        {
+          "file": "prospective-v2-independent-review.md",
+          "cites": "31c89b162a24d1103d5866d4fab3e6fe5a8041bf",
+          "note": "a worktree commit that was never pushed; the bundle README attributes the prospective adapter fix to 80c57a1c",
+          "repository": [
+            "80c57a1c"
+          ]
+        },
+        {
+          "file": "context/validation.md",
+          "cites": "39f3fb634c4d459bed6945e4ff12fefdc9694146",
+          "note": "a worktree commit on base 5e66dc98 that was never pushed; the bundle README attributes the context-contribution change to 78c267a0, whose parent is 0f7622c9",
+          "repository": [
+            "78c267a0",
+            "5e66dc98",
+            "0f7622c9"
+          ]
+        },
+        {
+          "file": "signin-keepers/validation.md",
+          "cites": "e693f7623c07315ccda8c7b127bbac2250cef082",
+          "note": "a worktree commit on base d41c54ea that was never pushed; in the repository, dd9d5dc2 is the commit on that base and changes only poppy-sign-in/scene.test.ts",
+          "repository": [
+            "dd9d5dc2",
+            "d41c54ea"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "motion-root-causes-2026-11-21",
+      "type": "tree",
+      "hash": "3a292074919bfdd1b7e56fd2a0e3d6c6f287adf6",
+      "title": "Motion repairs from the 59-case causal review"
+    },
+    {
+      "name": "motion-root-causes-2026-11-22",
+      "type": "tree",
+      "hash": "20c31c53f92546ad98f1bc0743717349d43b3837",
+      "title": "Authored motion contracts and stable SignIn grants"
+    },
+    {
+      "name": "motion-root-causes-2026-11-23",
+      "type": "tree",
+      "hash": "b85b563c8eec8d3cc19baee78551305fd774e44f",
+      "title": "Prospective exact domain clearance"
+    },
+    {
+      "name": "motion-sol61-2026-11-21",
+      "type": "tree",
+      "hash": "26265067699841f71b03d960b64eac55f7f86d26",
+      "title": "Ten-agent investigation of the 59 historical motion cases"
+    },
+    {
+      "name": "motion-visual-guide-2026-11-23",
+      "type": "tree",
+      "hash": "2f83da65a551a33a715b59dd78cd950591c5e0b3",
+      "title": "Motion repairs: visual review guide"
+    }
+  ]
+}

@@ -21,7 +21,7 @@ export function drawSort(s: DrawContext, st: State): Group {
   parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
   st.values.forEach((n, i) => parts.add(numberBox(s, String(n), [across(i), 0.6], `array:${n}`), `array:${n}`));
   const how = st.compare === 'none' ? 'sort() compares them as text' : 'sort((a, b) => a - b) compares them as numbers';
-  parts.add(label(s, how, { at: [0, -1], color: t.soft }), 'sorted:name');
+  parts.add(label(s, how, { at: [0, -3], color: t.soft }), 'sorted:name');
   if (st.sorted)
     sorted(st.values, st.compare).forEach((n, i) =>
       parts.add(numberBox(s, st.compare === 'none' ? `"${n}"` : String(n), [across(i), -1.9], `sorted:${n}`), `sorted:${n}`));

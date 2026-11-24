@@ -1,3 +1,4 @@
+import { openReviewReader } from './review-reader.ts';
 // Served review of the live states: the pictures a reader reaches by pressing a machine's event
 // buttons at its live step (docs/MACHINES.md, "The player"). Each is opened as a link opens it,
 // `?step=…&sent=…`, at 390 and 1180 px, and held to the rules a resting step is held to where they
@@ -5,8 +6,8 @@
 // its labels and its buttons); Chromium says what the served page actually paints.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import type { Page } from 'playwright-core';
-import { machinesOf, liveBase, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
+import type { Frame, Page } from 'playwright-core';
+import { machinesOf, logStart, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import type { Machine } from '../../explain/index.ts';
 import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
@@ -19,6 +20,7 @@ import type { StoryFrame, StoryMemory, StoryView } from './explain-story-review.
 import type { Project } from './explain-project.ts';
 import { LIVE_STATES, readableOpeningLabel } from './explain-review-plan.ts';
 import type { LiveStateReview } from './explain-review-plan.ts';
+import { pictureInventory, picturePath } from './explain-picture-inventory.ts';
 
 type AnyMachine = Machine<object, string>;
 type Scenario = Project['scenarios'][number];
@@ -38,10 +40,17 @@ type Scenario = Project['scenarios'][number];
  * page's evidence for a sample of the same walk, at the two widths readers use. These visits do
  * not establish completeness when that walk was truncated.
  */
-export function liveVisits(machine: AnyMachine, start: object): string[][] {
-  const key = (state: object) => JSON.stringify(state);
-  const reached = machine.reachable(start).filter((r) => key(r.state) !== key(start));
+export function liveVisits(machine: AnyMachine, start: object, shown: Record<string, unknown> = {}): string[][] {
+  const inventory = pictureInventory(machine, [{state: start, shown}]);
+  const reached = inventory.origins.map(origin => ({origin, path: picturePath(origin)})).filter(r => r.path.length);
   const chosen = reached.filter((r) => r.path.length === 1);
+  // Clearing a transient result can return to the opening picture. It is still an immediate
+  // response distinct from the other events' replies, and must be exercised through its log.
+  if (machine.spec.result) {
+    const opening = inventory.origins[0];
+    const same = inventory.edges.find(edge => edge.from === opening && edge.to === opening && 'next' in edge.outcome);
+    if (same && opening) chosen.push({origin: opening, path: [same.event]});
+  }
   for (const r of reached) {
     if (chosen.length >= LIVE_STATES - 1) break;
     if (!chosen.includes(r)) chosen.push(r);
@@ -49,7 +58,7 @@ export function liveVisits(machine: AnyMachine, start: object): string[][] {
   const far = reached.at(-1);
   if (far && !chosen.includes(far)) chosen.push(far);
   if (!chosen.length) {
-    const event = machine.spec.events.find((e) => 'next' in machine.outcome(start, e));
+    const event = inventory.edges.find(e => e.from === inventory.origins[0] && 'next' in e.outcome)?.event;
     return event === undefined ? [] : [[event]];
   }
   return chosen.map((r) => [...r.path]);
@@ -85,9 +94,12 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
   const subjects: LiveSubject[] = [];
   for (const [step, live] of scenario.live ?? []) {
     assert.ok(scenario.trace.steps.some((s) => s.step === step), `live step ${step} is not in the trace`);
-    const { base } = await liveBase(scenario.Scene, step, live);
+    const resting = await runLive(scenario.Scene, step, live, []);
+    const base = logStart(resting.machine, resting.rest);
     if (!base) continue;
-    for (const sent of liveVisits(live.machine, base.state)) {
+    const shown = {...resting.shown};
+    if (base.from === 'start' && resting.machine.spec.result) delete shown.result;
+    for (const sent of liveVisits(resting.machine, base.state, shown)) {
       const name = `${step} after [${sent.join(', ')}]`;
       let memory: StoryMemory | undefined, frame: StoryFrame | undefined;
       const capture: Sink = {
@@ -143,11 +155,13 @@ export async function reviewLiveStates(
   scenario: Scenario,
   subjects: readonly LiveSubject[],
   directory?: string,
+  framed = false,
 ): Promise<LiveStateReview[]> {
+  let reader: Frame = page.mainFrame();
   const results: LiveStateReview[] = [];
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const settle = () => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
-  for (const viewport of REVIEW_VIEWPORTS) {
+  const settle = () => reader.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+  for (const viewport of (framed ? [PHONE_VIEWPORT] : REVIEW_VIEWPORTS)) {
     await page.setViewportSize(viewport);
     for (const [n, subject] of subjects.entries()) {
       const name = `${subject.step} after [${subject.sent.join(', ')}]`, where = `${name} at ${viewport.width}px`;
@@ -155,22 +169,22 @@ export async function reviewLiveStates(
       // The first state at each width opens as a fresh load of its link; the rest are reached
       // through the history, as Back and Forward reach them, which draws the same picture
       // (explain-live.test.ts compares a fresh load with presses) at a third of the time.
-      if (n === 0) await page.goto(link);
-      else await page.evaluate((to) => { history.pushState(null, '', to); dispatchEvent(new PopStateEvent('popstate')); }, link);
-      await page.waitForSelector('[data-ready=true]');
-      await page.waitForFunction((value) => {
+      if (n === 0) reader = await openReviewReader(page, link, framed);
+      else await reader.evaluate((to) => { const next = new URL(to); const parent = new URL(location.href).searchParams.get('parentOrigin'); if (parent) next.searchParams.set('parentOrigin', parent); history.pushState(null, '', next); dispatchEvent(new PopStateEvent('popstate')); }, link);
+      await reader.waitForSelector('[data-ready=true]');
+      await reader.waitForFunction((value) => {
         const row = document.querySelector<HTMLElement>('.live');
         return !!row && !row.hidden && row.dataset.drawn === value && !document.querySelector('.stage[aria-busy]') &&
           !document.querySelector('svg.leaving') && !document.querySelector('#content.loading');
       }, log, { timeout: 60_000 });
       await settle();
-      assert.equal(await page.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
+      assert.equal(await reader.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
       const step = scenario.trace.steps.find((s) => s.step === subject.step)!;
-      assert.equal(await page.locator('.caption').innerText(), stepWords(step).caption, `${where}: caption`);
-      assert.equal((await page.locator('.notice').textContent())?.trim() ?? '', '', `${where}: a notice says the link's events were not all taken`);
-      assert.deepEqual(new URL(page.url()).searchParams.get(SENT)?.split(','), subject.sent, `${where}: the URL keeps the events`);
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${where}: page overflows`);
-      const buttons: LiveButton[] = await page.$$eval('.live-events button', (all) => all.map((b) => ({
+      assert.equal(await reader.locator('.caption').innerText(), stepWords(step).caption, `${where}: caption`);
+      assert.equal((await reader.locator('.notice').textContent())?.trim() ?? '', '', `${where}: a notice says the link's events were not all taken`);
+      assert.deepEqual(new URL(reader.url()).searchParams.get(SENT)?.split(','), subject.sent, `${where}: the URL keeps the events`);
+      assert.equal(await reader.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${where}: page overflows`);
+      const buttons: LiveButton[] = await reader.$$eval('.live-events button', (all) => all.map((b) => ({
         event: (b as HTMLElement).dataset.event!,
         kind: (b as HTMLElement).dataset.outcome!,
         disabled: b.getAttribute('aria-disabled') === 'true',
@@ -181,17 +195,17 @@ export async function reviewLiveStates(
       // The labels join the inspected ink, so they can be measured, but not the subjects the views must show.
       const frame = subject.frame,
         measured = { ...frame, targets: [...frame.targets, { name: 'labels', indices: frame.labels.flatMap((l) => l.indices), opening: false }] };
-      const whole = await inspectStoryFrame(page, measured), views = [whole];
+      const whole = await inspectStoryFrame(reader, measured), views = [whole];
       if (directory)
-        await page.locator('.stage').screenshot({ path: join(directory, `${encodeURIComponent(subject.step)}.live${n}.${viewport.width}.png`), animations: 'disabled' });
+        await reader.locator('.stage').screenshot({ path: join(directory, `${encodeURIComponent(subject.step)}.live${n}.${viewport.width}.png`), animations: 'disabled' });
       // The player shows the whole picture while the reader explores; on a phone, Next view tours the step's close-ups.
-      const next = page.locator('.view-controls > button').first();
+      const next = reader.locator('.view-controls > button').first();
       const visited = new Set([whole.viewBox]);
       if ((await next.isVisible()) && (await next.isEnabled()))
         for (let k = 0; k < frame.records.length + 1; k++) {
           await next.click();
           await settle();
-          const view = await inspectStoryFrame(page, measured);
+          const view = await inspectStoryFrame(reader, measured);
           if (visited.has(view.viewBox)) break;
           visited.add(view.viewBox);
           views.push(view);

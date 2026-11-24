@@ -58,7 +58,7 @@ Before any file, test the subject against four questions. If it fails one, pick 
 
 ```sh
 npx rayner init --blank sort-as-text --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
-npx rayner check sort-as-text/scene.ts
+npx rayner check sort-as-text/scene.ts --json
 ```
 
 The first command makes a folder, `sort-as-text`, holding `script.md`, `model.ts`, `model.test.ts` and `scene.ts`. The question is the script's heading. Every other part is a placeholder that starts with `TODO:` and says what goes there.
@@ -322,7 +322,7 @@ Decide that before drawing, from the script:
 
 - **The array as written, and the result under it.** The question is about a before and an after, so both stay on screen, one row above the other. The reader compares them without remembering either.
 - **The strings.** The answer is that `sort()` compares strings. With no compare function, the sorted row shows each element in quotes, `"10"`, which is the thing `sort()` compared. With `a - b` it shows plain numbers. The reason is then in the picture as well as the caption.
-- **The comparison in force.** A line between the rows says "sort() compares them as text" or "sort((a, b) => a - b) compares them as numbers". It is the one place where the two scenarios' pictures differ before the sort.
+- **The comparison in force.** A line below the sorted row says "sort() compares them as text" or "sort((a, b) => a - b) compares them as numbers". Keeping it below the row leaves the incoming numbers a clear route. It is the one place where the two scenarios' pictures differ before the sort.
 - **Nothing else.** The row has to hold six boxes on a phone after the reader has added three numbers, so each box is a number and no more.
 
 ### How it is drawn
@@ -361,7 +361,7 @@ export function drawSort(s: DrawContext, st: State): Group {
   parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
   st.values.forEach((n, i) => parts.add(numberBox(s, String(n), [across(i), 0.6], `array:${n}`), `array:${n}`));
   const how = st.compare === 'none' ? 'sort() compares them as text' : 'sort((a, b) => a - b) compares them as numbers';
-  parts.add(label(s, how, { at: [0, -1], color: t.soft }), 'sorted:name');
+  parts.add(label(s, how, { at: [0, -3], color: t.soft }), 'sorted:name');
   if (st.sorted)
     sorted(st.values, st.compare).forEach((n, i) =>
       parts.add(numberBox(s, st.compare === 'none' ? `"${n}"` : String(n), [across(i), -1.9], `sorted:${n}`), `sorted:${n}`));
@@ -494,7 +494,7 @@ The stage draws the step's title and line at the top. The first layout put the r
 
 <!-- draft: heading sort-as-text/picture.ts -->
 ```diff
--  parts.add(label(s, 'The array', { at: [0, 2.55], color: t.soft }), 'array:name');
+-  parts.add(label(s, 'The array', { at: [0, 3], color: t.soft }), 'array:name');
 +  parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
 ```
 
@@ -572,7 +572,7 @@ A caption has to fit beside the picture on a phone, so `check` fails one over 80
 
 ### Motion a reader cannot follow
 
-The authored transition takes about 2.2 seconds: the boxes make room, the number flies, the rest settles. Without `runTime`, the machine gives each event 0.6 seconds and squeezes the transition into it:
+The authored transition takes about 2.2 seconds: the boxes make room, the number flies, the rest settles. Without `runTime`, the machine gives each event 0.6 seconds. A longer authored transition is refused before its fades can be compressed:
 
 <!-- draft: motion sort-as-text/scene.ts -->
 ```diff
@@ -582,14 +582,12 @@ The authored transition takes about 2.2 seconds: the boxes make room, the number
 
 <!-- check: motion -->
 ```text
-rayner: Motion failures in Compare function: none: [{"kind":"pop","frame":588,"t":19.6,"step":"add","what":"the Rectangle keyed \"sorted:100:box\"","magnitude":0.78,"detail":"alpha 0.12 → 0.90"},{"kind":"pop","frame":588,"t":19.6,"step":"add","what":"the Text keyed \"sorted:100:label\"","magnitude":0.78,"detail":"alpha 0.12 → 0.90"},{"kind":"pop","frame":598,"t":19.933,"step":"add","what":"the Rectangle keyed \"sorted:100:box\"","magnitude":0.893,"detail":"alpha 0.95 → 0.05"},{"kind":"pop","frame":598,"t":19.933,"step":"add","what":"the Text keyed \"sorted:100:label\"","magnitude":0.893,"detail":"alpha 0.95 → 0.05"},{"kind":"pop","frame":598,"t":19.933,"step":"add","what":"the Rectangle keyed \"sorted:100:box\"","magnitude":0.893,"detail":"alpha 0.05 → 0.95"},{"kind":"pop","frame":598,"t":19.933,"step":"add","what":"the Text keyed \"sorted:100:label\"","magnitude":0.893,"detail":"alpha 0.05 → 0.95"}]
-
-6 !== 0
+rayner: machine.send("add 100"): authored transition lasts 2.200 s but the event allows 0.600 s; increase the machine runTime or shorten the transition instead of compressing its fades
 ```
 
-Each entry is one part on one frame. `"kind":"pop"` means the part's opacity changed by 0.5 or more in a single frame (`alpha 0.12 → 0.90`), and `"what"` names the part by its key, `sorted:100:box`. Squeezed into 0.6 seconds, the flight's fades become pops. The fix is to give `runTime` the transition's own length.
+The diagnostic names the event and both durations. Set `runTime` to the transition's own length, 2.2 seconds, or shorten the authored sequence. Compression is refused because it would turn intentional fades into pops.
 
-`check` also follows every keyed part through every press. It fails a jump, a flicker, words readable before the token that causes them lands, a token that covers a label's words, and words carried too small to read ([keyed motion](REFERENCE.md#keyed-motion)). It does not catch a token crossing a drawing, a transition too long to sit through, or motion that carries layout and not meaning. Watch a few presses frame by frame yourself. On the Poppy series, filming every transition found 63 motion defects after every check that existed then had passed ([What it costs](#what-it-costs)).
+`check` also follows every keyed part through every press. It fails a jump, a flicker, words readable before the token that causes them lands, a token that covers a label's words, and words carried too small to read ([keyed motion](REFERENCE.md#keyed-motion)). It also checks overlapping duplicate words and motion continuing past five seconds. It does not catch every crossing of a drawing or motion that carries layout and not meaning. Watch a few presses frame by frame yourself. On the Poppy series, filming every transition found 63 motion defects after every check that existed then had passed ([What it costs](#what-it-costs)).
 
 ## 9. Read the report, then read the captions
 
@@ -635,6 +633,8 @@ With every fix in, `check` passes. It prints its report as JSON and saves it in 
         "add 100"
       ],
       "states": 16,
+      "presentations": 16,
+      "transitions": 15,
       "observations": 16
     }
   ]
@@ -646,7 +646,7 @@ Compare each part with what you meant to write:
 - `model` is the oracle test's run: three tests, three passed.
 - `script.answer` is the first step that states the Answer, and its position. It should be the step you planned to say it in.
 - `predictions` is the prediction, its answer in this scenario, and the step that reveals it.
-- `machines` lists the live step’s events. They reach 16 states, the count from the model’s second test. This machine uses the full model as its observation, so the report counts 16 observations as well.
+- `machines` lists the live step’s events. They reach 16 states, the count from the model’s second test. This machine has no transient result, so those are also its 16 distinct presentations. The 15 accepted transitions add one of the remaining numbers. It uses the full model as its observation, so the report counts 16 observations as well. A machine with transient results can have more presentations than durable states; a bounded traversal is marked `sampled`.
 
 In the full report, `legibility.labelsUnder12PxAt390` is the number of labels a phone reader sees under 12 px. Keep it at 0.
 
@@ -661,7 +661,7 @@ npx rayner see sort-as-text/scene.ts answer --scenario compare=numbers
 ## 10. Review it, and hand it over
 
 ```sh
-npx rayner review sort-as-text/scene.ts --out public/sort-as-text.html
+npx rayner review sort-as-text/scene.ts --out public/sort-as-text.html --json
 ```
 
 `review` is the last gate. It runs the checks again and builds the page. It then opens the page in Chromium at two widths, 390 px for a phone and 1180 px for a desktop, and visits every step of every scenario and the states the live step's buttons reach. On success it prints a receipt as JSON, and because of `--out` it keeps the exact page it reviewed at `public/sort-as-text.html`, with its receipt, the response headers a host must send, and a loader for embedding ([Publishing](PUBLISHING.md)). Its counts for this explainer:
@@ -718,7 +718,7 @@ The whole folder adds the oracle, fixtures, `answers.ts`, `fidelity.ts`, `scene.
 **A series.** The eight Poppy chapters, explaining a draft protocol, came in [#102](https://github.com/adewale/rayner/pull/102): 16,777 lines added across 80 files, of which 3,792 are JSON fixtures copied from the Poppy project, in 48 commits (35 of them work-in-progress snapshots) between 23:07 UTC on 9 November and 22:57 on 10 November 2026. What it took beyond writing, from [#101](https://github.com/adewale/rayner/issues/101):
 
 - The first version put the protocol in one explainer with three columns of small text. `rayner check` and `rayner review` passed it, and on a phone its live step's smallest label was 5.6 px (item 1). Splitting it into eight questions, each with few enough parts to read whole at 390 px, is why there are eight chapters. Since #106, `check` fails a live step's label under 12 px on a phone.
-- After all eight chapters passed `check` and `review`, every transition and live press was filmed at 200 ms intervals and looked at. That found 63 motion defects that no check flagged (item 14): moving parts over labels, two copies of one thing visible at once, answers readable before their cause arrived, motion that carried layout rather than meaning, transitions too long to sit through. `check`'s keyed-motion check now catches jumps, flicker, words readable before their cause lands and a token over a label's words. Brought back into the current scenes, 26 of 59 of those defects are caught ([the motion corpus](MOTION-CORPUS.md)); a token over a drawing, two copies of one thing apart, and a transition too long to sit through are still yours to see.
+- After all eight chapters passed `check` and `review`, every transition and live press was filmed at 200 ms intervals and looked at. That found 63 motion defects that no check flagged (item 14): moving parts over labels, two copies of one thing visible at once, answers readable before their cause arrived, motion that carried layout rather than meaning, transitions too long to sit through. `check`'s keyed-motion check now catches jumps, flicker, words readable before their cause lands and a token over a label's words. Brought back into the current scenes, 26 of 59 of those defects are caught ([the motion corpus](MOTION-CORPUS.md)); a token over a drawing and two copies of one thing apart are still yours to see. The newer five-second ceiling and duration diagnostic add mechanical checks; their owning tests retain static-hold controls.
 - A code review then found five model defects, fixed in [#103](https://github.com/adewale/rayner/pull/103).
 
 **What to budget for.** The files are the small part. The time goes on the steps this guide spends its length on: the script review, the oracle (recording a run takes as long as the run's setup), a model test that you have seen fail, the first draft's check failures, which section 8 shows are routine, and looking at every phone view and a few transitions frame by frame. A `read` or `none` label says which outside evidence is absent; it does not determine the explainer's cost or value to a reader. The receipt should make that boundary clear, while review considers the evidence's coverage and the explanation's usefulness.

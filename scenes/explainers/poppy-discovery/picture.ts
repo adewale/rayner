@@ -1,4 +1,4 @@
-import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
+import { Circle, Group, Line, Polygon, Rectangle, keyed } from '../../../src/index.ts';
 import type { Mobject, Text, Vec } from '../../../src/index.ts';
 import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
@@ -161,10 +161,14 @@ function shopfront(): Group {
   parts.push(jacket([wx, wy - 0.12], 0.95));
   // The door: a panel, a glass light in its upper half, a handle, and the doorstep below.
   const dx = (DOOR.l + DOOR.r) / 2, dw = DOOR.r - DOOR.l;
-  parts.push(new Rectangle({ width: dw, height: DOOR.top - base, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine }).moveTo([dx, (DOOR.top + base) / 2]));
-  parts.push(new Rectangle({ width: dw - 0.36, height: 0.8, fill: TONE.rule, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo([dx, DOOR.top - 0.58]));
-  parts.push(new Rectangle({ width: dw - 0.36, height: 0.5, fill: 'none', stroke: TONE.rule, strokeWidth: STROKE.fine, cornerRadius: RADIUS.paper }).moveTo([dx, base + 0.42]));
-  parts.push(new Circle({ radius: 0.06, fill: TONE.soft, stroke: 'none' }).moveTo([DOOR.r - 0.18, (DOOR.top + base) / 2 - 0.05]));
+  // Keep the doorway identifiable independently of the doorstep, where the sheet
+  // intentionally docks. This key changes no paint or choreography ownership.
+  parts.push(keyed(new Group(
+    new Rectangle({ width: dw, height: DOOR.top - base, fill: TONE.ground, stroke: TONE.steel, strokeWidth: STROKE.fine }).moveTo([dx, (DOOR.top + base) / 2]),
+    new Rectangle({ width: dw - 0.36, height: 0.8, fill: TONE.rule, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo([dx, DOOR.top - 0.58]),
+    new Rectangle({ width: dw - 0.36, height: 0.5, fill: 'none', stroke: TONE.rule, strokeWidth: STROKE.fine, cornerRadius: RADIUS.paper }).moveTo([dx, base + 0.42]),
+    new Circle({ radius: 0.06, fill: TONE.soft, stroke: 'none' }).moveTo([DOOR.r - 0.18, (DOOR.top + base) / 2 - 0.05]),
+  ), 'shop:door'));
   parts.push(new Rectangle({ width: dw + 0.4, height: 0.16, fill: TONE.steel, stroke: 'none', cornerRadius: 0.03 }).moveTo([dx, STEP_Y]));
   return new Group(...parts);
 }

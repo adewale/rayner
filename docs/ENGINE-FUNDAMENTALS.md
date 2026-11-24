@@ -325,7 +325,7 @@ contact sheet and the site's cards run each scene once.
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Initialize it with a field such as `override state: MyState = start()`. `this.shown` holds what is
 shown apart from the model, such as which of several pictures a chapter of the story shows; a
-view's `draw` may read it, and a machine never changes it. `stateJson()` copies
+view's `draw` may read it, and a machine changes only its `result` field, when its spec supplies [`result`](MACHINES.md#transient-responses). `stateJson()` copies
 the model as JSON; `shownJson()` copies authored presentation. Neither receives helper
 fields. `addJson(part)` registers computed observations, validated and combined by
 `derivedJson()`. The trace records those under `derived`, including the stage's

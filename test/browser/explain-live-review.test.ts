@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/timeline.ts';
-import { collectProject } from '../../tools/lib/explain-project.ts';
+import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
@@ -74,6 +74,33 @@ test('the visited live states: every state one press away, then breadth first, t
   // A machine whose every event returns to where it is has its first such event pressed once.
   const still = new Machine<{ k: number }, 'NO' | 'SAME'>(host({ k: 0 }), { start: { k: 0 }, events: ['NO', 'SAME'], views: [], next: (s, e) => (e === 'SAME' ? s : undefined) });
   assert.deepEqual(liveVisits(still as never, { k: 0 }), [['SAME']]);
+  const replies = new Machine<{k: number}, 'RED' | 'BLUE' | 'CLEAR'>(host({k: 0}), {
+    start: {k: 0}, events: ['RED', 'BLUE', 'CLEAR'], views: [], next: s => s,
+    result: ({event}) => event === 'CLEAR' ? undefined : {color: event},
+  });
+  assert.deepEqual(liveVisits(replies as never, {k: 0}), [['RED'], ['BLUE'], ['CLEAR']], 'distinct immediate replies include clearing back to the opening');
+});
+
+test('both immediate self-loop responses are painted and reviewed at both served widths', options, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-live-responses-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Group,Rectangle,keyed}from'rayner';import{Machine,view,stage}from'rayner/explain';
+export default class Responses extends Scene{static meta={id:'responses'};state={ready:true};shown={result:{color:'#00ff00'}};
+async construct(){const s=stage(this,{heading:false});const picture=view(this,(_st,sh)=>new Group(keyed(new Rectangle({width:2,height:2,fill:sh.result?.color??'#00ff00',stroke:'none'}),'response')));
+s.keep(picture,{describe:()=> 'response'});const machine=new Machine(this,{start:this.state,views:[picture],events:['red','blue'],next:st=>({...st}),runTime:.2,result:({event})=>({color:event==='red'?'#ff0000':'#0000ff'})});
+await this.step('offer');machine.offer();await this.wait(.1);}}`);
+    const project = await collectProject(dir, {write: false});
+    await buildExplainer(project, join(dir, 'responses.html'));
+    server = await serve(dir, 0, 'responses.html');
+    const subjects = await liveSubjects(project.scenarios[0]!);
+    assert.deepEqual(subjects.map(s => s.sent), [['red'], ['blue']]);
+    const page = await browser.newPage();
+    const reviewed = await reviewLiveStates(page, `${server.url}/responses.html`, project.scenarios[0]!, subjects);
+    assert.deepEqual(reviewed.map(r => [r.width, r.sent]), [[390, ['red']], [390, ['blue']], [1180, ['red']], [1180, ['blue']]]);
+    assert.ok(reviewed.every(r => r.targets.length > 0), 'all four independently planned pictures supply visible reader ink');
+  } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
 });
 
 test('a label tiny only in a state an event reaches fails the served review; the same lamp at its size passes', options, async () => {
@@ -128,6 +155,8 @@ test('rayner review visits the live states and records them in its receipt', opt
     await writeFile(join(dir, 'scene.ts'), lamp(false));
     const result = await reviewScene(await collectProject(dir, { write: false }), join(dir, 'review'));
     assert.equal(result.liveStateWidths, 4);
+    assert.equal(result.framedLiveStateWidths, 2);
+    assert.deepEqual(result.results[0]!.framedLive.map(s => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390]]);
     assert.deepEqual(result.results[0]!.live!.map((s) => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390], ['press', ['UP'], 1180], ['press', ['DOWN'], 1180]]);
     assert.deepEqual(JSON.parse(await readFile(join(dir, 'review/review.json'), 'utf8')).results[0].live, result.results[0]!.live);
   } finally {
@@ -146,4 +175,60 @@ test('`rayner init --machine` writes a scene that `rayner review` passes as writ
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('liveStart reaches earlier model states through real buttons and survives links and Reset', options, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-live-start-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    const input = lamp(false);
+    assert.ok(input.includes('views:[picture],runTime:0.3'));
+    await writeFile(join(dir, 'scene.ts'), input.replace('views:[picture],runTime:0.3', "views:[picture],runTime:0.3,liveStart:'start'"));
+    const project = await collectProject(dir, { write: false });
+    await buildExplainer(project, join(dir, 'scene.html'));
+    server = await serve(dir, 0, 'scene.html');
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    await page.goto(server.url + '/scene.html?step=press');
+    await page.waitForSelector('.live:not([hidden])');
+    assert.equal(await page.locator('[data-event=DOWN]').getAttribute('aria-disabled'), 'true', 'the model starts off although the guided picture ended dim');
+    await page.getByRole('button', { name: 'Brighter', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP');
+    await page.getByRole('button', { name: 'Brighter', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP,UP');
+    const link = page.url();
+    assert.equal(new URL(link).searchParams.get('sent'), 'UP,UP');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === 'UP,UP');
+    assert.equal(await page.locator('[data-event=UP]').getAttribute('aria-disabled'), 'true');
+    await page.getByRole('button', { name: 'Reset: the step’s own picture', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.live')?.getAttribute('data-drawn') === '');
+    assert.equal(new URL(page.url()).searchParams.has('sent'), false);
+    assert.equal(await page.locator('[data-event=DOWN]').getAttribute('aria-disabled'), 'true');
+  } finally {
+    await browser.close(); server?.close(); await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('statecharts live pictures read whole on phones in both standalone and framed reviews', options, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-statecharts-phone-'));
+  try {
+    const project = await collectProject(join(ROOT, 'scenes/explainers/statecharts'), { write: false });
+    const result = await reviewScene(project, directory);
+    assert.equal(result.scenarios, 1);
+    assert.equal(result.liveStateWidths, 20);
+    assert.equal(result.framedLiveStateWidths, 10);
+    const scenario = result.results[0]!;
+    const liveSteps = [...scenario.steps.filter(s => s.width === 390), ...scenario.framedSteps]
+      .filter(s => s.step === 'parent' || s.step === 'frother');
+    assert.equal(liveSteps.length, 4);
+    for (const step of liveSteps) {
+      assert.equal(step.views, 1);
+      assert.ok(step.minimumLabelPxWholeStage !== null && step.minimumLabelPxWholeStage >= 12);
+      assert.deepEqual(step.partiallyVisibleLabels, []);
+    }
+    for (const state of [...scenario.live!, ...scenario.framedLive]) {
+      assert.ok(state.minimumLabelPx1280 !== null && state.minimumLabelPx1280 >= 44.79);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

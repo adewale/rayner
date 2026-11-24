@@ -1,5 +1,5 @@
 // Rayner's animations of state: SetState adopts a model state at its place in a schedule built
-// before it plays (each event of a machine's send and replay), and Follow writes the pictures of
+// before it plays (each event of a machine's send and sendSequence), and Follow writes the pictures of
 // one sampled number into its targets (under view.tween, tweenState and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.

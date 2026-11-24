@@ -79,6 +79,8 @@ export const alignData = Symbol('alignData');
 export const mergeLeaves = Symbol('mergeLeaves');
 /** @internal See affine. */
 export const defaultColors = Symbol('defaultColors');
+/** @internal Authored keyed containers omitted by a matched transform's temporary frame tree. Diagnostic ownership only; never a public key or a rendered parent. */
+export const matchingAncestors = Symbol('matchingAncestors');
 /** The scene colours a mobject took when it entered a scene: what a child added later, or a picture it becomes, takes. */
 const sceneColors = Symbol('sceneColors');
 
@@ -227,6 +229,8 @@ export class Mobject {
   // instances until then.
   /** @internal Render a group of same-styled leaves as one element (Text sets this). */
   declare [mergeLeaves]?: boolean;
+  /** @internal See matchingAncestors. Immutable, so saved and copied frames retain the same ownership. */
+  declare [matchingAncestors]?: readonly string[];
   /** Fixed world-coordinate paint viewport, inherited by descendants; does not change geometry. */
   declare clipBox?: Box;
   /**

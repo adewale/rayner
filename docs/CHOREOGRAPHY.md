@@ -89,6 +89,26 @@ scene at the invisible end of the pulse. It is not a persistent indication for a
 resting picture: draw a mark, or a diagram picture's `trail`, when the reader needs that evidence.
 No adjacency assertion or walk record is implied by moving along an arbitrary path.
 
+## Routes and causal results
+
+A multi-segment route is an ordinary path: `const route = new Line(a,b); route.addLineTo(c);`.
+Pass it to `c.travel(key,token,route)` and play its `appear`, `move`, `leave` in that order.
+
+For result parts, build their leave and enter separately, then sequence the arrival:
+
+```ts
+const clearAnswer = c.leave('answer', {runTime:0.15});
+const showAnswer = c.enter('answer', {}, {runTime:0.2});
+const request = c.travel('request', token, route);
+return new Succession([clearAnswer, request.appear, request.move, request.leave,
+  showAnswer, c.rest({runTime:0.2})]);
+```
+
+The target must contain `answer` for this replacement; when it has no previous copy, omit
+`clearAnswer`. The result remains unreadable until its cause lands. In the shared Poppy `beats`
+helper, `fresh` clears an old part before motion and `then` brings a result in after it.
+The mechanical early-words check catches some causal mistakes; inspect the film as well.
+
 ## Following one number
 
 A sync morphs between two pictures; some values must be sampled along the way, so a
@@ -182,7 +202,7 @@ plays in the `play`, `AnimationGroup`, `LaggedStart` or `Succession` it is hande
 
 ```ts
 await this.play(s.focus(d.get('cache')), d.walk([['client', 'cache']]));
-await this.play(new Succession([d.reveal(['cache']), s.enter(callout(s, d.get('cache'), 'warm')), view.sync()]));
+await this.play(new Succession([d.reveal(['cache']), s.enter(callout(s.drawing, d.get('cache'), 'warm')), view.sync()]));
 ```
 
 An action is decided when it is called and does its side effects (keeping a panel,

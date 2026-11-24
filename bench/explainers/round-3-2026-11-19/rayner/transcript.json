@@ -1,0 +1,90 @@
+{
+  "title": "What is a statechart, and why use one instead of a state machine?",
+  "steps": [
+    {
+      "title": "The coffee machine has one active state",
+      "line": "Read an arrow as: event → next state.",
+      "caption": "A box names a state; an arrow names an event. START takes idle to grinding, GROUND takes grinding to brewing, POURED takes brewing to ready, and TAKE returns to idle. The outlined active box tells you where the machine is. Now add a power button."
+    },
+    {
+      "title": "Give the power button one destination",
+      "line": "How many POWER_OFF arrows must you add?",
+      "caption": "The four working states should all lead to off when POWER_OFF arrives. In a flat machine, an arrow belongs to its source state. Commit to a count before going on."
+    },
+    {
+      "title": "Four copies leave room for one mistake",
+      "line": "Can one arrow replace the repeated rule?",
+      "caption": "Four arrows are needed. This hand copy accidentally omitted brewing’s arrow, so POWER_OFF leaves it brewing. That is a drawing error, not an appliance feature. How many power-off arrows could suffice if a box could contain the four working states?"
+    },
+    {
+      "title": "Put the shared rule on a parent",
+      "line": "Inside on, the working states share POWER_OFF.",
+      "caption": "One arrow from on takes POWER_OFF for its contained states. Entering on starts at idle, at the start dot. A parent is itself a state containing states. A statechart is a state machine whose states can contain other states, active one at a time or several at once. The extra box removes three repeated arrows: six transitions instead of nine."
+    },
+    {
+      "title": "Try the parent’s power button",
+      "line": "Send events below; try POWER_OFF while brewing.",
+      "caption": "The guided events reach brewing. POWER_OFF has no arrow on brewing itself: its parent on handles the event and exits. Try the brewing events, then turn off and on. The start dot makes a fresh entry choose idle. A dim event button explains why that event has no transition here."
+    },
+    {
+      "title": "A different problem: repeated combinations",
+      "line": "Playback and volume each have two choices.",
+      "caption": "A player can be paused or playing, and sound can be audible or muted. Here sound means audible. Flat, you need a box for each pair. PLAY and PAUSE must appear in both volume contexts; MUTE and UNMUTE must appear in both playback contexts. Four states already need eight transitions."
+    },
+    {
+      "title": "Split independent choices into regions",
+      "line": "One active state per region, at the same time.",
+      "caption": "Keep playback and volume in separate regions. PLAY changes playback while volume stays put; MUTE changes volume while playback stays put. Four state boxes now need four transitions. Before the next step, add a third independent feature: subtitles hidden or shown. What does the flat player cost?"
+    },
+    {
+      "title": "Flat combinations multiply; regions add",
+      "line": "The third feature doubles the flat states.",
+      "caption": "Three independent binary features have 2 × 2 × 2 combinations: eight flat states. Each has three possible flips, making 24 directed transitions. Regions use three pairs of states and two transitions per pair: six states and six transitions. This is the second sign: independent words repeated in state names."
+    },
+    {
+      "title": "A statechart changes the drawing, not the behavior",
+      "line": "Send one event to both representations.",
+      "caption": "The same events run through both representations. The guided run sends PLAY, MUTE, then PAUSE; both end paused and muted. Use the buttons to continue the comparison. A statechart can be flattened into an ordinary state machine by naming each active combination; it packages the rules more compactly."
+    },
+    {
+      "title": "The two ideas fit inside each other",
+      "line": "Put the player’s regions inside on.",
+      "caption": "Parents and regions compose. This player’s on state holds both playback and volume regions. POWER_OFF exits them together; POWER_ON starts them at paused and sound. Flat, the four pairs plus off need 13 transitions. The statechart has six state boxes and six transitions, including its shared power rule."
+    },
+    {
+      "title": "Your turn: add the milk frother",
+      "line": "Where does it belong, and how many flat states?",
+      "caption": "The frother can be still or frothing during idle, grinding, brewing or ready. It cannot run while off. Place it before seeing the answer. Count the flat states too: pair the working states with the frother’s two states, then decide what to do with off."
+    },
+    {
+      "title": "A second region inside on",
+      "line": "Four working states × two frother states, plus off.",
+      "caption": "The frother goes beside the coffee cycle, inside on. Either region can move while the other stays put. There are 4 × 2 + 1 = 9 flat states and 25 flat transitions. The statechart draws eight boxes, including on, and eight transitions. Its two start dots choose idle and still."
+    },
+    {
+      "title": "Change the condition: the frother gets its own power",
+      "line": "FROTH and STOP work while off too.",
+      "caption": "Reconsider the boundary. The frother no longer depends on the coffee machine being on. Where must its region go, and how many combinations does the flat machine need?"
+    },
+    {
+      "title": "Move it beside the whole machine",
+      "line": "The off state gains two frother combinations.",
+      "caption": "The top level now has two regions: the whole off-and-on coffee machine, and the frother. Each of the coffee machine’s five states pairs with still or frothing: 10 flat states. In particular, off · still and off · frothing are distinct. POWER_OFF would leave this independent frother running."
+    },
+    {
+      "title": "Change it again: the frother uses brewing steam",
+      "line": "Leaving brewing stops the frother.",
+      "caption": "The frother now has choices during brewing, but not during idle, grinding, ready or off. Write the flat state names before continuing. Do those names still signal independent regions?"
+    },
+    {
+      "title": "Two words do not always mean two regions",
+      "line": "Ask whether the choices are independent.",
+      "caption": "The six flat names are shown. The frother’s choice exists inside brewing, so the words are dependent. Make brewing a parent containing still and frothing: the first idea again. The statechart needs eight transitions, where the flat machine needs 13. Look for independent choices, rather than counting words alone."
+    },
+    {
+      "title": "Use the two signs, then test the boundary",
+      "line": "Try POWER_OFF, then POWER_ON. What returns?",
+      "caption": "Return to the frother inside on: the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Both regions exit, then their start dots choose idle and still; no history remembers frothing. Use a parent for a shared transition. Use regions for independent choices. Flattening preserves the behavior, but repeats those rules."
+    }
+  ]
+}

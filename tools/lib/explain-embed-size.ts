@@ -3,9 +3,9 @@
 // whose parentOrigin is the host's, so --player-reserve is 0 and the page draws only the tile, the
 // frame following the page's height. Default scenario, first step, transcript and steps rows closed.
 import type { Browser } from 'playwright-core';
-import type { EmbedSize } from '../../lib/explain-share.ts';
-import { EMBED_WIDTHS } from '../../lib/review-sizes.ts';
-import { FRAME } from '../../../src/units.ts';
+import type { EmbedSize } from './explain-share.ts';
+import { EMBED_WIDTHS } from './review-sizes.ts';
+import { FRAME } from '../../src/internal.ts';
 export type { EmbedSize };
 
 export { EMBED_WIDTHS };

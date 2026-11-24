@@ -427,3 +427,15 @@ test('a live run drives the same machine it was given: same events in the same o
   assert.notEqual(id({}), id({ start: { level: 1 } }));
   assert.equal(id({ start: { level: 0, x: 1 } }), id({ start: { x: 1, level: 0 } }), 'a start written in another key order is the same start');
 });
+
+test('liveStart explicitly offers event orderings from the model start before a nonterminal authored rest', async () => {
+  const ran = await new (lampScene())(new NullSink()).run();
+  const spec = { start: { level: 0 }, events: ['UP' as const], next: (st: Lamp) => st.level < 2 ? { level: st.level + 1 } : undefined, views: [] };
+  const ordinary = new Machine(ran, spec);
+  const beginning = new Machine(ran, { ...spec, liveStart: 'start' });
+  assert.deepEqual(logStart(ordinary as never, { level: 1 }), { from: 'rest', state: { level: 1 } });
+  assert.deepEqual(logStart(beginning as never, { level: 1 }), { from: 'start', state: { level: 0 } });
+  assert.notEqual(ordinary.identity, beginning.identity);
+  assert.ok(Object.isFrozen(beginning.spec));
+  assert.throws(() => new Machine(ran, { ...spec, liveStart: 'invalid' } as never), /liveStart/);
+});

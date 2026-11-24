@@ -1,0 +1,28 @@
+Built a self-contained, 15-step explainer in /workspace/rayner-bench-plain/index.html.
+Contact sheet: /workspace/rayner-bench-plain/out/contact.png
+Transcript: /workspace/rayner-bench-plain/out/transcript.json
+Screenshots: /workspace/rayner-bench-plain/out/01-1280.png through 15-1280.png, and 01-390.png through 15-390.png. Capture viewports are 1280×720 and 390×844; phone images include the full scrollable page.
+
+Steps:
+1. One state at a time.
+2. Now add a power button.
+3. Copying is easy to get wrong.
+4. Give the box the arrow.
+5. A different kind of repetition.
+6. Add one more switch.
+7. Keep independent choices apart.
+8. Send both drawings the same events.
+9. Regions can live inside a parent.
+10. Where does the frother go?
+11. Two regions, inside on.
+12. Give the frother its own power.
+13. What if it needs brewing steam?
+14. Does the chart remember?
+15. Less repetition. Same machine.
+
+Interactivity: live coffee and frother event controls, the deliberately broken power-off case, synchronized flat/statechart media playback with event history, prediction questions with feedback, a free-text state-naming exercise, revealable check answers, and inspectable complete flat counterparts. Next/Back buttons and arrow shortcuts advance the lesson.
+
+Verification: 264 passing assertions compare independently implemented hierarchical models and generated flat transition tables across every reachable configuration and event for all three frother conditions, including ignored events. Media states/events, binary-feature counts for 2–5 features, missing brewing power-off and restart semantics are checked. Browser UI tests exercise the four-event media trace, independent frothing and power reset. Keyboard activation, focus after navigation, quiz controls, reduced-motion emulation and horizontal overflow checks pass. No external runtime dependencies or requests. All thirty screenshots were inspected; crowded diagrams and desktop overflow were corrected. Validation scripts and out/verification.json are included. XState was not run; its version is attributed to the supplied script only.
+
+Strongest: prediction, direct manipulation and paired highlighted states connect the notation to behaviour. The two repetition problems stay distinct until the transfer exercise.
+Weakest: phone comparisons require vertical scrolling, and changed frother boundaries are explained textually rather than animated. Accessibility checks are targeted, not a full assistive-technology audit.

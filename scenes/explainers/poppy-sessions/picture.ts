@@ -38,7 +38,7 @@ export const PALETTE = KIT_PALETTE;
  * ticket and punches are keyed afresh, so the change to it cross-fades instead of morphing one
  * ticket's printing into another's.
  */
-export type Shown = { links: 0 | 1 | 3; take?: 2 };
+export type Shown = { links: 0 | 1 | 3; take?: 2 | 3 };
 export const ALL_SHOWN: Shown = { links: 3 };
 
 // ------------------------------------------------------------------ geometry (shared with the scene)
@@ -52,6 +52,9 @@ const CERT_X = 1.57, CLOCK_X = 2.82;
 export const TK = { left: -1.79, right: 7.85, top: 1.6, bottom: -4.42 } as const;
 /** The wax on the ticket's top edge, under the stamp. */
 export const SEAL_AT: Vec = [COL.stamp, TK.top];
+/** The wax's irregular lip may meet the stamp's lowest 0.10 units at docking.
+ * Above this port the stamp's handle and head must remain unobstructed. */
+export const TICKET_PORT = { ceiling: TK.top + 0.44, left: COL.stamp - 0.85, right: COL.stamp + 0.85 } as const;
 /** The ticket's rows, in three pairs, and the check that punches each. */
 export type RowId = 'aud' | 'htu' | 'iat' | 'ath' | 'jti' | 'sub';
 const ROWS: readonly { id: RowId; word: string; y: number }[] = [

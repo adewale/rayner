@@ -16,6 +16,8 @@ const OPTIONS = {
   machine: { type: 'boolean' },
   blank: { type: 'boolean' },
   question: { type: 'string' },
+  json: { type: 'boolean' },
+  'embed-sizes': { type: 'boolean' },
 } as const;
 type Option = Exclude<keyof typeof OPTIONS, 'help' | 'version'>;
 const OPTION_HELP: Record<Option, string> = {
@@ -27,6 +29,8 @@ const OPTION_HELP: Record<Option, string> = {
   subjects: '--subjects <path>    Review subjects JSON, instead of <scene>.review.json',
   machine: '--machine            Write the machine starter (a door that locks)',
   blank: '--blank              Write a blank explainer with TODOs for your own question',
+  json: '--json               Print the complete check/review report as JSON',
+  'embed-sizes': '--embed-sizes        Measure framed heights at 390/640/900px with Chromium',
   question: '--question <text>    With --blank, set the reader’s question in script.md',
 };
 interface CommandSpec {
@@ -51,22 +55,27 @@ const COMMANDS = {
   check: {
     args: '<scene>', summary: 'Run model tests and scene checks in Node',
     details: 'Checks every scenario: model tests, state and picture agreement, seeking, motion,\ntext, legibility and authoring requirements. Writes reports under out/checks/<id>/\nor --out <directory>. Consumes pinned assets; does not prepare them.\ncheck does not test the served browser page. Use review for that.',
-    options: ['out'], examples: ['rayner check my-explainer/scene.ts', 'rayner check my-explainer/scene.ts --out out/checks/my-explainer'],
+    options: ['out', 'json'], examples: ['rayner check my-explainer/scene.ts', 'rayner check my-explainer/scene.ts --out out/checks/my-explainer'],
   },
   build: {
     args: '<scene>', summary: 'Write the HTML page and its receipt',
     details: 'Writes HTML, its build receipt, a response-header recipe and loader.js.\nDefaults to out/explainers/<id>.html; --out names the HTML file. Consumes pinned\nassets. build does not run check or the browser review. To save a page after both,\nuse review --out page.html.',
-    options: ['out'], examples: ['rayner build my-explainer/scene.ts --out public/my-explainer.html', 'rayner review my-explainer/scene.ts --out public/my-explainer.html'],
+    options: ['out', 'embed-sizes'], examples: ['rayner build my-explainer/scene.ts --out public/my-explainer.html', 'rayner review my-explainer/scene.ts --out public/my-explainer.html'],
   },
   review: {
     args: '<scene>', summary: 'Run check, build, and review the served page in Chromium',
     details: 'Runs check, builds the page and checks its served reader at phone and desktop\nwidths. Consumes pinned assets. Keeps HTML, screenshots and review.json under\nout/review/<id>/. --out <directory> moves those artifacts; --out page.html saves\nthe exact reviewed HTML there and keeps reports in the default directory.\nA passing review covers these checks; the author still checks the explanation\nagainst its sources. Chromium is required.',
-    options: ['out', 'subjects'], examples: ['rayner review my-explainer/scene.ts', 'rayner review my-explainer/scene.ts --out public/my-explainer.html'],
+    options: ['out', 'subjects', 'json'], examples: ['rayner review my-explainer/scene.ts', 'rayner review my-explainer/scene.ts --out public/my-explainer.html'],
   },
   preview: {
     args: '<scene>', summary: 'Prepare assets, build, and serve locally',
     details: 'Prepares diagram and lettering assets, builds the page, then serves it on\nlocalhost. --watch rebuilds on save; reload the browser to see the new page.\n--out names the built HTML (default out/explainers/<id>.html).\npreview does not run check or review. Stop the server with Ctrl-C.',
     options: ['out', 'refresh', 'port', 'watch'], examples: ['rayner preview my-explainer/scene.ts --watch', 'rayner preview my-explainer/scene.ts --port 5175'],
+  },
+  film: {
+    args: '<scene>', summary: 'Film every authored and bounded reader-event transition',
+    details: 'Writes native motion filmstrips, including refused presses, as HTML, JSON, SVG and PNG.\nConsumes pinned assets. --out names the output directory.',
+    options: ['out'], examples: ['rayner film my-explainer/scene.ts --out out/films/example'],
   },
   'contact-sheet': {
     args: '<scene>', summary: 'Write one scenario’s resting steps as a PNG and SVG sheet',

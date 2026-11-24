@@ -1,0 +1,2129 @@
+{
+  "version": "5.33.3",
+  "charts": {
+    "coffee": {
+      "start": [
+        "off"
+      ],
+      "states": [
+        [
+          "off"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "grinding"
+        ],
+        [
+          "brewing"
+        ],
+        [
+          "ready"
+        ]
+      ],
+      "transitions": [
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "START",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "GROUND",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POURED",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "TAKE",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "START",
+          "to": [
+            "grinding"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "GROUND",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "POURED",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "START",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "POURED",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "TAKE",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "START",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "TAKE",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "START",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "GROUND",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        }
+      ]
+    },
+    "parent": {
+      "start": [
+        "off"
+      ],
+      "states": [
+        [
+          "off"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "grinding"
+        ],
+        [
+          "brewing"
+        ],
+        [
+          "ready"
+        ]
+      ],
+      "transitions": [
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "START",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "GROUND",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POURED",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "TAKE",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "START",
+          "to": [
+            "grinding"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "GROUND",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "POURED",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "START",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "POURED",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "TAKE",
+          "to": [
+            "grinding"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "START",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "TAKE",
+          "to": [
+            "brewing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "START",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "GROUND",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        }
+      ]
+    },
+    "player": {
+      "start": [
+        "paused",
+        "sound"
+      ],
+      "states": [
+        [
+          "paused",
+          "sound"
+        ],
+        [
+          "playing",
+          "sound"
+        ],
+        [
+          "paused",
+          "muted"
+        ],
+        [
+          "playing",
+          "muted"
+        ]
+      ],
+      "transitions": [
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "MUTE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "MUTE",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "MUTE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "MUTE",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": true
+        }
+      ]
+    },
+    "player-on": {
+      "start": [
+        "off"
+      ],
+      "states": [
+        [
+          "off"
+        ],
+        [
+          "paused",
+          "sound"
+        ],
+        [
+          "playing",
+          "sound"
+        ],
+        [
+          "paused",
+          "muted"
+        ],
+        [
+          "playing",
+          "muted"
+        ]
+      ],
+      "transitions": [
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "PLAY",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "MUTE",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "MUTE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "sound"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "MUTE",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "sound"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "MUTE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "paused",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "paused",
+            "muted"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "PLAY",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "PAUSE",
+          "to": [
+            "paused",
+            "muted"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "MUTE",
+          "to": [
+            "playing",
+            "muted"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "UNMUTE",
+          "to": [
+            "playing",
+            "sound"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "playing",
+            "muted"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        }
+      ]
+    },
+    "frother": {
+      "start": [
+        "off"
+      ],
+      "states": [
+        [
+          "off"
+        ],
+        [
+          "idle",
+          "still"
+        ],
+        [
+          "grinding",
+          "still"
+        ],
+        [
+          "idle",
+          "frothing"
+        ],
+        [
+          "brewing",
+          "still"
+        ],
+        [
+          "grinding",
+          "frothing"
+        ],
+        [
+          "ready",
+          "still"
+        ],
+        [
+          "brewing",
+          "frothing"
+        ],
+        [
+          "ready",
+          "frothing"
+        ]
+      ],
+      "transitions": [
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "START",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "GROUND",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POURED",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "TAKE",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "FROTH",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "off"
+          ],
+          "event": "STOP",
+          "to": [
+            "off"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "START",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "GROUND",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "POURED",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "FROTH",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle",
+            "still"
+          ],
+          "event": "STOP",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "START",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "POURED",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "TAKE",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "FROTH",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding",
+            "still"
+          ],
+          "event": "STOP",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "START",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "GROUND",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "POURED",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "FROTH",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "idle",
+            "frothing"
+          ],
+          "event": "STOP",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "START",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "TAKE",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "FROTH",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing",
+            "still"
+          ],
+          "event": "STOP",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "START",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "POURED",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "TAKE",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "FROTH",
+          "to": [
+            "grinding",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "grinding",
+            "frothing"
+          ],
+          "event": "STOP",
+          "to": [
+            "grinding",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "START",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "GROUND",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "FROTH",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "still"
+          ],
+          "event": "STOP",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "START",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "GROUND",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "TAKE",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "FROTH",
+          "to": [
+            "brewing",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "brewing",
+            "frothing"
+          ],
+          "event": "STOP",
+          "to": [
+            "brewing",
+            "still"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "POWER_ON",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "START",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "GROUND",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "POURED",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "TAKE",
+          "to": [
+            "idle",
+            "frothing"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "POWER_OFF",
+          "to": [
+            "off"
+          ],
+          "handled": true
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "FROTH",
+          "to": [
+            "ready",
+            "frothing"
+          ],
+          "handled": false
+        },
+        {
+          "from": [
+            "ready",
+            "frothing"
+          ],
+          "event": "STOP",
+          "to": [
+            "ready",
+            "still"
+          ],
+          "handled": true
+        }
+      ]
+    }
+  }
+}

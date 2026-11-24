@@ -414,3 +414,14 @@ test('the build makes every combination of options a scenario, rayner check test
   assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /resolveSettings\(\): "spring" is not an option of the setting "motion"/);
   assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /resolveSettings\(\): "0\.1" is not an option of the setting "size"/);
 });
+
+test('the bare runtime supports the browser URL and URLSearchParams APIs used by protocol models', async () => {
+  const report = await checked(await write(scene(`
+    const url = new URL('../result?q=two+words&n=3', 'https://example.test/start/child');
+    const query = new URLSearchParams(url.search);
+    this.state = { path: url.pathname, query: query.get('q'), number: Number(query.get('n')) };
+    await this.step('url', { caption: 'The resolved path and decoded query.' });
+    ${label('result', '[0,0]', 0.6)}
+  `)));
+  assert.equal((report.scenarios as unknown[]).length, 1);
+});

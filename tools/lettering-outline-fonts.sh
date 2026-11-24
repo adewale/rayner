@@ -6,8 +6,8 @@ cd "$(dirname "$0")/.."
 font_dir="${RAYNER_LETTERING_FONTS:-$PWD/out/lettering-fonts}"
 mkdir -p "$font_dir"
 cd "$font_dir"
-npm pack --silent @fontsource/noto-naskh-arabic@5.3.0 @fontsource/noto-sans-devanagari@5.3.0 @fontsource/eb-garamond@5.3.0 @fontsource/noto-sans-hebrew@5.3.0 inter-ui@4.1.1 jetbrains-mono@1.0.6
-for name in fontsource-noto-naskh-arabic-5.3.0 fontsource-noto-sans-devanagari-5.3.0 fontsource-eb-garamond-5.3.0 fontsource-noto-sans-hebrew-5.3.0 inter-ui-4.1.1 jetbrains-mono-1.0.6; do
+npm pack --silent @fontsource/noto-naskh-arabic@5.3.0 @fontsource/noto-sans-devanagari@5.3.0 @fontsource/eb-garamond@5.3.0 @fontsource/source-sans-3@5.3.0 @fontsource/noto-sans-hebrew@5.3.0 inter-ui@4.1.1 jetbrains-mono@1.0.6
+for name in fontsource-noto-naskh-arabic-5.3.0 fontsource-noto-sans-devanagari-5.3.0 fontsource-eb-garamond-5.3.0 fontsource-source-sans-3-5.3.0 fontsource-noto-sans-hebrew-5.3.0 inter-ui-4.1.1 jetbrains-mono-1.0.6; do
   mkdir -p "$name"
   tar xzf "$name.tgz" -C "$name"
 done

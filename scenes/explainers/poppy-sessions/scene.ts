@@ -6,7 +6,7 @@ import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { OTHER_USER, STORY, TAMPERS, next, start } from './model.ts';
 import type { SealWorld, Tamper, Verdict } from './model.ts';
-import { ALL_SHOWN, PALETTE, SOURCE, drawWorld, punchOrder, sayWorld, sourceOf } from './picture.ts';
+import { ALL_SHOWN, PALETTE, SOURCE, TICKET_PORT, drawWorld, punchOrder, sayWorld, sourceOf } from './picture.ts';
 import type { Shown } from './picture.ts';
 
 // What is inside the seal: the chain of vouching behind a Session header, and the claims inside
@@ -58,6 +58,16 @@ export default class Sessions extends Scene {
 
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
     const world = view(this, (w, shown, drawing) => drawWorld(w, shown, drawing), { drawing: s.drawing, place: false });
+    // The wax meets the stamp's foot. The rest of the stamp is a protected graphic:
+    // a sheet may rise from below or come level from the side, never through its body.
+    this.addInvariant('the ticket enters below the stamp body', (scene) => {
+      const ticket = scene.familyMembers().find(part => part.key === 'ticket:flight');
+      if (!ticket) return;
+      const box = ticket.box();
+      return box && box[0] < TICKET_PORT.right && box[2] > TICKET_PORT.left &&
+        box[0] < scene.frame.box()![2] && box[2] > scene.frame.box()![0] && box[3] > TICKET_PORT.ceiling + 1e-6
+        ? 'the ticket approaches above its wax docking port, through the stamp body' : true;
+    });
 
     /**
      * A tamper. If the seal was pressed by another hand than last time, that hand moves first: the
@@ -105,6 +115,21 @@ export default class Sessions extends Scene {
       },
       next,
       views: [world],
+      motion: ({event, before}) => {
+        if (this.shown.links < 3) return [];
+        if (event !== 'published' && before.last?.tamper === 'published') return [
+          {view: world, during: 'chain:ring:flight', absent: ['chain:ring:on-wax']},
+          {view: world, during: 'ticket:flight', present: ['chain:ring', 'chain:stamp', 'chain:cert']},
+        ];
+        if (event !== 'published') return [];
+        if (before.last?.tamper === 'published') return [
+          {view: world, during: 'ticket:flight', present: ['chain:ring:on-wax']},
+        ];
+        return [
+          {view: world, during: 'chain:ring:on-wax:flight', absent: ['chain:ring']},
+          {view: world, during: 'ticket:flight', present: ['chain:ring:on-wax'], absent: ['chain:ring']},
+        ];
+      },
       // Each transition's own length, so the machine plays it at its authored pace: the words and the old
       // ticket go (0.25 s), the ticket travels (0.9 s), the validator stamps it (0.2 s), eleven punches
       // (1.0 s), then the answer (0.45 s); the published key's trip to or from the wax adds its own time.
@@ -178,8 +203,8 @@ export default class Sessions extends Scene {
       title: 'One key, one User',
       line: 'Now tamper yourself: each refusal names its check.',
       caption: remembers
-        ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press the tampers and predict each check. The detail after this shows the leaked key used first.'
-        : `The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User. This shop skips the optional check, so it accepts the header as that User, signed out: ${leaked.answer.status}, naming ${leaked.answer.needs}. No account opens. Press the tampers and predict each check.`,
+        ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press the tampers and predict each check. The details show the leaked key used first, and an exact copy arriving too late.'
+        : `The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User. This shop skips the optional check, so it accepts the header as that User, signed out: ${leaked.answer.status}, naming ${leaked.answer.needs}. No account opens. Press the tampers and predict each check. The detail compares an exact copy's signing and arrival times.`,
     });
     await this.play(machine.sendSequence(STORY.slice(7, 8)));
 
@@ -201,5 +226,23 @@ export default class Sessions extends Scene {
       this.shown = { links: 3, take: 2 };
       await world.sync();
     }
+
+    // The minute-old limit is independent of optional replay memory and the
+    // delegation's lifetime. Keep the eight tamper controls, and show this other
+    // history as a separately keyed detail, as with the leaked key used first.
+    const late = ['send', 'late'].reduce<SealWorld>((w, event) => {
+      const n = next(w, event as Tamper);
+      if (isRefusal(n)) throw new Error(`the late-copy detail's ${event} is refused: ${n.reason}`);
+      return n;
+    }, start(policy));
+    await this.step('late-copy', {
+      title: 'An exact copy, two minutes later',
+      line: 'Compare when it was signed with when it arrived.',
+      kind: 'detail',
+      caption: `The same sealed exchange arrives two minutes after it was signed. The delegation still lasts until 06:00, and every signature holds, but the when row tears at iat: ${late.last!.verdict.answer.reason}. Both kinds of Company refuse it with ${late.last!.verdict.answer.status} ${late.last!.verdict.answer.error}, before the optional jti check. A fresh delegation alone would not make this old header fresh.`,
+    });
+    this.state = late;
+    this.shown = { links: 3, take: 3 };
+    await world.sync();
   }
 }

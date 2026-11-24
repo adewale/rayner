@@ -236,7 +236,7 @@ Read it from the top:
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
 - The initialized `state: CardState` field holds the model the card displays. The initialized `shown` field identifies the row it lights. The draw's `st` and `sh` take their types from those fields ([typed state](REFERENCE.md#typed-state-and-shown)).
-- The card is a view of the state: `view(this, draw)` builds it with the drawing kit's `card(s, rows, options)` from `this.state` whenever the state changes, its `lit: { row }` from `this.shown`, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `cache.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
+- The card is a view of the state: `view(this, draw)` builds it with the drawing kit's `card(drawing, rows, options)`, `drawing` being the stage's `s.drawing` bound to the view, from `this.state` whenever the state changes, its `lit: { row }` from `this.shown`, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `cache.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
 - The card has an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
 - There are four steps. Each has a stable name used in links, a title and a caption, and the first two have a line under the title. The page prints the caption beside the picture.
@@ -323,10 +323,11 @@ After a rough text drawing of the resting picture, it prints:
 
 ```text
 lru-mru · step 4 of 4: verdict · After A B C D, request: C D C D
+Path: main · teaching step 4 of 4
 Title: MRU keeps more
 Caption: MRU holds on to older items, so it gets more hits than LRU.
 Picture: 8 labelled values. Marked: Hits (LRU): 4: C D C D; Hits (MRU): 0.
-Changed: nothing in scene.state
+Changed: nothing in the step state
 ```
 
 The marked row says LRU hit four times and MRU never did, so in this scenario the caption is false: it was written from the loop scenario alone. Undo the change: the scene's own ending takes its title and counts from each scenario's outcome.

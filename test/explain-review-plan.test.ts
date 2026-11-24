@@ -56,7 +56,13 @@ function receipts(expected: PlannedScenario[], total: number): ReviewReceipt[] {
       })))) } : {}),
     });
   }
+  for (const p of parts) for (const c of p.results) {
+    c.framedSteps = c.steps.filter(s => s.width === 390).map(s => structuredClone(s));
+    c.framedLive = c.live?.filter(s => s.width === 390).map(s => structuredClone(s));
+  }
   for (const p of parts) {
+    p.framedStepWidths = p.results.reduce((n, c) => n + (c.framedSteps?.length ?? 0), 0);
+    p.framedLiveStateWidths = p.results.reduce((n, c) => n + (c.framedLive?.length ?? 0), 0);
     p.scenarios = p.results.length;
     p.stepWidths = p.results.reduce((n, c) => n + c.steps.length, 0);
     p.liveStateWidths = p.results.reduce((n, c) => n + (c.live?.length ?? 0), 0);
@@ -200,7 +206,8 @@ test('story receipts expire when caption claims, served runtime or review depend
       'tools/repo/explain-review.ts', 'tools/repo/explain-review-merge.ts',
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
       'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
-      'tools/lib/explain-live-review.ts',
+      'tools/lib/explain-live-review.ts', 'tools/lib/review-reader.ts', 'tools/lib/explain-embed-size.ts',
+      'tools/lib/explain-motion-rules.ts', 'tools/lib/explain-film.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
@@ -265,6 +272,13 @@ test('story receipts expire when caption claims, served runtime or review depend
     await writeFile(raster, Buffer.concat([rasterBytes, Buffer.from('\n// changed native rasterization\n')]));
     await assert.rejects(merge(), /stale review implementation/, 'native composite evidence depends on the rasterizer');
     await writeFile(raster, rasterBytes);
+    for (const file of ['tools/lib/explain-motion-rules.ts', 'tools/lib/explain-film.ts']) {
+      const path = join(root, file), bytes = await readFile(path);
+      await writeFile(path, Buffer.concat([bytes, Buffer.from('\nthrow new Error("changed transitive verifier");\n')]));
+      assert.equal((await buildInputs(root)).hash, renderingHash, `${file}: page identity stays fixed`);
+      await assert.rejects(merge(), /stale review implementation/, `${file}: transitive verification changes expire a receipt`);
+      await writeFile(path, bytes);
+    }
     assert.equal((await merge()).scenarios, 3);
   } finally { await rm(root, {recursive: true, force: true}); }
 });
@@ -366,6 +380,17 @@ test('live states: the built description names the live steps; a receipt must vi
     const plan = await readStoryPlan(root);
     assert.deepEqual(plan.scenarios.map((c) => c.live), [['press'], undefined]);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('shard receipts require framed phone steps and the same sampled live states', () => {
+  const expected: PlannedScenario[] = [{ scene: 'live', settings: {}, steps: ['press'], live: ['press'], narrowOpenings: narrowObligations(['press']) }];
+  for (const field of ['framedSteps', 'framedLive'] as const) {
+    const parts = receipts(expected, 1);
+    parts[0]!.results[0]![field] = [];
+    if (field === 'framedSteps') parts[0]!.framedStepWidths = 0;
+    else parts[0]!.framedLiveStateWidths = 0;
+    assert.throws(() => mergeStoryReviews(parts, expected, 'catalog', 'code'), /framed/);
+  }
 });
 
 test('the story plan reviews every offered or inferred step where a reader can send an event', async () => {

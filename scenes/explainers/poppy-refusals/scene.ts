@@ -1,13 +1,14 @@
-import { AnimationGroup, Scene, linear } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Text, linear } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Transition } from '../../../explain/index.ts';
+import { clearRoute } from '../lib/clear-route.ts';
 import { beats, flight, pass, seal } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { REFUSAL_EVENTS, STORY, next, start, temptation } from './model.ts';
 import type { RefusalEvent, World } from './model.ts';
 import {
   DELEGATION_ROUTE, FIX_NAME, MCP_KEY_AT, PALETTE, RAIL,
-  delegationToken, documentRoute, launchAt, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
+  delegationToken, documentPorts, launchAt, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -61,6 +62,22 @@ export default class Refusals extends Scene {
     const world = view(this, (w, sh, drawing) => drawWorld(w, sh, drawing), { drawing: s.drawing, place: false });
     const fresh = ['slip', 'ticket', 'barrier', 'outcome', 'panel', ...RAIL_MARKS];
 
+    // Changing the number of roads is a layout replacement. The ticket may travel; the
+    // road signs stay on one of the authored rows even while the two layouts cross-fade.
+    this.addInvariant('lane signs cross-fade at their authored rows', (scene) => {
+      const rows: Record<string, number> = { 'lane:api:name': 3, 'lane:mcp-api:name': 3.92, 'lane:mcp-mcp:name': 2.85 };
+      let seen = false;
+      for (const part of scene.familyMembers()) {
+        if (!(part instanceof Text) || !part.key?.startsWith('lane:') || !part.key.endsWith(':name')) continue;
+        if (!part.family().some(m => m.style.opacity * m.style.fillOpacity > 0.05)) continue;
+        const y = rows[part.key];
+        if (y === undefined || Math.abs(part.anchorPoint()[1] - y) > 1e-4)
+          return `lane sign ${part.key} slides between layouts`;
+        seen = true;
+      }
+      return seen;
+    });
+
     /** A request sets off: its lane lights, the ticket leaves the agent's seal along the lane, and a refused one meets the barrier. */
     const request = (t: Transition<World, RefusalEvent>) => {
       const c = t.choreograph(world), { y, mcpShown } = laneOfWorld(t.after);
@@ -77,20 +94,27 @@ export default class Refusals extends Scene {
     const answer = (t: Transition<World, RefusalEvent>) => {
       const c = t.choreograph(world), last = t.after.last!, { route, y } = laneOfWorld(t.after);
       const sendAgain = flight(c, 'ticket', [launchAt(y)], { move: 0.8 });
+      const apiKey = () => flight(c, 'agent:key', keyRoute(y, c.to('lane:api:name'), c.to('agent:key')).slice(0, -1), { move: 0.9 })();
       const product = (): Beat[] => {
         switch (last.fix) {
-          case 'refresh':
-            return last.trouble === 'mcp'
-              ? flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [MCP_KEY_AT[0] + 2.6, y], [MCP_KEY_AT[0] + 2.6, MCP_KEY_AT[1]]], { move: 0.9 })()
-              : flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
+          case 'refresh': {
+            if (last.trouble !== 'mcp') return apiKey();
+            const key = c.to('agent:mcp-key');
+            const clearX = c.to('lane:mcp-mcp:name').box()![2] + key.width() / 2 + 0.08;
+            return flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [clearX, y], [clearX, MCP_KEY_AT[1]]], { move: 0.9 })();
+          }
           case 'sign-in':
-            return flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
+            return apiKey();
           case 'fix':
             return pass(c, 'delegation', delegationToken(s.drawing), DELEGATION_ROUTE, { move: 0.7 });
           case 'new-session':
             return pass(c, 'fresh-seal', seal(s.drawing, { r: 0.42 }), DELEGATION_ROUTE, { move: 0.7 });
-          case 'reread':
-            return pass(c, 'document', documentToken(s.drawing), documentRoute(y), { move: 0.8 });
+          case 'reread': {
+            const document = documentToken(s.drawing).scale(0.75), ports = documentPorts(y);
+            const labels = ['agent:name', 'lane:api:name', 'lane:mcp-api:name', 'lane:mcp-mcp:name', 'agent:mcp-key:name']
+              .filter(key => c.has(key, 'from')).map(key => c.from(key));
+            return pass(c, 'document', document, clearRoute(ports[0], ports[1], document, labels, this.frame.box()!), { move: 0.8 });
+          }
           case 'wait':
             // Time passes: the Company's clock empties, one number followed from full to none, before the agent sends again.
             return [c.follow({ from: 1, to: 0, draw: (v: number) => [paceClock(s.drawing, v)] }, { targets: ['slip:clock'], runTime: 1.4, rateFunc: linear })];
@@ -109,7 +133,23 @@ export default class Refusals extends Scene {
       },
       next,
       views: [world],
-      runTime: ({ event }) => (event === 'answer' ? 3.0 : 2.1),
+      motion: ({event, before, after}) => {
+        const lane = laneOfWorld(after).mcpShown ? 'mcp-mcp' : 'api';
+        const context = [`lane:${lane}:line`, `lane:${lane}:name`, 'agent:station', 'agent:name'];
+        const rules = [{view: world, during: 'ticket:flight', present: context, clearText: [`lane:${lane}:name`, 'agent:name']}];
+        if (event !== 'answer') return rules;
+        switch (after.last?.fix) {
+          case 'refresh': case 'sign-in':
+            rules.push({view: world, during: after.last.trouble === 'mcp' ? 'agent:mcp-key:flight' : 'agent:key:flight',
+              present: [...context, ...(after.last.trouble === 'mcp' && before.mcpKey ? ['agent:mcp-key:name'] : [])],
+              clearText: [`lane:${lane}:name`, 'agent:name']});
+            break;
+          case 'fix': rules.push({view: world, during: 'delegation', present: ['agent:station', 'agent:name'], clearText: ['agent:name']}); break;
+          case 'new-session': rules.push({view: world, during: 'fresh-seal', present: ['agent:station', 'agent:name'], clearText: ['agent:name']}); break;
+        }
+        return rules;
+      },
+      runTime: ({ event }) => event === 'answer' ? 3.4 : 2.85,
       transition: {
         expire: request, 'read-only': request, delegation: request, end: request, 'old-copy': request, 'too-fast': request, mcp: request,
         answer,

@@ -81,14 +81,14 @@ export function liveMachine(scene: Scene, step: string | null, place: LivePlace)
 
 /**
  * Where a reader's log starts: where the step leaves the machine (`rest`, the state as the step
- * ends), or, when no event can go anywhere from there (the step played every event the story has),
- * the machine's own start, so the reader can send the events again in their own order.
+ * ends). With liveStart: 'start', or when no event can go anywhere from the resting state,
+ * the log begins at the machine's own start, so readers can send events in their own order.
  */
 export type LogStart = 'rest' | 'start';
 /** Where the log starts for a machine whose state as the step ends is `rest`; null when no event goes anywhere from either. */
 export function logStart(machine: AnyMachine, rest: object): { from: LogStart; state: object } | null {
   const moves = (state: object) => machine.spec.events.some((e) => 'next' in machine.outcome(state, e));
-  if (moves(rest)) return { from: 'rest', state: rest };
+  if (machine.spec.liveStart !== 'start' && moves(rest)) return { from: 'rest', state: rest };
   const start = JSON.parse(JSON.stringify(machine.spec.start)) as object;
   return moves(start) ? { from: 'start', state: start } : null;
 }
@@ -218,6 +218,10 @@ export async function runLive(
       beganLog = true;
       if (from === 'start') {
         at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
+        if (machine.spec.result) {
+          const {result: _previous, ...shown} = at.shownJson();
+          at.shown = shown;
+        }
         for (const view of machine.spec.views) view.rebuild();
         origin = at.stateJson();
       }
@@ -229,6 +233,7 @@ export async function runLive(
       return { shown, derived, ...(meta?.watch ? { watched: watchedReadings({ before: origin, after: at.stateJson(), shown, derived,
         ...(at.currentStep ? { state: stepStateOf(at.currentStep) } : {}) }, meta.watch, meta.lang) } : {}) };
     };
+
     for (const [i, event] of log.entries()) {
       if (animate && i === log.length - 1) {
         out.draw(animate);

@@ -14,6 +14,14 @@ picture module that draws the state, a scene whose last step is live, and the re
 (`scenes/tutorial/door`). It passes `rayner check` and
 `rayner review` as written.
 
+The door is also a worked authored transition. Start with `model.ts`: `doorNext` returns the
+next durable state or a refusal. `picture.ts` draws that state with keys for the frame, panel,
+word and bolt. In `scene.ts`, the `close` transition obtains `t.choreograph(door)`, morphs
+`door:panel` for 0.3 seconds, then calls `c.rest({runTime:0.25})`. The new word appears after
+the panel closes. The other events use the default keyed sync. When replacing the starter,
+change the model and its independent test, draw its states, then author motion between those
+drawings. Run `rayner film` to inspect the journey and `rayner review` for the served page.
+
 ```ts
 import { Machine } from 'rayner/explain';
 
@@ -54,9 +62,12 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
 | `end(state)` | Where the story ends: the reason when `state` is finished, else `undefined`. From a finished state every event the model would take is beyond the story with this reason, and its refusals stay refusals, so a live step that ends finished starts the reader from `start` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
+| `result({ event, before, after })` | A transient response for an accepted event, kept as `shown.result` outside durable state identity ([transient responses](#transient-responses)) |
+| `motion({ event, before, after, target })` | Keyed context that must be present, absent or clear of text during a travel beat, checked by `rayner check` ([context during a trip](#context-during-a-trip)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) of this machine's scene; a view of another scene is refused at construction |
 | `match` | How the views morph without an authored transition (default `{ by: 'key', text: 'whole' }`, a [`Match`](MATCHING.md): keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
+| `liveStart` | Set to `'start'` to let reader events begin at the model's `start` even when the step's resting state can still move. The guided replay stays authored. Reset restores the step's picture and clears the event log. Omit it for the usual resting-state start and automatic fallback at a terminal state. |
 | `limit` | A positive finite integer: the most states exploration visits from one origin (default 256) |
 | `observe(state)` | Optional pure JSON observation the picture must distinguish. Defaults to the full model; equal observations may share a description, while different observations must have distinguishable accessible descriptions. It never changes exploration or which events and transitions are checked |
 
@@ -87,7 +98,8 @@ checks the events and each final configuration against the XState fixture.
 **Views read the state, and nothing else that changes.** Exploration redraws each state after
 the run, so a picture that also read a variable outside the state would be drawn wrongly. Every
 `View` is made from `(scene, draw)`, and a draw may read `scene.shown` as well: which picture a
-chapter shows belongs there, not in the model. A machine never changes `shown`, but what is shown
+chapter shows belongs there, not in the model. A machine changes only `shown.result`, and only with a
+[`result`](#transient-responses) callback, but what is shown
 may change between its events (a guided tour moving a code panel's lit line). The checker
 and the player both use the presentation belonging to the live step.
 
@@ -169,6 +181,108 @@ out yet or `d.morph` does: its turn comes mid-play, after `play()` has waited fo
 given, so the play waits again there, before its next frame, and the frames are those of an
 action that waited for nothing. What a transition makes is held to one writer per mobject against
 everything else the play drives as it begins.
+
+## Transient responses
+
+A response can be presentation without multiplying durable model states. Supply
+`result: ({event,before,after}) => ({status:200})` in the machine spec and read it in a view's
+second argument, `shown.result`. The callback runs for accepted events; return `undefined` to
+clear the previous response. It preserves other `shown` fields. Refused and beyond-story
+events leave the picture alone. A request answered with a 401 is an accepted transition that
+produces a response; a request that cannot be sent is a refusal.
+
+Keep the callback pure. For a typed scene, declare the presentation shape separately, for
+example `override shown: {result?:{status:number}} = {}`; the scene takes its shown type from
+that field. The durable `State` then needs no last-response field.
+
+The result is JSON data recorded in traces and replayed from live URLs. It is excluded from
+durable state identity and the exploration limit. `check` still draws and plays every accepted
+edge with its own result, even when several responses lead to the same durable state. Reset
+restores the authored picture. `liveStart:'start'` clears the last response when exploration
+starts from the model's beginning. An authored transition can also read `t.result`.
+
+## Timing and whole words
+
+An authored transition longer than its event's `runTime` is rejected with both durations and
+the event name. Increase the declared duration or shorten the motion. Caption-reading holds
+are separate. Keyed motion also rejects movement continuing beyond five seconds; a static
+caption hold does not count as movement.
+
+`c.rest({text:'whole'})`, the default, replaces a changed keyed `Text` in two halves without
+overlapping or morphing its glyphs. Use `text:'glyphs'` deliberately for glyph motion. Building
+an `enter` before a `leave` is allowed; play the leave first. `c.enter(key,{from})` can grow a
+Group from another part through a temporary proxy, preserving the target's family and keys.
+
+## Context during a trip
+
+A machine can state what the reader must see while one of its parts travels. In
+the conversations chapter the ledger heading and its two field labels stay on
+screen during a reply. The values under the labels change when the reply lands.
+
+```ts
+motion: ({ event, after }) =>
+  ['ask', 'you', 'read'].includes(event) && after.said?.at === activeOf(after)
+    ? [{
+        view: world,
+        during: 'turn:flight',
+        present: ['written:title:0', 'written:author.type:label', 'written:role:label'],
+      }]
+    : [],
+```
+
+The callback receives the event, its `before` and `after` states and
+`target(view)`. It returns an array of `MotionRule` declarations, or an empty
+array for a branch where the relationship does not apply. Each rule names a
+view of that machine and one exact travel key.
+`pass`, `carry` and `c.travel` use their supplied id. `flight` appends
+`:flight` to its destination key. The validator subscribes to the actual
+movement as the event builds, so the declaration remains independent of the
+transition that produces it.
+
+`present` and `absent` list exact keys in the specified view. Each subject
+must resolve uniquely in at least one endpoint picture and at most once in
+each. On every sampled frame of the move, `present` requires the subject to
+contribute pixels to the composited 800 × 450 picture: omitting that exact
+subject must change the picture. Camera, strokes, fill, inherited clips and
+foreground paint, including later views, all apply. RGBA changes count, including
+alpha-only ink in a transparent letterbox. `absent` requires retirement
+of the subject's on-stage drawing even when another object could hide it; an
+opaque cover does not remove a physical source. This continues when the
+traveller goes offstage. Presence establishes some visible ink, not complete
+readability; the separate occlusion checks judge foreground objects that cover
+words. Use a subject key for each part that matters when a panel contains
+several independently required labels.
+
+`clearText` names exact contextual reading surfaces which this traveller must
+leave unobstructed during its actual move beat. It also requires their presence.
+For example, a refreshed key can declare `clearText: ['lane:api:name']` so its
+narrow blade cannot interrupt the API lettering while the lane explains the trip.
+This is an authored actor/victim/event/phase assertion; the checker cannot infer
+which text explains a protocol. Do not name the traveller's own source or landing
+attachment as contextual text.
+
+The native check compares black/white glyph contribution with the complete
+traveller present and knocked out, retaining original glyph/actor opacity,
+holes, strokes, clips, foreground order and camera. A native glyph core with at
+least 128/255 contribution must not lose 32/255 or more to that traveller on any
+sampled move frame. This excludes faint antialias fringes and negligible alpha;
+it is a precise 800 × 450 sampling contract, not a claim about every display or
+human reading accuracy. Bounds only prune native work, and unchanged snapshots
+reuse their result. Only explicitly named surfaces of active trips incur these
+cropped renders. The generic 30% cover and 90% occluded-glyph heuristics retain
+their existing thresholds and meaning. Structured corpus observations distinguish
+this contract with `requirement: 'clear'`, the travel key as actor/mask and the
+exact text key as victim; its rejection is separate from a generic diagnosis.
+
+Both authored replays and explored reader events run the checks. Each declared
+traveller must move and paint at two distinct screen positions. To locate its
+visible ink, the checker renders the whole stage with and without that
+traveller and measures the centre of the pixel differences. This accounts
+for foreground objects from any view. Repeated trips with the same key are
+checked individually. Concurrent trips need distinct keys. Takeoff and
+arrival fades can hand the ink between co-located drawings. For example, a
+ring can fade off its hook as its travel copy appears, and the hook can
+display a separately keyed empty outline during the trip.
 
 ## The default transition
 
@@ -271,8 +385,8 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 
 ## The player
 
-At a live step the reader can drive the machine using one button per event under the
-step's caption, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
+At a live step, the reader can drive it: one button per event beside the
+picture on a wide page, or directly below its navigation on a narrow page, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
 gives the reader-facing contract: what the buttons say, how a refused event explains itself, what
 Undo, Reset and the keyboard do, and what a screen reader hears. Each of these explainers offers
 live controls in the scenarios that play its machines (oauth-pkce without the attacker plays none).
@@ -502,6 +616,17 @@ the stage and keeps the stage describing it.
   transition held the first picture, which the first event's finish had replaced. It is built
   when its turn comes.
 
+### Protocol outcomes and story bounds
+
+A request that happens and receives an error response is a transition. Record that response in
+the model so the picture and its description can show it. A refusal represents an event that
+cannot happen in that state. An HTTP 401 response alone does not make the request a refused event.
+A story `bound` applies to an event the model accepts; applying it where `next` already refuses
+fails `check`, because the model's refusal already explains that event.
+
+The page and the bare-runtime check provide `URL` and `URLSearchParams`. Protocol models can use
+their standard relative-path resolution, query decoding and normalization. They still run without
+DOM or Node APIs in the bare-runtime check.
 
 ### Observations and hidden model state
 

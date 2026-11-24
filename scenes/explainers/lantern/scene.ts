@@ -26,22 +26,6 @@ function inside(d: Diagram, ids: string[], region: Box, clip: Box) {
       throw new Error(`${id} at ${b.map((v) => v.toFixed(2))} is outside ${region}: recapture the canvas and content sizes`);
   }
 }
-/**
- * A camera view in which the stage's content area, below the heading, starts at `top` and holds `t`,
- * so that whatever lies above `top` passes under the heading's band.
- */
-function viewUnder(top: number, t: Box): Box {
-  // The content area below the heading, and the stage, in home units (explain/stage.ts).
-  const [l, b, r, u] = [-7.55, -4.25, 7.55, 3.25];
-  const z = Math.min((r - l) / (t[2] - t[0]), (u - b) / (top - t[1]));
-  const hw = 8 / z,
-    hh = 4.5 / z,
-    cx = (t[0] + t[2]) / 2 - (l + r) / 2 / z,
-    cy = top - u / z;
-  if (z <= 1 || cy - hh < -4.5 - 1e-6 || Math.abs(cx) + hw > 8 + 1e-6)
-    throw new Error(`No view below the heading from y = ${top.toFixed(2)} holds ${t.map((v) => v.toFixed(2))} on the stage`);
-  return [cx - hw, cy - hh, cx + hw, cy + hh];
-}
 // Tighter spacing than Mermaid's default, so the boxes and their labels fill more of the stage.
 const CLASSES =
   '---\nconfig:\n  class:\n    nodeSpacing: 32\n    rankSpacing: 12\n---\nclassDiagram\n direction LR\n class Scene {\n construct()\n play()\n step()\n }\n class Mobject {\n points\n style\n }\n class Animation {\n interpolate()\n }\n class Sink {\n frame()\n }\n Scene --> Mobject : owns\n Scene --> Animation : plays\n Scene --> Sink : emits';
@@ -421,11 +405,10 @@ export default class LanternExplainer extends Scene {
     await s.clearOverlays();
     await showClasses({ walked: [] });
     await showClasses({ notes: [{ id: 'Animation', text: 'endpoints fixed at begin()', side: 'below' }] });
-    const fixed = classesView.current.family().find((m) => m.key === 'note:Animation')!;
     const anim = classes.get('Animation').box()!,
       mob = classes.get('Mobject').box()!;
     // Beside the two boxes it is about: begin() copies a mobject, and the frames blend from that copy.
-    const listing = await s.code(
+    await s.code(
       [
         '// src/animation.ts',
         'begin():',
@@ -439,22 +422,11 @@ export default class LanternExplainer extends Scene {
       ],
       { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], size: 0.19 },
     );
-    // Scene and Sink fade, so nothing behind the heading competes with it once the camera moves in.
+    // Scene and Sink stay as dimmed context around the two classes this step explains.
     await showClasses({ dim: ['Mobject', 'Animation'] });
-    // The camera frames Scene and the two links this step is about, Mobject, Animation, its note and the
-    // listing below the heading, which stays on screen. Sink, above Mobject, passes under the heading
-    // whole, so the frame cuts no box.
-    const sink = classes.get('Sink').box()!;
-    const subject = [classes.get('Scene'), classes.get('Mobject'), classes.get('Animation'), fixed, listing].map((m) => m.box()!);
-    await s.focus(
-      viewUnder(sink[1] - 0.02, [
-        Math.min(...subject.map((b) => b[0])) - 0.08,
-        Math.min(...subject.map((b) => b[1])) - 0.15,
-        Math.max(...subject.map((b) => b[2])) + 0.08,
-        mob[3],
-      ]),
-      { exact: true },
-    );
+    // Keep all four classes whole. The framed reader removes the stage heading, so it cannot
+    // conceal context cut by an authored close-up; phone tours provide the closer reading views.
+    await s.focus([-8, -4.5, 8, 4.5], { exact: true });
 
     // Every frame of the tiny scene, seeked and compared with playback, for both kinds of motion.
     const count = (m: Motion) => runs[m].matches.filter(Boolean).length;

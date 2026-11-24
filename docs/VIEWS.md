@@ -107,6 +107,7 @@ advances both on each request.
 
 ```ts
 view(scene: Scene & { state: S, shown: Sh }, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
+view(scene, (state, shown, drawing) => M, { drawing: s.drawing, place? })   // the bound DrawContext, snapshotted once, is the draw's third argument on every redraw
 having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one chapter (below)
 
 view.current            // the picture on screen (the View's one child)
@@ -168,7 +169,7 @@ morphs with `new Transform(old, next, { match })`:
 
 | `match` | pairs | good for |
 |---|---|---|
-| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
+| `'key'` (default) | parts by the keys their containers carry | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, changed keyed words are replaced whole and unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
 | `{ by: 'key', fallback?, unkeyed?, text? }` | as `'key'`, saying what unkeyed parts and relabelled words do | `fallback` to keep unkeyed parts too, `text: 'whole'` when a keyed word's change is a new identity |
 | `'text'` | glyphs by character | a bare `Text` readout, code without keys: unchanged characters stay where they are |
 | `'index'` | family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
@@ -190,6 +191,11 @@ morphed, removed, added }`, with the View's key as `view` when it has one; a syn
 and one whose picture did not change record none.
 
 ### A picture that did not change
+
+Use `view.sync({how:'fade'})` to exchange whole pictures without shrinking unmatched parts.
+The old picture fades out in the first half and the new one fades in in the second, retaining
+their geometry and each child's authored opacity. It needs no keys. `how:'morph'` is the usual
+matching sync; its keyed default replaces changed words whole.
 
 When the rebuilt, placed picture has the same family shape and point counts,
 points within 1e-5, equal styles and equal strings, the sync keeps the current
@@ -233,8 +239,8 @@ is not on screen adds it abruptly.
 equal the program's". `assertStepState` in `rayner/testing` checks the state side.
 A View adds the picture side with `assertViewFollowsState`, also in `rayner/testing`.
 **At the end of every step, the View shows what its state input and the scene's
-authored shown fields draw.** Helpers can add evidence to the recorded trace with
-`addJson()`. The check redraws with the same inputs the View receives.
+authored shown fields draw.** Helpers can add derived data to the recorded trace with
+`addJson(part)`, traced as `derived` and never a draw input; evidence uses `record()`. The check redraws with the same inputs the View receives.
 
 ```ts
 import { assertViewFollowsState } from 'rayner/testing';
@@ -334,3 +340,24 @@ afterwards, which shows it by the same view. A walk runs over the view as it is;
   unchanged digits stay and changed digits fade across. With
   `sync({ match: 'index' })` its own interpolation runs, and the number counts
   through the values in between (`0 -> 5 -> 10`).
+
+### Diagram sources selected from state
+
+Resolve the finite source set before making a view. Each draw then selects the full captured
+picture synchronously, including its geometry and description.
+
+```ts
+const sources = [{ source: 'graph LR\nA --> B' }, { source: 'graph LR\nA --> C' }];
+const draw = await s.prepareDiagrams(sources);
+const diagram = view(this, st => draw(sources[st.branch]!), { place: false });
+s.keep(diagram);
+this.state.branch = 1;
+await this.play(diagram.sync());
+```
+
+The returned function also takes a second argument with `marks`, `notes`, `dim` and `prefix`,
+as `diagramView` does. A source absent from the declared set fails immediately. Preparation
+captures or resolves snapshots without playing animations or adding pictures to the stage.
+A stale source picture fails the usual view redraw comparison. The scene's model test still
+owns the correctness of the source-building function. Existing imperative diagrams retain
+their pinned-snapshot checks.

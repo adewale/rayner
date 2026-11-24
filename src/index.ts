@@ -32,7 +32,7 @@ export type { DiffOp, Hunk } from './diff.ts';
 export { linear, smooth } from './rate.ts';
 export type { RateFunc } from './rate.ts';
 export { Scene } from './scene.ts';
-export type { Sink, Step, EndedStep, StepMeta, SceneOptions, SceneState, SceneClass } from './scene.ts';
+export type { Sink, Step, EndedStep, StepMeta, SceneOptions, SceneState, SceneClass, SceneInputs } from './scene.ts';
 export type { Evidence, Invariant, ScenePhase } from './scene.ts';
 // Frames: one frame of a scene, sought by its number, and SVG drawn from it
 export { renderFrame } from './timeline.ts';

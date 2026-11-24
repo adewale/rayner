@@ -5,11 +5,30 @@
  * pointer, double-click about the point clicked. Once zoomed, a drag pans, and
  * so does a click or tap, which centres the point under it (no drag needed).
  */
-import { DomSink } from '../src/internal.ts';
+import { DomSink, mobjectId, userBox, intersect } from '../src/internal.ts';
 import { VIEWBOX, applyRecords } from '../src/internal.ts';
-import { withoutHeading } from '../explain/internal.ts';
+import { withoutHeading, labelOf, labelCompanions, labelPaintBox } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/internal.ts';
+import type { Box } from '../src/index.ts';
+
+interface ReaderLabel { box: Box; text: string }
+const readerLabels = new WeakMap<SVGSVGElement, Map<Element, ReaderLabel>>();
+/** A crop may omit context, but must never show half a word. Whole picture always restores it.
+ * Required subjects still have to be painted completely at a tour stop in browser review. */
+function clipReaderLabels(svg: SVGSVGElement, view: string): void {
+  const labels = readerLabels.get(svg);
+  if (!labels) return;
+  const [x, y, w, h] = rect(view), viewport: Box = [x, y, x + w, y + h];
+  const author = rect(cameraOf(svg)), camera: Box = [author[0], author[1], author[0] + author[2], author[1] + author[3]];
+  for (const [element, label] of labels) {
+    const b = intersect(label.box, camera);
+    const cut = view !== cameraOf(svg) && b && intersect(b, viewport) &&
+      (b[0] < viewport[0] - 0.5 || b[1] < viewport[1] - 0.5 || b[2] > viewport[2] + 0.5 || b[3] > viewport[3] + 0.5);
+    if (cut) element.setAttribute('data-reader-clipped', label.text);
+    else element.removeAttribute('data-reader-clipped');
+  }
+}
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;
@@ -126,6 +145,7 @@ export class ReaderView {
     if (!svg) return;
     const box = this.view(cameraOf(svg));
     if (svg.getAttribute('viewBox') !== box) svg.setAttribute('viewBox', box);
+    clipReaderLabels(svg, box);
   }
   readonly paint: Painter = (z, glide) => {
     cancelAnimationFrame(this.glide);
@@ -153,6 +173,7 @@ export class ReaderView {
  * row, and the stage's own copy would be drawn too small to read.
  */
 export class ReaderSink extends DomSink {
+  private labels = new Map<number, ReaderLabel>();
   private readonly reader: (author: string) => string;
   private readonly signal:AbortSignal;
   private readonly withoutHeading: () => boolean;
@@ -164,6 +185,19 @@ export class ReaderSink extends DomSink {
     this.svg.setAttribute('data-camera', this.svg.getAttribute('viewBox') ?? HOME_VIEW);
   }
   override async frame(scene: Scene, dt = 0): Promise<void> {
+    this.labels = new Map();
+    const byKey = this.withoutHeading() ? new Map(scene.familyMembers().filter(m => m.key).map(m => [m.key!, m])) : new Map();
+    if (this.withoutHeading()) for (const m of scene.familyMembers()) {
+      const label = labelOf(m);
+      if (!label?.text.trim()) continue;
+      const parts = [m, ...labelCompanions(m, byKey)], family = parts.flatMap(part => part.family());
+      let box = labelPaintBox(parts);
+      if (!box) continue;
+      for (let a: typeof m | null = m; a && box; a = a.parent) if (a.clipBox) box = intersect(box, a.clipBox);
+      if (!box) continue;
+      const info = {box: userBox(box), text: label.text};
+      for (const c of family) this.labels.set(mobjectId(c), info);
+    }
     if (!this.withoutHeading()) return super.frame(scene, dt);
     // The scene waits for its sink, so its objects stay put while this frame is drawn without them.
     await withoutHeading(scene, () => super.frame(scene, dt));
@@ -173,6 +207,20 @@ export class ReaderSink extends DomSink {
     this.signal.throwIfAborted();
     if (viewBox !== undefined && viewBox !== this.svg.getAttribute('data-camera')) this.svg.setAttribute('data-camera', viewBox);
     super[applyRecords](els, this.reader(this.svg.getAttribute('data-camera')!));
+    if(!this.labels.size){
+      const previous=readerLabels.get(this.svg);
+      if(previous){for(const node of previous.keys())node.removeAttribute('data-reader-clipped');readerLabels.delete(this.svg);}
+      return;
+    }
+    const nodes = [...this.svg.children].filter(e => e.tagName !== 'defs');
+    const labels = new Map<Element, ReaderLabel>();
+    for (const [index, rec] of els.entries()) {
+      const node = nodes[index]!, label = this.labels.get(rec.id);
+      if (label) labels.set(node, label);
+      else if(node.hasAttribute('data-reader-clipped'))node.removeAttribute('data-reader-clipped');
+    }
+    readerLabels.set(this.svg, labels);
+    clipReaderLabels(this.svg, this.svg.getAttribute('viewBox')!);
   }
 }
 

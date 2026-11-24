@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { traceScene } from '../explain/testing.ts';
 import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
@@ -45,6 +45,19 @@ test('CLI output and status belong to each invocation, including concurrent succ
 });
 
 // The gates `rayner check` runs, each with a seeded defect, are in explain-gates.test.ts.
+test('a local explainer absent from its catalog warns before reporting individual checks as complete', async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'rayner-admission-'));
+  try {
+    const collection=join(dir,'scenes','explainers'), scene=join(collection,'uncatalogued');
+    await mkdir(scene,{recursive:true});
+    await writeFile(join(collection,'catalog.ts'), `export const entries=[{id:'another'}];`);
+    await writeFile(join(scene,'scene.ts'), `import{Scene,Text}from'rayner';export default class Local extends Scene{async construct(){await this.step('one',{caption:'A visible label.'});this.add(new Text('Visible'));await this.wait(.1);}}`);
+    const run=()=>spawnSync(process.execPath,[join(ROOT,'tools/explain.ts'),'describe',scene],{encoding:'utf8'});
+    const missing=run();assert.equal(missing.status,0,missing.stderr);assert.match(missing.stderr,/Catalog warning: .*uncatalogued.*absent from catalog.ts/);
+    await writeFile(join(collection,'catalog.ts'),`export const entries=[{id:'uncatalogued'}];`);
+    const admitted=run();assert.equal(admitted.status,0,admitted.stderr);assert.doesNotMatch(admitted.stderr,/Catalog warning/);
+  } finally {await rm(dir,{recursive:true,force:true});}
+});
 test('external source and compiled ESM scenes share the CLI engine; source hashes ignore checkout paths', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-command-'));
   try {
@@ -287,5 +300,37 @@ test('preview --watch rebuilds at most once more for saves made during a rebuild
   } finally {
     watching.watcher.close();
     await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('machine check offers explicit JSON and prints a concise verdict with its report path', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-summary-'));
+  try {
+    execFileSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'init', join(directory, 'scene'), '--machine'], { cwd: ROOT });
+    const output = join(directory, 'checks');
+    const result = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', join(directory, 'scene', 'scene.ts'), '--json', '--out', output], { cwd: ROOT, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    const concise = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', join(directory, 'scene'), '--out', output], {cwd: ROOT, encoding: 'utf8'});
+    assert.equal(concise.status, 0, concise.stderr);
+    assert.match(concise.stdout, /^Check passed:/);
+    assert.ok(concise.stdout.split('\n').length <= 3);
+    assert.ok(concise.stdout.includes(output));
+    assert.equal(report.scenarios.length, 1);
+    assert.ok(report.scenarios[0].machines.length > 0);
+    assert.equal('phoneWarnings' in report.scenarios[0].machines[0], false);
+    assert.match(result.stderr, /Check passed: 1 scenarios, \d+ steps, \d+ checked states, \d+ model tests, 0 problems, 0 phone warnings/);
+    assert.ok(result.stderr.includes(output));
+    const picture = join(directory, 'scene', 'picture.ts');
+    const original = await readFile(picture, 'utf8');
+    assert.ok(original.includes('fontSize: 0.6'));
+    await writeFile(picture, original.replace('fontSize: 0.6', 'fontSize: 0.5'));
+    const warned = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', join(directory, 'scene', 'scene.ts'), '--json', '--out', output], { cwd: ROOT, encoding: 'utf8' });
+    assert.equal(warned.status, 0, warned.stderr);
+    assert.ok(JSON.parse(warned.stdout).scenarios[0].machines[0].phoneWarnings.length > 0);
+    assert.match(warned.stderr, /Phone warning: .*whole picture.*after a live event/);
+
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });

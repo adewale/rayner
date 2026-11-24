@@ -42,7 +42,7 @@ export default class Statecharts extends Scene {
   } satisfies ExplainerMeta;
 
   override async construct() {
-    const s = stage(this, { style: 'github-light', headingSize: 0.54 });
+    const s = stage(this, { style: 'github-light', heading: false });
     const playerChart = player(2),
       coffeeFlat = flatCounts(flatten(coffee())),
       coffeePlain = flatten(coffee()).transitions.filter((t) => t.from !== 'off' && t.to !== 'off').length,
@@ -56,6 +56,8 @@ export default class Statecharts extends Scene {
 
     const FULL = regionBox('full', { top: 3.05 });
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
+    const liveFrame: Box = [-7.3, -3.9, 7.3, 3.9];
+    const liveBig = (b: Box) => fit(b, liveFrame, scaleFor(b, liveFrame));
 
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
@@ -69,7 +71,7 @@ export default class Statecharts extends Scene {
         case 'copies':
           return coffeePicture(s.drawing, big(coffeeLayout('flat').bounds), 'flat', { follow: [], lit: Object.keys(COFFEE.ys).map((id) => `c:arrow:${id}:POWER_OFF:off`) });
         case 'parent':
-          return coffeePicture(s.drawing, big(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
+          return coffeePicture(s.drawing, liveBig(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
         case 'multiply':
           return flatPicture(s.drawing, playerChart, big(FLAT.bounds), { follow: [], lit: [] });
         case 'grid':
@@ -81,7 +83,7 @@ export default class Statecharts extends Scene {
         case 'question':
           return coffeePicture(s.drawing, big(coffeeLayout('question').bounds), 'question', { follow: [], lit: [] });
         case 'frother':
-          return coffeePicture(s.drawing, big(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
+          return coffeePicture(s.drawing, liveBig(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
       }
     };
     this.state = { current: null } satisfies Model;
@@ -156,7 +158,7 @@ export default class Statecharts extends Scene {
     const replay = async (machine: typeof brew, chapter: 'parent' | 'frother', events: readonly string[]) => {
       show(chapter);
       this.state = machine.spec.start;
-      await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
+      await this.play(main.sync({ match: byKey, staged: chapter === 'frother', runTime: 1.2 }));
       await this.play(machine.sendSequence(events));
     };
 

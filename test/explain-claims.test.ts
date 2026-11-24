@@ -8,6 +8,15 @@ import { join } from 'node:path';
 
 const step = (step: string, caption: string, title = '', line = '') => ({ step, meta: { title, line, caption } });
 
+test('claims and scope words include drawn labels and reader questions', () => {
+  const report = claimsReport({claims: [{says: 'Every item is checked', shown: true}], questions: [{question: 'Does it always work?', answer: 'Only for these inputs.'}]},
+    [step('one', 'A drawing.')], [{step: 'one', text: 'Every item is checked'}]);
+  assert.deepEqual(report.stated, ['Every item is checked']);
+  assert.equal(report.scope.length, 3);
+  assert.equal(report.scope[0]!.backedBy, 'shown');
+  assert.ok(report.scope.slice(1).every(s => s.step === 'reader question 1'));
+});
+
 test('all declared phrases in one sentence are stated, including overlapping phrases', () => {
   const claims = ['Every input', 'always yields one output', 'Every input always'].map(says => ({ says, shown: true }));
   const report = claimsReport({ claims }, [step('one', 'Every input always yields one output.')]);

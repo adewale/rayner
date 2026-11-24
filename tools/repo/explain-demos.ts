@@ -17,7 +17,7 @@ import { useProjectLettering } from '../lib/explain-lettering.ts';
 import { galleryPage, galleryTokens } from './lib/explain-gallery.ts';
 import { builtOutputHashes } from './lib/explain-built-files.ts';
 import type { ShareManifest } from '../lib/explain-share.ts';
-import { measureEmbed, embedSizeProblems } from './lib/explain-embed-size.ts';
+import { measureEmbed, embedSizeProblems } from '../lib/explain-embed-size.ts';
 import { serve } from '../lib/explain-serve.ts';
 import { launch } from '../lib/browser.ts';
 import { reviewSubjects } from '../lib/explain-review-scene.ts';
@@ -129,7 +129,7 @@ for (const item of items) {
   );
 }
 await buildLoader(join(directory, 'loader.js'));
-// Known heights (tools/repo/lib/explain-embed-size.ts): each page as the loader frames it, served from here.
+// Known heights (tools/lib/explain-embed-size.ts): each page as the loader frames it, served from here.
 {
   const server = await serve(directory, 0, 'index.html'),
     browser = await launch();
