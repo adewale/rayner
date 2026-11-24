@@ -6,12 +6,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text } from '../src/index.ts';
-import { TraceSink } from '../explain/testing.ts';
+import { TraceSink, assertStepState } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
-import type { StagedStep, Stage } from '../explain/index.ts';
+import type { StagedStep, DrawContext } from '../explain/index.ts';
 import { FanSink, ViewSink } from '../tools/lib/explain-check.ts';
 
-const words = (s: Stage, n: number) => new Group(new Text(`count ${n}`, { fontSize: 0.5, color: s.look.ink, shaping: s.scene.textShaping }));
+const words = (s: DrawContext, n: number) => new Group(new Text(`count ${n}`, { fontSize: 0.5, color: s.look.ink, shaping: s.shaping }));
 
 // Each test's steps have their own state type; `any` lets one runner take them all.
 async function run(steps: (bump: () => number) => StagedStep<any>[], kind: 'short' | 'main' = 'main') {
@@ -36,9 +36,9 @@ const step = (id: string, n: number, draw: StagedStep<{ n: number }>['draw']) =>
 
 test('stage.steps records each state, draws it as a view of that state, and every view redraws the same at its step\'s end', async () => {
   const { scene, trace, checked, problems } = await run(() => [1, 2, 3].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
-  // The model is the step's state and nothing else: which picture is showing is not part of it.
-  assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 1 }, { n: 2 }, { n: 3 }]);
-  assert.ok(trace.steps.every((s) => s.shown?.picture), 'what the stage shows is traced apart, as shown');
+  assert.deepEqual(trace.steps.map((s) => s.state), [{ n: 1 }, { n: 2 }, { n: 3 }]);
+  assert.deepEqual(trace.steps.map((s) => s.after), [{}, {}, {}], 'local specimens leave the scene model intact');
+  assert.ok(trace.steps.every((s) => s.derived?.picture), 'what the stage shows is traced apart, as shown');
   assert.deepEqual({ checked, problems }, { checked: 3, problems: [] });
   // The shown picture is the step's drawing, described by its words.
   const shown = scene.mobjects.flatMap((m) => m.family()).filter((m): m is Text => m instanceof Text).map((t) => t.text);
@@ -47,7 +47,7 @@ test('stage.steps records each state, draws it as a view of that state, and ever
 
 test('a short path records each model as the state, marks its steps short, and redraws from it', async () => {
   const { trace, checked, problems } = await run(() => [4, 5].map((n) => step(`r${n}`, n, (st, s) => words(s, st.n))), 'short');
-  assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 4 }, { n: 5 }]);
+  assert.deepEqual(trace.steps.map((s) => s.state), [{ n: 4 }, { n: 5 }]);
   assert.deepEqual(trace.steps.map((s) => s.meta.kind), ['short', 'short']);
   assert.deepEqual({ checked, problems }, { checked: 2, problems: [] });
 });
@@ -65,7 +65,7 @@ test('deliberate defect: a draw that ignores its state and draws a captured cons
   const { problems, ignoring } = await run(() => [1, 2].map((n) => step(`s${n}`, n, (_, s) => words(s, n))));
   assert.deepEqual(ignoring, ['step "s1": a view', 'step "s2": a view']);
   assert.equal(problems.length, 2);
-  assert.match(problems[0]!, /^step "s1": a view: its draw ignores its state; its picture is the same drawn from \d+ different states/);
+  assert.match(problems[0]!, /^step "s1": a view: sampled alternative inputs produced the same picture \(\d+ local step inputs\); state dependence is unproven/);
   // The same pictures drawn from the state pass.
   const fixed = await run(() => [1, 2].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
   assert.deepEqual({ problems: fixed.problems, ignoring: fixed.ignoring }, { problems: [], ignoring: [] });
@@ -80,7 +80,7 @@ test('a lone step reading its state passes; one with an empty state is exempt; a
   assert.deepEqual({ checked: still.checked, problems: still.problems, ignoring: still.ignoring }, { checked: 1, problems: [], ignoring: [] });
   // A flag that only colours the picture moves no box, yet the picture depends on it.
   const lit = await run(() => [staged('lit', { lit: true },
-    (st, s) => new Group(new Text('lamp', { fontSize: 0.5, color: st.lit ? s.look.emphasis : s.look.ink, shaping: s.scene.textShaping })))]);
+    (st, s) => new Group(new Text('lamp', { fontSize: 0.5, color: st.lit ? s.look.emphasis : s.look.ink, shaping: s.shaping })))]);
   assert.deepEqual(lit.problems, []);
   // A draw that cannot draw a different state has read it.
   const picky = await run(() => [staged('picky', { level: 'AA' },
@@ -96,14 +96,14 @@ test('a step whose state is not JSON is refused before anything is drawn', async
 });
 
 test('stage.steps types each step by its own state, so one list holds steps whose states differ', async () => {
-  class Mixed extends Scene<{}, {}> {
+  class Mixed extends Scene {
     override async construct() {
       const s = stage(this);
       await s.steps([
         { id: 'count', title: 'A count', line: 'A line.', caption: 'A caption long enough to read.', state: { n: 3 }, draw: (st, s) => words(s, st.n) },
         {
           id: 'name', title: 'A name', line: 'A line.', caption: 'A caption long enough to read.', state: { name: 'three' },
-          draw: (st, s) => new Group(new Text(st.name, { fontSize: 0.5, color: s.look.ink, shaping: s.scene.textShaping })),
+          draw: (st, s) => new Group(new Text(st.name, { fontSize: 0.5, color: s.look.ink, shaping: s.shaping })),
           describe: (st) => `The word ${st.name}`,
         },
       ]);
@@ -114,8 +114,73 @@ test('stage.steps types each step by its own state, so one list holds steps whos
   void Mixed;
 });
 
+test('heterogeneous staged inputs preserve the typed model during frames, callbacks and the following ordinary step', async () => {
+  const observed: number[] = [], trace = new TraceSink(), checks = new ViewSink();
+  class Persistent extends Scene {
+    override state = { count: 7 };
+    override async construct() {
+      const model = this.state;
+      this.onStepEnd(() => { observed.push(this.state.count); assert.equal(this.state, model); });
+      const s = stage(this);
+      await s.steps([
+        { id: 'local-count', title: 'Count', line: 'Count.', caption: 'The local count.', state: { n: 3 }, draw: (st, api) => words(api, st.n) },
+        { id: 'local-name', title: 'Name', line: 'Name.', caption: 'The local name.', state: { label: 'seven' }, draw: (st) => new Text(st.label) },
+      ]);
+      assert.equal(this.state.count, 7);
+      await this.step('model');
+      await s.clear({ runTime: 0 });
+      this.state.count++;
+      await this.wait(0.1);
+    }
+  }
+  const frameCounts: number[] = [];
+  const scene = new Persistent(new FanSink([trace, checks, { async frame(sc) { frameCounts.push((sc as Persistent).state.count); } }]));
+  await scene.run();
+  assert.deepEqual(observed, [7, 7, 8]);
+  assert.ok(frameCounts.length > 5);
+  assert.ok(frameCounts.every((count) => count === 7 || count === 8), 'every frame can read the typed model');
+  assert.deepEqual(trace.steps().map((s) => s.before), [{ count: 7 }, { count: 7 }, { count: 7 }]);
+  assert.deepEqual(trace.steps().map((s) => s.after), [{ count: 7 }, { count: 7 }, { count: 8 }]);
+  assert.deepEqual(trace.steps().map((s) => s.state), [{ n: 3 }, { label: 'seven' }, undefined]);
+  assertStepState({ steps: trace.steps() }, 'local-name', { label: 'seven' });
+  assertStepState({ steps: trace.steps() }, 'model', { count: 8 });
+  assert.equal(checks.checked, 2);
+  assert.deepEqual([...checks.problems, ...checks.ignoringProblems()], []);
+});
+
 test('a staged step’s prediction reaches its step’s metadata, where the player and check read it', async () => {
   const predict = { options: ['1', '2'], answer: '2' };
   const { trace } = await run(() => [{ ...step('ask', 1, (st, s) => words(s, st.n)), predict }, step('answer', 2, (st, s) => words(s, st.n))]);
   assert.deepEqual(trace.steps.map((s) => s.meta.predict), [predict, undefined]);
+});
+
+
+test('threshold pictures need a valid contrasting example; equal probes do not prove constant drawing', async () => {
+  const draw = (st: { n: number }, s: DrawContext) => new Group(new Text(st.n >= 3 ? 'open' : 'waiting', { color: s.look.ink }));
+  const threshold = await run(() => [step('waiting', 0, draw)]);
+  assert.equal(threshold.problems.length, 1);
+  assert.match(threshold.problems[0]!, /state dependence is unproven/);
+  assert.ok(!threshold.problems[0]!.includes('ignores its state'));
+  const contrasted = await run(() => [step('open', 3, draw), step('waiting', 0, draw)]);
+  assert.deepEqual(contrasted.problems, []);
+});
+
+test('a model view is probed with model states alone: a local specimen it refuses is no proof that it reads the model', async () => {
+  const { view, keyed } = { ...(await import('../explain/index.ts')), ...(await import('../src/index.ts')) };
+  const { View } = await import('../explain/view.ts');
+  class Mixed extends Scene {
+    override state = { count: 1 };
+    override async construct() {
+      // Reads nothing of the model, but refuses a specimen's shape: still a view that ignores its state.
+      this.add(keyed(view(this, (st: object) => { if ('cells' in st) throw new TypeError('not the model'); return new Text('Total'); }), 'total'));
+      await this.step('one');
+      this.add(keyed(new View(this, (st: { cells: number[] }) => new Text(`cells ${st.cells.join(' ')}`), { place: false }, { cells: [1, 2] }), 'local'));
+      this.state = { count: 2 };
+      await this.step('two');
+    }
+  }
+  const views = new ViewSink();
+  await new Mixed(views).run();
+  assert.deepEqual(views.ignoring, ['step "one": total']);
+  assert.match(views.ignoringProblems()[0]!, /\(\d+ model states\)/);
 });

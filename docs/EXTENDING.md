@@ -187,13 +187,22 @@ inputs without learning a JSON animation language.
 
 - `Diamond extends VMobject` builds one custom path with `setPolygon`.
 - `StatusBadge extends Group` combines that path and a text label. Getters find
-  the badge's own children, including after `copy()`.
+  the badge's own children, including after `copy()`. The constructor gives
+  each badge a description with `described` from `rayner/drawing`.
 - `statusRow(labels)` is an ordinary function arranging several badges, each keyed by its label so the scene finds one with `row.find(label)`.
 
 All of them work with `FadeIn`, `Transform`, `Group`, copying, layout and the SVG
 renderer without registering anything, because they are built from existing path
 primitives. The copy test moves the cloned path and changes the cloned label, then
 checks that the originals and parent references are unchanged.
+
+When the stage enters the row, the transcript names each badge and its current
+status. A component supplies these words wherever it is nested. Read mutable
+parts through the callback argument so a copy reports its own label.
+
+```ts
+described(this, (badge) => ({ what: 'Status badge', parts: [{ name: badge.label.text }] }));
+```
 
 Try a diamond containing another component, or the same badge in a chart and a
 protocol diagram. Reuse a component through its mobject interface rather than
@@ -245,7 +254,7 @@ distribution and adding another dependent readout. Keep these constraints:
    model's domain check.
 5. Finish in `doFinish()` where the last frame drew. `rayner check` compares each step's
    picture as it ends, after its last play has finished, with its resting frame,
-   since `rayner describe` and the shots draw the step as it ends.
+   since `rayner describe` and the contact sheet draw the step as it ends.
 
 The recipe fixes drawing coordinates at construction, so shifting, scaling or
 rotating the dependent group does not survive the next sample; a camera move is
@@ -319,7 +328,9 @@ Each extension point has one rule for what happens when two of them act on the s
 
 ## Test an extension
 
-Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner`, `renderFrame` and `toSvgString` give the picture at a frame. The invariants recipe's sink runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner`, `renderFrame` and `toSvgString` give the picture at a frame. The invariants recipe's sink runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+
+The [shared-orbit recipe](../recipes/shared-orbit.ts) gives two independently mounted views one sampled state with `tweenState(scene, stateAt, { views })`. Its point and radius agree on every frame and after seeking. `view.tween` is the single-view form; parallel samplers writing the same scene state are refused. Run `npm run recipes -- --scene shared-orbit` to write its SVG and trace.
 
 ## Composition, compositionality and modularity
 

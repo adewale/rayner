@@ -15,6 +15,7 @@ import type { Mobject } from '../src/mobject.ts';
 import type { VMobject } from '../src/vmobject.ts';
 import { linear } from '../src/rate.ts';
 import { keyed } from '../src/index.ts';
+import { TargetSlots } from '../src/target-slots.ts';
 
 /**
  * An animation for a part that is already in the picture but unseen: it shows the part as it was
@@ -99,10 +100,16 @@ export interface Choreography {
  * a call brings in is added to the current picture, and a part a call takes out leaves it, so when
  * every part has finished the current picture shows the target's parts.
  */
-export function choreograph(current: Mobject, target: Mobject): Choreography {
+export function choreograph(current: Mobject, target: Mobject, registerTrip?: (key: string, move: Animation) => void): Choreography {
   const now = keyedParts(current), want = keyedParts(target);
   const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
   const replacements = new Map<string, Mobject>();
+  const tokens = new Set<Mobject>();
+  const slots = new TargetSlots(current, target, new Map([...want].flatMap(([key, part]) => now.has(key) ? [[part, now.get(key)!] as const] : [])), tokens);
+  function admit(key: string, part: Mobject): void {
+    if (!want.has(key)) { current.add(part); tokens.add(part); return; }
+    slots.add(want.get(key)!, part);
+  }
   // A part that has left may enter again, once: replacing a part in place with a new one.
   const claim = (key: string, entering = false) => {
     if (done.has(key) && !(entering && left.has(key))) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already animated; name each part in one call`);
@@ -125,9 +132,9 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
     if (now.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already in the current picture; morph it`);
     const part = like.copy();
     keyed(part, key);
+    admit(key, part);
     part.saveState();
     part.setOpacity(0);
-    current.add(part);
     now.set(key, part);
     return part;
   };
@@ -154,7 +161,7 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       if (now.has(key)) {
         claim(key);
         const old = from(key), part = target.copy();
-        part.saveState(); part.setOpacity(0); current.add(part);
+        admit(key, part); part.saveState(); part.setOpacity(0);
         replacements.set(key, part);
         return new Joining(part, new FadeIn(part, opts), opts, () => {
           if (current.family().includes(old)) throw new Error(`t.choreograph(): leave ${JSON.stringify(key)} must play before its replacement enters`);
@@ -204,9 +211,11 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       if (want.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is in the target picture, and a travelling token only passes through; travel a key the target does not have`);
       const start = path.pointFromProportion(0);
       const part = insert(key, token.copy().moveTo(start));
+      const movement = new MoveAlongPath(part, path, { runTime: move, rateFunc: linear });
+      registerTrip?.(key, movement);
       return {
         appear: new Transform(part, token.copy().moveTo(start), { runTime: appear }),
-        move: new MoveAlongPath(part, path, { runTime: move, rateFunc: linear }),
+        move: movement,
         leave: self.leave(key, { runTime: leave }),
       };
     },

@@ -1,5 +1,7 @@
-import { VMobject, Group, Text, Scene, FadeIn, Transform, keyed } from 'rayner';
+import { VMobject, Group, Text, Scene, Transform, keyed } from 'rayner';
 import type { Style } from 'rayner';
+import { stage } from 'rayner/explain';
+import { described } from 'rayner/drawing';
 
 /** Use VMobject's public path builder; copies own their point buffers. */
 export class Diamond extends VMobject {
@@ -15,6 +17,7 @@ export class StatusBadge extends Group {
     const shape = new Diamond({ stroke: '#5cd0b3', fill: '#5cd0b3', fillOpacity: 0.12 });
     const text = new Text(label, { fontSize: 0.25 }).moveTo([0, -1.4]);
     super(shape, text);
+    described(this, (badge) => ({ what: 'Status badge', parts: [{ name: badge.label.text }] }));
   }
   get shape(): Diamond { return this.children[0] as Diamond; }
   get label(): Text { return this.children[1] as Text; }
@@ -31,11 +34,14 @@ export function statusRow(labels: readonly string[]): Group {
   return new Group(...badges).arrange([1, 0], 1);
 }
 
-export default class ExtensionScene extends Scene<{ labels?: string[] }, {}> {
+export default class ExtensionScene extends Scene {
+  override state: { labels?: string[] } = {};
+
   override async construct() {
+    const s = stage(this, { heading: false });
     const row = statusRow(['queued', 'running', 'done']);
     await this.step('badges', { caption: 'A custom path and a composite participate in the ordinary animation API.' });
-    await this.play(new FadeIn(row), { runTime: 0.4 });
+    await s.enter(row, { runTime: 0.4 });
     const middle = row.find('running') as StatusBadge;
     await this.step('rename', { caption: 'Change one label while keeping the same badge and diamond.' });
     const next = middle.label.copy().setText('working');

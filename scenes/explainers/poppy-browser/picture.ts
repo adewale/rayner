@@ -1,7 +1,7 @@
-import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
+import { Circle, Group, Line, Polygon, Rectangle, Text } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
+import type { DrawContext } from '../../../explain/index.ts';
+import { keyedParts, route } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE, addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, seal, station, stationExit, stationHolds, stop, ticket, label } from '../lib/poppy-kit.ts';
 import { AGENT, SID } from '../poppy/model.ts';
 import { ACCOUNT, ATTACKER, ATTACK_CODE, CODES, PHISH_CODE, joinEffect } from './model.ts';
@@ -83,7 +83,14 @@ export const WIN_LEFT = WIN[0] - WIN_W / 2;
 export const WIN_RIGHT = WIN[0] + WIN_W / 2;
 export const SIDE_X = WIN_RIGHT + 0.4;
 /** Where the agent's reading line leaves its station. */
-export const READ_FROM: Vec = [STATION[0] + STATION_R * Math.cos(-0.45), STATION[1] + STATION_R * Math.sin(-0.45)];
+export const READ_FROM: Vec = stationExit(STATION, STATION_R, SEAL_AT[1] - STATION[1]);
+/** A full-size copy is read beside the page, above the station name and left of the host.
+ * The source remains printed. Reserve the copy's actual lettering footprint at this port. */
+export function readingPort(browser: Mobject, page: Mobject | undefined, name: Mobject, slip: Mobject): Vec {
+  const host = browser.family().find((part): part is Text => part instanceof Text)!.box()!;
+  const left = Math.min(host[0], page?.box()?.[0] ?? host[0]);
+  return [Math.min(WIN_LEFT, left - slip.width() / 2 - 0.2), name.box()![3] + slip.height() / 2 + 0.2];
+}
 /** The height at which the attacker's things leave its browser for the counter, under the rack; and where its forged stub starts. */
 export const ATTACK_Y = -1.55;
 export const EVIL_OUT: Vec = [EVIL[0] - WIN_W / 2 - 0.35, EVIL[1] + 0.2];
@@ -107,7 +114,7 @@ const tearPoints = (code: string, edge: number, top: number, h: number): Vec[] =
  * `at` is the centre of its whole rectangle. With `stampRoom`, the printing moves right of a place
  * for the stamp.
  */
-export function stub(s: Stage, { at, code, width, stampRoom = false, h = SLIP_H }: { at: Vec; code: string; width: number; stampRoom?: boolean; h?: number }): Group {
+export function stub(s: DrawContext, { at, code, width, stampRoom = false, h = SLIP_H }: { at: Vec; code: string; width: number; stampRoom?: boolean; h?: number }): Group {
   const [x, y] = at, l = x - width / 2, r = x + width / 2, t = y + h / 2, b = y - h / 2, k = RADIUS.ticket;
   const outline: Vec[] = [[l + k, t], ...tearPoints(code, r, t, h), [l + k, b], [l, b + k], [l, t - k]];
   const text = label(s, shortCode(code), { mono: true, bold: true, color: TONE.print, at: stampRoom ? [l + 0.95, y] : [x - 0.1, y], align: stampRoom ? 'start' : 'middle' });
@@ -115,7 +122,7 @@ export function stub(s: Stage, { at, code, width, stampRoom = false, h = SLIP_H 
 }
 
 /** The cookie half: the dark part of the ticket, its left edge torn along the code's zigzag, a cookie on it. `left` is its tear's straight line. */
-export function cookieHalf(s: Stage, { left, y, code, h = SLIP_H }: { left: number; y: number; code: string; h?: number }): Group {
+export function cookieHalf(s: DrawContext, { left, y, code, h = SLIP_H }: { left: number; y: number; code: string; h?: number }): Group {
   const t = y + h / 2, b = y - h / 2, r = left + halfW(h), k = RADIUS.ticket;
   const outline: Vec[] = [...tearPoints(code, left, t, h), [r - k, b], [r, b + k], [r, t - k], [r - k, t]];
   return new Group(
@@ -131,7 +138,7 @@ function missingHalf(code: string, left: number, y: number, h = SLIP_H): Polygon
 }
 
 /** The Company's record of a code, as one row of the rack: its keyed parts. */
-function row(s: Stage, parts: ReturnType<typeof keyedParts>, record: CodeRecord, y: number) {
+function row(s: DrawContext, parts: ReturnType<typeof keyedParts>, record: CodeRecord, y: number) {
   const id = `row:${shortCode(record.code)}`, l = RACK_X, edge = l + STUB_W;
   parts.add(stub(s, { at: [l + STUB_W / 2, y], code: record.code, width: STUB_W, stampRoom: true, h: ROW_H }), `${id}:stub`);
   const stampAt: Vec = [l + 0.5, y];
@@ -201,13 +208,17 @@ export function sayWorld(w: World, shown: Shown): string {
 // The world.
 
 /** The state as its picture: agent, browser and Company, the rack of codes, and the last answer. */
-export function drawWorld(w: World, s: Stage, shown: Shown): Group {
+export function drawWorld(w: World, s: DrawContext, shown: Shown): Group {
   const parts = keyedParts(), last = w.last, report = reportOf(w), teeth = teethOf(w.signIn);
 
   // Your agent: its station, with its seal and its key (or the empty slot for one).
-  addAll(parts, station(s, { at: STATION, r: STATION_R, keyTeeth: teeth }));
-  // The agent reads its own browser's page: a dotted line from the station to the window.
-  parts.add(new Line(READ_FROM, [WIN[0] - WIN_W / 2, 1.95], { stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.16 0.12' }), 'reads');
+  const agent = station(s, { at: STATION, r: STATION_R, keyTeeth: teeth });
+  addAll(parts, agent);
+  const browser = browserWindow(s, { at: WIN, width: WIN_W, height: WIN_H, lines: w.page || w.browser.session || last?.event === 'submit' ? 0 : 3 });
+  const page = w.page ? stub(s, { at: PAGE_AT, code: w.page, width: 2.3 }) : undefined;
+  const port = readingPort(browser, page, agent.find(part => part.key === 'agent:name')!, codeSlip(s, {code: shortCode(w.page ?? CODES[0])}));
+  // The dotted connection follows the read's clear corridor to the station's boundary.
+  parts.add(route(READ_FROM, [port[0], READ_FROM[1]], port).setStyle({ stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.16 0.12' }), 'reads');
 
   // The Company's counter, and the two roads that reach it.
   addAll(parts, counter(s, { x: COUNTER_X, top: MARGIN.top, bottom: -1.75 }));
@@ -228,9 +239,9 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
   }
 
   // The agent's browser: its window, and what its page shows.
-  parts.add(browserWindow(s, { at: WIN, width: WIN_W, height: WIN_H, lines: w.page || w.browser.session || last?.event === 'submit' ? 0 : 3 }), 'browser');
-  if (w.page) {
-    parts.add(stub(s, { at: PAGE_AT, code: w.page, width: 2.3 }), 'page:stub');
+  parts.add(browser, 'browser');
+  if (page) {
+    parts.add(page, 'page:stub');
     parts.add(new Rectangle({ width: 1.5, height: 0.36, fill: TONE.steel, stroke: 'none', cornerRadius: 0.18 }).moveTo([PAGE_AT[0], 0.0]), 'page:button');
   } else if (w.browser.session) {
     const g = w.browser.session.grant, signedIn = !!g.account;
@@ -302,7 +313,7 @@ const COLUMN_X = [-5.55, -1.95, 1.75, 5.45] as const;
 const TABLE_ROW_Y = [2.45, 0.95, -0.55, -2.05] as const;
 
 /** A small browser window holding an account tag, or nothing: a login, or none. */
-function miniWindow(s: Stage, at: Vec, cell: Cell, name?: string): Group {
+function miniWindow(s: DrawContext, at: Vec, cell: Cell, name?: string): Group {
   const [x, y] = at, w = 2.5, h = 1.15;
   const items: Mobject[] = [
     new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel }).moveTo(at),
@@ -317,7 +328,7 @@ function miniWindow(s: Stage, at: Vec, cell: Cell, name?: string): Group {
 }
 
 /** The spec's table as four rows of windows, computed from the model's joinEffect. */
-export function drawLogins(s: Stage): Group {
+export function drawLogins(s: DrawContext): Group {
   const parts = keyedParts();
   ['before', 'join', 'while joined', 'sign-in ends'].forEach((head, i) => parts.add(label(s, head, { at: [COLUMN_X[i]!, 3.75], bold: true }), `logins:head:${i}`));
   ROWS.forEach((r, i) => {

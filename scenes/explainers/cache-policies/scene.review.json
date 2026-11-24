@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "subjects": [
+    { "step": "try", "opening": true, "targets": [{ "key": "lru:counts" }, { "key": "mru:counts" }, { "key": "cache:requests" }] }
+  ]
+}

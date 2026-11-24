@@ -41,7 +41,10 @@ type PenState = {
   freehand?: { misses: number; words: number; maxOff: number };
 };
 
-export default class PenAndPencil extends Scene<PenState, { layout?: { marked: string[] } }> {
+export default class PenAndPencil extends Scene {
+  override state: PenState = {};
+  override shown: { layout?: { marked: string[] } } = {};
+
   static meta = {
     sources: [
       'https://pele-art-diagrams.vercel.app/',
@@ -89,9 +92,9 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
         { value: 'second', label: 'Second drawing' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const which = settingsOf(this).hand as string,
+    const which = settingsOf(this, PenAndPencil).hand,
       seed = SEEDS[which as keyof typeof SEEDS],
       s = stage(this, { style: STYLE, headingSize: 0.6 });
     const facts = timelineFacts(WORLD);
@@ -198,7 +201,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
       caption: `The words stayed where the layout placed them, but ${misses.length} of ${wordCountFree} poke out of their boxes. This simulated hand chained imperfect moves, every line setting off from where the previous one stopped. A displaced endpoint became the next line’s starting point. What must be fixed before the ink begins?`,
     });
     await s.clear();
-    const source = code(s, WORLD.split('\n'), { at: [-7.55, 1.2, -2.95, 2.75], size: 0.3 });
+    const source = code(s.drawing, WORLD.split('\n'), { at: [-7.55, 1.2, -2.95, 2.75], size: 0.3 });
     const opening = freeAt(-1.5);
     const tally0 = tallyLine(misses.length, wordCountFree, s.look.ink);
     await s.enter(source, opening, tally0, {
@@ -220,7 +223,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     });
     await s.clear();
     // The timeline's text stays in view in a corner while the layout it became arrives.
-    const corner = code(s, WORLD.split('\n'), { at: [-7.55, 1.5, -2.95, 2.75], size: 0.3 });
+    const corner = code(s.drawing, WORLD.split('\n'), { at: [-7.55, 1.5, -2.95, 2.75], size: 0.3 });
     await s.enter(corner);
     const d = await s.show({ source: WORLD }, { box: CHART_BOX });
     // How the layout is shown, apart from its source: the period it marks as measured. That is
@@ -232,7 +235,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     this.shown.layout = { marked: [`period:period-${FOCUS}`] };
     await this.play(layoutView.sync({ runTime: 0.45 }));
     const [ex0, ey0, ex1] = focus.event.box;
-    const width = s.keep(dimension(s, [ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 }));
+    const width = s.keep(dimension(s.drawing, [ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 }));
     await this.play(new Create(width, { runTime: 0.6, lagRatio: 0.1 }));
 
     await this.step('marks', {
@@ -254,7 +257,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     });
     keyed(traced, 'construction:marks');
     const tally = s.keep(
-      keyed(callout(s, parts[2]!.period.box, `${outlineCount} outlines · ${filledCount} filled shapes · ${wordCount} words`, { side: 'above', gap: 0.45 }), 'construction:tally'),
+      keyed(callout(s.drawing, parts[2]!.period.box, `${outlineCount} outlines · ${filledCount} filled shapes · ${wordCount} words`, { side: 'above', gap: 0.45 }), 'construction:tally'),
     );
     await this.play(new Create(tally, { runTime: 0.6, lagRatio: 0.15 }));
     s.opening(traced, tally);

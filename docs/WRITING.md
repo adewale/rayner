@@ -52,7 +52,7 @@ Before any file, test the subject against four questions. If it fails one, pick 
 
 **Is there something real to check the model against?** The model is your account of the system, and it can be wrong in the same way your understanding is. An oracle catches that. For `sort()` the oracle is Node itself, which is already installed because Rayner runs on it. If you cannot name anything real, you can still write the explainer, but its page will say that nothing outside its own tests checked it, and a reader should trust it less. Section 4 covers the choice.
 
-`sort()` passes all four, and its answer is small enough that the whole explainer is 187 lines ([What it costs](#what-it-costs)).
+`sort()` passes all four, and its answer is small enough that the whole explainer is 186 lines ([What it costs](#what-it-costs)).
 
 ## 2. Start from a blank explainer
 
@@ -142,7 +142,7 @@ The four grades ([`explain/grounding.ts`](https://github.com/adewale/rayner/blob
 | `read` | A specification or source was read and transcribed; nothing was run | **poppy** and its seven sibling chapters: the Personal Agent Protocol draft, with tests naming the section each rule comes from, and the project's published JSON Schemas copied into `fixtures/` |
 | `none` | Nothing outside the model's own tests | **seasons**: the model computes cited formulas, and its tests check them by property and by hand-worked values |
 
-The grades run from strongest to weakest. Take the first of these that your subject allows:
+These labels describe how the evidence was obtained. Its strength also depends on independence, coverage, relevance and version: a live check of one easy case can establish less than a careful recording or specification comparison. Choose the approach that fits your subject:
 
 1. **Can the real thing run where the tests run?** Then run it: the grade is `live`. A language's built-in (`sort()`, `len()`, `Intl.Segmenter`), a CLI (`git`, `rustc`) or a library can all be called from a test.
 2. **Can you run it once by hand?** Then record it: the grade is `recorded`. A database server, a Docker image or a paid API fits here. Keep the program that ran it in `oracle/`, have it write its answers to `fixtures/`, and make `model.test.ts` compare the model with the fixture. Write down in the fixture, or beside the constants, exactly what was run: the version, the date and the commands, as pg-page's comment does. You can keep both kinds. python-dict has the fixture its oracle wrote, `fixtures/cpython-dict.json`, and a test that runs the oracle again when CPython 3.12 is there.
@@ -322,7 +322,7 @@ Decide that before drawing, from the script:
 
 - **The array as written, and the result under it.** The question is about a before and an after, so both stay on screen, one row above the other. The reader compares them without remembering either.
 - **The strings.** The answer is that `sort()` compares strings. With no compare function, the sorted row shows each element in quotes, `"10"`, which is the thing `sort()` compared. With `a - b` it shows plain numbers. The reason is then in the picture as well as the caption.
-- **The comparison in force.** A line between the rows says "sort() compares them as text" or "sort((a, b) => a - b) compares them as numbers". It is the one place where the two scenarios' pictures differ before the sort.
+- **The comparison in force.** A line below the sorted row says "sort() compares them as text" or "sort((a, b) => a - b) compares them as numbers". Keeping it below the row leaves the incoming numbers a clear route. It is the one place where the two scenarios' pictures differ before the sort.
 - **Nothing else.** The row has to hold six boxes on a phone after the reader has added three numbers, so each box is a number and no more.
 
 ### How it is drawn
@@ -332,14 +332,14 @@ The blank scene draws its state inline, as one line of text. This picture is lon
 Four facts make the code below readable:
 
 - Positions are in stage units. The stage is 16 wide and 9 high, the origin is its centre, and y goes up. `at: [0, 1.5]` is the middle of the stage, 1.5 units above centre.
-- The shapes come from the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`. `label` draws a line of words and `tile` draws a labelled box (`raised` gives it a filled body). `tones(s)` gives the stage's colours by role, such as `soft` for secondary words. `SPACE` holds the kit's spacings.
+- The shapes come from the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`. `label` draws a line of words and `tile` draws a labelled box (`raised` gives it a filled body). The picture receives a `DrawContext` as `s`. `tones(s)` reads its colours by role, such as `soft` for secondary words. `SPACE` holds the kit's spacings.
 - The kit's smallest type size is `TYPE.small`, which a phone can read, and `label` refuses anything smaller. Draw words with `label`, or with `tile` and `plate`, which use it, and this is decided for you; a card or code panel takes the size you give it.
 - Every part has a **key**, a name that says what the part is. `keyedParts()` collects parts under their keys, and `parts.group()` returns them as one group. Here each box is keyed by its number: `array:10`, `sorted:10`. When the state changes, Rayner matches parts by key, so a box whose number is still there slides to its new place. Without keys it would fade out and a copy would fade in somewhere else, and the reader could not follow which number went where.
 
 <!-- sort-as-text/picture.ts -->
 ```ts
 import { Group } from 'rayner';
-import type { Stage } from 'rayner/explain';
+import type { DrawContext } from 'rayner/explain';
 import { SPACE, TYPE, keyedParts, tile, tones, label } from 'rayner/drawing';
 import { sorted, type State } from './model.ts';
 
@@ -348,20 +348,20 @@ const WIDTH = 1.9;
 const row = (count: number) => (i: number) => (i - (count - 1) / 2) * (WIDTH + SPACE.s);
 
 /** One number as a raised box: one group, its two parts keyed `<key>:box` and `<key>:label`. */
-const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
+const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 
 /**
  * The array as written, and under it what sort() makes of it once the state says it is sorted. With
  * no compare function the sorted row shows each number as the string sort() compares, in quotes.
  * Every box is keyed by its number, so when a number joins, the boxes it passes slide aside.
  */
-export function drawSort(s: Stage, st: State): Group {
+export function drawSort(s: DrawContext, st: State): Group {
   const parts = keyedParts(), t = tones(s);
   const across = row(st.values.length);
   parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
   st.values.forEach((n, i) => parts.add(numberBox(s, String(n), [across(i), 0.6], `array:${n}`), `array:${n}`));
   const how = st.compare === 'none' ? 'sort() compares them as text' : 'sort((a, b) => a - b) compares them as numbers';
-  parts.add(label(s, how, { at: [0, -1], color: t.soft }), 'sorted:name');
+  parts.add(label(s, how, { at: [0, -3], color: t.soft }), 'sorted:name');
   if (st.sorted)
     sorted(st.values, st.compare).forEach((n, i) =>
       parts.add(numberBox(s, st.compare === 'none' ? `"${n}"` : String(n), [across(i), -1.9], `sorted:${n}`), `sorted:${n}`));
@@ -397,27 +397,26 @@ import { Scene } from 'rayner';
 import { Machine, answerOf, settingsOf, stage, view } from 'rayner/explain';
 import type { ExplainerMeta, Setting } from 'rayner/explain';
 import { beats, flight } from 'rayner/drawing';
-import { EVENTS, bound, next, sorted, start, type Compare, type SortEvent, type State } from './model.ts';
+import { EVENTS, bound, next, sorted, start, type SortEvent, type State } from './model.ts';
 import { drawSort } from './picture.ts';
 
 const PLACES = ['First', 'Between 1 and 9', 'Last'];
 
-export default class SortAsText extends Scene<State, {}> {
+export default class SortAsText extends Scene {
   static meta = {
     sources: ['https://tc39.es/ecma262/2025/#sec-sortcompare'],
   } satisfies ExplainerMeta;
   static settings = [
     { id: 'compare', label: 'Compare function', default: 'none', options: [{ value: 'none', label: 'none' }, { value: 'numbers', label: '(a, b) => a - b' }] },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
 
-  override state = start('none');
+  override state: State = start(settingsOf(this, SortAsText).compare);
 
   override async construct() {
     const s = stage(this);
-    const compare = settingsOf(this).compare as Compare;
+    const compare = settingsOf(this, SortAsText).compare;
     const asText = compare === 'none';
-    this.state = start(compare);
-    const picture = view(this, (st) => drawSort(s, st));
+    const picture = view(this, (st, _shown, drawing) => drawSort(drawing, st), { drawing: s.drawing });
     // The reader's buttons: each puts a number on the end of the array. Its sorted box flies down
     // from just under where the number joins the array, along the gap between the rows and down into
     // its place, over no other number, after the boxes it passes have made room.
@@ -462,16 +461,16 @@ export default class SortAsText extends Scene<State, {}> {
         ? 'Add 100 to the end of the array and sort() puts it after 10 and before 9: as text, "100" begins with "10". Press add 2 or add 25, predict where it lands, then watch.'
         : 'Add 100 to the end of the array and sort() puts it last, the largest number. Press add 2 or add 25, predict where it lands, then watch.',
     });
-    await this.play(machine.replay(['add 100']));
+    await this.play(machine.sendSequence(['add 100']));
   }
 }
 ```
 
 Read it from the top.
 
-**Sources and the setting.** `static meta` names the sources, which the page lists. `static settings` declares the changed condition as a setting with two options. Each option is a scenario: the reader switches between them, and `check` and `review` visit both. Inside `construct`, `settingsOf(this).compare` is the option this scenario runs with, and `asText` is the flag every caption branches on.
+**Sources and the setting.** `static meta` names the sources, which the page lists. `static settings` declares the changed condition as a setting with two options. `as const` keeps their literal names, and `settingsOf(this, SortAsText).compare` is typed as `'none' | 'numbers'`, with no cast or repeated union. The `state` field calls `start` with that setting, so each scenario begins with its selected comparison even at frame zero. The reader can switch between them, and `check` and `review` visit both. Inside `construct`, `asText` selects the captions for that comparison.
 
-**The stage and the view.** `stage(this)` draws the paper and a heading that follows each step's title and line. `view(this, (st) => drawSort(s, st))` makes the picture a view of `this.state`: when a step changes the state, `picture.sync()` moves the picture to match. `check` redraws every view from every step's state and fails one that differs, so the picture cannot drift from the state.
+**The stage and the view.** `stage(this)` draws the paper and a heading that follows each step's title and line. The view binds `{ drawing: s.drawing }` to capture the stage’s drawing context. Its draw passes that context and the current model to `drawSort(drawing, st)`. When a step changes the model, `picture.sync()` moves the picture to match. `check` redraws every view from every step's state and fails one that differs, so the picture cannot drift from the state.
 
 **The machine.** A `Machine` is what makes the last step live. It takes the model's `EVENTS`, `next` and `bound`, the state it starts in (the model's start, with the sorted row showing), and the views to redraw. Its `transition` is the motion for one press: the new number's sorted box flies down from where the number joined the array, along the gap between the rows, after the boxes it passes have made room. `beats` and `flight` are the kit's functions for that. `runTime: 2.2` is the transition's length in seconds, and section 8 shows what happens without it.
 
@@ -479,7 +478,7 @@ Read it from the top.
 
 - **`ask`** brings the picture in with `s.enter(picture)`. Its `predict` gives the reader the three buttons. The `answer` is computed from the model, `PLACES[sorted(...).indexOf(10)]`, and never typed, so it changes with the setting: "Between 1 and 9" with no compare function, "Last" with `a - b`. The next step reveals it. `check` fails a prediction whose answer is not one of its options, or that no later step reveals.
 - **`answer`** sets `sorted: true` in the state and calls `picture.sync()`, and the sorted row appears. Its caption takes the script's Answer through `answerOf(this)`, so the sentence is written in one place. Both scenarios' captions say it, which is what `check` looks for.
-- **`add`** plays `machine.replay(['add 100'])`: the scene presses the first button itself, so the reader sees one number land before they try. A machine is live at the step where it last plays, so this is the step where the page shows a button for each event. `check` explores every state those buttons can reach, 16 here, and draws and tests each one.
+- **`add`** plays `machine.sendSequence(['add 100'])`: the scene presses the first button itself, so the reader sees one number land before they try. A machine is live at the step where it last plays, so this is the step where the page shows a button for each event. `check` explores every state those buttons can reach, 16 here, and draws and tests each one.
 
 Save the file. To watch the page while you work on it, run `npx rayner preview sort-as-text/scene.ts --watch` in a second terminal and open http://127.0.0.1:5174/. It rebuilds when you save.
 
@@ -495,7 +494,7 @@ The stage draws the step's title and line at the top. The first layout put the r
 
 <!-- draft: heading sort-as-text/picture.ts -->
 ```diff
--  parts.add(label(s, 'The array', { at: [0, 2.55], color: t.soft }), 'array:name');
+-  parts.add(label(s, 'The array', { at: [0, 3], color: t.soft }), 'array:name');
 +  parts.add(label(s, 'The array', { at: [0, 1.5], color: t.soft }), 'array:name');
 ```
 
@@ -525,8 +524,8 @@ Suppose you copy the blank scene's `new Text(...)` and shrink it so that six num
 -import { Group, Text, keyed } from 'rayner';
 +import { Group } from 'rayner';
 @@
--const numberBox = (s: Stage, text: string, at: [number, number], key: string) => new Group(keyed(new Text(text, { fontSize: 0.3, color: s.look.ink }).moveTo(at), `${key}:label`));
-+const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
+-const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => new Group(keyed(new Text(text, { fontSize: 0.3, color: s.look.ink, shaping: s.shaping }).moveTo(at), `${key}:label`));
++const numberBox = (s: DrawContext, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 ```
 
 <!-- check: phone -->
@@ -633,7 +632,10 @@ With every fix in, `check` passes. It prints its report as JSON and saves it in 
         "add 25",
         "add 100"
       ],
-      "states": 16
+      "states": 16,
+      "presentations": 16,
+      "transitions": 15,
+      "observations": 16
     }
   ]
 }
@@ -644,7 +646,7 @@ Compare each part with what you meant to write:
 - `model` is the oracle test's run: three tests, three passed.
 - `script.answer` is the first step that states the Answer, and its position. It should be the step you planned to say it in.
 - `predictions` is the prediction, its answer in this scenario, and the step that reveals it.
-- `machines` is the live step's events and the number of states they reach. 16 is the number the model's second test counted.
+- `machines` lists the live step’s events. They reach 16 states, the count from the model’s second test. This machine has no transient result, so those are also its 16 distinct presentations. The 15 accepted transitions add one of the remaining numbers. It uses the full model as its observation, so the report counts 16 observations as well. A machine with transient results can have more presentations than durable states; a bounded traversal is marked `sampled`.
 
 In the full report, `legibility.labelsUnder12PxAt390` is the number of labels a phone reader sees under 12 px. Keep it at 0.
 
@@ -699,7 +701,7 @@ These are this repository's own numbers, from its Git history and pull requests.
 
 | Explainer | Grounding | script.md | model.ts | model.test.ts | scene.ts | picture.ts | Whole folder |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| sort-as-text (this guide) | live | 18 | 40 | 28 | 72 | 29 | 187 |
+| sort-as-text (this guide) | live | 18 | 40 | 28 | 71 | 29 | 186 |
 | galton-board | live | 30 | 115 | 140 | 175 | 140 | 765 |
 | float-sum | live | 30 | 177 | 175 | 181 | 58 | 794 |
 | unified-diff | live | 28 | 152 | 196 | 191 | 46 | 745 |
@@ -719,4 +721,4 @@ The whole folder adds the oracle, fixtures, `answers.ts`, `fidelity.ts`, `scene.
 - After all eight chapters passed `check` and `review`, every transition and live press was filmed at 200 ms intervals and looked at. That found 63 motion defects that no check flagged (item 14): moving parts over labels, two copies of one thing visible at once, answers readable before their cause arrived, motion that carried layout rather than meaning, transitions too long to sit through. `check`'s keyed-motion check now catches jumps, flicker, words readable before their cause lands and a token over a label's words. Brought back into the current scenes, 26 of 59 of those defects are caught ([the motion corpus](MOTION-CORPUS.md)); a token over a drawing and two copies of one thing apart are still yours to see. The newer five-second ceiling and duration diagnostic add mechanical checks; their owning tests retain static-hold controls.
 - A code review then found five model defects, fixed in [#103](https://github.com/adewale/rayner/pull/103).
 
-**What to budget for.** The files are the small part. The time goes on the steps this guide spends its length on: the script review, the oracle (recording a run takes as long as the run's setup), a model test that you have seen fail, the first draft's check failures, which section 8 shows are routine, and looking at every phone view and a few transitions frame by frame. A `read` or `none` explainer is cheaper to make and is worth less to a reader, and its receipt says so.
+**What to budget for.** The files are the small part. The time goes on the steps this guide spends its length on: the script review, the oracle (recording a run takes as long as the run's setup), a model test that you have seen fail, the first draft's check failures, which section 8 shows are routine, and looking at every phone view and a few transitions frame by frame. A `read` or `none` label says which outside evidence is absent; it does not determine the explainer's cost or value to a reader. The receipt should make that boundary clear, while review considers the evidence's coverage and the explanation's usefulness.

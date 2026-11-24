@@ -1,7 +1,7 @@
 import { route, TYPE } from '../../../explain/drawing.ts';
 import { Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec, Box } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts } from './model.ts';
 import type { StateNode, FlatMachine } from './model.ts';
 
@@ -53,7 +53,7 @@ export interface Drawn { group: Group; words: string[] }
 interface Place { center: Vec; size: Vec }
 
 /** A box with one or two words stacked in it. */
-function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: readonly { key: string; text: string }[], followed: boolean, dashed = false) {
+function stateBox(s: DrawContext, f: Fit, key: string, center: Vec, size: Vec, words: readonly { key: string; text: string }[], followed: boolean, dashed = false): [Rectangle, ...Text[]] {
   const box = keyed(
     new Rectangle({
       width: size[0] * f.k,
@@ -73,7 +73,7 @@ function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: 
   return [box, ...texts];
 }
 /** A start dot and its short arrow into a box: the state a compound state enters first. */
-function start(s: Stage, f: Fit, key: string, target: Place, from: 'left' | 'above') {
+function start(s: DrawContext, f: Fit, key: string, target: Place, from: 'left' | 'above') {
   const edge: Vec = from === 'left' ? [target.center[0] - target.size[0] / 2 - 0.07, target.center[1]] : [target.center[0], target.center[1] + target.size[1] / 2 + 0.07];
   const dot: Vec = from === 'left' ? [edge[0] - 0.62, edge[1]] : [edge[0], edge[1] + 0.62];
   return [
@@ -86,12 +86,12 @@ function exit(center: Vec, half: Vec, from: Vec, dir: Vec): Vec {
   const t = Math.min(...[0, 1].map((i) => (dir[i] === 0 ? Infinity : ((dir[i]! > 0 ? center[i]! + half[i]! : center[i]! - half[i]!) - from[i]!) / dir[i]!)));
   return [from[0] + dir[0] * t, from[1] + dir[1] * t];
 }
-const arrowStyle = (s: Stage, f: Fit, lit: boolean) => ({ stroke: lit ? s.look.emphasis : s.look.soft, strokeWidth: (lit ? 0.05 : 0.028) * f.k, tipLength: 0.2 * f.k, tipWidth: 0.17 * f.k });
+const arrowStyle = (s: DrawContext, f: Fit, lit: boolean) => ({ stroke: lit ? s.look.emphasis : s.look.soft, strokeWidth: (lit ? 0.05 : 0.028) * f.k, tipLength: 0.2 * f.k, tipWidth: 0.17 * f.k });
 /**
  * A straight arrow between two boxes. A pair (one each way) is offset to the right of travel, so the
  * two never overlap, with each label further out on its own side; a single arrow's label goes on `side`.
  */
-function straight(s: Stage, f: Fit, key: string, a: Place, b: Place, label: string, paired: boolean, lit: boolean, side: 1 | -1 = 1) {
+function straight(s: DrawContext, f: Fit, key: string, a: Place, b: Place, label: string, paired: boolean, lit: boolean, side: 1 | -1 = 1) {
   const d0: Vec = [b.center[0] - a.center[0], b.center[1] - a.center[1]],
     len = Math.hypot(...d0),
     dir: Vec = [d0[0] / len, d0[1] / len],
@@ -110,7 +110,7 @@ function straight(s: Stage, f: Fit, key: string, a: Place, b: Place, label: stri
   return [arrow, text];
 }
 /** A curved arrow bulging by `angle`, labelled outside its apex. */
-function curved(s: Stage, f: Fit, key: string, start: Vec, end: Vec, angle: number, label: string, lit: boolean) {
+function curved(s: DrawContext, f: Fit, key: string, start: Vec, end: Vec, angle: number, label: string, lit: boolean) {
   const arrow = keyed(new CurvedArrow(f.at(start), f.at(end), { angle, ...arrowStyle(s, f, lit) }), key);
   const chord: Vec = [end[0] - start[0], end[1] - start[1]],
     d = Math.hypot(...chord),
@@ -123,7 +123,7 @@ function curved(s: Stage, f: Fit, key: string, start: Vec, end: Vec, angle: numb
   text.moveTo(f.at([apex[0] + n[0] * reach, apex[1] + n[1] * reach]));
   return [arrow, text];
 }
-const note = (s: Stage, f: Fit, bounds: Box, text: string) =>
+const note = (s: DrawContext, f: Fit, bounds: Box, text: string) =>
   keyed(new Text(text, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([(bounds[0] + bounds[2]) / 2, bounds[1] + 0.22])), 'note');
 const counted = (n: { states: number; transitions: number }) => `${n.states} boxes · ${n.transitions} transitions`;
 const flatLabel = (chart: StateNode, flat: FlatMachine, name: string) => (name === flat.initial ? 'off' : wordsOf(chart, flat.configurations[name]!).join(' · '));
@@ -132,7 +132,7 @@ const flatLabel = (chart: StateNode, flat: FlatMachine, name: string) => (name =
  * The flat machine as a grid: off on the left, one box per reachable configuration, rows for
  * playback and columns for volume, and a dashed empty box for a combination it never reaches.
  */
-export function flatPicture(s: Stage, chart: StateNode, f: Fit, look: Look): Drawn {
+export function flatPicture(s: DrawContext, chart: StateNode, f: Fit, look: Look): Drawn {
   const flat = flatten(chart),
     parts: Mobject[] = [],
     words: string[] = [];
@@ -185,7 +185,7 @@ type ChartKind = 'boxed' | 'regions';
  * playback and volume side by side in on. A state takes the key of the grid part it comes from, so
  * changing kind moves those parts instead of redrawing them.
  */
-export function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look: Look, counts = true): Drawn {
+export function chartPicture(s: DrawContext, source: StateNode, kind: ChartKind, f: Fit, look: Look, counts = true): Drawn {
   const parts: Mobject[] = [],
     words: string[] = [];
   const chart = kind === 'boxed' ? boxed(source) : source;
@@ -249,12 +249,17 @@ export function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fi
       words.push(`region ${c.region}`);
     }
   }
+  // Matched words can move into a different cell or cross another cell's plate.
+  const stateLabels: Text[] = [];
   for (const [id, key] of boxKey) {
     const p = places.get(id)!,
       followed = look.follow.includes(id) || look.follow.includes(key.slice('r:cell:'.length));
-    parts.push(...stateBox(s, f, key, p.center, p.size, wordKeys.get(id)!, followed));
+    const [plate, ...labels] = stateBox(s, f, key, p.center, p.size, wordKeys.get(id)!, followed);
+    parts.push(plate);
+    stateLabels.push(...labels);
     words.push(wordKeys.get(id)!.map((w) => w.text).join(' · ') + (followed ? ' (followed)' : ''));
   }
+  parts.push(...stateLabels);
   // A start dot for every compound state: the root enters off; on, each region and playing enter their initial child.
   const compounds = (n: StateNode): StateNode[] => [...(n.type === 'compound' ? [n] : []), ...(n.children ?? []).flatMap(compounds)];
   for (const n of compounds(chart)) {
@@ -311,7 +316,7 @@ export const coffeeLayout = (mode: CoffeeMode) => {
   const bounds: Box = mode === 'question' ? [-6.4, -3.75, 7.3, 3.45] : wide ? [-6.4, -4.15, 6.2, 3.45] : [-6.4, -3.75, 5.0, 3.45];
   return { on, off, bounds, onPlace: { center: [(on[0] + on[2]) / 2, (on[1] + on[3]) / 2], size: [on[2] - on[0], on[3] - on[1]] } as Place };
 };
-export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look): Drawn {
+export function coffeePicture(s: DrawContext, f: Fit, mode: CoffeeMode, look: Look, dispatch = false): Drawn {
   const chart = mode === 'frother' ? coffeeWithFrother() : coffee(),
     lay = coffeeLayout(mode),
     parts: Mobject[] = [],
@@ -345,10 +350,17 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look): D
     );
     words.push('new: a frother, still or frothing, any time the machine is on; where it goes is the question');
   }
+  const stateLabels: Text[] = [];
   for (const [id, p] of places) {
-    parts.push(...stateBox(s, f, `c:${id}`, p.center, p.size, [{ key: `c:${id}|w`, text: id }], look.follow.includes(id)));
+    // The outside 'off' box changes sides of the frother in the answer. Replace it
+    // around that move so its label never passes through the moving 'still' label.
+    const key = mode === 'question' && id === 'off' ? 'c:question:off' : `c:${id}`;
+    const [plate, ...labels] = stateBox(s, f, key, p.center, p.size, [{ key: `${key}|w`, text: id }], look.follow.includes(id));
+    parts.push(plate);
+    stateLabels.push(...labels);
     words.push(id + (look.follow.includes(id) ? ' (current)' : ''));
   }
+  parts.push(...stateLabels);
   if (mode === 'plain') {
     parts.push(...start(s, f, 'c:start:on', places.get('idle')!, 'above'));
     words.push('start → idle');
@@ -488,7 +500,7 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look): D
 }
 
 /** The same events through the statechart and its flat machine, row by row. */
-export function tracePicture(s: Stage, f: Fit): Drawn {
+export function tracePicture(s: DrawContext, f: Fit): Drawn {
   const chart = player(2),
     flat = flatten(chart),
     steps = run(chart, RUNS.player);

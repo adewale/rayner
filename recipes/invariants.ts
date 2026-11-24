@@ -10,7 +10,9 @@ const RADIUS = 2;
 
 /** The dot half way round the circle, one way or the other, holding on every frame that it stays on it. */
 function orbit(turn: 'sampled' | 'morphed'): SceneClass {
-  return class Orbit extends Scene<{ angle: number }, {}> {
+  return class Orbit extends Scene {
+    override state = { angle: 0 };
+
     override async construct() {
       const dotAt = (angle: number) => keyed(new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(angle), RADIUS * Math.sin(angle)]), 'orbit:dot');
       // Sampled, the dot is a view of the angle in the state; morphed, a dot moved from end to end.

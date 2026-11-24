@@ -323,22 +323,22 @@ step's resting picture, to the tools that draw every step, so `rayner describe`,
 contact sheet and the site's cards run each scene once.
 
 `this.state` is the model: what the subject program is doing, and nothing about
-how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
+how it is shown. Initialize it with a field such as `override state: MyState = start()`. `this.shown` holds what is
 shown apart from the model, such as which of several pictures a chapter of the story shows; a
-view's `draw` may read it, and a machine never changes it. `stateJson()` copies
-the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
-`shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's
-description of its picture. A part never replaces a key: one it writes that the
-model, what is shown or another part already has with another value throws when the
-JSON is read. So a helper's keys are reserved, `walks` in the state (a diagram's
-recorded walks) and `picture` in what is shown (the stage's description), and a
-scene that names its own `walks` is refused rather than overwritten. The trace
-records the model as `before` and `after` and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
-functions, class instances, cycles and non-finite values; shapes belong in the
-scene tree.
+view's `draw` may read it, and a machine changes only its `result` field, when its spec supplies [`result`](MACHINES.md#transient-responses). `stateJson()` copies
+the model as JSON; `shownJson()` copies authored presentation. Neither receives helper
+fields. `addJson(part)` registers computed observations, validated and combined by
+`derivedJson()`. The trace records those under `derived`, including the stage's
+`derived.picture` description. Conflicting keys from two derived providers fail,
+but an observation can use the same name as a model or presentation field: these
+are separate records. The trace records the model as `before` and `after`, authored
+presentation as `shown`, and a staged step's local specimen as `state`.
+All JSON channels require finite, acyclic data and refuse functions and class
+instances; shapes belong in the scene tree. Diagram traversals are `diagram-walk`
+evidence, so `walks` and `picture` are ordinary author-owned keys.
 
 Evidence is what an animation or operation did, attached to the step it happened
-in, apart from the model. `this.record(kind, data)` adds a record, an `Evidence`
+in, apart from the model. Records made before the first step appear in the trace’s top-level `evidence`; each named step keeps its own evidence without duplicating those records. `this.record(kind, data)` adds a record, an `Evidence`
 (`{ kind, ...data }`), and every
 animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`

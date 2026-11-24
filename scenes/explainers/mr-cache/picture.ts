@@ -1,6 +1,6 @@
 import { Group, Text, Rectangle, Arrow, keyed } from '../../../src/index.ts';
 import type { Box, Code } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { Stage, DrawContext } from '../../../explain/index.ts';
 import { flow, label } from '../../../explain/drawing.ts';
 import type { StagedStepsOptions } from '../../../explain/index.ts';
 import { counted } from '../lib/format.ts';
@@ -46,7 +46,7 @@ export function frames(stage: Stage, which: 'hit' | 'miss', answer: string, opts
  * TransformDiff can morph it. Centred in `box`, never above its top; or with
  * `pin`, its top-left corner there.
  */
-export function panel(s: Stage, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
+export function panel(s: DrawContext, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
   const pad = 0.3,
     width = code.width() + 2 * pad + 0.1,
     height = code.height() + 2 * pad + 0.42;

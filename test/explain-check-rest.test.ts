@@ -79,6 +79,7 @@ test('legibility measures complete matched words without inventing labels for pa
 });
 
 class Two extends Scene {
+  override state: { after?: boolean } = {};
   override async construct() {
     const s = stage(this);
     await this.step('one', { caption: 'A box.' });
@@ -93,7 +94,7 @@ class Two extends Scene {
   }
 }
 
-test('check reads each step\'s resting picture as the step ends: the picture the shots draw, and the step\'s last played frame', async () => {
+test('check reads each step\'s resting picture as the step ends: the picture the contact sheet draws, and the step\'s last played frame', async () => {
   const trace = await traceScene(Two);
   const capture = new FrameCaptureSink(new Set(trace.steps.map((s) => s.frame1)));
   const lastFrame = new LastFrameSink(capture.frames), resting = new RestingSink(), looks = new LookWordsSink();

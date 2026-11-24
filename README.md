@@ -4,7 +4,7 @@ Rayner makes an explanation of what this version of this system does, drawn from
 
 The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Rayner checks pictures against that model with documented limits on visual fidelity and state exploration. The page states the author's declared grounding; its build receipt identifies the inputs and output. The result is one HTML page of steps and a transcript, with no runtime network requests.
 
-Each step records the model's state. At the end of every step, `rayner check` compares each view's structure and rendered SVG records with a fresh drawing of that state; staged steps use the same check. This includes paint, path shape, draw fraction, paint order and effective clips at the renderer's precision. It is redraw agreement in Node, not an independent browser-pixel comparison. Machines are explored up to their declared limit (256 states per origin by default); larger machines are sampled, and readers can reach states no check visited. A Mermaid diagram selected from prepared sources in a view receives the same redraw checks. Imperative diagrams are checked against the renderer's output pinned beside the scene. A hand-placed callout relies on the scene's own tests. [What the checks establish](docs/REFERENCE.md#checks) and [machine limits](docs/MACHINES.md#what-check-does-with-a-machine) describe the boundaries. The page opens from a file, a static host or an embed.
+Each step records the model's state; a staged step also records its own local input without replacing that model. At the end of every step, `rayner check` compares each view's structure and rendered SVG records with a fresh drawing of its bound input. This includes paint, path shape, draw fraction, paint order and effective clips at the renderer's precision. It is redraw agreement in Node, not an independent browser-pixel comparison. Machines are explored up to their declared limit (256 states per origin by default); larger machines are sampled, and readers can reach states no check visited. A Mermaid diagram selected from prepared sources in a view receives the same redraw checks. Imperative diagrams are checked against the renderer's output pinned beside the scene. A hand-placed callout relies on the scene's own tests. [What the checks establish](docs/REFERENCE.md#checks) and [machine limits](docs/MACHINES.md#what-check-does-with-a-machine) describe the boundaries. The page opens from a file, a static host or an embed.
 
 A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, and each step is drawn from the model's state. The view checks can catch the wrong slot label; the model's independent tests establish which label belongs there.
 
@@ -158,17 +158,16 @@ import type { ExplainerMeta } from 'rayner/explain';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
 import { drawTower, sayTower } from './picture.ts';
 
-export default class Hanoi extends Scene<Tower, {}> {
+export default class Hanoi extends Scene {
   static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] } satisfies ExplainerMeta;
-  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
-  override state = start(3);
+  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }] as const;
+  override state: Tower = start(Number(settingsOf(this, Hanoi).disks));
 
   override async construct() {
-    const n = Number(settingsOf(this).disks), moves = solve(n), few = (moves.length - 1) / 2;
+    const n = Number(settingsOf(this, Hanoi).disks), moves = solve(n), few = (moves.length - 1) / 2;
     const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`, first = moves[0]!.at(-1);
-    this.state = start(n);
     const s = stage(this, { headingSize: 0.54 });
-    const tower = view(this, (t) => drawTower(t, n, s.look));
+    const tower = view(this, (t, _shown, drawing) => drawTower(t, n, drawing.look), { drawing: s.drawing });
     // Once the tower is on C the story ends, so the reader's own moves start again from A.
     const machine = new Machine<Tower, Move>(this, { start: start(n), events: MOVES, next, views: [tower],
       end: (t) => (finished(t, n) ? 'the tower is on C' : undefined) });
@@ -180,15 +179,15 @@ export default class Hanoi extends Scene<Tower, {}> {
 
     await this.step('clear', { title: `Disk ${n} needs the others out of the way`, line: 'So the smaller tower moves twice and the largest disk once.',
       caption: `Disk ${n} cannot move while a disk sits on it, and it needs C empty to land there, because it is the largest disk. So ${smaller} first stack on B, the spare peg: the same puzzle one size smaller, solved in ${few} moves. They will have to come back on top afterwards.` });
-    await this.play(machine.replay(moves.slice(0, few)));
+    await this.play(machine.sendSequence(moves.slice(0, few)));
 
     await this.step('largest', { title: `Disk ${n} moves once`, line: `${few + 1} moves so far. Disk 1 went first to ${first}.`,
       caption: `Disk ${n} goes straight to the empty C, and will not need to move again. Look back at the first move: disk 1 went to ${first}. Each smaller tower inside the plan heads for the other peg from the tower around it, so with three disks disk 1 starts toward C, and with four toward B.` });
-    await this.play(machine.replay([moves[few]!]));
+    await this.play(machine.sendSequence([moves[few]!]));
 
     await this.step('solved', { title: `Answer: ${moves.length} moves`, line: `${few} + 1 + ${few}: the smaller tower twice, the largest disk once.`,
       caption: `The smaller tower climbs back onto disk ${n}: ${few} more moves, ${moves.length} in all, and no route is shorter. Three disks take 7 moves and four take 15. Now carry it yourself: your moves start from the full tower on A, and a move the rules forbid is refused, with the reason.` });
-    await this.play(machine.replay(moves.slice(few + 1)));
+    await this.play(machine.sendSequence(moves.slice(few + 1)));
   }
 }
 ```
@@ -232,13 +231,13 @@ A picture is drawn from the model's state by a function you write, with the [dra
 ```ts
 import { TYPE, addAll, connector, keyedParts, label, tile } from 'rayner/drawing';
 
-const cache = view(this, (st) => {
+const cache = view(this, (st, _shown, drawing) => {
   const parts = keyedParts();
-  st.slots.forEach((item, i) => addAll(parts, tile(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
-  parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
-  parts.add(label(s, `${st.hits} hits`, { at: [0, -2] }), 'hits');
+  st.slots.forEach((item, i) => addAll(parts, tile(drawing, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
+  parts.add(connector(drawing, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
+  parts.add(label(drawing, `${st.hits} hits`, { at: [0, -2] }), 'hits');
   return parts.group();
-});
+}, { drawing: s.drawing });
 ```
 
 The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, `label` and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
@@ -247,7 +246,7 @@ The Poppy chapters draw with `rayner/drawing`: their own kit ([`poppy-kit.ts`](h
 
 A scene that draws no Mermaid diagram and asks for no lettering needs nothing but Node to `init`, `check`, `see`, `describe` and `build`. Two kinds of picture need more, and only for the scenes that draw them ([add-ons](docs/REFERENCE.md#add-ons)):
 
-- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`; capture uses the same Chromium as `review`, so `npx playwright-core install chromium` is needed only if none is found. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
+- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0` and prepare captures with `rayner snapshots scene.ts`; `preview` also prepares them. Capture uses the same Chromium as `review`, so `npx playwright-core install chromium` is needed only if none is found. Other commands consume the pinned snapshots and ask for preparation when needed. Committed snapshots replay without Chromium.
 - **Lettering.** Text is drawn with the embedded Inter and JetBrains Mono. Letters outside them, other scripts, replacement faces, real bold and italic, and typeset maths need a [lettering request](docs/LETTERING.md) (`meta.lettering`); capturing one needs Python and the source fonts, and a committed `scene.lettering.json` replays without them. Every command fails on text the embedded fonts cannot draw unless the scene asks for it.
 
 ## How Rayner compares
@@ -263,6 +262,7 @@ Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes)
 
 ## Guides
 
+- **Understanding the pieces:** [the domain model](docs/DOMAIN-MODEL.md) introduces model state, presentation, local step inputs, pictures and evidence, with examples and the CLI workflow; [the vocabulary](docs/VOCABULARY.md) fixes one name per idea.
 - **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [writing your own explainer](docs/WRITING.md) from a blank start, [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). To answer “how do I write that?”, [the feature index](docs/FEATURE-TOUR.md) gives each authoring feature, the code an author writes for it and an explainer whose source uses it, and the setup some features need.
 - **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of, and builds tables, bars, callouts, dimension lines, pins and legends from state. [Extending Rayner](docs/EXTENDING.md) walks through writing an animation, shape or easing of your own on the public API, after `rayner/extras`, whose animations, shape and easings are built that way.
 - **Agents:** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.

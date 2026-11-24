@@ -41,6 +41,15 @@
       }
     },
     "rayner/drawing": {
+      "drawContext": {
+        "reason": "A reusable picture can be drawn and measured with its own palette, lettering, language and direction before any scene or stage exists.",
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "described": {
+        "guide": "docs/EXTENDING.md#make-a-reusable-shape-and-composite",
+        "test": "test/explain-emphasis.test.ts"
+      },
       "MARGIN": {
         "guide": "docs/REFERENCE.md#drawing-kit",
         "test": "test/drawing.test.ts"
@@ -585,7 +594,7 @@
     },
     {
       "feature": "Scenarios a reader chooses between",
-      "uses": "`static settings = [...]`, `settingsOf(this)`",
+      "uses": "`static settings = [...] as const`, `settingsOf(this, MyScene)`",
       "guide": "[Settings](REFERENCE.md#settings)",
       "scenes": [
         "float-sum"
@@ -614,7 +623,7 @@
     },
     {
       "feature": "One line of code lit",
-      "uses": "a `view` of `code(s, lines, { lit })`, synced when `lit` changes",
+      "uses": "a `view` of `code(s.drawing, lines, { lit })`, synced when `lit` changes",
       "guide": "[Code spans](CODE.md)",
       "scenes": [
         "trust-proxy"
@@ -629,7 +638,7 @@
     },
     {
       "feature": "Edited code, the new lines marked",
-      "uses": "a `view` of `code(s, lines, { added })`, synced after the edit",
+      "uses": "a `view` of `code(s.drawing, lines, { added })`, synced after the edit",
       "guide": "[Code spans](CODE.md), [native diff](MATCHING.md#diff-driven)",
       "scenes": [
         "ical-recurrence"
@@ -797,7 +806,7 @@
     },
     {
       "feature": "A point named in the picture",
-      "uses": "`s.enter(pin(s, point, { label }))`",
+      "uses": "`s.enter(pin(s.drawing, point, { label }))`",
       "guide": "[Drawing kit](REFERENCE.md#drawing-kit)",
       "scenes": [
         "great-circle"
@@ -861,7 +870,7 @@
     },
     {
       "feature": "Values compared on one scale",
-      "uses": "`bars(s, rows, max)`",
+      "uses": "`bars(s.drawing, rows, max)`",
       "guide": "[Drawing kit](REFERENCE.md#drawing-kit)",
       "scenes": [
         "galton-board",

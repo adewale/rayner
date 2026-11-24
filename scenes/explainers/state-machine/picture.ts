@@ -4,7 +4,7 @@ import { SEND_CODE, BRANCH_LINES } from './model.ts';
 import type { SocketState, Branch } from './model.ts';
 import { label, emphasised, card, code } from '../../../explain/drawing.ts';
 import type { CardOptions, Card } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions, Diagram } from '../../../explain/index.ts';
+import type { Stage, DrawContext, StagedStepsOptions, Diagram } from '../../../explain/index.ts';
 
 /** The reader's program for each scenario, and the line whose send() the page asks about. */
 export const PROGRAMS = {
@@ -46,7 +46,7 @@ const litRow = (st: SocketState) => (st.result ? 'Result' : 'readyState');
 const messages = (n: number) => `${n} message${n === 1 ? '' : 's'}`;
 
 /** The socket's card: readyState, the last event, what it did and what the server has received. */
-export function drawSocketCard(s: Stage, st: SocketState, at: CardOptions['at']): Card {
+export function drawSocketCard(s: DrawContext, st: SocketState, at: CardOptions['at']): Card {
   const row = litRow(st);
   const drawn = card(
     s,

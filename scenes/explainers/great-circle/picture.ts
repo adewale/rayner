@@ -12,7 +12,7 @@ import { Group, Rectangle, Circle, keyed } from '../../../src/index.ts';
 import type { Model3D, Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/geo.ts';
 import { seenFrom, project, latLon, circleOn } from '../../../explain/geo.ts';
 import type { Vec, Text } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { label, pin } from '../../../explain/drawing.ts';
 import { LAND } from './land.ts';
 import { greatCircle, rhumbLine, pole, tens, RADIUS_KM } from './model.ts';
@@ -74,7 +74,7 @@ const GNOMON: SeenOptions = { at: [-3.8, -0.5], scale: 2.75 };
 /** Label sizes: large enough to read at 12 px on a phone in a step's opening view. */
 const NAME = 0.68, NUMBER = 0.68;
 /** A name beside a point, drawn from the same viewpoint; transparent where the point is out of sight. */
-function nameAt(s: Stage, text: string, p: Place, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color = INK, key?: string, size = NAME): Text {
+function nameAt(s: DrawContext, text: string, p: Place, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color = INK, key?: string, size = NAME): Text {
   const { at, seen } = project(at3(p), vp, 1, o);
   const t = label(s, text, { color, size }).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
   if (key !== undefined) keyed(t, key);
@@ -89,7 +89,7 @@ const frameOf = (o: SeenOptions) => {
 };
 export interface MapState { viewpoint: Viewpoint; route: Route }
 /** Mercator's map with the seat-back route and the ruler's line; numbers when the step gives them. */
-export function mercator(st: MapState, s: Stage, numbers: boolean, extra: Part[] = []): Group {
+export function mercator(st: MapState, s: DrawContext, numbers: boolean, extra: Part[] = []): Group {
   const r = st.route;
   const map = seenFrom(model([...grid(15), land, ruler(r), arc(r), ...extra, city(r.from), city(r.to)]), st.viewpoint, { ...NORTH_MAP, key: 'map' });
   const g = new Group(frameOf(NORTH_MAP), map,
@@ -104,7 +104,7 @@ export function mercator(st: MapState, s: Stage, numbers: boolean, extra: Part[]
 }
 interface StretchState extends MapState { stretch: { from: number; top: number }; km: number }
 /** The same 1,000 km of a parallel at the equator, at London and at the route's top, measured on the map. */
-export function stretched(st: StretchState, s: Stage): Group {
+export function stretched(st: StretchState, s: DrawContext): Group {
   const r = st.route;
   const span = (lat: number, lon: number, key: string): Part => {
     const half = (st.km / 2 / (RADIUS_KM * Math.cos(lat * D))) / D;
@@ -124,7 +124,7 @@ export function stretched(st: StretchState, s: Stage): Group {
 }
 export interface GlobeState { viewpoint: Viewpoint; route: Route }
 /** The globe: string, cities, and the sheet the string lies in, seen from the step's viewpoint. */
-export function globe(st: GlobeState, s: Stage, { sheet = true, top = false, equatorLine = false } = {}): Group {
+export function globe(st: GlobeState, s: DrawContext, { sheet = true, top = false, equatorLine = false } = {}): Group {
   const r = st.route, vp = st.viewpoint;
   // The caption pins both cities and pulls a string between them: each city is a pin stuck in where
   // the globe shows it, named by its label, and like a name it is transparent while out of sight.
@@ -144,7 +144,7 @@ export function globe(st: GlobeState, s: Stage, { sheet = true, top = false, equ
 }
 interface MadridState { viewpoint: Viewpoint; route: Route; westKm: number }
 /** Madrid to New York: the great circle against the line of latitude, a smaller circle. */
-export function westward(st: MadridState, s: Stage): Group {
+export function westward(st: MadridState, s: DrawContext): Group {
   const r = st.route, vp = st.viewpoint;
   const parallel: Part = { kind: 'path', key: 'parallel', lines: [circleOn([0, 0, 1], 90 - r.from.lat)], closed: true, color: RULER, width: 0.025, hidden: 'dashed' };
   const west: Part = { kind: 'path', key: `ruler:${r.from.code}-${r.to.code}`, lines: [rhumbLine(r.from, r.to, 120).map((p) => at3(p))], color: RULER, width: 0.06, dashArray: '0.16 0.1' };
@@ -161,7 +161,7 @@ export function westward(st: MadridState, s: Stage): Group {
 }
 interface GnomonicState { viewpoint: Viewpoint; routes: Route[] }
 /** The gnomonic map: the eye at the Earth's centre, every great circle a straight line. */
-export function gnomonic(st: GnomonicState, s: Stage): Group {
+export function gnomonic(st: GnomonicState, s: DrawContext): Group {
   const vp = st.viewpoint;
   const parts: Part[] = [...grid(15), land];
   for (const r of st.routes) parts.push(ruler(r), arc(r));
@@ -178,7 +178,7 @@ export function gnomonic(st: GnomonicState, s: Stage): Group {
 export interface Pair { from: Place & { code: string; city: string }; to: Place & { code: string; city: string }; km: number; rhumbKm: number }
 interface EquatorState { viewpoint: Viewpoint; pairs: Pair[] }
 /** Two routes Mercator's ruler gets right: one along the equator, one due north. */
-export function onEquator(st: EquatorState, s: Stage): Group {
+export function onEquator(st: EquatorState, s: DrawContext): Group {
   const parts: Part[] = [...grid(15), land, { ...equator, hidden: undefined }];
   for (const p of st.pairs) parts.push(arc(p), ruler(p), city(p.from), city(p.to));
   const g = new Group(frameOf(EQUATOR_MAP), seenFrom(model(parts), st.viewpoint, { ...EQUATOR_MAP, key: 'map' }));

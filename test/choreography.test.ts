@@ -138,8 +138,8 @@ test('PulseAlongPath applies a supplied easing once and supports retaining the i
 });
 
 test('SetState copies validated input, replaces rather than merges, and gives every begin a fresh snapshot', () => {
-  const host = new Scene<{ count: number; nested?: { values: number[] } }>(new NullSink());
-  host.state = { count: 0, nested: { values: [0] } };
+  class Counter extends Scene { override state: { count: number; nested?: { values: number[] } } = { count: 0, nested: { values: [0] } }; }
+  const host = new Counter(new NullSink());
   const input = { count: 3, nested: { values: [1, 2] } };
   const change = new SetState(host, input);
   assert.equal(change.runTime, 0); assert.equal(change.mobject.hasPoints(), false);
@@ -163,11 +163,11 @@ test('SetState refuses lossy JSON at JavaScript boundaries and retains own proto
 });
 
 test('SetState sequences state-derived views at the correct turn and leaves no drawable placeholder', async () => {
-  class Demo extends Scene<{count: number}> {
+  class Demo extends Scene {
     override state = { count: 0 };
     override async construct() {
       const s = stage(this, { style: 'github-dark', heading: false });
-      const readout = view(this, (st) => card(s, [['count', st.count]], { panel: false, key: 'readout' }), { place: false }); this.add(readout);
+      const readout = view(this, (st) => card(s.drawing, [['count', st.count]], { panel: false, key: 'readout' }), { place: false }); this.add(readout);
       await this.step('updates');
       await this.play(new Succession([
         new SetState(this, { count: 3 }), readout.sync({ runTime: 0.5 }),
@@ -187,8 +187,8 @@ test('SetState sequences state-derived views at the correct turn and leaves no d
 });
 
 test('SetState rejects simultaneous writers and a mismatched scene before any state changes', async () => {
-  const a = new Scene<{count: number}>(new NullSink()), b = new Scene<{count: number}>(new NullSink());
-  a.state = { count: 0 }; b.state = { count: 0 };
+  class Counter extends Scene { override state = { count: 0 }; }
+  const a = new Counter(new NullSink()), b = new Counter(new NullSink());
   await assert.rejects(a.play(new SetState(a, { count: 1 }), new SetState(a, { count: 2 })), /only once/);
   assert.equal(a.state.count, 0);
   await assert.rejects(a.play(new Succession([new SetState(a, { count: 3 }), new SetState(b, { count: 4 })])), /belongs to/);
@@ -249,10 +249,10 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   const a = new Follow({ from: 0.1, to: 0.7, draw }, { targets: [dot, bar], rateFunc: linear });
   assert.deepEqual(a.targets(), [dot, bar]);
   beginAnimation(a);
-  for (const alpha of [0, 0.5, 1, 0.25, 1, 0]) {
+  for (const [alpha, expected] of [[0, 0.1], [-0.2, 0.1], [0.5, 0.4], [1.2, 0.7], [1, 0.7], [0.25, 0.25], [0, 0.1]] as const) {
     interpolateAnimation(a, alpha);
-    const v = a.valueAt(alpha);
-    close(dot.center()[0], v); close(bar.center()[1], v / 2);
+    close(seen.at(-1)!, expected);
+    close(dot.center()[0], expected); close(bar.center()[1], expected / 2);
   }
   // Each drawing is written into its target, which keeps its identity and key
   assert.deepEqual([mobjectId(dot), mobjectId(bar)], ids);

@@ -8,10 +8,14 @@
 // explored. See docs/MACHINES.md, "The player".
 
 import type { Scene, SceneClass, SceneState, Sink } from '../src/scene.ts';
-import { stopAt } from '../src/scene.ts';
+import { stopAt, stepStateOf } from '../src/scene.ts';
 import { canonicalJson } from '../src/json.ts';
 import { machinesOf } from './machine.ts';
 import type { Machine } from './machine.ts';
+import { offeredMachine } from './machine-offers.ts';
+import { watchedReadings } from './trace.ts';
+import type { WatchReading } from './trace.ts';
+import type { ExplainerClass } from './settings.ts';
 
 type AnyMachine = Machine<object, string>;
 
@@ -22,6 +26,8 @@ type AnyMachine = Machine<object, string>;
 export interface LivePlace {
   index: number;
   identity: string;
+  /** True for an explicit offer, false for inferred controls. Omitted when checking a machine without reader controls. */
+  offered?: boolean;
 }
 /** A step where the reader can drive a machine: its place, and the machine. */
 export interface Live extends LivePlace {
@@ -29,16 +35,26 @@ export interface Live extends LivePlace {
 }
 
 /**
- * Where a scene's machines are live: each machine, with its place in `machinesOf(scene)`, by the
- * step it last played in (`lastPlayedIn`), which is the stage `rayner check` explores it on. A
- * machine that never played is live nowhere; when two machines last played in one step, the later
- * one made is live there.
+ * Each machine is live at the steps where the author offered it. Without offers, it is live at
+ * its last played step, with later-made machines winning an implicit tie. A step's offer takes
+ * precedence over any inferred controls there.
  */
-export function liveSteps(scene: Scene<any>): Map<string, Live> {
-  const live = new Map<string, Live>();
-  for (const [index, machine] of machinesOf(scene).entries())
-    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, identity: machine.identity, machine });
-  return live;
+export function liveSteps(scene: Scene): Map<string, Live> {
+  const implicit = new Map<string, Live>(), explicit = new Map<string, Live>();
+  const offers = scene.steps.map((step) => ({ path: step.path, owner: offeredMachine(step) }));
+  for (const [index, machine] of machinesOf(scene).entries()) {
+    const steps = offers.filter((o) => o.owner === machine);
+    const place = { index, identity: machine.identity, machine };
+    if (steps.length) for (const { path } of steps) explicit.set(path, { ...place, offered: true });
+    else if (machine.lastPlayedIn !== null) implicit.set(machine.lastPlayedIn, { ...place, offered: false });
+  }
+  return new Map([...implicit, ...explicit]);
+}
+
+/** Every stage that must be checked for a machine, including its original stage if its controls are shadowed. */
+export function machineSteps(machine: AnyMachine, controls: ReadonlyMap<string, Live>): (string | null)[] {
+  const steps = [...controls].filter(([, live]) => live.machine === machine).map(([step]) => step);
+  return steps.length ? steps : [machine.lastPlayedIn];
 }
 
 /**
@@ -46,10 +62,20 @@ export function liveSteps(scene: Scene<any>): Map<string, Live> {
  * a scene must make the same machines on every run, or the reader would drive another machine than
  * the one the page was built for and check explored.
  */
-export function liveMachine(scene: Scene<any>, step: string | null, place: LivePlace): AnyMachine {
+export function liveMachine(scene: Scene, step: string | null, place: LivePlace): AnyMachine {
   const machine = machinesOf(scene)[place.index];
   if (!machine || machine.identity !== place.identity)
     throw new Error(`runLive(): the run${step === null ? '' : ` to ${JSON.stringify(step)}`} made different machines; a scene must make the same machines on every run`);
+  if (place.offered !== undefined) {
+    const here = scene.steps.find((s) => s.path === step);
+    const owner = here && offeredMachine(here);
+    if (place.offered && owner !== machine)
+      throw new Error(`runLive(): the run did not offer the same machine at step ${JSON.stringify(step)}; offer the same controls on every run`);
+    // Another machine may play here and later move to a new step. The completed run chose the
+    // implicit winner. At this boundary it must have played here and no explicit offer may supersede it.
+    if (!place.offered && (!here || owner || machine.lastPlayedIn !== step))
+      throw new Error(`runLive(): step ${JSON.stringify(step)} no longer has the same inferred controls; keep the same machine active on every run`);
+  }
   return machine;
 }
 
@@ -83,15 +109,19 @@ export async function liveBase(Source: SceneClass, step: string, place: LivePlac
  * still play there, the live machine, and `draw`, which hands the frames that follow to a sink,
  * every one drawn, or with none skips them again.
  */
-export type LiveExplore = (scene: Scene<any>, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
+export type LiveExplore = (scene: Scene, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
 
 export interface LiveRun {
-  scene: Scene<any>;
+  scene: Scene;
   machine: AnyMachine;
   /** The scene's state as the live step ends, before any event (JSON): where the reader's log starts from. */
   rest: object;
-  /** What the scene shows after the log (`shownJson()`), for the stage's description. */
+  /** Authored presentation choices after the log. */
   shown: SceneState;
+  /** Computed observations after the log, including the stage picture description. */
+  derived: SceneState;
+  /** Reader readouts after the log, with model changes measured from its actual origin. */
+  watched?: WatchReading[];
   /** With `keep`, the run held at this picture, to play the reader's next event from it. */
   session?: LiveSession;
 }
@@ -164,7 +194,7 @@ export async function runLive(
   step: string,
   place: LivePlace,
   log: readonly string[],
-  { sink, animate, onStart, onRest, from = 'rest', keep = false, explore }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean; explore?: LiveExplore } = {},
+  { sink, animate, onStart, onRest, from = 'rest', keep = false, explore }: LiveDraw & { onRest?: (scene: Scene) => void; from?: LogStart; keep?: boolean; explore?: LiveExplore } = {},
 ): Promise<LiveRun> {
   let result: LiveRun | undefined;
   // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
@@ -174,18 +204,36 @@ export async function runLive(
   // Run there as a seek does, every frame skipped; the scene stops itself as the step ends, and
   // plays the log there (see stopAt).
   const out = new LiveSink();
-  const scene = new Source(out) as Scene<any>;
+  const scene = new Source(out) as Scene;
   stopAt(scene, step, async (at, draw) => {
     const machine = liveMachine(at, step, place);
-    if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
+    if (!place.offered && machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
     const rest = JSON.parse(JSON.stringify(at.state)) as object;
     onRest?.(at);
-    // From the machine's start: its views redrawn there, in place, as exploration draws a state.
-    if (from === 'start' && log.length) {
-      at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
-      if (machine.spec.result) delete at.shown.result;
-      for (const view of machine.spec.views) view.rebuild();
-    }
+    // An empty log displays the historic resting picture. A kept run resets exactly once when
+    // its first event begins, just as a fresh run of that same nonempty log does.
+    let beganLog = false, origin = at.stateJson();
+    const beginLog = () => {
+      if (beganLog) return;
+      beganLog = true;
+      if (from === 'start') {
+        at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
+        if (machine.spec.result) {
+          const {result: _previous, ...shown} = at.shownJson();
+          at.shown = shown;
+        }
+        for (const view of machine.spec.views) view.rebuild();
+        origin = at.stateJson();
+      }
+    };
+    if (log.length) beginLog();
+    const meta = (Source as ExplainerClass).meta;
+    const observations = () => {
+      const shown = at.shownJson(), derived = at.derivedJson();
+      return { shown, derived, ...(meta?.watch ? { watched: watchedReadings({ before: origin, after: at.stateJson(), shown, derived,
+        ...(at.currentStep ? { state: stepStateOf(at.currentStep) } : {}) }, meta.watch, meta.lang) } : {}) };
+    };
+
     for (const [i, event] of log.entries()) {
       if (animate && i === log.length - 1) {
         out.draw(animate);
@@ -196,7 +244,7 @@ export async function runLive(
     }
     const drawn = animate ?? sink;
     if (drawn) await draw(drawn);
-    result = { scene: at, machine, rest, shown: at.shownJson() };
+    result = { scene: at, machine, rest, ...observations() };
     if (explore) {
       try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
     }
@@ -211,6 +259,7 @@ export async function runLive(
       if (!command) break;
       const { event, draw: how } = command;
       try {
+        beginLog();
         // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
         out.draw(how.animate);
         if (how.animate) {
@@ -220,7 +269,7 @@ export async function runLive(
         await at.play(machine.send(event));
         const last = how.animate ?? how.sink;
         if (last) await draw(last);
-        command.done({ scene: at, machine, rest, shown: at.shownJson() });
+        command.done({ scene: at, machine, rest, ...observations() });
       } catch (error) {
         command.failed(error);
         break;

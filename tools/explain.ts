@@ -3,115 +3,35 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { realpathSync, existsSync, watch } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
 import { collectProject, defaultScenario, sceneSlug } from './lib/explain-project.ts';
-import { manifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { BLANK_FILES, MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, blankStarter, packageImports } from './lib/explain-init.ts';
 import { DIAGRAM_PACKAGES, installCommand, missingPackage } from './lib/addons.ts';
+import { invocation } from './lib/explain-cli.ts';
 
 // Authoring packages, grouped for installation error messages: the diagram add-on's optional peers,
 // then the browser and PNG dependencies the package installs itself.
 const GROUPS: readonly (readonly string[])[] = [DIAGRAM_PACKAGES, ['playwright-core'], ['@resvg/resvg-js']];
-const pkg = manifest;
-const HELP = `Rayner ${pkg.version} (Node 24+)
-
-Usage: rayner <command> <scene.ts | directory> [options]
-
-Commands:
-  init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test;
-                      with --machine, a machine explainer: a model that refuses
-                      events with reasons, its test, a live step, review subjects;
-                      with --blank (and --question "…"), your own explainer to
-                      write: check lists each part still marked TODO:, in order
-  preview <scene>     Build and serve on localhost
-  snapshots <scene>   Run every scenario, capture/verify diagrams and replay morph edits
-  check <scene>       Every scenario: seek, motion, skipped trace, bare runtime, step
-                      change, still after the caption hold, text collision,
-                      legibility, words for every drawing, catch lint
-  review <scene>      Check every scenario, then review its served reader at phone
-                      and desktop widths; retain reviewed HTML with --out page.html
-  build <scene>       HTML, receipt, header recipe, loader.js
-  shots <scene>       Step contact sheet as SVG and PNG
-  film <scene>        Motion filmstrips for every scenario and bounded live event,
-                      including refused presses; HTML index, JSON, SVG and PNG
-  describe <scene>    Every scenario and step as JSON for agents: words, state, what
-                      changed, the picture in words and drawn as text
-  see <scene> [step]  One step's resting picture as text, with its caption, its
-                      picture in words and what it changed in scene.state
-                      (the last step by default; --out file.svg also writes it)
-  version             Print the version (also --version)
-
-Every command fails on text the embedded fonts cannot draw, unless the scene
-asks for that script with meta.lettering.
-
-Options:
-  --out <path>        Artifact destination
-  --refresh           Re-render snapshots instead of using the pinned cache
-  --scenario id=value Show (shots, see) one scenario; repeat for multiple settings
-  --port <integer>    Preview server port (default 5174)
-  --watch             Preview: rebuild the page on save
-  --subjects <path>   Review: use this JSON file instead of <scene>.review.json
-  --json              Check/review: print the complete report instead of a summary
-  --embed-sizes       Build: also measure framed heights at 390/640/900 px (Chromium)
-  --machine           Init: write the machine starter instead of the tutorial's
-  --blank             Init: write a blank explainer instead of the tutorial's
-  --question <text>   Init --blank: the reader's question, the script's # heading
-  --version           Print the version
-
-init, check, build, describe, see, snapshots, preview, shots and film need Node alone
-for a scene that draws no Mermaid diagram and asks for no lettering. review
-opens the page in Chromium: Playwright's own build, another Playwright build,
-or an installed Chrome or Chromium, whichever launches first (it prints which).
-Only if none is found: npx playwright-core install chromium
-  or set CHROMIUM_EXECUTABLE_PATH
-PNG output (shots) is included.
-
-Add-ons, for scenes that ask for them:
-  Diagrams   Mermaid diagrams, captured into scene.snapshots/:
-             ${installCommand(DIAGRAM_PACKAGES)}
-             Capturing a new diagram needs Chromium too; pinned snapshots
-             replay without it.
-  Lettering  meta.lettering: capturing needs Python and the source fonts
-             (docs/LETTERING.md); committed snapshots replay without them.
-`;
-export async function main(args = process.argv.slice(2)): Promise<void> {
-  if (!args.length || args.includes('--help') || args[0] === 'help') {
-    console.log(HELP);
+/** Command-owned output. Runtime warnings and third-party diagnostics are separate from these writers. */
+interface CommandIO {
+  stdout(text: string): void;
+  stderr(text: string): void;
+}
+export async function main(args: string[], io: CommandIO): Promise<void> {
+  const print = (text: string) => io.stdout(text + '\n');
+  const warn = (text: string) => io.stderr(text + '\n');
+  const request = invocation(args);
+  if (request.command === 'help') {
+    print(request.text);
     return;
   }
-  if (args[0] === '--version' || args[0] === 'version') {
-    console.log(pkg.version);
+  if (request.command === 'version') {
+    const { manifest } = await import('./lib/roots.ts');
+    print(manifest.version);
     return;
   }
-  const { values: flags, positionals } = parseArgs({
-    args,
-    allowPositionals: true,
-    options: {
-      out: { type: 'string' },
-      scenario: { type: 'string', multiple: true },
-      port: { type: 'string', default: '5174' },
-      refresh: { type: 'boolean' },
-      watch: { type: 'boolean' },
-      subjects: { type: 'string' },
-      machine: { type: 'boolean' },
-      blank: { type: 'boolean' },
-      question: { type: 'string' },
-      json: {type: 'boolean'},
-      'embed-sizes': {type: 'boolean'},
-    },
-  });
-  const [command, input, ...extra] = positionals;
-  if (!input) throw new TypeError('supply a scene file or directory; rayner --help lists the commands');
-  // `see` takes the step to show as a second argument.
-  const step = command === 'see' ? extra.shift() : undefined;
-  if (extra.length) throw new TypeError(`${JSON.stringify(extra[0])} is one argument too many; rayner --help lists what each command takes`);
-  if (flags.machine && command !== 'init') throw new TypeError('--machine is an option of rayner init alone');
-  if (flags.blank && command !== 'init') throw new TypeError('--blank is an option of rayner init alone');
-  if (flags.question !== undefined && !flags.blank) throw new TypeError('--question is an option of rayner init --blank alone');
-  if (flags.blank && flags.machine) throw new TypeError('rayner init takes --blank or --machine, not both');
-  if (flags['embed-sizes'] && command !== 'build') throw new TypeError('--embed-sizes is an option of rayner build alone');
+  const { command, input, step, flags } = request;
   if (command === 'init') {
     const dir = resolve(input);
     const blank = flags.blank ? blankStarter(flags.question) : undefined;
@@ -119,41 +39,40 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     await mkdir(dir, { recursive: false });
     if (blank) {
       for (const file of BLANK_FILES) await writeFile(join(dir, file), blank[file]);
-      console.log(`Created ${join(dir, 'script.md')}, model.ts, model.test.ts and scene.ts beside it: an explainer to write, each part still to write marked TODO:. rayner check ${join(dir, 'scene.ts')} lists them in order: the script's intent header, its Checked against and Grounding lines, the model's oracle test, then the picture`);
+      print(`Created ${join(dir, 'script.md')}, model.ts, model.test.ts and scene.ts beside it: an explainer to write, each part still to write marked TODO:. rayner check ${join(dir, 'scene.ts')} lists them in order: the script's intent header, its Checked against and Grounding lines, the model's oracle test, then the picture`);
       return;
     }
     const [from, files] = flags.machine ? [MACHINE_STARTER, MACHINE_STARTER_FILES] : [STARTER, STARTER_FILES];
     for (const file of files)
       await writeFile(join(dir, file), packageImports(await readFile(join(from, file), 'utf8')));
-    console.log(flags.machine
+    print(flags.machine
       ? `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, a machine explainer: its picture in picture.ts, its model in model.ts (next refuses with a reason), the model's test in model.test.ts, and the review's subjects in scene.review.json`
       : `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
-  if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'film', 'describe', 'see'].includes(command!))
-    throw new RangeError(`${JSON.stringify(command)} is not a command; rayner --help lists the commands`);
-  const collection = { refresh: flags.refresh, captureLettering: command === 'snapshots' || command === 'preview' };
+  const preparing = command === 'snapshots' || command === 'preview';
+  const collection = { refresh: flags.refresh, write: preparing, capture: preparing, captureLettering: preparing };
   const project = await collectProject(input, collection);
   const slug = sceneSlug(project);
   const parent = dirname(dirname(project.file));
   if (basename(parent) === 'explainers') {
     const catalog = await readFile(join(parent, 'catalog.ts'), 'utf8').catch(() => null);
     if (catalog && ![...catalog.matchAll(/\bid:\s*['"]([^'"]+)['"]/g)].some(m => m[1] === slug))
-      console.error(`Catalog warning: ${project.file} is under scenes/explainers but ${slug} is absent from catalog.ts. Add its entry, fidelity evidence, answer checks and generated reference, then run the complete catalog checks and review.`);
+      warn(`Catalog warning: ${project.file} is under scenes/explainers but ${slug} is absent from catalog.ts. Add its entry, fidelity evidence, answer checks and generated reference, then run the complete catalog checks and review.`);
   }
   if (command === 'film') {
     const {filmProject} = await import('./lib/explain-film.ts');
     const directory = flags.out ?? resolve('out/films', slug);
     const report = await filmProject(project, directory);
-    console.log(`Filmed ${report.films.length} sequences, ${report.frames} frames. Open ${resolve(directory, 'index.html')}`);
+    print(`Filmed ${report.films.length} sequences, ${report.frames} frames. Open ${resolve(directory, 'index.html')}`);
     return;
   }
   if (command === 'review') {
     const { reviewScene } = await import('./lib/explain-review-scene.ts');
     const artifact = flags.out?.endsWith('.html') ? resolve(flags.out) : undefined;
     const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
-    const report = await reviewScene(project, directory, flags.subjects, artifact, (line) => console.error(line));
-    if (flags.json) console.log(JSON.stringify(report, null, 2));
+    const report = await reviewScene(project, directory, flags.subjects, artifact, (line) => warn(line));
+    if (flags.json) print(JSON.stringify(report, null, 2));
     const phone = report.results.flatMap(s => [...s.steps, ...s.framedSteps]).filter(s => s.width === 390);
     const maximumViews = Math.max(0, ...phone.map(s => s.views));
     const maximumOverlap = Math.max(0, ...phone.map(s => s.maximumTourOverlap));
@@ -161,12 +80,12 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const smallest = minima.length ? Math.min(...minima).toFixed(1) + ' px' : 'no labels';
     const clipped = phone.reduce((n, s) => n + s.partiallyVisibleLabels.reduce((m, v) => m + v.labels.length, 0), 0);
     const omitted=phone.reduce((n,s)=>n+s.omittedContextLabels.reduce((m,v)=>m+v.labels.length,0),0);
-    console.error(`Phone: whole-picture minimum ${smallest}; ${clipped} partly visible labels; ${omitted} context-label omissions across views; up to ${maximumViews} views per step; greatest tour-view overlap ${Math.round(maximumOverlap * 100)}%. Screenshots: ${resolve(directory)}`);
-    (flags.json ? console.error : console.log)(`Review passed: ${report.scenarios} scenarios, ${report.stepWidths} step/width checks, ${report.liveStateWidths} live-state/width checks, ${report.framedStepWidths} framed phone steps and ${report.framedLiveStateWidths} framed live states. Report: ${resolve(directory, 'review.json')}`);
+    warn(`Phone: whole-picture minimum ${smallest}; ${clipped} partly visible labels; ${omitted} context-label omissions across views; up to ${maximumViews} views per step; greatest tour-view overlap ${Math.round(maximumOverlap * 100)}%. Screenshots: ${resolve(directory)}`);
+    (flags.json ? (text: string) => io.stderr(text + '\n') : print)(`Review passed: ${report.scenarios} scenarios, ${report.stepWidths} step/width checks, ${report.liveStateWidths} live-state/width checks, ${report.framedStepWidths} framed phone steps and ${report.framedLiveStateWidths} framed live states. Report: ${resolve(directory, 'review.json')}`);
     return;
   }
   if (command === 'snapshots') {
-    console.log(
+    print(
       JSON.stringify(
         {
           scene: slug,
@@ -184,17 +103,17 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const { describeExplainer } = await import('../explain/testing.ts');
     const json = JSON.stringify(await describeExplainer(project.Scene, { snapshots: project.store }), null, 2) + '\n';
     if (flags.out) await writeFile(flags.out, json);
-    else process.stdout.write(json);
+    else io.stdout(json);
     return;
   }
   if (command === 'check') {
     const { checkProject } = await import('./lib/explain-check.ts');
     const directory = flags.out ?? resolve('out/checks', slug);
     const report = await checkProject(project, directory);
-    if (flags.json) console.log(JSON.stringify(report, null, 2));
-    const scenarios = report.scenarios as {steps: number; machines?: {states: number; phoneWarnings?: string[]}[]; legibility: {minLabelPx1280: number | null; minLabelPx390: number | null; minLabelPx390WholeStage: number | null}}[];
+    if (flags.json) print(JSON.stringify(report, null, 2));
+    const scenarios = report.scenarios as {steps: number; machines?: {states: number; sampled?: boolean; phoneWarnings?: string[]}[]; legibility: {minLabelPx1280: number | null; minLabelPx390: number | null; minLabelPx390WholeStage: number | null}}[];
     const warnings = scenarios.flatMap(s => (s.machines ?? []).flatMap(m => m.phoneWarnings ?? []));
-    for (const warning of [...new Set(warnings)].slice(0, 5)) console.error(`Phone warning: ${warning}`);
+    for (const warning of [...new Set(warnings)].slice(0, 5)) warn(`Phone warning: ${warning}`);
     const min = (key: keyof typeof scenarios[number]['legibility']) => {
       const sizes = scenarios.flatMap(s => typeof s.legibility[key] === 'number' ? [s.legibility[key]!] : []);
       return sizes.length ? Math.min(...sizes).toFixed(1) + ' px' : 'no labels';
@@ -205,30 +124,32 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       const layouts = await stepLayouts(scenario.Scene), height = 358 * narrowAspect(layouts.values(), 358);
       for (const layout of layouts.values()) views = Math.max(views, closeUps(layout, 358, height).length);
     }
+    // A sum over explorations: each scenario's machines, once per step offering controls.
     const states = scenarios.reduce((n, s) => n + (s.machines ?? []).reduce((m, machine) => m + machine.states, 0), 0);
+    const explorations = scenarios.reduce((n, s) => n + (s.machines ?? []).length, 0);
+    const sampled = scenarios.some(s => s.machines?.some(machine => machine.sampled));
     const tests = (report.model as {passed?: number} | undefined)?.passed ?? 0;
-    (flags.json ? console.error : console.log)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} reachable states, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
+    (flags.json ? (text: string) => io.stderr(text + '\n') : print)(`Check passed: ${scenarios.length} scenarios, ${scenarios.reduce((n,s) => n + s.steps,0)} steps, ${states} checked states${explorations > 1 ? ` over ${explorations} machine explorations` : ''}${sampled ? ' (bounded sample)' : ''}, ${tests} model tests, 0 problems, ${warnings.length} phone warnings. Labels: ${min('minLabelPx1280')} at 1280; phone ${min('minLabelPx390')} in close-ups, ${min('minLabelPx390WholeStage')} whole; up to ${views} views per step. Report: ${resolve(directory, 'report.json')}`);
     return;
   }
   /** The scenario every --scenario id=value chooses, other settings at their defaults. */
   function selectedScenario() {
-    const values: Record<string, string> = {};
+    const values: Record<string, string> = Object.create(null);
     for (const assignment of flags.scenario ?? []) {
       const at = assignment.indexOf('=');
-      if (at < 1) throw new TypeError('--scenario takes id=value, such as --scenario request=miss');
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
     return defaultScenario(project, values);
   }
   if (command === 'see') {
     const { see } = await import('./lib/explain-see.ts');
-    console.log(await see(project, selectedScenario(), step, flags.out));
+    print(await see(project, selectedScenario(), step, flags.out));
     return;
   }
-  if (command === 'shots') {
+  if (command === 'contact-sheet') {
     const { contactSheet } = await import('./lib/explain-shots.ts');
-    console.log(
-      await contactSheet(project, flags.out ?? resolve('out/shots', slug + '.png'), selectedScenario()),
+    print(
+      await contactSheet(project, flags.out ?? resolve('out/contact-sheets', slug + '.png'), selectedScenario()),
     );
     return;
   }
@@ -245,13 +166,13 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       await writeFile(resolve(out).replace(/\.html$/, '') + '.embed.json', JSON.stringify(await measureEmbed(browser, server.url, basename(out)), null, 2) + '\n');
     } finally { await browser?.close(); server.close(); }
   }
-  console.log(
+  print(
     `Built ${out} (${Math.round(Buffer.byteLength(result.html) / 1024)} KiB; ${project.scenarios.length} scenarios)`,
   );
   if (command === 'preview') {
     // The page is served from disk with its header recipe, so a rebuild shows on reload.
-    const { url } = await serve(dirname(out), Number(flags.port), basename(out));
-    console.log(
+    const { url } = await serve(dirname(out), Number(flags.port ?? '5174'), basename(out));
+  print(
       `Preview ${url}/ (Ctrl-C to stop; ${flags.watch ? 'rebuilds on save' : 'rerun after edits, or pass --watch'})`,
     );
     if (flags.watch)
@@ -259,7 +180,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
         const next = await collectProject(input, collection);
         await buildExplainer(next, out);
         return `Rebuilt ${slug}: ${next.scenarios.length} scenarios`;
-      });
+      }, io);
   }
 }
 /**
@@ -267,7 +188,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
  * and keep serving the last good build on error. One rebuild runs at a time; saves made while it
  * runs mark it dirty, and it runs once more when it ends, however many saves there were.
  */
-export function watchAndRebuild(folder: string, out: string, rebuild: () => Promise<string>) {
+export function watchAndRebuild(folder: string, out: string, rebuild: () => Promise<string>, io: CommandIO) {
   let rebuilding: 'idle' | 'building' | 'dirty' = 'idle',
     loop: Promise<void> = Promise.resolve(),
     timer: ReturnType<typeof setTimeout> | undefined;
@@ -281,9 +202,9 @@ export function watchAndRebuild(folder: string, out: string, rebuild: () => Prom
       do {
         rebuilding = 'building';
         try {
-          console.log(await rebuild());
+          io.stdout(await rebuild() + '\n');
         } catch (error) {
-          console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
+          io.stderr(`rayner: ${(error as Error).message} (still serving the last good build)\n`);
         }
       } while ((rebuilding as string) === 'dirty');
       rebuilding = 'idle';
@@ -299,22 +220,28 @@ export function watchAndRebuild(folder: string, out: string, rebuild: () => Prom
   });
   return { watcher, run };
 }
-/** Run the command line, reporting a failure on stderr with exit code 1 (the installed command, dist/tools/explain.js, runs it too). */
-export const run = (): Promise<void> =>
-  main().catch((error) => {
+/** Run one invocation, returning its status without changing the host process. */
+export async function run(args: string[], io: CommandIO): Promise<0 | 1> {
+  try {
+    await main(args, io);
+    return 0;
+  } catch (error) {
     // Diagnose an incomplete authoring install with the pinned dependency versions.
     const missing = missingPackage(error);
     const group = missing && GROUPS.find((g) => g.includes(missing));
-    console.error(
-      missing
-        ? `rayner: this command needs ${missing}${group ? `. Install: ${installCommand(group)}` : ''}`
-        : `rayner: ${error.message}`,
-    );
-    process.exitCode = 1;
-  });
+    const message = missing
+      ? `rayner: this command needs ${missing}${group ? `. Install: ${installCommand(group)}` : ''}`
+      : `rayner: ${error instanceof Error ? error.message : String(error)}`;
+    io.stderr(message + '\n');
+    return 1;
+  }
+}
 if (
   process.argv[1] &&
   existsSync(process.argv[1]) &&
   import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
 )
-  void run();
+  void run(process.argv.slice(2), {
+    stdout: text => { process.stdout.write(text); },
+    stderr: text => { process.stderr.write(text); },
+  }).then(status => { process.exitCode = status; });

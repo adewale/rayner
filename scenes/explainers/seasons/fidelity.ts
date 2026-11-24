@@ -3,8 +3,8 @@ import { pictureWordsAt, assertStepState } from '../../../explain/testing.ts';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
 import type SeasonsExplainer from './scene.ts';
-import { Scene, Text } from '../../../src/index.ts';
-import type { Sink } from '../../../src/index.ts';
+import { Text } from '../../../src/index.ts';
+import type { SceneClass, Sink } from '../../../src/index.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import { sunlight, noonShare, noonPatch, sunDistance, daylightYear } from './model.ts';
 
@@ -63,7 +63,7 @@ export async function check(trace: TraceOf<typeof SeasonsExplainer>, values: Rec
  */
 async function seasonsArithmetic(
   trace: { steps: { step: string; meta: Record<string, unknown>; after?: unknown; shown?: Record<string, unknown> }[] },
-  Bound: new (sink: Sink) => Scene,
+  Bound: SceneClass,
 ) {
   const texts = await restingTexts(Bound);
   const formulas = (texts.get('noon') ?? []).filter((t) => t.startsWith('90° − |'));
@@ -125,7 +125,7 @@ async function seasonsArithmetic(
 }
 
 /** The text of every Text on the scene at the end of each step, by step name. */
-async function restingTexts(Bound: new (sink: Sink) => Scene): Promise<Map<string, string[]>> {
+async function restingTexts(Bound: SceneClass): Promise<Map<string, string[]>> {
   const out = new Map<string, string[]>();
   const sink: Sink = {
     async frame() {},

@@ -2,7 +2,7 @@ import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
 import type { Card } from '../../../explain/drawing.ts';
-import type { LayoutDirection, ExplainerMeta } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
 /** The two cards' placement and the one field-direction override, as the code panel prints them. */
@@ -29,9 +29,13 @@ function layoutOf(card: Card) {
 /** The cards' value, and where each card landed, measured from the card on the stage. */
 type LayoutState = { field?: number; cards?: Record<string, ReturnType<typeof layoutOf>> };
 
-export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?: string | null }> {
+export default class LayoutDirectionExplainer extends Scene {
+  override state: LayoutState = {};
+  override shown: { lit?: string | null } = {};
+
   static meta = {
     sources: ['https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#stage'],
+    watch: [{ source: 'derived', key: 'startLabelSide', label: 'Field name on Start' }],
     // The code step's sentence speaks of the code panel it draws.
     claims: [{ says: 'This layout never says left or right', shown: true as const }],
   } satisfies ExplainerMeta;
@@ -45,11 +49,11 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
         { value: 'ltr', label: 'Left to right' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const direction = settingsOf(this).direction as LayoutDirection,
+    const direction = settingsOf(this, LayoutDirectionExplainer).direction,
       rtl = direction === 'rtl';
     const s = stage(this, { style: 'nord', direction, headingSize: 0.6 });
     const reading = rtl ? 'right-to-left' : 'left-to-right';
@@ -95,10 +99,11 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
     this.state.field = ROWS[0]![1];
     this.shown.lit = null;
     const cardView = (place: typeof layout.start | typeof layout.end, title: string, key: string) =>
-      view(this, (st, sh) => card(s, [['Field', having(st, 'field').field]], { ...place, ...CARD, title, lit: sh.lit == null ? null : { row: sh.lit, as: 'updated' }, key }), { place: false });
+      view(this, (st, sh, drawing) => card(drawing, [['Field', having(st, 'field').field]], { ...place, ...CARD, title, lit: sh.lit == null ? null : { row: sh.lit, as: 'updated' }, key }), { drawing: s.drawing, place: false });
     const start = cardView(layout.start, `Start, ${layout.direction}`, 'start-card');
     const end = cardView(layout.end, `End, own ${layout.end.direction}`, 'end-card');
     await s.enter(start, end);
+    const stopMeasuringStart = this.addJson(() => ({ startLabelSide: layoutOf(start.current).name }));
     s.opening(start, end);
     this.state.cards = { start: layoutOf(start.current), end: layoutOf(end.current) };
 
@@ -124,9 +129,10 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
         ? 'Placed at left and at right, the cards keep those halves on this rtl stage, where start was the right. Use start and end for panels that should follow the reading direction, and left or right for something that must keep its side, such as a flowchart whose arrows run left to right. These cards hold Latin labels and digits; the page does not show how Arabic or Hebrew text is shaped.'
         : 'On this ltr stage the card at left sits where the Start card did, so the two names cannot be told apart. On an rtl stage start moves to the right half and left stays put. These cards hold Latin labels and digits; the page does not show how Arabic or Hebrew text is shaped.',
     });
+    stopMeasuringStart();
     await s.clear();
-    const left = card(s, ROWS, { at: 'left', ...CARD, title: `Left, ${direction}` });
-    const right = card(s, ROWS, { at: 'right', ...CARD, title: `Right, ${direction}` });
+    const left = card(s.drawing, ROWS, { at: 'left', ...CARD, title: `Left, ${direction}` });
+    const right = card(s.drawing, ROWS, { at: 'right', ...CARD, title: `Right, ${direction}` });
     await s.enter(left, right);
     s.opening(left, right);
     this.state.cards = { left: layoutOf(left), right: layoutOf(right) };

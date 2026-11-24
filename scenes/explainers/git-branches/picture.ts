@@ -1,6 +1,6 @@
 import { Group, Arrow, Circle, Text, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { currentFiles, unreachable } from './model.ts';
 import type { GitFrame } from './model.ts';
 import { label, tile, table } from '../../../explain/drawing.ts';
@@ -17,7 +17,7 @@ const SIZE = 0.62,
   TAG_GAP = 0.28;
 const tagWidth = (name: string) => new Text(name, { fontSize: SIZE }).width() + 0.7;
 
-export function picture(s: Stage, frame: GitFrame, note: string) {
+export function picture(s: DrawContext, frame: GitFrame, note: string) {
   const graph = new Group();
   keyed(graph, 'git-history');
   for (const c of frame.commits)

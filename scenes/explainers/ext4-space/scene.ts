@@ -62,7 +62,7 @@ const SIZE = 0.34;
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
 /** What the steps record, accumulated: the fields the cards below draw from, each from the step that records it. */
 interface Ext4State {
-  disk?: { size: Size; label: string; reserve: number };
+  disk: { size: Size; label: string; reserve: number };
   df?: { blocks: number; users: number; gone: number; pie: Slice[] };
   reserve?: { root: number; kernel: number; metadata: number; free: number; users: number; pie: Slice[] };
   inodes?: { type: string; inodeRatio: number; inodes: number; inodeTables: number; pie: Slice[] };
@@ -81,7 +81,11 @@ type PieName = 'answer' | 'metadata' | 'chosen';
 /** Each pie's marks, and the journal table's lit row. */
 type Ext4Shown = { [name in PieName]?: Marks } & { journalRow?: string };
 
-export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
+export default class Ext4SpaceExplainer extends Scene {
+  private readonly format = settingsOf(this, Ext4SpaceExplainer);
+  override state: Ext4State = { disk: { size: this.format.size, label: SIZES[this.format.size].label, reserve: Number(this.format.reserve) } };
+  override shown: Ext4Shown = {};
+
   static meta = {
     sources: [
       E2FS + 'misc/mke2fs.conf.in#L1-L29',
@@ -129,14 +133,11 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
         label: m === DEFAULT_RESERVE ? `-m ${m} (default)` : `-m ${m}`,
       })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const size = values.size as Size,
-      m = Number(values.reserve);
-    const name = SIZES[size].label;
+    const { size, label: name, reserve: m } = this.state.disk;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const sp = space(SIZES[size].bytes, DEFAULT_RESERVE),
       chosen = space(SIZES[size].bytes, m),
@@ -154,11 +155,11 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     ): View<Card> =>
       view(
         this,
-        (state) => {
+        (state, _shown, drawing) => {
           const st = having(state, ...needs);
-          return card(s, rows(st), typeof opts === 'function' ? opts(st) : opts);
+          return card(drawing, rows(st), typeof opts === 'function' ? opts(st) : opts);
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
     /** Enter a card view as s.card enters a card, described as the card describes itself. */
     const enterCard = async (card: View<Card>) => {
@@ -179,7 +180,6 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     };
     /** The disk's blocks, from what the opening records. */
     const ofDisk = (state: Having<Ext4State, 'df'>, n: number) => percent(n, state.df.blocks);
-    this.state.disk = { size, label: name, reserve: m };
 
     // Every whole-disk pie in this scenario, so that one config colours all of them.
     const stages: [Space, WholeStage][] = [
@@ -368,15 +368,15 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     // The table is the same in every scenario; its lit row, in `shown`, is the step this disk's blocks reach.
     const journalCard = view(
       this,
-      (state, sh) =>
-        card(s, steps, {
+      (state, sh, drawing) =>
+        card(drawing, steps, {
           at: CARD,
           size: SIZE,
           title: 'Journal by disk size',
           lit: sh.journalRow == null ? null : { row: sh.journalRow, as: having(state, 'disk').disk.label },
           key: 'journal',
         }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await enterCard(journalCard);
     const row = steps.filter((_, i) => JOURNAL_STEPS[i]! <= st('df').df.blocks).at(-1)!;

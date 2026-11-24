@@ -54,7 +54,7 @@ function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | u
 
 /**
  * What the page ships of a scenario the build traced: its settings, its trace as the player reads
- * it (`playerTrace`: each step's state keeps only the watched keys, and no evidence, as every
+ * it (`playerTrace`: formatted selected readouts, picture descriptions and no raw channels, as every
  * scenario the page runs itself), the stage's palette and paper, and each live step's machine by
  * its place. The page's own run of the scenario must give the same trace: `rayner check` runs the
  * page's entry in its bare runtime and compares that run with the build's trace.
@@ -63,10 +63,10 @@ export function shippedScenario(project: Project, scenario: Project['scenarios']
   const { values, trace, palette, paper, live } = scenario;
   return {
     values,
-    trace: playerTrace(trace, project.Scene.meta?.watch),
+    trace: playerTrace(trace, project.Scene.meta?.watch, project.Scene.meta?.lang),
     ...(palette ? { palette } : {}),
     ...(paper ? { paper } : {}),
-    live: [...(live ?? [])].map(([step, { index, identity }]) => [step, { index, identity }]),
+    live: [...(live ?? [])].map(([step, { machine, ...place }]) => [step, place]),
   };
 }
 

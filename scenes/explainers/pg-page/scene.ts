@@ -52,7 +52,7 @@ const pie = (c: { label: string; share: Share }) =>
 
 /** What the steps record, accumulated: the fields the views below draw from, each from the step that records it. */
 interface PgState {
-  column?: Column;
+  column: Column;
   empty?: { lower: number; upper: number; free: number };
   pair?: { label: string; valueBytes: string }[];
   row?: { lpOff: number; lpLen: number; hoff: number; stored: number; perRow: number; lower: number; upper: number };
@@ -74,7 +74,10 @@ const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
 /** Where the tuple's grid sits: left, beside the other type's, from the answer step on. */
 type PgShown = { grid?: 'left'; pie?: { marked: string[] } };
 
-export default class PgPageExplainer extends Scene<PgState, PgShown> {
+export default class PgPageExplainer extends Scene {
+  override state: PgState = { column: settingsOf(this, PgPageExplainer).column };
+  override shown: PgShown = {};
+
   static meta = {
     sources: [
       PG + 'include/storage/bufpage.h#L158-L218',
@@ -113,12 +116,11 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
         { value: 'int4-text', label: 'int4 + text' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
     const answer = answerOf(this);
-    const values = settingsOf(this);
-    const column = values.column as Column;
+    const { column } = this.state;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const colours = s.look;
     const c = scenarioOf(column, 100),
@@ -141,15 +143,14 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     ): View<Card> =>
       view(
         this,
-        (state) => {
+        (state, _shown, drawing) => {
           const st = having(state, ...needs);
-          return card(s, rows(st), typeof opts === 'function' ? opts(st) : opts);
+          return card(drawing, rows(st), typeof opts === 'function' ? opts(st) : opts);
         },
-        { place: false },
+        { drawing: s.drawing, place: false },
       );
     /** Enter a card view as s.card enters a card, described as the card describes itself. */
     const enterCard = (card: View<Card>) => s.enter(card, { runTime: 0.35, shift: [0, -0.08] });
-    this.state.column = column;
 
     // ------------------------------------------------------------------ the question, on an empty page
     // The page's outline, header and size are the same in every scenario (picture.ts).
@@ -184,9 +185,9 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     };
     // pd_lower and pd_upper, said where they point: the free space's top and bottom edges.
     const lowerAt = ([x, y]: readonly [number, number], value: (st: PgState) => number) =>
-      calloutOf((st) => callout(s, [x, y], `pd_lower ${value(st)}`, { side: 'below', gap: 0.35, size: SMALL }));
+      calloutOf((st) => callout(s.drawing, [x, y], `pd_lower ${value(st)}`, { side: 'below', gap: 0.35, size: SMALL }));
     const upperAt = ([x, y]: readonly [number, number], value: (st: PgState) => number) =>
-      calloutOf((st) => callout(s, [x, y], `pd_upper ${value(st)}`, { side: 'above', gap: 0.45, size: SMALL }));
+      calloutOf((st) => callout(s.drawing, [x, y], `pd_upper ${value(st)}`, { side: 'above', gap: 0.45, size: SMALL }));
     const emptyMarks = [await lowerAt(AT.emptyLower, (st) => having(st, 'empty').empty.lower), await upperAt(AT.emptyUpper, (st) => having(st, 'empty').empty.upper)];
     const question = cardOf(
       ['pair'],
@@ -245,14 +246,14 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     rowMarks.push(
       await calloutOf((state) => {
         const { row } = having(state, 'row');
-        return callout(s, AT.link(row.stored), `lp_off ${row.lpOff}, lp_len ${row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL });
+        return callout(s.drawing, AT.link(row.stored), `lp_off ${row.lpOff}, lp_len ${row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL });
       }),
     );
     // Under the byte where the data starts, in the row's grid.
     const hoffMark = await calloutOf((state) => {
       const st = having(state, 'row', 'tuple');
       const start = byte(mine, st.tuple, st.row.hoff);
-      return callout(s, start, `t_hoff ${st.row.hoff}: data starts here`, {
+      return callout(s.drawing, start, `t_hoff ${st.row.hoff}: data starts here`, {
         side: 'below',
         gap: start.box()![1] - (GY - (st.tuple.stored / 8) * CELL) + 0.35,
         size: SMALL,
@@ -306,13 +307,13 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
       const first = differ[0]!;
       const here = byte(mine, ours, first),
         there = byte(pair, other, first);
-      const ourNote = callout(s, here, ours.bytes[first] === 'padding' ? 'padding here' : `${ours.label}’s value`, {
+      const ourNote = callout(s.drawing, here, ours.bytes[first] === 'padding' ? 'padding here' : `${ours.label}’s value`, {
         side: 'below',
         gap: here.box()![1] - (TOP - (ours.stored / 8) * CELL) + 0.3,
         size: SMALL,
       });
       await this.play(new Create(s.keep(ourNote), { runTime: 0.6, lagRatio: 0.15 }));
-      const otherNote = callout(s, there, other.bytes[first] === 'padding' ? 'padding here' : `${other.label}’s value here`, {
+      const otherNote = callout(s.drawing, there, other.bytes[first] === 'padding' ? 'padding here' : `${other.label}’s value here`, {
         side: 'below',
         gap: there.box()![1] - (TOP - (other.stored / 8) * CELL) + 0.3,
         size: SMALL,

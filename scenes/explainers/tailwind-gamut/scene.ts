@@ -6,7 +6,7 @@ import { stage, settingsOf } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
 import type { Diagram, PictureNote, Side, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SHADES, rows, summarize } from './model.ts';
-import type { Row, Shade } from './model.ts';
+import type { Row } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
 
 // Sources. Every number on screen comes from model.ts, which cites the lines it uses.
@@ -17,7 +17,6 @@ const BLOG =
 const CSS4 = 'https://github.com/w3c/csswg-drafts/blob/e1bd39185acd650512f82e1eeb7b94da21b686c7/css-color-4/';
 
 const STYLE = 'hand-drawn';
-type Screen = 'srgb' | 'p3';
 
 const pct = (v: number) => percent(v, { of: 100 });
 
@@ -37,7 +36,10 @@ type GamutState = {
   srgbOfP3?: Row['srgbOfP3'][];
 };
 
-export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes?: PictureNote[] }> {
+export default class TailwindGamutExplainer extends Scene {
+  override state: GamutState = {};
+  override shown: { dotNotes?: PictureNote[] } = {};
+
   static meta = {
     sources: [
       THEME + '#L10-L323',
@@ -70,12 +72,12 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
         { value: 'p3', label: 'Display P3' },
       ],
     },
-  ];
+  ] as const;
 
   override async construct() {
-    const values = settingsOf(this),
-      shade = values.shade as Shade,
-      screen = values.screen as Screen;
+    const values = settingsOf(this, TailwindGamutExplainer),
+      shade = values.shade,
+      screen = values.screen;
     const all = rows(shade),
       sum = summarize(shade);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
@@ -95,7 +97,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
       texts: readonly string[],
       curves: readonly Curve[] = [],
     ) => {
-      const c = cardRows.length ? card(s, cardRows, { at: SIDE, align: 'top', size: SIZE }) : null;
+      const c = cardRows.length ? card(s.drawing, cardRows, { at: SIDE, align: 'top', size: SIZE }) : null;
       if (c) c.shift([SIDE[0] - c.box()![0], 0]);
       const { made } = lines(texts, SIDE[3] - (c ? c.height() + 0.3 : 0));
       if (c || made.length) await s.enter(...(c ? [c] : []), ...made);

@@ -1,5 +1,5 @@
 import { Group, Rectangle, CurvedArrow, keyed } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { EMPTY, DELETED } from './model.ts';
 import type { DictTable, DictLookup, DictState } from './model.ts';
 import { label, tile, table } from '../../../explain/drawing.ts';
@@ -70,7 +70,7 @@ const slotX = (i: number) => -6.3 + i * 1.8,
   RIGHT = slotX(7) + HALF;
 /** The lookup's route as arrows under the slot row, one per hop, from each slot it reads to the next. An arrow that
  *  flies over slots does not read them; the search stops in the last slot, which has no arrow out. */
-function hops(s: Stage, path: DictLookup) {
+function hops(s: DrawContext, path: DictLookup) {
   const slots = path.slots,
     y = SLOT_Y - SLOT_H / 2 - 0.06;
   const g = new Group(
@@ -95,7 +95,7 @@ function hops(s: Stage, path: DictLookup) {
  * `slot-i:label`, an entry row is `dict-entries:e<i>` (its cells `dict-entries:e<i>:Key` and so on), and a hash row
  * is `dict-hashes:k<key>`. A deletion's D, and the entry's dashes, replace what was there in place.
  */
-export function picture(s: Stage, v: View) {
+export function picture(s: DrawContext, v: View) {
   const stop = v.path && !v.path.found ? v.path.slots.at(-1)! : -1;
   const slots = new Group(
     ...v.dict.indices.flatMap((entry, i) => {

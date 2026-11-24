@@ -4,10 +4,10 @@
 //
 // Visual decisions: every phrase is at size 0.9, so the advance ruler repeats the opening's 4.41, and the
 // ruler's ticks and space cells come from the same shaped run the Text draws, not a separate estimate.
-// The advance step's dimension is drawn here, with the stage, because a staged draw cannot add one later.
+// The advance step's dimension is drawn here, with the drawing context of its step.
 import { Group, Circle, Line, Rectangle, keyed } from '../../../src/index.ts';
 import type { Text, TextOptions } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { dimension } from '../../../explain/drawing.ts';
 
 export const SAMPLE = 'Ink on paper';
@@ -17,9 +17,9 @@ export const GAP = 0.5;
 const START = -5.3,
   TOP = 1.4;
 
-/** What the pictures draw with: the stage, the scene's text (lettered), the phrase as drawn, and the ink colour. */
+/** The drawing context, the lettered text and sample, and the ink colour. */
 export interface Pen {
-  stage: Stage;
+  drawing: DrawContext;
   text: (value: string, opts?: TextOptions) => Text;
   phrase: () => Text;
   color: string;
@@ -34,8 +34,8 @@ export interface RulersState extends AdvanceState { rulers: { drawn: number[]; m
 export interface CutsState extends RulersState { advances: Record<string, number> }
 
 /** Two rows of the phrase in EB Garamond, each with a marker GAP past the width measured in one face. */
-export function drawLayout(st: LayoutState, { stage, text, phrase, color }: Pen): Group {
-  const emphasis = stage.look.emphasis;
+export function drawLayout(st: LayoutState, { drawing, text, phrase, color }: Pen): Group {
+  const emphasis = drawing.look.emphasis;
   const comparison = new Group();
   keyed(comparison, 'font-layout');
   const rows = [
@@ -54,8 +54,8 @@ export function drawLayout(st: LayoutState, { stage, text, phrase, color }: Pen)
 }
 
 /** The phrase with a tick at each pen stop, a dashed cell around each space, and the ruler's total under it. */
-export function drawAdvance(st: AdvanceState, { stage, phrase }: Pen): Group {
-  const emphasis = stage.look.emphasis;
+export function drawAdvance(st: AdvanceState, { drawing, phrase }: Pen): Group {
+  const emphasis = drawing.look.emphasis;
   const ruled = phrase().moveTo([0, 1.0]);
   const [x0, y0, , y1] = ruled.box()!;
   const ticks = new Group();
@@ -70,13 +70,13 @@ export function drawAdvance(st: AdvanceState, { stage, phrase }: Pen): Group {
     ticks.add(cell);
   }
   // The ruler's total under the phrase, from the width the state records.
-  const total = dimension(stage, [x0, y0 - 0.5], [x0 + st.advance, y0 - 0.5], `${st.advance.toFixed(2)} units`, { size: 0.7, offset: -0.4 });
+  const total = dimension(drawing, [x0, y0 - 0.5], [x0 + st.advance, y0 - 0.5], `${st.advance.toFixed(2)} units`, { size: 0.7, offset: -0.4 });
   return new Group(ruled, ticks, total);
 }
 
 /** The opening's upper row with both faces' rulers under it, matching pen stops joined, and both markers. */
-export function drawRulers(st: RulersState, { stage, text, phrase, color }: Pen): Group {
-  const { emphasis, soft } = stage.look;
+export function drawRulers(st: RulersState, { drawing, text, phrase, color }: Pen): Group {
+  const { emphasis, soft } = drawing.look;
   const { drawn, measured, markers } = st.rulers;
   const upper = phrase().moveTo([START, TOP], [-1, 0]);
   const yDrawn = upper.box()![1] - 0.12,

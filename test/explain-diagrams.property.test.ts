@@ -279,7 +279,10 @@ const hops = (s: DiagramSnapshot) => {
 };
 const walkSnapshot = snapshot().chain((s) => fc.tuple(fc.constant(s), hops(s)));
 /** Walks recorded so far (revealing a message records its walk too, so tests read the ones after a point). */
-const walks = (scene: Scene) => (scene.stateJson().walks ?? []) as { edge: string; from: string; to: string }[];
+const walks = (scene: Scene) => scene.evidence.filter(e => e.kind === 'diagram-walk').map(e => {
+  assert.ok(typeof e.edge === 'string' && typeof e.from === 'string' && typeof e.to === 'string');
+  return { edge: e.edge, from: e.from, to: e.to };
+});
 
 test('walk, one after another or in parallel, records each hop in order on the link it travelled, and leaves no token behind', async () => {
   await fc.assert(

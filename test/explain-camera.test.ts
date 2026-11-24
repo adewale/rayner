@@ -56,6 +56,8 @@ const near = (a: readonly number[], b: readonly number[]) => a.every((v, i) => M
 
 test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims and a walk work while zoomed', async () => {
   class Zoom extends Scene {
+    override shown: { emphasis: boolean; walked: [string, string][] } = { emphasis: false, walked: [] };
+    override state = { done: false };
     override async construct() {
       const s = stage(this);
       await this.step('one');
@@ -110,6 +112,7 @@ test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims a
 
 test('an enlargement does not depend on the camera', async () => {
   class Away extends Scene {
+    override state = { done: false };
     override async construct() {
       const s = stage(this);
       await this.step('one');
@@ -127,6 +130,7 @@ test('an enlargement does not depend on the camera', async () => {
 
 test('enlarge moves the diagram inside its own box and the camera stays home', async () => {
   class Inside extends Scene {
+    override state = { done: false };
     override async construct() {
       const s = stage(this);
       await this.step('one');
@@ -256,6 +260,7 @@ test('one camera zoom: the stage pins its heading by the zoom the close-ups read
   for (const box of [[-1, -2, 1, 2], [-4, -1, 4, 1]] as Box[]) {
     let home: Box[] = [], away: Box[] = [], view: Box = HOME;
     class Tall extends Scene {
+      override state = { done: false };
       override async construct() {
         const s = stage(this);
         await this.step('one', { title: 'A heading' } as never);

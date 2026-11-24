@@ -1,7 +1,7 @@
 import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, advanceCells, letterRow, letterTargets } from './picture.ts';
 import { Scene, Text, Create, FadeIn, shaperFor, Transform } from '../../../src/index.ts';
 import type { MatchSummary, FontName } from '../../../src/index.ts';
-import { stage, settingsOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, having, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import { card, callout } from '../../../explain/drawing.ts';
 
@@ -38,7 +38,10 @@ type GlyphState = {
   shapePairs?: { sameFont: number; otherFont: number };
 };
 
-export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> {
+export default class GlyphExplainer extends Scene {
+  override state: GlyphState | { font: FontName } = { font: settingsOf(this, GlyphExplainer).font };
+  override shown: { lit?: string } = {};
+
   static meta = {
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
     claims: [
@@ -63,9 +66,9 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
         { value: 'mono', label: 'JetBrains Mono' },
       ],
     },
-  ];
+  ] as const;
   override async construct() {
-    const font = settingsOf(this).font as FontName,
+    const font = this.state.font,
       other: FontName = font === 'sans' ? 'mono' : 'sans',
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
       ink = s.look.ink,
@@ -145,8 +148,8 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     // how the step shows them (this.shown).
     this.state = { ...measuring };
     this.shown.lit = named(stems);
-    const gainsCard = view(this, (st, sh) => {
-      const drawn = card(s, Object.entries(st.gains).map(([name, gain]) => [name, signed(gain)]), {
+    const gainsCard = view(this, (st, sh, drawing) => {
+      const drawn = card(drawing, Object.entries(having(st, 'gains').gains).map(([name, gain]) => [name, signed(gain)]), {
         at: [-4.6, -4.25, 4.6, -1.3],
         title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units`,
         lit: sh.lit == null ? null : { row: sh.lit },
@@ -154,7 +157,7 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
       });
       drawn.bar.style.fill = hot;
       return drawn;
-    }, { place: false });
+    }, { drawing: s.drawing, place: false });
     await s.enter(gainsCard, { runTime: 0.35 });
 
     // 3. The same letter, two outlines: the prediction.
@@ -192,8 +195,8 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     const otherFont = toOther.summary()!;
     const paired = (m: MatchSummary) => `${m.matched} of ${m.matched + m.morphed + m.removed} paired`;
     // Each row says how many of its glyphs found a partner, at its right end.
-    await this.play(new Create(s.keep(callout(s, smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
-    await this.play(new Create(s.keep(callout(s, across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
+    await this.play(new Create(s.keep(callout(s.drawing, smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
+    await this.play(new Create(s.keep(callout(s.drawing, across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
     this.state = { ...measuring, shapePairs: { sameFont: sameFont.matched, otherFont: otherFont.matched } };
   }
 }

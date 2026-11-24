@@ -1,5 +1,7 @@
 import type { Scene, SceneState } from '../src/index.ts';
 import type { StepRecord } from '../src/testing.ts';
+import { watchSelections } from './settings.ts';
+import type { ExplainerMeta } from './settings.ts';
 import { canonicalJson } from '../src/json.ts';
 import { wordsFor, describedIn, markHeading, writeNumber } from './words.ts';
 import type { Words } from './words.ts';
@@ -9,24 +11,9 @@ interface WalkRecord {
   to: string;
   edge: string;
 }
-const logs = new WeakMap<Scene, WalkRecord[]>();
-/**
- * Keep helper evidence even when an author replaces the program-state object. The state's `walks`
- * key is reserved for it: a scene's own `walks` is refused rather than replaced.
- */
+/** Record a diagram traversal as evidence; it never reserves a domain-state key. */
 export function recordWalk(scene: Scene, walk: WalkRecord): void {
-  let log = logs.get(scene);
-  const own = (scene.state as Record<string, unknown>).walks;
-  if (own !== undefined && (!log || canonicalJson(own) !== canonicalJson(log)))
-    throw new Error('this.state: its own walks key would be replaced by the walks a diagram records there; rename the scene\'s key');
-  if (!log) {
-    log = [];
-    logs.set(scene, log);
-    const entries = log;
-    scene.addJson(() => ({ walks: entries.map((entry) => ({ ...entry })) }));
-  }
-  log.push(walk);
-  scene.state.walks = log.map((entry) => ({ ...entry }));
+  scene.record('diagram-walk', { ...walk });
 }
 
 
@@ -55,7 +42,7 @@ export interface PictureEntry {
   /** The other parts in reading order, dimmed ones last. */
   items: string[];
 }
-/** What a step's resting picture shows; the stage records it in each step's state as `picture`. */
+/** What a step's resting picture shows; the stage records it in each step's derived observations as `picture`. */
 export interface Picture {
   entries: PictureEntry[];
   /** Parts that arrived or changed during the step; absent when everything did. */
@@ -85,15 +72,28 @@ export function stepWords(s: { step: string; meta: Record<string, unknown> }): {
 export function wordsHtml(words: { line: string; caption: string }, dir: (text: string) => string = () => ''): string {
   return `${words.line ? `<p${dir(words.line)}><strong>${htmlEscape(words.line)}</strong></p>` : ''}<p${dir(words.caption)}>${htmlEscape(words.caption)}</p>`;
 }
-/** The most entries `meta.watch` may name, and the most changes one step shows. */
-export const WATCH_MAX = 8,
-  CHANGES_MAX = 4;
-/** One watched value a step changed, as a reader reads it; a side is absent when it had no value. */
-export interface WatchedChange {
-  label: string;
-  before?: string;
-  after?: string;
+/** The most readouts (model changes and current values) one step shows. */
+export const CHANGES_MAX = 4;
+type StateRecord = Pick<StepRecord, 'before' | 'after' | 'state'>;
+/** The state a reader sees on either side of this step, including staged specimens. */
+export function stepStates(step: StateRecord, previous?: StateRecord): Pick<StateRecord, 'before' | 'after'> {
+  return { before: previous?.state ?? step.before, after: step.state ?? step.after };
 }
+/** A reader readout: a real model change or a current value with an explicit owner. */
+export type WatchReading =
+  | { kind: 'change'; label: string; before?: string; after?: string }
+  | { kind: 'value'; label: string; value: string };
+type WatchStep = Pick<StepRecord, 'before' | 'after' | 'state' | 'shown' | 'derived'>;
+type Watches = ExplainerMeta['watch'];
+const watchSource = (step: WatchStep, source: NonNullable<Watches>[number]['source']): SceneState | undefined => {
+  switch (source) {
+    case 'model': return step.after;
+    case 'local': return step.state;
+    case 'shown': return step.shown;
+    case 'derived': return step.derived;
+    default: throw new TypeError('meta.watch: source must be model, local, shown or derived');
+  }
+};
 function sayOne(v: unknown, lang: string): string | null {
   if (typeof v === 'number') return writeNumber(v, lang, 2);
   if (typeof v === 'string') {
@@ -116,47 +116,35 @@ export function watchedValue(v: unknown, lang = 'en'): string | null {
   if (items.some((x) => x == null)) return null;
   return items.slice(0, 4).join(', ') + (items.length > 4 ? ` +${items.length - 4}` : '');
 }
-/**
- * What a step changed of the state its author names for readers (`meta.watch`, key to label): each
- * watched key whose JSON differs (whatever the order of its keys) between the step's start and end, in `watch` order, at most four.
- * A key whose value cannot be said briefly is skipped and its name pushed to `unformatted`; one that
- * reads the same before and after (0.001 and 0.002 both read 0) is no change to a reader. The player,
- * the page's transcript, `describeExplainer` and `rayner check` all read changes here.
- */
-export function watchedChanges(
-  step: { before: SceneState; after: SceneState },
-  watch: Readonly<Record<string, string>> | undefined,
-  lang = 'en',
-  unformatted?: string[],
-): WatchedChange[] {
-  const changes: WatchedChange[] = [];
-  for (const [key, label] of Object.entries(watch ?? {})) {
-    const was = step.before[key],
-      is = step.after[key];
+/** One projection shared by checks, descriptions, transcripts and the player. Nonmodel sources are values at rest, never invented inter-step changes. */
+export function watchedReadings(step: WatchStep, watch: Watches, lang = 'en', unformatted?: string[]): WatchReading[] {
+  const readings: WatchReading[] = [];
+  for (const { source, key, label } of watchSelections(watch)) {
+    const current = watchSource(step, source);
+    const is = current && Object.hasOwn(current, key) ? current[key] : undefined;
+    if (source !== 'model') {
+      if (!current || !Object.hasOwn(current, key)) continue;
+      const value = watchedValue(is, lang);
+      if (value === null) unformatted?.push(`${source}.${key}`);
+      else if (readings.length < CHANGES_MAX) readings.push({ kind: 'value', label: label.trim(), value: value || '—' });
+      continue;
+    }
+    const was = Object.hasOwn(step.before, key) ? step.before[key] : undefined;
     if (canonicalJson(was) === canonicalJson(is)) continue;
-    const before = watchedValue(was, lang),
-      after = watchedValue(is, lang);
-    if (before == null || after == null) unformatted?.push(key);
-    else if (before !== after && changes.length < CHANGES_MAX)
-      changes.push({ label: label.trim(), ...(before ? { before } : {}), ...(after ? { after } : {}) });
+    const before = watchedValue(was, lang), after = watchedValue(is, lang);
+    if (before === null || after === null) unformatted?.push(`model.${key}`);
+    else if (before !== after && readings.length < CHANGES_MAX)
+      readings.push({ kind: 'change', label: label.trim(), ...(before ? { before } : {}), ...(after ? { after } : {}) });
   }
-  return changes;
+  return readings;
 }
-/**
- * Refuse a `meta.watch` that cannot work: not a record, more than eight entries, an empty key or
- * label, or a key that is never in the state of any step of any scenario (`steps`, all scenarios' steps).
- */
-export function checkWatch(watch: unknown, steps: readonly { before: SceneState; after: SceneState }[]): void {
-  if (watch === undefined) return;
-  if (!watch || typeof watch !== 'object' || Array.isArray(watch))
-    throw new TypeError('meta.watch: it must be a record from a state key to the label readers see');
-  const entries = Object.entries(watch);
-  if (entries.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${entries.length} keys; name at most ${WATCH_MAX}, so a step's changes stay readable`);
-  for (const [key, label] of entries) {
-    if (!key) throw new TypeError('meta.watch: it has an empty key');
-    if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${JSON.stringify(key)} an empty label`);
-    if (!steps.some((s) => Object.hasOwn(s.before, key) || Object.hasOwn(s.after, key)))
-      throw new RangeError(`meta.watch: it names ${JSON.stringify(key)}, which is never in the scene's state at any step of any scenario`);
+
+/** Validate declarations and presence in at least one scenario at the appropriate owner. */
+export function checkWatch(watch: unknown, scenarios: readonly (readonly WatchStep[])[]): void {
+  const states = scenarios.flat();
+  for (const { source, key } of watchSelections(watch)) {
+    if (!states.some(step => source === 'model' && Object.hasOwn(step.before, key) || Object.hasOwn(watchSource(step, source) ?? {}, key)))
+      throw new RangeError(`meta.watch: it names ${source}.${JSON.stringify(key)}, which is never present at any step of any scenario`);
   }
 }
 const pictureOf = (state: unknown): Picture | undefined => (state as { picture?: Picture } | undefined)?.picture;
@@ -259,7 +247,7 @@ const markedParts = (e: Pick<PictureEntry, 'marked'>) =>
 /** What an entry shows, its emphasis and its parts, in any order: equal when the thing looks as it did. */
 const entryKey = (e: Pick<PictureEntry, 'marked'> & { items?: readonly string[] }) => [...markedParts(e), ...(e.items ?? [])].sort().join('\n');
 /**
- * What changed of the picture since `previous` (a step's or event's shown state), in words:
+ * What changed of the picture since `previous` (a step's or event's derived observations), in words:
  * each described thing that was not there, or whose emphasis or parts differ from the thing
  * of the same name before, named with its emphasised parts, in the picture's language. A thing
  * that only moved in the list is not a change. Empty when nothing changed: what a screen reader
@@ -278,7 +266,7 @@ export function pictureChange(state: unknown, previous?: unknown): string {
 }
 /**
  * The picture as nested lists, each thing's emphasised parts first, punctuated so it
- * reads as sentences when flattened. Given the previous step's state, a thing whose
+ * reads as sentences when flattened. Given the previous step's derived picture, a thing whose
  * parts are all as they were lists only its emphasis.
  */
 export function pictureHtml(state: unknown, previous?: unknown): string {
@@ -315,16 +303,16 @@ export interface PictureWords {
  * The picture in words at the end of the step named `step`, from a trace (`traceScene`, or a
  * scenario of `loadProject`): what a reader who cannot see the stage is told about it.
  */
-export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'shown'>[] }, step: string): PictureWords {
+export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'derived'>[] }, step: string): PictureWords {
   const i = trace.steps.findIndex((s) => s.step === step);
   if (i < 0) throw new RangeError(`pictureWordsAt(): the trace has no step ${JSON.stringify(step)}; its steps are ${trace.steps.map((s) => s.step).join(', ')}`);
-  const { shown } = trace.steps[i]!,
-    previous = trace.steps[i - 1]?.shown;
+  const { derived } = trace.steps[i]!,
+    previous = trace.steps[i - 1]?.derived;
   const text = (html: string) =>
     html
       .replace(/<li>/g, ' ')
       .replace(/<\/?(?:ul|li)>/g, '')
       .replace(/&(?:amp|lt|gt|quot|#39);/g, (e) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[e]!)
       .trim();
-  return { summary: pictureSummary(shown), full: text(pictureHtml(shown)), transcript: text(pictureHtml(shown, previous)) };
+  return { summary: pictureSummary(derived), full: text(pictureHtml(derived)), transcript: text(pictureHtml(derived, previous)) };
 }

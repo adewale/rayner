@@ -5,11 +5,12 @@
 import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState, followScene, mobjectName, savedState, withArticle, alignFamily, alignData, matchingFrameFor, interpolateData, dropBox, copyAlone } from './mobject.ts';
+import { Group, adoptState, followScene, mobjectName, savedState, withArticle, alignFamily, alignData, matchingFrameFor, matchingAncestors, interpolateData, dropBox, copyAlone } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import { beginWhenReady, afterHeld, beginAnimations, inTurn } from './scene.ts';
 import * as V from './vec.ts';
+import { placeTargetSlots, targetClip } from './target-slots.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
 import { center, pointsBox } from './box.ts';
@@ -27,6 +28,9 @@ export interface AnimationOptions {
 
 /** What play() accepts besides animations: a trailing options object. */
 export type PlayOptions = Pick<AnimationOptions, 'runTime' | 'rateFunc' | 'lagRatio'>;
+
+/** @internal A write that participates in play's ownership checks without joining the stage. */
+export class NonvisualTarget extends Group {}
 
 /**
  * One family member and its counterparts, zipped by index: [mobject's, starting
@@ -465,7 +469,7 @@ export interface KeyMatch {
   /**
    * A keyed Text whose words change: 'by-place' (default) morphs its glyphs place by
    * place, as a readout's digits should; 'whole' pairs it only with the same words, so a
-   * relabelled part fades out and in, as a renamed state or event should.
+   * relabelled Text fades out and in at full size as one unit, as a renamed state or event should.
    */
   text?: 'by-place' | 'whole';
   /**
@@ -478,7 +482,7 @@ export interface KeyMatch {
   fallback?: MatchKey;
 }
 
-export interface TransformOptions extends AnimationOptions {
+export type TransformOptions = AnimationOptions & {
   /**
    * The scene holds `target` afterwards. Default false for a morph by index; true when parts are
    * matched (the source ends holding faded parts and copies of the target's new ones) and with
@@ -507,7 +511,17 @@ export interface TransformOptions extends AnimationOptions {
    * the play begins, so it is the mobject as the play found it whatever the argument order. Default false.
    */
   fromCopy?: boolean;
-}
+} & ({ fromCopy?: false; replace?: boolean } | { fromCopy: true; replace?: true });
+
+/** A saved-state transform changes the original by index, with no matching or handover options. */
+type SavedTransformOptions = AnimationOptions & {
+  match?: undefined;
+  fromCopy?: undefined;
+  replace?: undefined;
+  ordered?: undefined;
+  staged?: undefined;
+  fadeMismatches?: undefined;
+};
 
 /**
  * What a Transform knows of its target as it begins: `owned`, built for it alone, so it is used without
@@ -585,11 +599,20 @@ export class Transform extends Animation {
   #state!: Mobject;
   #same = false;
 
-  constructor(mobject: Mobject, target: Mobject | 'saved', { replace, match = 'index', ordered, staged = false, fadeMismatches = true, fromCopy = false, ...opts }: TransformOptions = {}) {
+  constructor(mobject: Mobject, target: Mobject, options?: TransformOptions);
+  constructor(mobject: Mobject, target: 'saved', options?: SavedTransformOptions);
+  constructor(mobject: Mobject, target: Mobject | 'saved', options?: SavedTransformOptions);
+  constructor(mobject: Mobject, target: Mobject | 'saved', options: TransformOptions | SavedTransformOptions = {}) {
+    if (target === 'saved') {
+      const { match, fromCopy, replace, ordered, staged, fadeMismatches, ...timing } = options;
+      for (const [name, value] of Object.entries({ match, fromCopy, replace, ordered, staged, fadeMismatches }))
+        if (value !== undefined) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop \`${name}\``);
+      options = timing;
+    }
+    const { replace, match = 'index', ordered, staged = false, fadeMismatches = true, fromCopy = false, ...opts } = options;
     super(fromCopy ? new Group() : mobject, opts);
     const key = keyOfMatch(match);
     this.#toSaved = target === 'saved';
-    if (this.#toSaved && (key || fromCopy || replace)) throw new Error(`new Transform(): a return to the saved state morphs the mobject itself, by index, and keeps it; drop ${key ? '`match`' : fromCopy ? '`fromCopy`' : '`replace`'}`);
     if (fromCopy && replace === false) throw new Error('new Transform(): with fromCopy the copy hands over to the target, so the scene holds the target; drop `replace: false`');
     this.target = target === 'saved' ? mobject : target;
     this.replace = replace ?? (key !== null || fromCopy);
@@ -1555,6 +1578,8 @@ export abstract class MadeAtTurn extends AnimationGroup {
  */
 export interface Beat {
   runTime: number;
+  /** The writes known before the beat makes its animations; checked before a play begins. */
+  targets?: readonly Mobject[];
   play: () => ScheduledAnimation[];
   after?: () => void;
 }
@@ -1583,7 +1608,7 @@ function checkBeatTime(call: string, beat: Beat, made: readonly ScheduledAnimati
 class BeatPlay extends MadeAtTurn {
   readonly #beat: Beat;
   constructor(beat: Beat, call: string) {
-    super(call, 'a beat', beat.runTime);
+    super(call, 'a beat', beat.runTime, beat.targets);
     this.#beat = beat;
   }
   protected override make(): ScheduledAnimation[] {
@@ -1653,7 +1678,7 @@ export abstract class Beats<T> extends Succession {
   readonly #waiting: Promise<void> | null;
   #state: BeatsState<T>;
 
-  constructor(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
+  constructor(scene: Scene, name: string, make: () => BeatPlan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
     let decision: BeatDecision<T> = null;
     if (!late)
       try {
@@ -1917,7 +1942,7 @@ interface MoveRow { sub: Mobject; start: Mobject; end: Mobject }
  * whole animation runs, and the part scales about it as its own (lagged) share
  * runs: a lagged glyph waits inside its line, not where the line was.
  */
-interface FadeRow { sub: Mobject; pts: Float32Array[]; opacity: number; tx: number; ty: number; ride?: Vec }
+interface FadeRow { sub: Mobject; pts: Float32Array[]; opacity: number; tx: number; ty: number; ride?: Vec; whole?: Text; step: number }
 /** A container's own points (a Text's advance box), blended between two fixed snapshots. */
 interface FrameRow { node: Mobject; from: Float32Array[]; to: Float32Array[]; start?: Mobject; end?: Mobject }
 /** Where a source frame's contents go: p -> k * p + (bx, by). */
@@ -1931,6 +1956,8 @@ interface MatchRows {
   frames: FrameRow[];
   /** The source family after the copies were attached: whose boxes go stale each frame. */
   touched: Mobject[];
+  /** Lag slots: a whole Text's fading glyphs share one slot. */
+  steps: number;
 }
 
 /**
@@ -1974,6 +2001,13 @@ function beginMatching(t: Transform, m: Matching): void {
 /** Pair a matched Transform's parts by `key` and fix every endpoint (see beginMatching). */
 function pairParts(self: Transform, key: MatchKey, m: Matching): void {
   const src = self.mobject, tgt = self.target;
+  const wholeText = (part: Mobject, root: Mobject): Text | undefined => {
+    if (typeof m.kind !== 'object' || m.kind.text !== 'whole') return;
+    for (let node: Mobject | null = part; node; node = node.parent) {
+      if (node instanceof Text) return node;
+      if (node === root) break;
+    }
+  };
   const sParts = partsOf(src), tParts = partsOf(tgt);
   // Containers with points of their own (Text, whose advance box is a point
   // array) are frames: a glyph belongs to its line. Each target frame takes
@@ -2033,7 +2067,7 @@ function pairParts(self: Transform, key: MatchKey, m: Matching): void {
   // Endpoints. Copies only of single parts and frames, never of subtrees.
   const fadesOut = self.removed.map((s): FadeRow => {
     const c = ownCenter(s), { k, bx, by } = carry.get(frameOfS(s)) ?? IDENTITY;
-    return { sub: s, pts: s.pointArrays().map((a) => a.slice()), opacity: s.style.opacity, tx: k * c[0] + bx, ty: k * c[1] + by };
+    return { sub: s, pts: s.pointArrays().map((a) => a.slice()), opacity: s.style.opacity, tx: k * c[0] + bx, ty: k * c[1] + by, whole: wholeText(s, src), step: 0 };
   });
   const moves = linked.map(([s, t]): MoveRow => {
     const end = bare(t);
@@ -2063,34 +2097,61 @@ function pairParts(self: Transform, key: MatchKey, m: Matching): void {
   // under it while it fades in too, not over it until the morph ends.
   const newFrame = new Set(tFrames.filter((ft) => !toSource.has(ft))), adding = new Set(self.added);
   const fadeRows = new Map<Mobject, FadeRow>();
+  const targetMembers = new Map<Mobject, Mobject>([...toSource, ...linked.map(([s, t]) => [t, s] as const)]);
+  const admissions = new Set<Mobject>();
+  // Point-free groups are deliberately absent from the temporary matching tree.
+  // Retain diagnostic ownership and inherited paint clips without reparenting
+  // the rendered tree, changing its order or manufacturing public keys.
+  const admitted = (t: Mobject): Mobject => {
+    const sub = bare(t), owner = frameOfT(t), keys: string[] = [];
+    for (let p = t.parent; p && p !== owner; p = p.parent) {
+      if (p.key !== undefined) keys.unshift(p.key);
+    }
+    // A mapped source owner can have a different clip. Entering ink belongs to
+    // the complete target viewport from its first frame, including that owner.
+    targetClip(sub, t, tgt);
+    if (keys.length) sub[matchingAncestors] = Object.freeze(keys);
+    return sub;
+  };
   for (const t of tgt.family()) {
     if (newFrame.has(t)) {
-      const stage = bare(t);
+      const stage = admitted(t);
       toSource.get(frameOfT(t))!.add(stage);
       toSource.set(t, stage);
+      targetMembers.set(t, stage); admissions.add(stage);
     } else if (adding.has(t)) {
-      const sub = bare(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
+      const sub = admitted(t), home = toSource.get(frameOfT(t))!, c = ownCenter(t), { k, bx, by } = carry.get(home) ?? IDENTITY;
       home.add(sub);
-      fadeRows.set(t, { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k });
+      targetMembers.set(t, sub); admissions.add(sub);
+      fadeRows.set(t, { sub, pts: t.pointArrays().map((a) => a.slice()), opacity: t.style.opacity, tx: (c[0] - bx) / k, ty: (c[1] - by) / k, whole: wholeText(t, tgt), step: 0 });
     }
   }
+  for (const [targetFrame, sourceFrame] of toSource)
+    placeTargetSlots(sourceFrame, targetFrame, targetMembers, admissions);
   const fadesIn = self.added.map((t) => fadeRows.get(t)!);
-  self[matchRows] = { moves, fadesOut, fadesIn, frames, touched: src.family() };
+  let steps = moves.length;
+  const textSteps = new Map<Text, number>();
+  for (const row of [...fadesOut, ...fadesIn]) {
+    const previous = row.whole && textSteps.get(row.whole);
+    row.step = previous === undefined ? steps++ : previous;
+    if (row.whole) textSteps.set(row.whole, row.step);
+  }
+  self[matchRows] = { moves, fadesOut, fadesIn, frames, touched: src.family(), steps };
   interpolateMatching(self, 0);
 }
 
 /** A matched Transform's frame at `alpha`: a pure function of alpha over the endpoints fixed as it began. */
 function interpolateMatching(t: Transform, alpha: number): void {
   const { moves, fadesOut, fadesIn, frames, touched } = t[matchRows], lag = t.lagRatio;
-  const n = moves.length + fadesOut.length + fadesIn.length;
+  const n = t[matchRows].steps;
   let i = 0;
   for (const { sub, start, end } of moves) sub.interpolate(start, end, staggered(lag, alpha, i++, n));
   // Staged: what leaves is gone by halfway, and what comes starts there.
   const staged = t[matching]!.staged;
   const out = staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
     into = staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
-  for (const r of fadesOut) fade(r, 1 - out(staggered(lag, alpha, i++, n)), alpha, true);
-  for (const r of fadesIn) fade(r, into(staggered(lag, alpha, i++, n)), alpha, false);
+  for (const r of fadesOut) fade(r, 1 - out(staggered(lag, alpha, r.step, n)), alpha, true);
+  for (const r of fadesIn) fade(r, into(staggered(lag, alpha, r.step, n)), alpha, false);
   for (const { node, from, to, start, end } of frames) {
     if (start && end) { node[interpolateData](start, end, alpha); continue; }
     const mine = node.pointArrays();
@@ -2292,6 +2353,14 @@ function assign(cost: number[][]): number[] {
  */
 function fade(r: FadeRow, size: number, alpha: number, out: boolean): void {
   const mine = r.sub.pointArrays(), k = 1 - size;
+  if (r.whole) {
+    // Replacement words stay at their own endpoint. Scaling each glyph about
+    // its center destroys the word before it disappears, leaving rows of dots.
+    for (let j = 0; j < mine.length; j++) mine[j]!.set(r.pts[j]!);
+    r.sub.style.opacity = r.opacity * Math.max(0, Math.min(1, size));
+    r.sub.touchPoints();
+    return;
+  }
   const c = r.ride;
   if (c) {
     // Where its center is now: on the way, with the line, from where it starts to where it ends

@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import { copyFile, mkdir, mkdtemp, readFile, rm, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { Scene } from '../src/index.ts';
+import { Machine } from '../explain/index.ts';
+import { describeExplainer } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 import { reviewScope, reviewScenarios, mergeStoryReviews, reviewCodeHash, readStoryPlan } from '../tools/lib/explain-review-plan.ts';
 import type { PlannedScenario, ReviewReceipt } from '../tools/lib/explain-review-plan.ts';
@@ -204,6 +207,7 @@ test('story receipts expire when caption claims, served runtime or review depend
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
       'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
       'tools/lib/explain-live-review.ts', 'tools/lib/review-reader.ts', 'tools/lib/explain-embed-size.ts',
+      'tools/lib/explain-motion-rules.ts', 'tools/lib/explain-film.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
@@ -268,6 +272,13 @@ test('story receipts expire when caption claims, served runtime or review depend
     await writeFile(raster, Buffer.concat([rasterBytes, Buffer.from('\n// changed native rasterization\n')]));
     await assert.rejects(merge(), /stale review implementation/, 'native composite evidence depends on the rasterizer');
     await writeFile(raster, rasterBytes);
+    for (const file of ['tools/lib/explain-motion-rules.ts', 'tools/lib/explain-film.ts']) {
+      const path = join(root, file), bytes = await readFile(path);
+      await writeFile(path, Buffer.concat([bytes, Buffer.from('\nthrow new Error("changed transitive verifier");\n')]));
+      assert.equal((await buildInputs(root)).hash, renderingHash, `${file}: page identity stays fixed`);
+      await assert.rejects(merge(), /stale review implementation/, `${file}: transitive verification changes expire a receipt`);
+      await writeFile(path, bytes);
+    }
     assert.equal((await merge()).scenarios, 3);
   } finally { await rm(root, {recursive: true, force: true}); }
 });
@@ -355,7 +366,7 @@ test('live states: the built description names the live steps; a receipt must vi
   miscounted[0]!.liveStateWidths! += 1;
   assert.throws(() => mergeStoryReviews(miscounted, expected, 'catalog', 'code'), /live-state count/);
 
-  // The plan reads each scenario's live steps from the built description's machines.
+  // Earlier schema-1 descriptions recorded only the last played step for each machine.
   const root = await mkdtemp(join(tmpdir(), 'rayner-live-plan-'));
   try {
     await mkdir(join(root, 'example'));
@@ -380,4 +391,36 @@ test('shard receipts require framed phone steps and the same sampled live states
     else parts[0]!.framedLiveStateWidths = 0;
     assert.throws(() => mergeStoryReviews(parts, expected, 'catalog', 'code'), /framed/);
   }
+});
+
+test('the story plan reviews every offered or inferred step where a reader can send an event', async () => {
+  class Switches extends Scene {
+    override state = { on: false };
+    override async construct() {
+      const spec = { start: { on: true }, events: ['ON'] as const, views: [], next: (s: { on: boolean }) => s.on ? undefined : { on: true } };
+      const offered = new Machine(this, spec);
+      await this.step('first');
+      offered.offer();
+      await this.step('second');
+      offered.offer();
+      await this.step('guided');
+      // At the end of this step the reader can send ON from the guided machine's start.
+      await new Machine(this, { ...spec, start: { on: false } }).send('ON');
+      await this.step('finished');
+      offered.offer();
+      await this.step('terminal');
+      new Machine(this, spec).offer();
+    }
+  }
+  const description = await describeExplainer(Switches, { drawings: false });
+  const root = await mkdtemp(join(tmpdir(), 'rayner-offer-plan-'));
+  try {
+    await mkdir(join(root, 'switches'));
+    const steps = ['first', 'second', 'guided', 'finished', 'terminal'].map(step => ({ step, reviewed: false, reason: 'no-opening-subject' }));
+    const scene = { id: 'switches', diagrams: 0, styles: [], families: [], scenarios: [{}], narrowOpenings: [{ settings: {}, steps }] };
+    await writeFile(join(root, 'evidence.json'), JSON.stringify({ version: 2, checked: true, totals: { explainers: 1, scenarios: 1, diagrams: 0, styles: 0, families: 0 }, scenes: [scene] }));
+    await writeFile(join(root, 'switches/describe.json'), JSON.stringify(description));
+    const plan = await readStoryPlan(root);
+    assert.deepEqual(plan.scenarios.map((s) => s.live), [['first', 'second', 'guided']]);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

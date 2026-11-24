@@ -21,7 +21,10 @@ type ChartState = SearchSnapshot & {
   guardedHistory?: (Query | null)[];
 };
 
-export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus?: { lines: [number, number]; as: string } }> {
+export default class LatestSearchExplainer extends Scene {
+  override state: ChartState | { phase: 'idle' } = { phase: 'idle' };
+  override shown: { codeFocus?: { lines: [number, number]; as: string } } = {};
+
   static meta = {
     id: 'latest-search',
     title: 'Why can an older search replace the latest result?',
@@ -49,13 +52,13 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
         { value: 'old-first', label: 'A then B' },
       ],
     },
-  ];
+  ] as const;
   chart: View | null = null;
 
   override async construct() {
-    const values = settingsOf(this);
+    const values = settingsOf(this, LatestSearchExplainer);
     const guarded = values.guard === 'on';
-    const order = values.order as CompletionOrder;
+    const order = values.order;
     // The displayed states come from resolving real JavaScript promises in an
     // explicit order. There is no network, clock or simulated response time.
     const [run, without, withGuard] = await Promise.all([
@@ -119,7 +122,8 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
     await this.play(new FadeIn(axes), new FadeIn(key), new FadeIn(latest));
     const chart = view(
       this,
-      (state) => {
+      (model, _shown, drawing) => {
+        const state = having(model, 'history');
         const picture = new Group();
         const line = (values: (Query | null)[], color: string) => {
           if (values.length < 2) return;
@@ -136,8 +140,8 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
         };
         if (state.compare) {
           const both = having(state, 'unguardedHistory', 'guardedHistory');
-          line(both.unguardedHistory, s.look.bad);
-          line(both.guardedHistory, s.look.good);
+          line(both.unguardedHistory, drawing.look.bad);
+          line(both.guardedHistory, drawing.look.good);
         } else line(state.history, colors.emphasis);
         const label = (text: string, x: number, y: number, size = 0.4) =>
           picture.add(new Text(text, { fontSize: size, color: colors.ink }).moveTo([x, y]));
@@ -148,12 +152,12 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
         } else label(`Displayed: ${shown(state.shown)}`, -3.7, 1.57, 0.45);
         return picture;
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     this.chart = chart;
     s.keep(chart, {
       describe: () => {
-        const state = this.state;
+        const state = having(this.state, 'history');
         return (
           `Search A started before B. B is latest. ${String(state.event)}; the page shows ${shown(state.shown)}. ` +
           (state.compare
@@ -167,8 +171,8 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
     this.shown.codeFocus = { lines: [2, 2], as: 'ticket' };
     const codeView = view(
       this,
-      (_st, sh) => code(s, SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], size: 0.34, lit: having(sh, 'codeFocus').codeFocus, key: 'code' }),
-      { place: false },
+      (_st, sh, drawing) => code(drawing, SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], size: 0.34, lit: having(sh, 'codeFocus').codeFocus, key: 'code' }),
+      { drawing: s.drawing, place: false },
     );
     await s.enter(codeView, { runTime: 0.4 });
 

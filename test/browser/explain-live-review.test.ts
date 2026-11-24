@@ -47,16 +47,16 @@ export default class Lamp extends Scene{
     await this.step('intro',{caption:'A lamp, off.'});
     await this.wait(0.2);
     await this.step('press',{caption:'Press the switch: the lamp is dim.'});
-    await this.play(machine.replay(['UP']));
+    await this.play(machine.sendSequence(['UP']));
   }
 }`;
 
 const options = { skip: process.env.EXPLAIN_BROWSER ? false : 'set EXPLAIN_BROWSER=1 for served live-state review checks' };
 
 test('the visited live states: every state one press away, then breadth first, then the farthest, at most LIVE_STATES', () => {
-  const scene = new Scene<any>(new NullSink());
+  const host = <S extends object>(state: S) => Object.assign(new Scene(new NullSink()), { state });
   // A counter from 0 to 9: one press away are 1 (UP) and nothing below 0; the farthest is 9.
-  const counter = new Machine<{ n: number }, 'UP' | 'DOWN' | 'STAY'>(scene, {
+  const counter = new Machine<{ n: number }, 'UP' | 'DOWN' | 'STAY'>(host({ n: 0 }), {
     start: { n: 0 }, events: ['UP', 'DOWN', 'STAY'], views: [],
     next: (s, e) => (e === 'UP' ? (s.n < 9 ? { n: s.n + 1 } : undefined) : e === 'DOWN' ? (s.n > 0 ? { n: s.n - 1 } : undefined) : s),
   });
@@ -66,14 +66,41 @@ test('the visited live states: every state one press away, then breadth first, t
   // From the middle, both neighbours are one press away; the start itself is never revisited.
   assert.deepEqual(liveVisits(counter as never, { n: 5 }).slice(0, 2), [['UP'], ['DOWN']]);
   // Every state one press away is visited, however many: ten events, ten neighbours.
-  const fan = new Machine<{ at: string }, string>(scene, {
+  const fan = new Machine<{ at: string }, string>(host({ at: '' }), {
     start: { at: '' }, events: Array.from({ length: 10 }, (_, i) => `go ${i}`), views: [],
     next: (s, e) => (s.at ? undefined : { at: e }),
   });
   assert.equal(liveVisits(fan as never, { at: '' }).length, 10);
   // A machine whose every event returns to where it is has its first such event pressed once.
-  const still = new Machine<{ k: number }, 'NO' | 'SAME'>(scene, { start: { k: 0 }, events: ['NO', 'SAME'], views: [], next: (s, e) => (e === 'SAME' ? s : undefined) });
+  const still = new Machine<{ k: number }, 'NO' | 'SAME'>(host({ k: 0 }), { start: { k: 0 }, events: ['NO', 'SAME'], views: [], next: (s, e) => (e === 'SAME' ? s : undefined) });
   assert.deepEqual(liveVisits(still as never, { k: 0 }), [['SAME']]);
+  const replies = new Machine<{k: number}, 'RED' | 'BLUE' | 'CLEAR'>(host({k: 0}), {
+    start: {k: 0}, events: ['RED', 'BLUE', 'CLEAR'], views: [], next: s => s,
+    result: ({event}) => event === 'CLEAR' ? undefined : {color: event},
+  });
+  assert.deepEqual(liveVisits(replies as never, {k: 0}), [['RED'], ['BLUE'], ['CLEAR']], 'distinct immediate replies include clearing back to the opening');
+});
+
+test('both immediate self-loop responses are painted and reviewed at both served widths', options, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-live-responses-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Group,Rectangle,keyed}from'rayner';import{Machine,view,stage}from'rayner/explain';
+export default class Responses extends Scene{static meta={id:'responses'};state={ready:true};shown={result:{color:'#00ff00'}};
+async construct(){const s=stage(this,{heading:false});const picture=view(this,(_st,sh)=>new Group(keyed(new Rectangle({width:2,height:2,fill:sh.result?.color??'#00ff00',stroke:'none'}),'response')));
+s.keep(picture,{describe:()=> 'response'});const machine=new Machine(this,{start:this.state,views:[picture],events:['red','blue'],next:st=>({...st}),runTime:.2,result:({event})=>({color:event==='red'?'#ff0000':'#0000ff'})});
+await this.step('offer');machine.offer();await this.wait(.1);}}`);
+    const project = await collectProject(dir, {write: false});
+    await buildExplainer(project, join(dir, 'responses.html'));
+    server = await serve(dir, 0, 'responses.html');
+    const subjects = await liveSubjects(project.scenarios[0]!);
+    assert.deepEqual(subjects.map(s => s.sent), [['red'], ['blue']]);
+    const page = await browser.newPage();
+    const reviewed = await reviewLiveStates(page, `${server.url}/responses.html`, project.scenarios[0]!, subjects);
+    assert.deepEqual(reviewed.map(r => [r.width, r.sent]), [[390, ['red']], [390, ['blue']], [1180, ['red']], [1180, ['blue']]]);
+    assert.ok(reviewed.every(r => r.targets.length > 0), 'all four independently planned pictures supply visible reader ink');
+  } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
 });
 
 test('a label tiny only in a state an event reaches fails the served review; the same lamp at its size passes', options, async () => {

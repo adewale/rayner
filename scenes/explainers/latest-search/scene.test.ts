@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import { having } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { loadFonts, loadProject, withSettings, assertStepState, assertViewFollowsState } from '../../../explain/testing.ts';
+import { loadFonts, loadProject, withSettings, assertStepState, assertViewFollowsState, describeExplainer, pictureWordsAt } from '../../../explain/testing.ts';
 import LatestSearch from './scene.ts';
 
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
@@ -45,13 +45,13 @@ test('the public story compares both rules and shows each ticket decision in bot
   const p = await loadProject(LatestSearch, 'scenes/explainers/latest-search');
   assert.equal(p.scenarios.length,2);
   for(const v of p.scenarios){
-    assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard']);
+    assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard','page-only']);
     const order=v.values.order as 'new-first'|'old-first';
     const off=await runSearch(false,order),on=await runSearch(true,order);
-    // The overwrite and last steps are the race machines' states after the scenario's events: A and B start, then
+    // The overwrite and guard steps are the race machines' states after the scenario's events: A and B start, then
     // the two landings in the completion order. Each machine's run matches the real promises' run.
     const events:RaceEvent[]=['start A','start B',...(order==='new-first'?['B lands','A lands'] as const:['A lands','B lands'] as const)];
-    const result=having(v.trace.steps.at(-1)!.after,'log','guarded');
+    const result=having(v.trace.steps.find(s=>s.step==='reader-guard')!.after,'log','guarded');
     assert.deepEqual(result,raceReplay(true,events));
     const overwrite=having(v.trace.steps.find(s=>s.step==='overwrite')!.after,'log','guarded');
     assert.deepEqual(overwrite,raceReplay(false,events));
@@ -64,10 +64,29 @@ test('the public story compares both rules and shows each ticket decision in bot
     }
     // Both runs start and land the searches at the same ticks, so one set of bars serves both tracks.
     assert.deepEqual(on.lifetimes,off.lifetimes);
-    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
+    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.state,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
     for(const step of v.trace.steps.filter(s=>s.step==='reader-first'||s.step==='reader-ticket')){
-      const r=having(step.after,'ticket','accepted');
+      const r=having(step.state!,'ticket','accepted');
       assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
     }
+  }
+});
+
+
+test('the optional page-only experiment hides in-flight requests while retaining the full race model', async () => {
+  const project = await loadProject(LatestSearch, 'scenes/explainers/latest-search');
+  const described = await describeExplainer(project.Scene, { drawings: false });
+  assert.equal(project.scenarios.length, 2);
+  for (const { trace } of project.scenarios) {
+    const page = trace.steps.find(step => step.step === 'page-only')!;
+    assert.equal(page.meta.kind, 'detail');
+    assert.deepEqual(page.after, {guarded:true,latest:0,tickets:{A:null,B:null},log:[],page:null,writes:[]});
+    assert.match(pictureWordsAt(trace,'page-only').full,/Result: Nothing published yet/);
+  }
+  assert.equal(described.scenarios.length, 2);
+  for (const scenario of described.scenarios) {
+    assert.equal(scenario.machines!.length, 3);
+    assert.deepEqual(scenario.machines!.map(machine => [machine.states,machine.observations,machine.complete]), [[10,10,true],[10,10,true],[10,3,true]]);
+    assert.equal(scenario.machines![2]!.step,'page-only');
   }
 });

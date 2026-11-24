@@ -2,27 +2,26 @@ import { Scene } from '../../../src/index.ts';
 import { Machine, answerOf, settingsOf, stage, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting } from '../../../explain/index.ts';
 import { beats, flight } from '../../../explain/drawing.ts';
-import { EVENTS, bound, next, sorted, start, type Compare, type SortEvent, type State } from './model.ts';
+import { EVENTS, bound, next, sorted, start, type SortEvent, type State } from './model.ts';
 import { drawSort } from './picture.ts';
 
 const PLACES = ['First', 'Between 1 and 9', 'Last'];
 
-export default class SortAsText extends Scene<State, {}> {
+export default class SortAsText extends Scene {
   static meta = {
     sources: ['https://tc39.es/ecma262/2025/#sec-sortcompare'],
   } satisfies ExplainerMeta;
   static settings = [
     { id: 'compare', label: 'Compare function', default: 'none', options: [{ value: 'none', label: 'none' }, { value: 'numbers', label: '(a, b) => a - b' }] },
-  ] satisfies readonly Setting[];
+  ] as const satisfies readonly Setting[];
 
-  override state = start('none');
+  override state: State = start(settingsOf(this, SortAsText).compare);
 
   override async construct() {
     const s = stage(this);
-    const compare = settingsOf(this).compare as Compare;
+    const compare = settingsOf(this, SortAsText).compare;
     const asText = compare === 'none';
-    this.state = start(compare);
-    const picture = view(this, (st) => drawSort(s, st));
+    const picture = view(this, (st, _shown, drawing) => drawSort(drawing, st), { drawing: s.drawing });
     // The reader's buttons: each puts a number on the end of the array. Its sorted box flies down
     // from just under where the number joins the array, along the gap between the rows and down into
     // its place, over no other number, after the boxes it passes have made room.
@@ -67,6 +66,6 @@ export default class SortAsText extends Scene<State, {}> {
         ? 'Add 100 to the end of the array and sort() puts it after 10 and before 9: as text, "100" begins with "10". Press add 2 or add 25, predict where it lands, then watch.'
         : 'Add 100 to the end of the array and sort() puts it last, the largest number. Press add 2 or add 25, predict where it lands, then watch.',
     });
-    await this.play(machine.replay(['add 100']));
+    await this.play(machine.sendSequence(['add 100']));
   }
 }

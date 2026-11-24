@@ -7,5 +7,5 @@
     "noUncheckedIndexedAccess": true, "noImplicitOverride": true, "verbatimModuleSyntax": true,
     "skipLibCheck": false, "lib": ["es2023", "dom"], "types": []
   },
-  "files": ["consumer.ts"]
+  "files": ["consumer.ts", "settings-transform.ts", "state-binding.ts"]
 }

@@ -263,7 +263,7 @@ const paintOf = (records: ElementRecord[], realInk: (r: ElementRecord) => boolea
   records.map((r) => ({ id: r.id, signature: JSON.stringify([r.attrs, r.transform]), record: r, bounds: realInk(r) ? paintBounds(r) : null }));
 
 /** What `scene` shows now, as the memory `storyFrame` compares the next picture with. */
-export function storyMemory(scene: Scene<any>): StoryMemory {
+export function storyMemory(scene: Scene): StoryMemory {
   const byId = new Map([...new Set(scene.familyMembers())].map((m) => [mobjectId(m), m]));
   return { emphasis: emphasisOf(scene), paint: paintOf(renderElements(scene, { relative: false }), inkTest(byId)) };
 }
@@ -302,7 +302,7 @@ export async function storyFrames(
  * event leaves the stage as it was); a resting step instead needs a declared subject.
  */
 export async function storyFrame(
-  scene: Scene<any>,
+  scene: Scene,
   name: string,
   previous: StoryMemory,
   declared: readonly StorySubject[],

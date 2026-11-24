@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
+import { watchedReadings } from '../../../explain/trace.ts';
+import LayoutDirectionExplainer from './scene.ts';
 import { Card } from '../../../explain/panels.ts';
 import { assertStepState } from '../../../explain/testing.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
@@ -46,6 +48,15 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
     },
   }).run();
   assert.deepEqual(seen, ['columns', 'updates', 'physical']);
+  // The reader's derived value belongs only to steps where the Start card is visible.
+  for (const step of trace.steps) {
+    const visible = step.step === 'columns' || step.step === 'updates';
+    const side = rtl ? 'right of value' : 'left of value';
+    assert.equal(step.derived?.startLabelSide, visible ? side : undefined, step.step);
+    assert.deepEqual(watchedReadings(step, LayoutDirectionExplainer.meta.watch), visible
+      ? [{ kind: 'value', label: 'Field name on Start', value: side }]
+      : [], step.step);
+  }
   // The state the scene records says the same.
   assertStepState(trace, 'columns', {
     cards: {

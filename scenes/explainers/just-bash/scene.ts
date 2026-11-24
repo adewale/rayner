@@ -46,7 +46,10 @@ type CardName = 'before' | 'after' | 'picked';
 /** Each diagram's marks and notes, each code panel's focus, each card's lit row, and whether the redirect has written. */
 type BashShown = { [d in DiagramName]?: DiagramShown } & { [c in CodeName]?: Focus } & { [c in CardName]?: string } & { written?: boolean };
 
-export default class BashExplainer extends Scene<BashState, BashShown> {
+export default class BashExplainer extends Scene {
+  override state: BashState = {};
+  override shown: BashShown = {};
+
   static meta = {
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
@@ -71,7 +74,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     };
     /** A code panel as s.code draws it, its lit bar on `shown[name]`. */
     const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; size: number }, name: CodeName) => {
-      const v = view(this, (_st, sh) => code(s, lines, { ...opts, lit: sh[name] == null ? null : { lines: sh[name] }, key: name }), { place: false });
+      const v = view(this, (_st, sh, drawing) => code(drawing, lines, { ...opts, lit: sh[name] == null ? null : { lines: sh[name] }, key: name }), { drawing: s.drawing, place: false });
       await s.enter(v, { runTime: 0.4 });
       return v;
     };
@@ -92,7 +95,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     const noted = (v: View, name: DiagramName, note: PictureNote) => showDiagram(v, name, (was) => ({ notes: [...was.notes, note] }));
     /** A card as s.card draws it, its lit row on `shown[name]`. */
     const cardView = async (rows: (st: BashState, sh: BashShown) => readonly CardRow[], opts: Omit<CardOptions, 'lit' | 'key'>, name: CardName) => {
-      const v = view(this, (st, sh) => card(s, rows(st, sh), { ...opts, lit: sh[name] == null ? null : { row: sh[name] }, key: name }), { place: false });
+      const v = view(this, (st, sh, drawing) => card(drawing, rows(st, sh), { ...opts, lit: sh[name] == null ? null : { row: sh[name] }, key: name }), { drawing: s.drawing, place: false });
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
@@ -333,7 +336,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     // The caller's shells, drawn from the session: each command line is an event of a machine whose model is exec.
     const start = sessionOfShells();
     this.state = { ...start };
-    const chain = view(this, (st) => shellsPicture(having(st, 'shells', 'cats'), s), { place: false });
+    const chain = view(this, (st, _shown, drawing) => shellsPicture(having(st, 'shells', 'cats'), drawing), { drawing: s.drawing, place: false });
     const session = () => having(this.state, 'shells', 'cats');
     s.keep(chain, { describe: () => shellsWords(session()) });
     // Checked on every frame, and through every transition from every state rayner check reaches: whatever ran, s0
@@ -352,9 +355,9 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     this.shown = { story: 0 };
     const story = view(
       this,
-      (_st, sh) =>
+      (_st, sh, drawing) =>
         code(
-          s,
+          drawing,
           [
             `s1 = exec(s0, pipeline, "${FILE}").shell`,
             `catFile = [["cat", "${FILE}"]]`,
@@ -364,7 +367,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
           ],
           { at: BOTTOM, size: 0.3, lit: sh.story == null ? null : { lines: sh.story }, key: 'story' },
         ),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     const machine = new Machine<BashState, BashEvent>(this, {
       start,
@@ -383,7 +386,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     // The lesson's three calls, in order: the write on s0, whose returned shell is kept, then cat on each shell.
     for (const [line, event] of [[0, 'RUN_PIPELINE'], [2, 'CAT_NEWEST'], [3, 'CAT_S0']] as const) {
       await focus(story, 'story', line);
-      await this.play(machine.replay([event]));
+      await this.play(machine.sendSequence([event]));
     }
     await focus(story, 'story', 2);
   }

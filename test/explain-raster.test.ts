@@ -1,7 +1,7 @@
-// PNG output (rayner shots, contact sheets and gallery tiles)
+// PNG output (rayner contact-sheet, contact sheets and gallery tiles)
 // rasterises with resvg 2.6.2, which aborts the whole process (a Rust panic, exit 134)
 // on a translucent element the camera has left outside its view. Every path culls what
-// the camera cannot show first. The shots path runs in a child process: an abort would
+// the camera cannot show first. The contact-sheet path runs in a child process: an abort would
 // take the test runner down with it.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +15,7 @@ import { toSvgString } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
 import { ROOT, collectProject } from '../tools/lib/explain-project.ts';
-import { band } from '../tools/lib/explain-raster.ts';
+import { band, rasterize } from '../tools/lib/explain-raster.ts';
 import { contactSheet } from '../tools/lib/explain-shots.ts';
 
 // resvg is a devDependency here and an optional peer for users: without it there is no PNG to make.
@@ -41,13 +41,13 @@ await this.step('two',{caption:'Zoom on one; the other dims.'});
 await this.play(this.frame.animate.fit([-2,-1.125,2,1.125],{margin:0}),far.animate.setOpacity(0.3));
 }}`;
 
-test('rayner shots draws a zoomed frame with a translucent label outside the view', { skip }, async () => {
+test('rayner contact-sheet draws a zoomed frame with a translucent label outside the view', { skip }, async () => {
   const dir = join(folder, 'dim');
   await mkdir(dir);
   await writeFile(join(dir, 'scene.ts'), DIM);
   const out = join(dir, 'sheet.png');
-  const run = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'shots', dir, '--out', out], { encoding: 'utf8' });
-  assert.equal(run.status, 0, `rayner shots exited ${run.status} (signal ${run.signal}):\n${run.stderr.slice(-2000)}`);
+  const run = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'contact-sheet', dir, '--out', out], { encoding: 'utf8' });
+  assert.equal(run.status, 0, `rayner contact-sheet exited ${run.status} (signal ${run.signal}):\n${run.stderr.slice(-2000)}`);
   assert.deepEqual((await readFile(out)).subarray(0, 8), PNG);
   assert.match(await readFile(join(dir, 'sheet.svg'), 'utf8'), /^<svg /);
 });
@@ -100,4 +100,23 @@ test('a translucent element under a zoomed camera rasterises through band()', { 
   await writeFile(file, svg.replace('<svg overflow="visible" ', '<svg '));
   const bare = spawnSync(process.execPath, ['-e', `import('@resvg/resvg-js').then(({Resvg})=>{new Resvg(require('node:fs').readFileSync(${JSON.stringify(file)},'utf8')).render();console.log('ok')})`], { cwd: ROOT, encoding: 'utf8' });
   assert.notEqual(bare.status, 0, 'resvg no longer panics here: the overflow workaround may be dropped');
+});
+
+
+test('rasterize preserves native pixels and PNG bytes for clipped, translucent and transformed SVG paint', {skip}, async () => {
+  const {Resvg} = await import('@resvg/resvg-js');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="227" height="129" viewBox="0 0 227 129">
+    <defs><clipPath id="outer"><rect x="13" y="11" width="151" height="98"/></clipPath>
+      <clipPath id="inner"><circle cx="78" cy="63" r="44"/></clipPath></defs>
+    <g clip-path="url(#outer)"><path d="M0 0H227V129H0Z" fill="#ffeedd"/>
+      <g clip-path="url(#inner)"><path d="M10 15L170 101L36 110Z" fill="#cc1166" opacity="0.43"/>
+        <path d="M0 20C30 110 120 0 180 90" fill="none" stroke="#2255cc" stroke-width="8" stroke-linecap="round" transform="translate(6 3)"/></g>
+    </g></svg>`;
+  const expected = new Resvg(svg, {font: {loadSystemFonts: false}}).render();
+  const actual = await rasterize(svg), pixels = actual.pixels;
+  assert.deepEqual([actual.width, actual.height], [227, 129]);
+  assert.ok(pixels.some((value, i) => i % 4 === 3 && value === 0), 'the viewport retains transparent pixels');
+  assert.ok(pixels.some((value, i) => i % 4 === 3 && value > 0), 'the clipped shapes visibly paint');
+  assert.deepEqual(pixels, expected.pixels);
+  assert.deepEqual(actual.asPng(), expected.asPng());
 });

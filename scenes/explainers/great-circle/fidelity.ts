@@ -26,7 +26,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   }
   assert.equal(values.second, 'equator');
   // Where the ruler and the string are the same length.
-  const pairs = trace.steps.find((step) => step.step === 'another')!.after.pairs as { from: { lat: number; lon: number }; to: { lat: number; lon: number }; km: number; rhumbKm: number }[];
+  const pairs = trace.steps.find((step) => step.step === 'another')!.state!.pairs as { from: { lat: number; lon: number }; to: { lat: number; lon: number }; km: number; rhumbKm: number }[];
   assert.equal(pairs.length, 2);
   for (const p of pairs) {
     assert.equal(p.km, haversine(p.from, p.to));

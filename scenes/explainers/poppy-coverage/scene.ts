@@ -1,11 +1,12 @@
-import { AnimationGroup, Scene } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Text } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { beats, flight, pass } from '../lib/poppy-kit.ts';
+import { clearRoute } from '../lib/clear-route.ts';
+import { beats, carry, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
-import type { Company, CoverageEvent, World } from './model.ts';
+import type { CoverageEvent, World } from './model.ts';
 import {
   BOARD_AT, LANES, NOTE_AT, PALETTE, REACH_AT, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT,
   drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,
@@ -33,7 +34,7 @@ const together = (lists: readonly Beat[][]): Beat[] => {
 // back out of the box into the model. A note or a skill card is torn into strips in the model: the
 // strips the agent follows stay on its side, the rest go over to the shop's side of the counter,
 // and only then does a ticket leave the station, sealed and keyed. Paper never becomes the ticket.
-export default class Coverage extends Scene<World, {}> {
+export default class Coverage extends Scene {
   static meta = {
     sources: [
       'https://personalagentprotocol.org/docs/1.0/spec',
@@ -54,11 +55,11 @@ export default class Coverage extends Scene<World, {}> {
         { value: 'honest', label: 'Honest' },
       ],
     },
-  ] satisfies readonly Setting[];
-  override state = start('hostile');
+  ] as const satisfies readonly Setting[];
+  override state: World = start(settingsOf(this, Coverage).company);
 
   override async construct() {
-    const company = settingsOf(this).company as Company, hostile = company === 'hostile';
+    const company = settingsOf(this, Coverage).company, hostile = company === 'hostile';
     // The story's worlds, from the model, so the words say what it computed.
     const after = STORY.reduce<World[]>((worlds, event) => {
       const world = next(worlds.at(-1)!, event);
@@ -75,9 +76,8 @@ export default class Coverage extends Scene<World, {}> {
     const strips = stripKeys(after[5]!), count = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
     const followed = strips.filter((x) => x.key.startsWith('strip:used:')).length, aside = strips.filter((x) => x.key.startsWith('strip:aside:')).length;
 
-    this.state = start(company);
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
-    const world = view(this, (w) => drawWorld(w, s), { place: false });
+    const world = view(this, (w, _shown, drawing) => drawWorld(w, drawing), { drawing: s.drawing, place: false });
 
     /** A beat's timing: short, since each tear or flight is one idea. */
     const T = { appear: 0.2, move: 0.4, leave: 0.2 };
@@ -90,8 +90,7 @@ export default class Coverage extends Scene<World, {}> {
      */
     const sort = (c: Choreography, w: World, card: boolean) => () => {
       // The card itself is taken down to the desk to be read (so it is never shown twice), and goes back up as the ticket lands.
-      const carried = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
-      const laid = carried.length ? [new AnimationGroup([c.leave('skill:card', { runTime: 0.2 }), carried[0] as Animation]), ...carried.slice(1)] : [];
+      const laid = card ? carry(c, 'skill:read', 'skill:card', [SKILL_AT, NOTE_AT], { token: cardToken(s.drawing), appear: 0.2, move: 0.35, leave: 0.2 }) : [];
       const torn = stripKeys(w), group = (keep: (x: (typeof torn)[number]) => boolean) => together(torn.filter(keep).map((x) => flight(c, x.key, [noteLineAt(x.line)], T)()));
       const kept = group((x) => x.key.startsWith('strip:used:'));
       const left = group((x) => x.key.startsWith('strip:aside:') && !x.reveal);
@@ -112,17 +111,31 @@ export default class Coverage extends Scene<World, {}> {
       switch (kindOf(t.event, t.after)) {
         case 'probe':
           // The User asks first; then a blank probe goes down each lane, and each stops where a barrier then stands.
-          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s).scale(0.45), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
-            { fresh: FRESH, then: LANES.map((name) => `barrier:${name}`) });
-        case 'read':
-          // The list comes down from the shop's board and crosses the counter under the rule into the agent's model, over no label.
-          return beats(c, () => pass(c, 'list', noteToken(s), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
-        case 'report':
-          // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
+          // Take the previous request away before its replacement occupies the same speech-card slot.
+          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s.drawing).scale(0.45), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
+            { fresh: [...FRESH, 'user:'], then: LANES.map((name) => `barrier:${name}`) });
+        case 'read': {
+          // Lower the whole sheet beside the desk heading before turning across the counter.
+          const list = noteToken(s.drawing);
+          const dropX = Math.max(BOARD_AT[0], c.from('desk:head').box()![2] + list.width() / 2 + 0.08);
+          const acrossY = Math.min(c.from('desk:head').box()![1], c.from('trayname').box()![1]) - list.height() / 2 - 0.08;
+          const trayEdge = c.from('rule:agent').box()![2];
+          return beats(c, () => pass(c, 'list', list, [[dropX, 2.0], [dropX, acrossY], [trayEdge, acrossY]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
+        }
+        case 'report': {
+          // Reserve both wordless carriers against the actual stable lettering. The
+          // old search readout leaves before its space receives the shop's reply.
+          const fresh = [...FRESH, 'desk:seen', 'desk:why'];
+          const labels = c.keys('from').filter(key => !fresh.some(prefix => key.startsWith(prefix)))
+            .flatMap(key => c.from(key).family().filter((part): part is Text => part instanceof Text));
+          const sent = requestToken(s.drawing).scale(0.28), reply = noteToken(s.drawing).scale(0.45);
+          const outward = clearRoute(SEAL_AT, SLOT_AT, sent, labels, this.frame.box()!);
+          const returning = clearRoute(SLOT_AT, NOTE_AT, reply, labels, this.frame.box()!);
           return beats(c, () => [
-            ...pass(c, 'report:sent', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
-            ...pass(c, 'report:reply', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),
-          ], { fresh: FRESH });
+            ...pass(c, 'report:sent', sent, outward, { appear: 0.15, move: 0.7, leave: 0.2 }),
+            ...pass(c, 'report:reply', reply, returning, { appear: 0.15, move: 0.6, leave: 0.2 }),
+          ], { fresh });
+        }
         case 'sort':
           // A note lying on the desk is torn into strips where it lies; the skill card is laid there first.
           // What the shop's desk and the User's words showed goes first: the strips settle where they were.
@@ -140,6 +153,17 @@ export default class Coverage extends Scene<World, {}> {
       },
       next,
       views: [world],
+      motion: ({ event, before, after }) => {
+        if (event === 'use skill') return [{ view: world, during: 'skill:read', absent: ['skill:card'] }];
+        if (event !== 'read tasks') return [];
+        // Desk and unchanged speech are context, not paper produced by reading the list.
+        // A genuinely new request is replaced by the probe transition before it starts.
+        const last = before.last;
+        const closeStays = after.last?.kind === 'board' && after.last.explains.includes('close') &&
+          (last?.kind === 'searched' && last.task === 'close' || last?.kind === 'told' ||
+            last?.kind === 'board' && last.explains.includes('close'));
+        return [{ view: world, during: 'list', present: ['desk:head', ...(closeStays ? ['user:close'] : [])] }];
+      },
       runTime: ({ event, after: a }) => {
         // Each is the sum of its beats: the leaves (0.3), the flights, the settle (0.45).
         const beat = 0.8, sort = 0.75 + beat + beat + (event === 'use skill' ? 0.75 + (a.company === 'hostile' ? 1.8 : 0) : 0);
@@ -152,17 +176,18 @@ export default class Coverage extends Scene<World, {}> {
       title: 'The agent looks everywhere',
       line: 'No way to close the account. Predict: now what?',
       caption:
-        'You ask your agent to close your account at example.com. It tries the API, the website and the shop’s own agent, finds no way, and gives up. The shop sees only a visitor who left. Poppy tells an agent to read the shop’s task list before it starts; this one skipped it. What would the list have said?',
+        'You ask your agent to close your account at example.com. It tries the API, the website and the shop’s own agent, finds no way, and gives up. The shop sees only a visitor who left. Poppy tells an agent to read the shop’s task list before it starts; this one skipped it. What would the list have said? Try “Read the shop’s list” here, or continue through the explanation.',
     });
     await s.enter(world, { describe: () => sayWorld(this.state) });
-    await this.play(machine.replay(STORY.slice(0, 1)));
+    await this.play(machine.sendSequence(STORY.slice(0, 1)));
+    machine.offer();
 
     await this.step('board', {
       title: 'The shop posts what it won’t do',
       line: 'One list would have saved the search.',
       caption: `The agent fetches the list with its seal and no key, since it describes the shop, not your account. “Close an account” was on it all along. A limit set by your account is not listed; that comes back as an error. So what can a Company tell your agent? ${answerOf(this)}.`,
     });
-    await this.play(machine.replay(STORY.slice(1, 2)));
+    await this.play(machine.sendSequence(STORY.slice(1, 2)));
 
     await this.step('stuck', {
       title: 'Not on the list, and no way found',
@@ -170,14 +195,14 @@ export default class Coverage extends Scene<World, {}> {
       caption:
         'Next you ask to pay for the medium with a gift card. The list does not mention gift cards, so the agent looks on each lane and finds no field for one. This time the shop has not said it won’t do it, and it may not know it can’t. Should the agent tell it, and what should it say?',
     });
-    await this.play(machine.replay(STORY.slice(2, 3)));
+    await this.play(machine.sendSequence(STORY.slice(2, 3)));
 
     await this.step('report', {
       title: 'One report, naming nobody',
       line: hostile ? 'The reply holds a way, and more.' : 'The reply holds a way to pay.',
       caption: `The agent sends one report to the shop’s feedback box: the task, “Pay with a gift card”, and what it tried, with no order number, no name and no ID. One report per task, not one per try. The shop reads a report as data, and answers with a note: apply the gift card through the payment API.${hostile ? ' Read the rest of the note before your agent does.' : ''}`,
     });
-    await this.play(machine.replay(STORY.slice(3, 4)));
+    await this.play(machine.sendSequence(STORY.slice(3, 4)));
 
     await this.step('sort', {
       title: hostile ? 'Advice in, orders left at the counter' : 'Advice in, used as advice',
@@ -186,7 +211,7 @@ export default class Coverage extends Scene<World, {}> {
         ? 'Your agent’s model reads the note as data. applyGiftCard is in the shop’s own poppy.json, so the agent uses it under its own seal and key. The rest stays at the counter: your task does not need your address book, a shop saying you agreed is never your consent, and the agent acts at shop.example only when your task needs it. Switch the Company to honest: the same way is followed.'
         : 'Your agent’s model reads the note as data, and both lines serve the task you gave it. applyGiftCard is in the shop’s own poppy.json, so the agent calls it under its own seal and key; the checkout page may be opened, and nothing secret goes with it. Switch the Company to hostile to see what else a note can ask for.',
     });
-    await this.play(machine.replay(STORY.slice(4, 5)));
+    await this.play(machine.sendSequence(STORY.slice(4, 5)));
 
     await this.step('skill', {
       title: 'A recipe, not a key',
@@ -195,6 +220,7 @@ export default class Coverage extends Scene<World, {}> {
         ? `The shop’s skill card says how to exchange: find the order, then post the exchange. Its digest ${skill.verified ? 'matches' : 'fails'}, which proves the bytes, not their intent. The agent follows both steps on the API and gets ${skill.answer.status}. It runs no script, takes no scope from a card, and the token stays in the station, out of the model’s reach. Press “Close my account”: now the list answers at once.`
         : `The shop’s skill card says how to exchange: find the order, then post the exchange. Its digest ${skill.verified ? 'matches' : 'fails'}, so these are the bytes the shop published. The agent follows both steps on the API under its own seal and key, and gets ${skill.answer.status}. A skill says how; it grants no scope and approves nothing for you. Press “Close my account”: now the list answers at once.`,
     });
-    await this.play(machine.replay(STORY.slice(5, 6)));
+    await this.play(machine.sendSequence(STORY.slice(5, 6)));
+    machine.offer();
   }
 }

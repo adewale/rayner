@@ -7,7 +7,8 @@ import type { Stage, SyncOptions } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import { view, having, stage } from '../explain/index.ts';
 import type { View } from '../explain/index.ts';
-import { card } from '../explain/drawing.ts';
+import { card, described, emphasised } from '../explain/drawing.ts';
+import { emphasisOf, partsSeen } from '../explain/look.ts';
 import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession, keyed } from '../src/index.ts';
@@ -28,7 +29,7 @@ import { advanceBox } from '../src/text.ts';
 const RIGHT: Vec = [1, 0];
 
 /** A scene holding `st` as its state, for views tested without running a scene. */
-const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
+const held = (state: SceneState = {}) => Object.assign(new Scene(new StringSink()), { state });
 
 /** The animation a view's sync action plays, for tests that read what it decided. */
 const syncOf = <M extends Mobject>(v: View<M>, opts?: SyncOptions) => new ViewSync<M>(v, opts);
@@ -47,6 +48,7 @@ const readoutOf = (s: SceneState) => new Text(`len ${s.len}  head ${s.head}`, { 
 
 /** A ring buffer's counters as a View of this.state, inside a panel Group. */
 class Ring extends Scene {
+  override state = { len: 0, head: 0 };
   static skipSync = false;
   readout?: View<Text>;
   panel!: Group;
@@ -54,7 +56,6 @@ class Ring extends Scene {
   anchors: Array<[number, number]> = [];
 
   override async construct(): Promise<void> {
-    this.state = { len: 0, head: 0 };
     const skip = (this.constructor as typeof Ring).skipSync;
     const readout = view(this, readoutOf, { place: 'left' });
     readout.moveTo([-1, 1]);
@@ -120,9 +121,9 @@ test('a sync rebuilds from the state, morphs by glyph, and keeps the View, its p
 test('sync() inside a Succession builds from the state at its turn, not at construction', async () => {
   const seen: number[] = [];
   class Lazy extends Scene {
+    override state = { n: 0 };
     override async construct() {
-      this.state = { n: 0 };
-      const v = view(this, (state) => {
+        const v = view(this, (state) => {
         seen.push(state.n as number);
         return new Text(String(state.n));
       });
@@ -140,9 +141,10 @@ test('sync() inside a Succession builds from the state at its turn, not at const
 
 test('tween() writes into the picture on screen when it begins: after a sync in the same Succession, the synced one', async () => {
   let before: Mobject | null = null;
-  class Tweened extends Scene<{ n: number }, {}> {
+  class Tweened extends Scene {
+    override state = { n: 0 };
+
     override async construct() {
-      this.state = { n: 0 };
       const v = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: false });
       this.add(v);
       before = v.current;
@@ -161,9 +163,10 @@ test('tween() writes into the picture on screen when it begins: after a sync in 
 
 test('a sync finishes the morph it begins: it ends finished, as an animation the scene began does', async () => {
   const phases: Record<string, string> = {};
-  class Finished extends Scene<{ n: number }, {}> {
+  class Finished extends Scene {
+    override state = { n: 0 };
+
     override async construct() {
-      this.state = { n: 0 };
       const draw = (st: { n: number }) => new Group(keyed(new Rectangle({ width: 1 + st.n, height: 1 }), 'box'), keyed(new Text(`n ${st.n}`, { fontSize: 0.4 }), 'label'));
       const v = view(this, draw, { place: false });
       this.add(v);
@@ -227,9 +230,31 @@ test('the fidelity helper: the picture at every step is what the traced state re
   await assert.rejects(assertViewFollowsState(Forgetful, (s) => (s as Ring).readout), /step "push-a"/);
   // viewMismatch, the pure form, on one state
   const st = { len: 3, head: 1 };
-  const v = view({ state: st } as unknown as Scene, readoutOf);
+  const v = view(held(st), readoutOf);
   assert.equal(viewMismatch(v, st), null);
   assert.match(viewMismatch(v, { len: 4, head: 1 })!, /the view shows \["len 3  head 1"\]/);
+});
+
+test('assertViewFollowsState redraws from authored inputs when helpers record extra model evidence and a picture', async () => {
+  const showKeys = (model: SceneState, shown: SceneState) => new Text([model, shown].map(input => Object.keys(input).sort().join(', ')).join(' / '));
+  class Authored extends Scene {
+    override state = { value: 5 };
+    override shown = { mode: 'guided' };
+    readout = view(this, showKeys);
+    override async construct() {
+      stage(this, { heading: false });
+      this.addJson(() => ({ traceOnly: 99 }));
+      this.add(this.readout);
+      await this.step('one');
+      assert.ok(Object.hasOwn(this.derivedJson(), 'picture'));
+      assert.ok(!Object.hasOwn(this.stateJson(), 'traceOnly'));
+      assert.equal(this.derivedJson().traceOnly, 99);
+      assert.deepEqual(this.readout.texts, ['value / mode']);
+    }
+  }
+  const pick = (s: Scene) => (s as Authored).readout;
+  assert.equal(await assertViewFollowsState(Authored, pick), 1);
+  assert.equal(await assertViewFollowsState(Authored, pick, showKeys), 1);
 });
 
 test('match: index morphs by position (a DecimalNumber counts), shapes and keys pair parts', () => {
@@ -287,6 +312,97 @@ test('sync() matches by key, staged, and refuses pictures that carry no keys', (
   assert.throws(() => beginAnimation(syncOf(plain)), /carry no keys below their roots/);
 });
 
+test('a sync adopts new addresses, clips and emphasis even when every point and glyph stays put', async () => {
+  const sink = new StringSink();
+  class Badges extends Scene {
+    override async construct() {
+      let name = 'old', clipped = false, mark: string | null = null;
+      const v = view(this, () => {
+        const badge = keyed(emphasised(new Rectangle({ fillOpacity: 1 }), mark), name);
+        if (clipped) badge.clipBox = [-1, -1, 0, 1];
+        return new Group(badge);
+      });
+      this.add(v);
+      await this.step('change');
+      const original = v.current;
+      await v.sync();
+      assert.equal(v.current, original, 'identical output retains its current child');
+      name = 'new';
+      await v.sync();
+      assert.equal(this.find('old'), undefined);
+      assert.equal(this.find('new'), v.current.children[0]);
+      clipped = true;
+      await v.sync();
+      assert.match(sink.frames.at(-1)!, /<clipPath\b/, 'the last emitted frame shows the adopted clip');
+      mark = 'ready';
+      await v.sync();
+      assert.equal(emphasisOf(this).get(this.find('new')!), 'ready');
+      mark = null;
+      await v.sync();
+      assert.equal(emphasisOf(this).size, 0);
+      clipped = false;
+      const first = sink.frames.length;
+      await v.sync({ rateFunc: t => 4 * t * (1 - t), runTime: 1 });
+      assert.doesNotMatch(sink.frames[first + 14]!, /<clipPath\b/, 'an easing curve can visit the new clip');
+      assert.match(sink.frames.at(-1)!, /<clipPath\b/, 'and restore the original clip before the final frame');
+    }
+  }
+  await new Badges(sink).run();
+});
+
+test('a no-motion sync can return a described card to its own built-in description', async () => {
+  const scene = new Scene(new StringSink()), s = stage(scene);
+  let custom = true;
+  const v = view(scene, () => {
+    const panel = card(s.drawing, [['status', 'ready']]);
+    return custom ? described(panel, () => ({ what: 'Server', parts: [] })) : panel;
+  });
+  scene.add(v);
+  assert.deepEqual(partsSeen(v).seen.map(d => d.what), ['Server']);
+  custom = false;
+  await scene.play(v.sync());
+  assert.deepEqual(partsSeen(v).seen, [v.current.describe()]);
+});
+
+test('a no-motion sync uses the meter’s copyData hook on its retained child, including on a return', async () => {
+  const readings = new WeakMap<Mobject, number>();
+  class Meter extends Rectangle {
+    constructor(reading: number) { super(); readings.set(this, reading); }
+    get reading(): number { return readings.get(this)!; }
+    protected override copyData(from: Mobject): void {
+      assert.ok(from instanceof Meter, 'copyData receives a meter');
+      super.copyData(from);
+      readings.set(this, from.reading);
+    }
+  }
+  const frames: number[] = [];
+  class MeterScene extends Scene { override state = { reading: 1 }; }
+  const scene = new MeterScene({ async frame(s) { frames.push((s.find('meter') as Meter).reading); } }, { fps: 2 });
+  const v = view(scene, ({ reading }) => new Group(keyed(described(new Meter(reading),
+    m => ({ what: 'Meter', parts: [{ name: String(m.reading) }] })), 'meter')));
+  scene.add(v);
+  const retained = v.current.find('meter') as Meter;
+  assert.equal(retained.copy().reading, 1);
+  scene.state.reading = 2;
+  await scene.play(v.sync({ runTime: 1 }));
+  assert.equal(v.current.find('meter'), retained);
+  assert.deepEqual(frames.slice(-2), [1, 2]);
+  assert.deepEqual(partsSeen(v).seen, [{ what: 'Meter', parts: [{ name: '2' }] }]);
+  assert.equal(retained.copy().reading, 2);
+  scene.state.reading = 3;
+  await scene.play(v.sync({ rateFunc: t => 4 * t * (1 - t), runTime: 1 }));
+  assert.deepEqual(frames.slice(-2), [3, 2]);
+  assert.equal(v.current.find('meter'), retained);
+  assert.equal(retained.reading, 2);
+
+  // A same-class root can take a differently shaped family. A foreign root supplies
+  // its geometry without being passed to a hook that expects this class's data.
+  retained.become(new Meter(4).add(new Rectangle()));
+  assert.equal(retained.reading, 4);
+  retained.become(new Rectangle({ width: 3 }));
+  assert.equal(retained.width(), 3);
+});
+
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
   const st = { s: 'ab' };
   const v = view(held(st), () => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
@@ -312,13 +428,13 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
 
 test('a card view of the scene\'s state keeps its labels put as values change', async () => {
   class Counter extends Scene {
+    override state = { tokens: 10, responses: [] as number[] };
     rv?: View<Card>;
     s?: Stage;
     override async construct(): Promise<void> {
-      this.state = { tokens: 10, responses: [] as number[] };
-      const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
+        const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
       const s = (this.s = stage(this, { style: 'github-dark', heading: false }));
-      const rv = (this.rv = view(this, (st) => card(s, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
+      const rv = (this.rv = view(this, (st) => card(s.drawing, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
       await this.step('show');
       await this.play(new FadeIn(rv));
       for (const [i, code] of [200, 200, 429].entries()) {
@@ -331,7 +447,7 @@ test('a card view of the scene\'s state keeps its labels put as values change', 
   }
   const s = await new Counter(new StringSink()).run();
   assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
-  const first = card(s.s!, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
+  const first = card(s.s!.drawing, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
   for (const key of ['tokens', 'responses'])
     assert.ok(Math.abs(s.rv!.current.labels.get(key)![advanceBox][0]! - first.labels.get(key)![advanceBox][0]!) < 1e-5, 'label left edge held');
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);
@@ -366,7 +482,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
 test('rayner check names a view whose picture lags the state at the end of a step', async () => {
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
   const { NullSink } = await import('../src/timeline.ts');
-  const lagging = (sync: boolean) => class extends Scene<{ n: number }> {
+  const lagging = (sync: boolean) => class extends Scene {
     override state = { n: 1 };
     override async construct() {
       const readout = view(this, (st) => new Text(`n ${st.n}`), { place: false });
@@ -390,7 +506,7 @@ test('rayner check names a view whose words match its state but whose marks do n
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
   const { Group, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts');
   // A label and a bar under row `lit`: moving the bar by hand, outside the state, leaves the words alone.
-  const marked = (byHand: boolean) => class extends Scene<{ lit: number }> {
+  const marked = (byHand: boolean) => class extends Scene {
     override state = { lit: 0 };
     override async construct() {
       const card = view(this, (st) => new Group(new Text('rows'), new Rectangle({ width: 2, height: 0.4 }).shift([0, -0.5 * st.lit])), { place: false });
@@ -415,7 +531,7 @@ test('view checking accepts state-dependent paths and clips, fresh identities an
   for (const kind of ['path', 'clip'] as const) {
     const checks = new ViewSink();
     let checkedView: View | undefined;
-    const example = new (class extends Scene<{ flag: boolean }> {
+    const example = new (class extends Scene {
       override state = { flag: true };
       override async construct() {
         await this.step('one');
@@ -441,10 +557,12 @@ test('view checking accepts state-dependent paths and clips, fresh identities an
 
 test('having narrows a state to the shapes that hold its keys and throws on a state of another shape, so check sees the draw read it', async () => {
   type Chaptered = { chapter: 'year'; longitude: number } | { chapter: 'look'; pitch: number };
-  class Chapters extends Scene<Chaptered, { lit?: string }> {
+  class Chapters extends Scene {
+    override state: Chaptered = { chapter: 'year', longitude: 10 };
+    override shown: { lit?: string } = {};
+
     year!: View<Text, Chaptered, { lit?: string }>;
     override async construct() {
-      this.state = { chapter: 'year', longitude: 10 };
       this.year = view(this, (st, sh) => new Text(`${having(st, 'longitude').longitude} ${sh.lit ?? ''}`));
       this.add(this.year);
     }
@@ -463,8 +581,7 @@ test('having narrows a state to the shapes that hold its keys and throws on a st
 test('a view measures a fresh picture without changing itself, and records its fit only once it takes the picture', async () => {
   const { thereAndBack } = await import('../extras/index.ts');
   const { NullSink } = await import('../src/timeline.ts');
-  const scene = new Scene<{ w: number }>(new NullSink());
-  scene.state = { w: 1 };
+  const scene = Object.assign(new Scene(new NullSink()), { state: { w: 1 } });
   const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: st.w }));
   scene.add(v);
   v.scale(2);
@@ -491,9 +608,10 @@ test('a view measures a fresh picture without changing itself, and records its f
 test('a play\'s lagRatio has nothing to stagger in a tween, which draws one sampled state at every frame', async () => {
   const frames = async (opts: { lagRatio?: number }) => {
     const sink = new StringSink();
-    class Slide extends Scene<{ x: number }> {
+    class Slide extends Scene {
+      override state = { x: 0 };
+
       override async construct() {
-        this.state = { x: 0 };
         const v = view(this, (s: { x: number }) => new Group(keyed(new Rectangle().moveTo([s.x, 0]), 'a'), keyed(new Rectangle().moveTo([s.x, 2]), 'b')), { place: false });
         this.add(v);
         await this.play(v.tween((t) => ({ x: 4 * t })), opts);
@@ -508,8 +626,7 @@ test('a play\'s lagRatio has nothing to stagger in a tween, which draws one samp
 });
 
 test('fade-only sync preserves geometry and child opacity while replacing an unkeyed picture', () => {
-  const scene = new Scene<{ changed: boolean }>(new StringSink());
-  scene.state = { changed: false };
+  const scene = new (class extends Scene { override state = {changed: false}; })(new StringSink());
   const v = view(scene, st => new Group(new Rectangle({width: st.changed ? 3 : 2, height: 1, opacity: 0.4})), {place: false});
   scene.add(v);
   const old = v.current, box = old.box();
@@ -518,7 +635,7 @@ test('fade-only sync preserves geometry and child opacity while replacing an unk
   beginAnimation(sync);
   interpolateAnimation(sync, 0.25);
   assert.deepEqual(old.box(), box, 'fading does not shrink the picture');
-  assert.equal(old.children[0]!.style.opacity, 0.4);
+  assert.equal(old.children[0]!.style.opacity, 0.2, 'the half-faded child keeps its relative dimming');
   interpolateAnimation(sync, 0.5);
   assert.ok(v.children.every(m => m.style.opacity === 0), 'the pictures do not overlap at the handoff');
   finishAnimation(sync);
@@ -528,8 +645,7 @@ test('fade-only sync preserves geometry and child opacity while replacing an unk
 });
 
 test('a plain view sync replaces changed keyed words as whole words with staged fades', () => {
-  const scene = new Scene<{ word: string }>(new StringSink());
-  scene.state = { word: 'before' };
+  const scene = new (class extends Scene { override state = {word: 'before'}; })(new StringSink());
   const picture = view(scene, st => keyed(new Group(keyed(new Text(st.word), 'word')), 'readout'));
   scene.add(picture);
   scene.state.word = 'after';

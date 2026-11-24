@@ -19,7 +19,10 @@ export const SENT = PAGE_QUERY.sent;
 export type EventOutcome = { event: string; label: string; kind: 'next' } | { event: string; label: string; kind: 'refused' | 'beyond'; reason: string | null };
 
 /** An event's button label: the machine's label for it, else the event itself. */
-export const eventLabel = (machine: AnyMachine, event: string): string => machine.spec.labels?.[event] ?? event;
+export function eventLabel(machine: AnyMachine, event: string): string {
+  const labels = machine.spec.labels;
+  return labels && Object.hasOwn(labels, event) ? labels[event] ?? event : event;
+}
 
 /** Every event of `machine` from `state`, in the machine's order, as its buttons show it. */
 export function outcomes(machine: AnyMachine, state: object): EventOutcome[] {

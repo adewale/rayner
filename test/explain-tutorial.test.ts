@@ -12,6 +12,7 @@ import { DOCS, docBlocks } from '../tools/repo/lib/docs-code.ts';
 import type { Picture } from '../explain/trace.ts';
 import { assertStepState, assertSteps } from '../explain/testing.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
+import { renderFrame } from '../src/index.ts';
 import { withoutNodeWarnings } from './lib/writing-guide.ts';
 // The tutorials' own model tests (Wikipedia's worked LRU and MRU examples, every door event from every
 // state, no Hanoi route shorter than 7 or 15 moves) run beside them: npm test runs scenes/*/*/*.test.ts,
@@ -52,10 +53,10 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     // no Rayner, the Rayner running the check.
     assert.deepEqual(report.model, { file: join(dir, 'model.test.ts'), tests: 2, passed: 2 });
     const scenario = report.scenarios[0];
-    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
+    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3, observations: 3, presentations: 3, transitions: 4 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
-    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is an option of rayner init alone/);
+    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is not an option of rayner check; use it with rayner init/);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -109,9 +110,9 @@ test('`rayner init --blank` writes an explainer to write: an unfilled intent hea
       assert.match(run.stderr, message);
     };
     refused(['init', '--blank', '--machine', join(folder, 'both')], /takes --blank or --machine, not both/);
-    refused(['init', '--question', 'Why?', join(folder, 'tutorial')], /--question is an option of rayner init --blank alone/);
+    refused(['init', '--question', 'Why?', join(folder, 'tutorial')], /--question needs rayner init --blank/);
     refused(['init', '--blank', '--question', ' ', join(folder, 'empty')], /--question takes the reader's question as one line of text/);
-    refused(['check', join(dir, 'scene.ts'), '--blank'], /--blank is an option of rayner init alone/);
+    refused(['check', join(dir, 'scene.ts'), '--blank'], /--blank is not an option of rayner check; use it with rayner init/);
     assert.deepEqual((await readdir(folder)).sort(), ['asked', 'mine']);
   } finally {
     await rm(folder, { recursive: true, force: true });
@@ -196,7 +197,10 @@ const SEQ = { loop: [...'ABCDABCD'], reuse: [...'ABCDCDCD'] };
 test('each scenario shows the counts, evictions and cache contents the model gives', async () => {
   const project = await collectProject(DIR, { write: false });
   assert.deepEqual(project.scenarios.map((v) => v.values.next).sort(), ['loop', 'reuse']);
-  for (const { values, trace } of project.scenarios) {
+  for (const { values, trace, Scene } of project.scenarios) {
+    const initial = { Requests: '', 'Newest first': ['', ''], Evicted: ['none', 'none'], Hits: ['0', '0'] };
+    assert.deepEqual((await renderFrame(Scene, 0)).state, initial, 'required model fields exist before construct');
+    assert.deepEqual(trace.steps[0]!.before, initial, 'the first typed before snapshot is complete');
     assertSteps(trace, ['full', 'evict', 'rest', 'verdict']);
     const requests = SEQ[values.next as keyof typeof SEQ];
     for (const [step, n] of [['full', 3], ['evict', 4], ['rest', 8], ['verdict', 8]] as const) {
@@ -211,7 +215,7 @@ test('each scenario shows the counts, evictions and cache contents the model giv
       };
       assertStepState(trace, step, expected);
       // Read the card's own description, independently of the scene's copied model state.
-      const picture = trace.steps.find((s) => s.step === step)!.shown?.picture as Picture | undefined;
+      const picture = trace.steps.find((s) => s.step === step)!.derived?.picture as Picture | undefined;
       assert.ok(picture, `${values.next}.${step} has a resting picture`);
       assert.equal(picture.entries.length, 1, 'one comparison card');
       const entry = picture.entries[0]!;
@@ -268,4 +272,15 @@ test('the README and the tutorial print each tutorial file exactly as it is chec
   for (const file of STARTER_FILES) assert.ok(printed.some((b) => b.doc === 'docs/TUTORIAL.md' && b.file === `lru-mru/${file}`), `docs/TUTORIAL.md prints lru-mru/${file}`);
   for (const file of ['script.md', 'model.ts', 'scene.ts']) assert.ok(printed.some((b) => b.doc === 'README.md' && b.file === `hanoi/${file}`), `README.md prints hanoi/${file}`);
   for (const b of printed) assert.equal(b.shown, b.source, `${b.doc} prints ${b.file} as checked in; run node tools/repo/docs-code.ts --write`);
+});
+
+
+test('Hanoi initialises frame zero from the bound disk setting', async () => {
+  const project = await collectProject('scenes/tutorial/hanoi/', { write: false });
+  assert.equal(project.scenarios.length, 2);
+  for (const { values, Scene, trace } of project.scenarios) {
+    const scene = await renderFrame(Scene, 0);
+    assert.deepEqual(scene.stateJson(), trace.steps[0]!.before);
+    assert.equal((scene.stateJson().pegs as number[][])[0]!.length, Number(values.disks));
+  }
 });

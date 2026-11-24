@@ -1,6 +1,6 @@
 import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { DrawContext } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, aiMark, person, label } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
@@ -94,7 +94,7 @@ function seat(c: Vec, state: 'taken' | 'idle' | 'empty' | 'awaited', r = SEAT_R)
 }
 
 /** The mark of who sits in a seat, large: the kit's person mark or AI mark. */
-const markOf = (s: Stage, who: 'person' | 'ai', at: Vec, color: string = TONE.ink, scale = 1): Group =>
+const markOf = (s: DrawContext, who: 'person' | 'ai', at: Vec, color: string = TONE.ink, scale = 1): Group =>
   who === 'person' ? person(s, { at: [at[0], at[1] + 0.05 * scale], size: 0.86 * scale, color }) : aiMark(s, { at, size: 1.36 * scale, color });
 
 /**
@@ -118,21 +118,21 @@ function envelope(at: Vec): Group {
 }
 
 /** A place card on the table: the conversation's owner, printed in mono on PAPER. One Group. */
-function placeCard(s: Stage, at: Vec, line: string): Group {
+function placeCard(s: DrawContext, at: Vec, line: string): Group {
   const text = label(s, line, { at, mono: true, color: TONE.print });
   return new Group(new Rectangle({ width: text.width() + 0.5, height: 0.84, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo(at), text);
 }
 
 /** How big a turn of speech is, for its words. */
 const TURN_H = 1.0;
-const turnWidth = (s: Stage, text: string) => label(s, text, { size: TYPE.label, align: 'start' }).width() + 1.45;
+const turnWidth = (s: DrawContext, text: string) => label(s, text, { size: TYPE.label, align: 'start' }).width() + 1.45;
 
 /**
  * A turn of speech lying on the table: a bubble (PAPER with PRINT words for a person; the ground with
  * INK words and an ink edge for an AI), the writer's mark at its start, and a tail from the edge
  * that faces the writer's seat, stopping short of it. `at` is the bubble's centre. One Group.
  */
-function turn(s: Stage, text: string, who: 'person' | 'ai', at: Vec, towards: Vec): Group {
+function turn(s: DrawContext, text: string, who: 'person' | 'ai', at: Vec, towards: Vec): Group {
   const w = turnWidth(s, text), h = TURN_H, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, k = RADIUS.panel;
   const dx = towards[0] - x, dy = towards[1] - y;
   const edge: 'top' | 'bottom' | 'left' | 'right' = Math.abs(dy) - h / 2 > Math.abs(dx) - w / 2 ? (dy > 0 ? 'top' : 'bottom') : dx > 0 ? 'right' : 'left';
@@ -159,7 +159,7 @@ function turn(s: Stage, text: string, who: 'person' | 'ai', at: Vec, towards: Ve
 }
 
 /** A narrow ledger: a title of one or two bold lines over a double rule, then rows of a SOFT name and a mono value over hairlines. Keyed `<key>:…`. */
-function narrowLedger(s: Stage, parts: Parts, title: readonly string[], rows: readonly { label: string; value: string; quiet?: boolean }[], key: string, at: Vec) {
+function narrowLedger(s: DrawContext, parts: Parts, title: readonly string[], rows: readonly { label: string; value: string; quiet?: boolean }[], key: string, at: Vec) {
   const [x, y0] = at, width = LEDGER.width;
   title.forEach((line, i) => parts.add(label(s, line, { at: [x, y0 - i * 0.62], bold: true, align: 'start' }), `${key}:title:${i}`));
   const ruleY = y0 - (title.length - 1) * 0.62 - 0.46;
@@ -230,7 +230,7 @@ export function sayWorld(w: World, shown: Shown = {}): string {
 // The picture
 
 /** Where a turn rests at a table: in front of its writer's seat, inside the table, and its writer's seat. */
-function turnPlace(s: Stage, w: World, t: Turn): { at: Vec; seat: Vec } {
+function turnPlace(s: DrawContext, w: World, t: Turn): { at: Vec; seat: Vec } {
   const seats = seatsOf(w), text = LINES[t.line], width = turnWidth(s, text);
   if (t.at === 'direct') {
     const userSide = roleOf(t.speaker) === 'user', inset = 0.45;
@@ -254,7 +254,7 @@ export function speakerAt(w: World): Vec | null {
 }
 
 /** The state as its picture. */
-export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
+export function drawWorld(w: World, s: DrawContext, shown: Shown = {}): Group {
   const parts = keyedParts();
   const direct = openDirectOf(w), active = activeOf(w), seats = seatsOf(w);
   const back = !!direct, paused = back || !!w.main?.closed;
@@ -267,20 +267,34 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(label(s, kind, { at: [at[0], kindY], color: TONE.soft }), `${key}:kind`);
   };
 
-  // The conversation's table. Its seats are drawn first, so the table's edge covers their inner half.
+  // Keep the same physical layers in both layouts: seat backgrounds, tables,
+  // participant marks, then captions. Retained agent/you marks must keep their
+  // relative order when new Direct Conversation seats enter around them.
   const joined = w.main?.responder === 'human', looking = w.main?.handoff === 'pending';
   parts.add(seat(seats.agentSeat, back ? 'empty' : paused ? 'idle' : 'taken'), 'seat:agent');
   parts.add(seat(seats.youSeat, back ? 'empty' : paused ? 'idle' : 'taken'), 'seat:you');
   parts.add(seat(seats.company, paused ? 'idle' : 'taken'), 'seat:company');
   parts.add(seat(seats.person, joined ? (paused ? 'idle' : 'taken') : looking ? 'awaited' : 'empty'), 'seat:person');
+  if (direct) {
+    parts.add(new Line([THREAD_X, bottom(MAIN_BACK)], [THREAD_X, top(DIRECT)], { stroke: TONE.ink, strokeWidth: STROKE.fine }), 'direct:thread');
+    parts.add(seat(seats.directYou, 'taken'), 'seat:direct:you');
+    parts.add(seat(seats.directCompany, 'taken'), 'seat:direct:co');
+    parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
+  }
+  // The tables cover the inner edge of each seat, never its participant mark.
   parts.add(table(main), 'main:table');
+  if (direct) parts.add(table(DIRECT), 'direct:table');
 
   // Who sits where. Your agent and you move to the Direct Conversation while it is open.
   parts.add(markOf(s, 'ai', seats.company, ink), 'company:mark');
   if (joined) parts.add(markOf(s, 'person', seats.person, ink), 'person:mark');
+  parts.add(markOf(s, 'ai', seats.agent, back ? TONE.ink : ink, back ? 0.82 : 1), 'agent:mark');
+  parts.add(markOf(s, 'person', seats.you, back ? TONE.ink : ink), 'you:mark');
+  if (direct) {
+    const human = direct.responder === 'human';
+    parts.add(markOf(s, human ? 'person' : 'ai', seats.directCompany), human ? 'specialist:mark' : 'direct:agent:mark');
+  }
   if (!back) {
-    parts.add(markOf(s, 'ai', seats.agent, ink), 'agent:mark');
-    parts.add(markOf(s, 'person', seats.you, ink), 'you:mark');
     named('agent', seats.agentSeat, 'your agent', 'AI', true, paused);
     named('you', seats.youSeat, 'you', 'person', false, paused);
     named('company', seats.company, 'Company Agent', 'AI', true, paused);
@@ -300,20 +314,12 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(label(s, 'user_requested', { at: [at[0] + 0.75, at[1]], mono: true, align: 'start' }), 'invite:type');
   }
 
-  // The Direct Conversation: a smaller table below, joined to the first by a thread.
+  // Names identify the Direct Conversation's seats and the agent watching beside it.
   if (direct) {
-    parts.add(new Line([THREAD_X, bottom(MAIN_BACK)], [THREAD_X, top(DIRECT)], { stroke: TONE.ink, strokeWidth: STROKE.fine }), 'direct:thread');
     const human = direct.responder === 'human';
-    parts.add(seat(seats.directYou, 'taken'), 'seat:direct:you');
-    parts.add(seat(seats.directCompany, 'taken'), 'seat:direct:co');
-    parts.add(table(DIRECT), 'direct:table');
-    parts.add(markOf(s, 'person', seats.you), 'you:mark');
     named('you', seats.directYou, 'you', 'person', false, false, 0.25);
-    parts.add(markOf(s, human ? 'person' : 'ai', seats.directCompany), human ? 'specialist:mark' : 'direct:agent:mark');
     named('direct:co', seats.directCompany, human ? 'specialist' : 'Company Agent', human ? 'person' : 'AI', false, false, 0.25);
     // Your agent, set back beside the table: it may watch, and it says nothing here.
-    parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
-    parts.add(markOf(s, 'ai', seats.agent, TONE.ink, 0.82), 'agent:mark');
     parts.add(label(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.31], bold: true, align: 'start' }), 'agent:name');
     parts.add(label(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft, align: 'start' }), 'agent:kind');
   } else if (w.direct === 'closed') {

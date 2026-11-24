@@ -11,7 +11,9 @@ export async function rasterize(svg: string) {
   resvg ??= await import('@resvg/resvg-js').catch(() => {
     throw new Error('PNG output needs @resvg/resvg-js; npm i @resvg/resvg-js@' + PACKAGES['@resvg/resvg-js']);
   });
-  return new resvg.Resvg(svg, { font: { loadSystemFonts: false } }).render();
+  // The supported async renderer owns its native SVG tree for one worker task.
+  // Repeated synchronous trees otherwise retain native memory far beyond their JS lifetimes.
+  return resvg.renderAsync(svg, { font: { loadSystemFonts: false } });
 }
 
 /** The horizontal band `height` units tall around y = 0, `width` pixels wide: a window onto the scene's SVG. */

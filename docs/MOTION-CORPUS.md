@@ -1,18 +1,20 @@
 # The motion defect corpus
 
-`rayner check` follows every keyed part through every transition ([Keyed motion](REFERENCE.md#keyed-motion)). Its rules were first tuned on the catalog and proven on three synthetic defects and three real ones it found. This page measures its recall on real defects: the motion defects that filming the eight Poppy chapters found after `rayner check` and `rayner review` had passed them ([issue #101](https://github.com/adewale/rayner/issues/101), item 14, and the glyph dissolve of item 12), and three more that filming poppy-conversations found later.
+`rayner check` follows every keyed part through every transition ([Keyed motion](REFERENCE.md#keyed-motion)). Its rules were first tuned on the catalog and proven on three synthetic defects and three real ones it found. This page measures rejection and diagnosis of historical motion-defect reconstructions: fixes made after filming the eight Poppy chapters exposed problems that `rayner check` and `rayner review` had passed ([issue #101](https://github.com/adewale/rayner/issues/101), item 14, and the glyph dissolve of item 12), and three more that filming poppy-conversations found later.
+
+The [22 November follow-up](https://github.com/adewale/rayner/blob/7c96b6ed7d177dc63e8408bfaecded0c1900cb79/docs/evidence/motion-regressions-2026-11-22/README.md) contains a fresh, independently reviewed 59-case capture, current regression repairs and a separate versioned diagnosis assessment. Only 39 reconstructions visibly confirm an intended clause in that frozen review; partial claims, editorial judgments, secondary effects, refusals and unreproduced mutations remain separate. Rejection totals are not detection accuracy, and a quiet motion check does not certify endpoints, layout, reader reachability or browser behavior.
 
 ## What the corpus is
 
-Issue #101 counts 63 filmed defects and names their kinds, but lists none of them one by one, and the branch that fixed them (`claude/focused-newton-s7zxou`, pull request #102) records the fixes only as hunks in work-in-progress commits. So the corpus is built from the fixes, not from a list: every scene and picture hunk of the motion audit commits (d4392856 to 9e7d166a, with 0a887ad4, on that branch) was read with the comment it added, and each fix of a motion defect became one entry. Each entry undoes its fix on the current Poppy scenes, as a few text edits (`test/fixtures/motion-corpus/corpus.ts`): `reverted` when the fix's hunk reverses onto the scene as it stands, `adapted` when later commits moved the lines and the pre-fix code was rewritten onto them. Its `kind` is #101's, read from the fix's own comment; two kinds the fixes show and item 14 does not name are kept apart (`squeezed`, from item 12, and `flicker`). Two entries come from origin/claude/film-fixes (46cdb7e6), which filming poppy-conversations found after the audit; its third finding, an engine bug, is measured by hand below.
+Issue #101 counts 63 filmed defects and names their kinds, but lists none of them one by one, and the branch that fixed them (`claude/focused-newton-s7zxou`, pull request #102) records the fixes only as hunks in work-in-progress commits. So the corpus is built from the fixes, not from a list: every scene and picture hunk of the motion audit commits (d4392856 to 9e7d166a, with 0a887ad4, on that branch) was read with the comment it added, and each fix of a motion defect became one entry. Each entry undoes its fix on the Poppy scenes, as a few text edits (`test/fixtures/motion-corpus/corpus.ts`): `reverted` when the fix's hunk reverses onto the scene as it stood, `adapted` when later commits moved the lines and the pre-fix code was rewritten onto them. Its `kind` is #101's, read from the fix's own comment; two kinds the fixes show and item 14 does not name are kept apart (`squeezed`, from item 12, and `flicker`). Two entries come from origin/claude/film-fixes (46cdb7e6), which filming poppy-conversations found after the audit; its third finding, an engine bug, is measured by hand below.
 
 There are 59 entries. Fixes left out are listed, with the reason, in `NOT_IN_CORPUS` in the same file: one is a transition rewritten whole, with no single defect to tell; one is a new step with no before-state; one is an engine bug (below); the rest are re-timings, comments, and the layout, wording and schema changes that shared the audit commits. The 59 are therefore not a subset of #101's 63 that can be matched one to one: they are every motion fix the history shows, which is the nearest recoverable record of them.
 
-The corpus is kept as edits, not as copies of the scenes. `tools/repo/motion-corpus.ts` copies the Poppy folders to `out/motion-corpus-<id>/` (three levels below the root, so the scenes' relative imports resolve), makes the entry's edits and runs the keyed motion check on the copy, in a process of its own, four at a time. The repository carries about 50 KB of edits and their descriptions rather than a copy of eight explainers per defect, needs no git history (the Poppy branch is not an ancestor of main), and a change to a Poppy scene that moves an entry's text fails a fast test naming the entry rather than silently measuring nothing.
+The corpus is kept as edits, not as copies of the scenes. `tools/repo/motion-corpus.ts` copies the Poppy folders to `out/motion-corpus-<id>/` (three levels below the root, so the scenes' relative imports resolve), makes the entry's edits and runs the keyed motion check on the copy, in a process of its own, two at a time by default. The repository carries about 50 KB of edits and their descriptions rather than a copy of eight explainers per defect, needs no git history (the Poppy branch is not an ancestor of main), and a change to a Poppy scene that moves an entry's text fails a fast test naming the entry rather than silently measuring nothing.
 
 ## How it is measured
 
-Each entry is caught when the check makes a finding in its variant that the scene as it is does not have. The scenes as they are have none (the catalog's gate), and the runner runs each chapter's baseline first, with every event: a finding a baseline has is not counted for an entry. For the figures below every baseline was clean. An entry names the machine events whose transitions its edits change; the runner plays those events' transitions from every reachable state, with every play of every scenario's run. That is a subset of what `rayner check` plays, so what it catches the check catches. `--full` plays every event, as the check does; run that way, no entry missed below is caught.
+Each completed entry is credited for its predeclared exact finding or refusal when one exists; legacy entries without a target accept any fresh finding. Raw rejection is reported separately. A failed or incomplete worker cannot earn credit. The runner runs each chapter's baseline first, with every event: a finding a baseline has is not counted for an entry. For the frozen figures below every baseline had zero motion findings; current runs need their own baseline receipts. An entry names the machine events whose transitions its edits change; the runner plays those events' transitions from every reachable state, with every play of every scenario's run. That is a subset of what `rayner check` plays, so what it catches the check catches. `--full` plays every event, as the check does. Some older measurements also checked their misses that way; the focused capture does not establish that stronger result.
 
 ```sh
 node tools/repo/motion-corpus.ts                # every entry, focused; out/motion-corpus.json has each entry's findings
@@ -20,9 +22,172 @@ node tools/repo/motion-corpus.ts --full         # every event's transitions, as 
 node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 ```
 
-`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs a sample by default (one entry each for covers, small words and flicker; 16 s), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry (14 minutes on four cores) and fails if one caught when recall was measured is missed. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
+The edits apply to a frozen copy of the Poppy folders (`test/fixtures/motion-corpus/poppy/`, with its provenance in its README), not to `scenes/explainers/`, so the figures move only when the checks do: a redesigned chapter cannot stop an edit applying or turn a reconstruction into a no-op, as the SignIn redesign did below. `test/motion-corpus.test.ts` checks that every entry's edits apply to that copy, runs six sample entries by default (covers, small words, flicker, attributed occlusion and authored context), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and requires each of the retained rejection IDs individually. The catalog's gates keep today's chapters clean, not the frozen copy, so the full run also replays every frozen chapter's baseline with every event and requires it to have no finding. Separate FULL-only native proofs check the current domain-crossing poll and held-token routes independently of the detector; the original company-name target remains unchanged and uncredited after the card layout repair. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
-## Latest measurement: 19 November 2026
+## Current construction and native proof, 23 November 2026
+
+The original corpus edits, expected targets and 39-ID historical `CAUGHT` set remain unchanged. The stable SignIn composition makes the original direct reask edit a native no-op: the independently reviewed previous candidate has 124/124 identical baseline/variant frames. That case earns no current diagnosis point. Its explicit current obligation is in `current-obligations.ts`, owned by `test/signin-layout-construction.test.ts`: both the baseline and original edit must keep the earlier `pat_8Hk2` tag and recipient stable on the legal direct reask route, preserve actual `Exchange items` glyphs, and reject a real tag displaced onto those glyphs. Every other historically credited ID still needs its own finding/refusal. There is no replacement global 38/39 threshold and another case's gain cannot cover a lost obligation. The default generic positive now requires the travelling ticket's actual API victim.
+
+The current domain mutation also differs from its older severe proof. It causes partial loss at offsets 25/30 and 26/30, while every domain glyph remains visible; 27/30 is a later clear control. `motion-occlusion-proof.ts` checks those precise current facts and the fixed route. It separately retains a deliberately identified severe replay: the actual poll is enlarged, centred and made opaque over the same domain. All three offsets must still completely hide a glyph and remove at least 90% of two glyphs. A copied-stage animation must produce the exact generic domain/poll diagnosis, and its clear inverse must not. Native Resvg and the middle Chromium frame verify both the severe positive and inverse. This is a separately named control, not a claim that the current mutation still has that severity. The generic thresholds and frozen company-name target do not change.
+
+The [new independent candidate review](https://github.com/adewale/rayner/blob/8151582fc8a4ff2d06d6b4e5607633e0474c0dbf/docs/evidence/motion-root-causes-2026-11-22/README.md) classifies all 59 captured routes at source `d5845507`: 45 observed clauses (including partial/secondary effects), four exact typed preventions, four native non-reproductions and six editorial judgments. Those classifications and four semantic ratifications are independent evidence for that source/run. They are not a 45/59 accuracy claim or a relabelled assessment of later pictures. Final-source measurement, affected-route recapture/review and integration receipts are separate obligations.
+
+The [source `39b75450` native evidence](https://github.com/adewale/rayner/blob/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-consumer-binding-2026-11-23/README.md) is that later source's own run, with its [independent native report](https://github.com/adewale/rayner/blob/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-consumer-binding-2026-11-23/independent/REPORT.md) (the same 45/6/4/4 dispositions of all 59 routes, 16 legal return histories with 704 native extent samples) and a [final consumer review](https://github.com/adewale/rayner/blob/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-consumer-binding-2026-11-23/independent-consumer7b95/REPORT.md) of the evidence binding (13 paired controls). It records mixed legacy credit of **41/59**, raw rejection of **42/59** and **9/12** original exact targets. These mix legacy and current diagnostic representations and are not detection accuracy; the frozen historical 39/59 and frozen V2 16/20 below are unchanged. That 41/59 is not the older broad rejection count of the same value below. The [visual guide](https://github.com/adewale/rayner/blob/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-visual-guide-2026-11-23/README.md) presents matched frames from it, and the [Conversations endpoint comparison](https://github.com/adewale/rayner/blob/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/conversations-endpoint-2026-11-22/README.md) isolates the participant-layering repair.
+
+## Frozen measurement: principled construction repairs, 21 November 2026
+
+After the six-review recommendations and the requested pair of **Astra 6 Max** construction reviews, the frozen complete focused replay produced **40/59 raw rejections and 39/59 credited cases**. The previous 41/59 is retained as a historical broad rejection count. All 59 workers finished without error (52 complete replays and seven typed early refusals), all eight full-event Poppy baselines had zero motion findings, and the generic motion check found none in the other 45 catalog chapters. These figures did not certify the full catalog gates, count outstanding production defects or establish general detection accuracy. The 22 November frozen remeasurement repeats 39/40; later repairs require separate measurements.
+
+| Mutation kind | Cases | Previous broad rejections | Current credited |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 20 | 19 |
+| result before cause | 5 | 4 | 4 |
+| layout motion | 8 | 2 | 2 |
+| two copies | 4 | 4 | 4 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 1 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 4 | 4 |
+| **all** | **59** | **41** | **39** |
+
+Two old points are deliberately not retained:
+
+- **`sessions-too-long`:** removed the production comparison of a duration with a second copy of its own formula. The chapter keeper now measures actual intervals from the published reader origin and rejects the exact historical slowdown. It remains a generic miss; chapter prevention does not earn a generic point. SignIn collection now has a separate 4.5-second response policy, measured on the actual reader clock in both flows, with the exact historical 4.8-second mutation as its inverse.
+- **`sign-in-poll-over-card`:** restoring the caption-promised `example.com` line changes the current mutation's victim. It still triggers a domain-crossing warning, but no longer matches the frozen company-name target. The target is unchanged and receives no credit. A separate native keeper proves severe domain-glyph loss on the mutated route, full preservation on the fixed route at those samples, and the middle-frame result in Chromium. The old company-name pixel assertion failed and was replaced with this explicitly different current-layout proof; it was not relabeled as the same evidence.
+
+Current evidence separates **10 cases with exact findings** (nine semantic relationships and one named occlusion), **23 credited legacy warning cases**, and **six guard-only cases**. Another warning case is the uncredited poll-target mismatch. No declared refusal target matches. There are 12 predeclared exact targets, ten matched. The six guard-only cases establish early refusal, not visual diagnosis; a run with earlier findings and a later refusal retains both. The 20 uncredited cases consist of 19 quiet variants and one wrong-target rejection. The original 18 misses and their qualified historical verdicts remain documented; two changes of evidence policy/layout do not create two new production defects.
+
+The implementation centralizes target-parent paint admission and family fades, uses conservative reader-equivalent paint bounds and physical glyph occurrences, requires actual attributable composited movement per trip, shares one bounded state/presentation inventory across tools, and makes worker credit and film publication fail closed. Chapter repairs retain persistent context, restore promised information, construct clear routes from actual footprints and expose reader roots with the advertised actions. Native, browser and chapter-owned inverse controls remain independent of those constructors.
+
+All 59 IDs and predeclared targets remain unchanged. Seven fixture contexts were mechanically rebased: `browser-read-across-page`, `browser-read-over-its-copy`, `browser-message-lingers`, `browser-record-after-halves`, `browser-forge-tiny-words`, `coverage-report-too-long`, and `coverage-skill-card-twice`. The fixture's historical labels remain 42 adapted / 17 reverted; those labels are not a claim that every updated context is a literal historical hunk reversal. The frozen 59-case visual audit and benchmark inputs were not rewritten. A full visual re-audit of the new reconstructions has not been performed.
+
+[Implementation, all 14 review workstreams, correctness-by-construction matrices, validation and remaining limits](https://github.com/adewale/rayner/blob/7df2e0b20bea3570edaa6b4e2cf951fe3e64d395/docs/evidence/motion-construction-2026-11-21/README.md) · [All 59 outcomes](https://github.com/adewale/rayner/blob/7df2e0b20bea3570edaa6b4e2cf951fe3e64d395/docs/evidence/motion-construction-2026-11-21/corpus.json).
+
+## Previous measurement: ten Sol 6.1 High investigations, 21 November 2026
+
+After pulling the motion branch and integrating main at `2bab6486`, ten Sol 6.1 High agents investigated the eight chapters and two shared framework boundaries. The complete run rejects **41 of 59** reconstructed mutations, up from 37 immediately before this investigation and 30 originally. All 37 preceding rejection IDs remain caught.
+
+| Mutation kind | Cases | Previous | Current |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 19 | 20 |
+| result before cause | 5 | 4 | 4 |
+| layout motion | 8 | 1 | 2 |
+| two copies | 4 | 3 | 4 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 1 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 4 | 4 |
+| **all** | **59** | **37** | **41** |
+
+Three new gains diagnose exact authored relationships: `refusals-lanes-gone-in-flight`, `sign-in-pages-overlap`, and `sign-in-password-hand-and-flight`. The fourth, `sessions-too-long`, is a declared sequence-specific pacing refusal before paint. Eight rejections are now guard-only. Nine exact semantic diagnoses require the expected scenario, event, traveller, subject and present/absent requirement; unrelated warnings cannot substitute.
+
+All 59 variants completed without errors, all eight every-event Poppy baselines are clean, and all 45 other catalog chapters are clean. The edit inventory is 42 adapted and 17 reverted entries. The default seven-case sample passes, both FULL-only native proof owners pass, and the full gate retains all 41 measured rejection IDs individually. The original enlarged-poll prevention keeper remains separate from the rejection score.
+
+The repairs address incoming transient reader results lost through model-state deduplication, clipped/transparent fill geometry, changing occlusion masks, physical source ownership, stale or unchanged value lifetimes, and routes derived from actual painted footprints. Scene-owned native keepers and deliberate poisons cover supported reader histories. The complete catalog additionally exposed and repaired actual Ring-buffer duplicate ownership and Periodic-groups painter-order defects. Native rendering uses the supported asynchronous Resvg API, with byte-identical output on 320 real inputs and bounded resource use.
+
+The source receipts preserve the complete capture and its amendments: one wrapped duration refusal was rerun after typed cause classification was repaired; the other 58 successful observations were retained. Three attribution metadata additions preserve the captured mutation edits and events. The later Ring repair has no dependency in the eight Poppy scenes and received its own complete replay. The frozen Astra visual audit and its qualifications remain unchanged. The 18 generic misses are not a count of remaining production bugs: that set includes editorial, obsolete, unreproduced and scene-owned cases.
+
+[Ten-agent report, 59-case index, measurements and validation](https://github.com/adewale/rayner/blob/fa72a8fc63995fb94c9b9ecf4448e71ecd377906/docs/evidence/motion-sol61-2026-11-21/README.md).
+
+## Previous measurement and visual review: 21 November 2026
+
+The final baseline-subtracted run rejects **37 of 59** mutations, compared with 30 on November 19 and 32 on November 20. Six new gains diagnose exact authored relationships. The sole previous rejection no longer caught, `sign-in-tokens-over-labels`, now has a prevention keeper: normal and enlarged polls preserve all five independently painted words on the legal held-device route, in both directions. Its old warning is not required after that word hazard is removed. Other direct-route graphic crossings are outside that prevention claim. The intermediate 38/59 run, before this final baseline repair, is retained separately.
+
+| Mutation kind | Cases | November 20 | November 21 |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 20 | 19 |
+| result before cause | 5 | 0 | 4 |
+| layout motion | 8 | 1 | 1 |
+| two copies | 4 | 2 | 3 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 3 | 4 |
+| **all** | **59** | **32** | **37** |
+
+All eight every-event Poppy baselines are clean, all 59 variants completed without an error, and the other 44 catalog chapters have no findings. After the last two SignIn source files changed, its full baseline and all thirteen reconstructions were measured afresh; the other 46 cases and seven baselines retain byte-identical runtime dependencies. Nine reconstruction find contexts were mechanically rebased with their historical faulty replacements retained. The final edit inventory is 39 adapted and 20 reversed, compared with the frozen audit's 35/24. The default six-case test and both FULL-only native proof tests pass; the future full-corpus gate retains each of the 37 rejection IDs individually.
+
+Seven of the 37 remain duration-guard refusals, not direct diagnoses of the historical effect. The visual confirmation count below describes a different set of cases. Neither count is a general accuracy estimate. [All 59 final results, attribution and provenance](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-root-causes-2026-11-21/corpus.json).
+
+Two sequential, independent Astra 6.2 Max reviews examined all 59 reconstructions before implementation. The first reviewed 59 paired 30 fps recordings, native Chromium frames and 23 supplemental routes. It confirmed the intended effect in 37 cases; seven require editorial judgment, six show only a secondary effect, five stop before the intended effect paints, three were unreproduced and one historical comparison is inconclusive. A confirmed verdict can cover only part of a compound claim. These frozen observations describe the recorded settings and reader histories, not every possible interaction. [All 59 verdicts and visual proofs](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-all59-2026-11-21/audit.md).
+
+The second reviewer traced every entry to its repair history and grouped causes: route and footprint errors (26), context lifetime and causal order (11), unique-object handoffs (4), layout and text atomicity (9), duration and pacing (6), and travel lettering size (3). The implementation follows those groups: actual-extent corridors, explicit authored context rules, source-retiring `carry`, scene-owned URL and journey invariants, and retained duration and small-word checks. Matching now retains logical diagnostic ownership and inherited paint clips, and occlusion reports retain independent victims. [59-row causal analysis](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-all59-2026-11-21/root-causes.md) · [Implementation and adversarial controls](https://github.com/adewale/rayner/blob/a972a5f0c8f447ed699ab12a6baf9425b3cbe02b/docs/evidence/motion-root-causes-2026-11-21/README.md).
+
+The six new semantic diagnoses require the exact scenario, transition, travel key, subject and present/absent requirement: stale Poppy result, Sessions key before wax, Sessions source surviving transfer, stale Browser message, Browser record after its receipt, and Conversations ledger disappearing during a turn. An unrelated rejection, missing anchor or guard cannot earn one of these gains. These rules run on the authored story and reachable reader events; they verify declared relationships rather than infer narrative intent from geometry.
+
+Causal declarations remain optional and require author knowledge. They check isolated subject ink with actual camera and clips; composited subject readability has separate occlusion and native trajectory checks. A declared traveller must itself contribute composited pixels at two distinct positions. Editorial movement and pacing still require visual review. A universally lower time or displacement threshold would also reject deliberate explanatory motion.
+
+## Previous measurement: 20 November 2026
+
+The complete focused run rejects **32 of 59** reconstructed mutations, up from
+30. All thirty previous rejection IDs remain caught. All eight full-event Poppy
+baselines are clean, no mutation errored, and the other 44 catalog chapters are
+also clean on the final detector and choreography.
+
+| Mutation kind | Cases | November 19 | November 20 |
+| --- | ---: | ---: | ---: |
+| passes over | 28 | 19 | 20 |
+| result before cause | 5 | 0 | 0 |
+| layout motion | 8 | 0 | 1 |
+| two copies | 4 | 2 | 2 |
+| squeezed | 3 | 3 | 3 |
+| too long | 3 | 0 | 0 |
+| small label in flight | 3 | 3 | 3 |
+| glyph dissolve | 1 | 0 | 0 |
+| flicker | 4 | 3 | 3 |
+| **all** | **59** | **30** | **32** |
+
+The two gains have independently rendered, attributed evidence:
+
+- **`sign-in-poll-over-card`: intended occlusion.** The poll masks letters in
+  `Example Company`. Judging individual glyph boxes catches this partial name
+  even though the whole line's box did not meet the former coverage threshold.
+  Three frames on both routes, glyph-removal controls and named-poll removal
+  establish the actual lost ink. Pinned Chromium independently confirms the
+  middle frame's sixty SVG controls. A FULL-only regression reruns the native
+  pixel proof without using the detector's geometry.
+- **`sign-in-ask-people-slide`: secondary occlusion.** In the reconstructed
+  reflow, the moving tag hides seven letters of `Exchange items`; removing that
+  tag restores their ink. Its rejection explains the table's one layout-motion
+  hit. It detects a geometric consequence of this mutation, and does not judge
+  whether a smooth, unobscured movement helps the explanation.
+
+Both new entries require fresh findings on the observed scenario, transition,
+part, words and foreground shape. An unrelated warning or duration guard cannot
+substitute. Historical entries retain the earlier rejection metric: seven are
+guard-only refusals, including four classified as passes over
+(`refusals-ticket-over-station`, `browser-message-across-stage`,
+`conversations-turn-over-seat-name`, `discovery-arm-over-register`). Those four
+reject before painting their intended crossing. The 32/59 result is consequently
+a comparable mutation-rejection score, not 32 direct diagnoses of the historical
+defect kinds or a general detection accuracy estimate.
+
+The new foreground rule certifies coverage of glyph boxes by an opaque fill,
+including non-travelling shapes, with camera/descendant clips, conservative stroke
+bounds, SVG fill rules and cubic control-point hulls. It preserves transparent
+paint, holes, cutouts, co-located text handoffs and terminal wipes. It does not
+combine smaller masks or establish complete composited visibility. A separate
+outside-corpus poison still misses text temporarily lacking a keyed ancestor.
+The glyph-dissolve reconstruction remains uncredited: its 1,564 affected frames
+matched baseline after later changes stopped pairing those ledger keys.
+
+The baseline work repaired shared target-part entrance layering and actual
+sign-in, statechart, browser-record and coverage-request occlusions. The rule was
+not weakened to waive those scenes. Failed baseline replays now make the score
+unavailable; saved observations remain diagnostic evidence.
+
+[Evidence, native images, controls and reproduction commands](https://github.com/adewale/rayner/blob/1522b5040e599edcf9f373ff7e3e3fad9e730bfd/docs/evidence/motion-occlusion-2026-11-20/README.md)
+and the retained `corpus.json` give the case inventory, baseline counts and new
+observations. The measurement uses the same 59 entry IDs and focused event
+selection, with every baseline's events. Subsequent public-API test ports and
+attribution metadata leave the measured runtime and normalized mutation edits
+unchanged. Causality, unnecessary movement and pacing still need authored meaning
+and visual review.
+
+## Previous measurement: 19 November 2026
 
 A fresh focused run on the follow-up implementation caught **30 of 59** mutations;
 all eight baselines were clean and no entry errored. The score by kind is 19/28
@@ -141,7 +306,9 @@ The 23 additional hits are 19 **covers**, 3 **small words**, and 1 **flicker**; 
 
 For future measurements, retain affected-frame evidence showing each mutation still depicts its intended defect, associate acceptable rule/transition/part findings with it, and report baseline-subtracted results. Add independently discovered cases prospectively. Keep semantic and pacing review alongside these mechanical checks. [The follow-up review](https://github.com/adewale/rayner/blob/main/docs/evidence/review-2026-11-17.md) separates those recommendations from changes already verified.
 
-## Why the misses are missed
+## Why the historical misses were missed
+
+This section describes the November 15 run; the latest measurements above supersede it.
 
 The 33 misses fall into five groups (the table gives each entry's):
 

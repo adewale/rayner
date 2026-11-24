@@ -1,7 +1,5 @@
 // The layers of the code and the direction of their imports (docs/ENGINE.md, "Layers"): each layer
-// imports only the layers under it. This holds the rules the code keeps today. The one import the
-// section records as a departure, the kit naming the stage's type, is allowed here as exactly that
-// and no wider. Every module under explain/ is placed in a layer by the section's table, which this
+// imports only the layers under it. Every module under explain/ is placed in a layer by the section's table, which this
 // test reads, so a new one must be placed in the doc before the rules can judge it. Of a step's
 // metadata the engine types and reads only its caption, as the section records; the explainer layer
 // declares the rest. The command imports nothing repository-only. Every crossing into the library from
@@ -93,8 +91,6 @@ const RULES: Record<string, (i: Import) => boolean> = {
   layers: (i) => {
     const from = layerOf(i.from), to = layerOf(i.to);
     if (!from || !to || from === to) return false;
-    // The departure ENGINE.md records: a kit function takes the stage, for its colours and shaping.
-    if (from === 'kit' && i.to === 'explain/stage.ts' && i.type) return false;
     return ORDER.indexOf(to) > ORDER.indexOf(from);
   },
   player: (i) => i.from.startsWith('app/') && !/^(src|explain|app)\//.test(i.to),
@@ -136,7 +132,7 @@ test('the explainer layer imports only the engine, itself and rayner/extras', ()
   assert.deepEqual(broken('explain', importsIn('explain')), [], 'no player, command, tests, scenes, capture or packages');
 });
 
-test('inside explain/, each layer imports only the layers under it; the kit names the stage as a type only', () => {
+test('inside explain/, each layer imports only the layers under it', () => {
   assert.deepEqual(broken('layers', importsIn('explain')), []);
 });
 
@@ -163,19 +159,18 @@ test('the player, the command and diagram capture import the library through its
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },
   'Machine.defaultPlay': { files: ['tools/lib/explain-check.ts'], why: "check plays an event with no authored transition, the views' own morph, to judge its motion" },
-  'Machine.lastPlayedIn': { files: ['tools/lib/explain-check.ts'], why: 'check explores a machine on the step it last played in' },
   'Machine.identity': { files: ['tools/lib/explain-check.ts'], why: "check tells a scene's machines apart across runs" },
   'Machine.model': { files: ['tools/lib/explain-check.ts'], why: 'check asks the model alone whether an event beyond the story is refused' },
   'Machine.present': { files: ['tools/lib/explain-check.ts'], why: 'check adopts the same transient event result as a real reader press, outside durable state identity' },
-  'Machine.outcome': { files: ['app/embed-live.ts', 'tools/lib/explain-film.ts', 'tools/lib/explain-live-review.ts'], why: 'the live player, film and review read accepted, refused and beyond-story outcomes' },
+  'Machine.outcome': { files: ['app/embed-live.ts', 'tools/lib/explain-picture-inventory.ts'], why: 'the live player and shared picture inventory read accepted, refused and beyond-story outcomes' },
   'Machine.playedUnder': { files: ['tools/lib/explain-check.ts'], why: 'check redraws under what the machine last played under' },
-  'Machine.reachable': { files: ['tools/lib/explain-check.ts', 'tools/lib/explain-film.ts', 'tools/lib/explain-live-review.ts'], why: 'check, film and live review explore each bounded reachable state' },
   'Machine.transitionPlay': { files: ['tools/lib/explain-check.ts'], why: "check plays each transition to compare where it ends with the state's picture" },
   MadeAtTurn: { files: ['explain/machine.ts'], why: "a machine's transition is made at its turn, from the pictures on screen then" },
   'MotionSink.frames': { files: ['tools/lib/explain-check.ts'], why: 'check reports how many frames its motion check sampled' },
   'View.placed': { files: ['tools/lib/explain-check.ts'], why: 'check redraws a view where it was placed' },
   affine: { files: ['explain/diagram-text.ts'], why: "a captured label takes the SVG's transform" },
   curveCount: { files: ['explain/diagrams.ts'], why: 'a link is a route with curves' },
+  NonvisualTarget: { files: ['explain/state.ts'], why: 'model writers share an ownership target that the engine excludes from stage admission, including during playback and seeks' },
   interpolateData: { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },
   matchingFrameFor: { files: ['explain/labels.ts'], why: "a captured label gives a matching transform a frame in its text's units" },
   mergeLeaves: { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
@@ -184,6 +179,8 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   BeatPlan: { files: ['explain/action.ts', 'explain/diagrams.ts', 'explain/stage.ts'], why: 'what a stage or diagram action is decided to give and do, beat by beat' },
   Beats: { files: ['explain/action.ts'], why: "an action is the engine's animation of beats, which waits for what it reads, plays once, alone or composed, and passes a play's easing to its beats" },
   Enclosing: { files: ['explain/choreograph.ts', 'explain/view.ts'], why: "a view's sync and tween, and a choreographed entrance, run the animation they make as they begin inside themselves" },
+  addStepCheck: { files: ['explain/action.ts'], why: 'actions are checked before the first named step and after each step’s listeners can play them' },
+  adoptState: { files: ['explain/view.ts'], why: 'a sync whose points and paint agree takes the new picture’s keys, clips and author fields while keeping the existing child' },
   advanceBox: { files: ['explain/labels.ts'], why: "a label's size is its text's advance box" },
   buildText: { files: ['explain/diagram-text.ts'], why: 'a captured label lays out its replayed run as a Text does' },
   families: { files: ['explain/annotate.ts'], why: "a sketch plans its pen's strokes over the family rows its Create draws" },
@@ -192,6 +189,8 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   knownTransform: { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure without aligning it' },
   playsOn: { files: ['explain/state.ts'], why: "a machine's state change belongs to the scene whose state it sets, and a play on another scene refuses it" },
   setDrawn: { files: ['explain/stage.ts'], why: 'the checks and close-ups draw a step without its heading, then put the list back' },
+  setStepState: { files: ['explain/stage.ts'], why: 'staged steps bind local input without replacing the persistent model' },
+  stepStateOf: { files: ['explain/live.ts'], why: 'the live player reads the local specimen at the current step for its qualified watches' },
   stopAt: { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends, plays the reader\'s events there and draws them to the player\'s sinks' },
   textRun: { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's run, and a captured label sits on its text's baseline" },
 };
@@ -317,10 +316,10 @@ test('each rule rejects a seeded break and allows what the layers allow', () => 
     through: at('app/embed.ts', 'explain/look.ts'),
   };
   for (const [rule, i] of Object.entries(rejected)) assert.ok(RULES[rule]!(i), `${rule}: ${show(i)}`);
-  for (const i of [at('explain/look.ts', 'explain/stage.ts', true), at('explain/panels.ts', 'explain/stage.ts'), at('explain/drawing.ts', 'explain/stage.ts'),
+  for (const i of [at('explain/look.ts', 'explain/stage.ts', true), at('explain/panels.ts', 'explain/stage.ts'), at('explain/drawing.ts', 'explain/stage.ts'), at('explain/drawing.ts', 'explain/stage.ts', true),
     at('explain/panels.ts', 'explain/drawing.ts'), at('explain/stage.ts', 'explain/testing.ts')])
     assert.ok(RULES.layers!(i), show(i));
-  for (const i of [at('explain/drawing.ts', 'explain/stage.ts', true), at('explain/stage.ts', 'explain/drawing.ts'), at('explain/describe.ts', 'explain/stage.ts'),
+  for (const i of [at('explain/drawing.ts', 'explain/draw-context.ts', true), at('explain/stage.ts', 'explain/drawing.ts'), at('explain/describe.ts', 'explain/stage.ts'),
     at('explain/diagrams.ts', 'explain/look.ts')])
     assert.ok(!RULES.layers!(i), show(i));
   assert.ok(RULES.explain!(at('explain/diagrams.ts', 'integrations/agentic-mermaid/index.ts')), 'diagram capture');

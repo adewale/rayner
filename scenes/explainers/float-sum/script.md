@@ -12,7 +12,7 @@
 
 1. Is 0.2 + 0.4 == 0.6 true or false, and what does the sum print as?
    False: the sum prints as 0.6000000000000001. 0.2 is stored a little high and 0.4 a little high; their exact sum falls exactly halfway between the double 0.6 is stored as and the next one up, and the tie goes to the one whose last bit is 0, the upper.
-2. A loop adds 0.1 to a total ten times, starting from 0.1. Is the total 1?
+2. Starting from 0.1, a loop adds 0.1 nine more times. Is the total 1?
    No: it is 0.9999999999999999. Each addition rounds its exact result to a neighbouring double, and over the nine additions the small errors do not cancel. Count in whole numbers (ten tenths) or compare with a tolerance instead of ==.
 3. Why does 0.5 + 0.25 == 0.75 hold with no luck involved?
    0.5, 0.25 and 0.75 are a half, a quarter and three quarters: whole numbers over a power of two, so each is stored exactly, their sum is a double already, and nothing is rounded.

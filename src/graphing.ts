@@ -30,7 +30,7 @@ import type { Vec } from './vec.ts';
 export type AxisRange = readonly [min: number, max: number, step?: number];
 
 export interface NumberLineOptions extends Style {
-  shaping?: TextShaping;
+  shaping?: TextShaping | null;
   range: AxisRange;
   /** Scene units from min to max. */
   length?: number;
@@ -155,7 +155,7 @@ export class NumberLine extends Group {
 export type AxisStyle = Omit<NumberLineOptions, 'range' | 'length' | 'rotation'>;
 
 export interface AxesOptions {
-  shaping?: TextShaping;
+  shaping?: TextShaping | null;
   xRange?: AxisRange;
   yRange?: AxisRange;
   /** Scene units spanned by the x range. */
@@ -214,7 +214,7 @@ export interface GuideLineOptions extends Style {
  */
 export class Axes extends Group {
   /** See tipAt. */
-  [axesLayout]: { readonly shaping: TextShaping | undefined; readonly crossX: number; readonly crossY: number; readonly xLabel: number; readonly yLabel: number };
+  [axesLayout]: { readonly shaping: TextShaping | null | undefined; readonly crossX: number; readonly crossY: number; readonly xLabel: number; readonly yLabel: number };
 
   constructor({
     xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, yAxisStyle = {},

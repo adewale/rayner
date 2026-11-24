@@ -1,3 +1,4 @@
+import { drawContext } from '../../explain/drawing.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -23,8 +24,8 @@ test('story review requires copied card, focus and diff highlights without anoth
   const fixture = (missing: boolean) => class Copied extends Scene {
     override async construct() {
       await this.step('copied');
-      const card = new Card(this, palette('nord'), [['Count', 1]], {lit: {row: 'Count'}});
-      const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
+      const card = new Card(drawContext({ palette: palette('nord') }), [['Count', 1]], {lit: {row: 'Count'}});
+      const code = new CodeBlock(drawContext({ palette: palette('nord') }), ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
       this.remove(...this.mobjects);
       const copies = new Group(card, code).copy();
       const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];

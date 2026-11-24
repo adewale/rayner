@@ -2,7 +2,7 @@ import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross, keyed } from '
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { TYPE, label, tile, emphasised } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions, Look } from '../../../explain/index.ts';
+import type { Stage, DrawContext, StagedStepsOptions, Look } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
 /**
@@ -207,4 +207,47 @@ export function sayRing(st: RingState): string {
   if (st.tray?.values.length)
     said.push(`Under the ring, after “${st.tray.label}”: ${st.tray.values.join(', ')}${st.tray.refused ? ', crossed out' : ''}`);
   return said.join('. ') + '.';
+}
+
+/** The whole argument at phone size: fixed slots, markers, queue order and the last outcome. */
+export function drawOverview(st: RingState, s: DrawContext): Group {
+  const g = new Group(), centre: Vec = [-3.6, -0.4], radius = 2.0;
+  const at = (i: number, r: number = radius, offset = 0): Vec => [centre[0] + Math.cos(angle(i) + offset) * r, centre[1] + Math.sin(angle(i) + offset) * r];
+  for (let i = 0; i < SLOTS; i++) {
+    const marked = st.marks.find(m => m.slot === i), value = st.data[i];
+    g.add(
+      keyed(new Circle({ radius: 0.76, fill: value == null ? s.look.paper : s.look.raised, stroke: marked ? marked.kind === 'refused' ? s.look.bad : s.look.emphasis : st.reused[i] ? s.look.good : s.look.soft, strokeWidth: marked ? 0.075 : 0.035 }).moveTo(at(i)), `overview:slot:${i}`),
+      keyed(new Text(value == null ? '–' : String(value), { fontSize: 0.8, color: s.look.ink }).moveTo([at(i)[0], at(i)[1] + 0.28]), `overview:value:${i}`),
+      keyed(new Text(String(i), { fontSize: 0.6, font: 'mono', color: s.look.soft }).moveTo([at(i)[0], at(i)[1] + 1.1]), `overview:index:${i}`),
+    );
+  }
+  for (const [name, slot, dx] of [['H', st.head, -0.24], ['T', st.tail, 0.24]] as const) {
+    const [x, y] = at(slot);
+    g.add(keyed(new Text(name, { fontSize: 0.6, color: name === 'H' ? s.look.emphasis : s.look.good }).moveTo([x + dx, y - 0.48]), `overview:marker:${name}`));
+  }
+  const order = Array.from({ length: st.length }, (_, i) => st.data[(st.head + i) % SLOTS]!);
+  const returned = st.error ?? (st.returned ? `returned ${st.returned.join(', ')}` : st.operation ? 'ok' : 'ready');
+  const words = [
+    ['Queue order', 0.62, 2.1], [order.join('  ') || 'empty', 0.8, 1.2],
+    [`H head: ${st.head}   T tail: ${st.tail}`, 0.6, 0.25], [`Length: ${st.length} / ${SLOTS}`, 0.62, -0.65],
+    [st.operation ? `${st.operation}: ${returned}` : 'No operation yet', 0.62, -1.65],
+    [`Next push: ${st.next}`, 0.6, -2.5],
+    [st.tray ? `${st.tray.refused ? 'Refused' : 'Popped'}: ${st.tray.values.join(' ')}` : 'No returned values', 0.6, -3.35],
+  ] as const;
+  words.forEach(([text, size, y], i) => g.add(keyed(new Text(text, { fontSize: size, color: i === 4 && st.error ? s.look.bad : s.look.ink }).moveTo([3.3, y]), `overview:readout:${i}`)));
+  return g;
+}
+
+/** Words for the compact picture, without referring to the implementation's arrows or tray. */
+export function sayOverview(st: RingState): string {
+  const order = Array.from({ length: st.length }, (_, i) => st.data[(st.head + i) % SLOTS]!);
+  return [
+    `Five fixed slots: ${st.data.map((value, i) => `${i} holds ${value ?? 'nothing'}`).join(', ')}`,
+    `H marks head ${st.head}; T marks tail ${st.tail}; length ${st.length} of ${SLOTS}`,
+    `Queue order: ${order.join(', ') || 'empty'}`,
+    `Last operation: ${st.operation ?? 'none'}${st.error ? `, ${st.error}` : st.returned ? `, returned ${st.returned.join(', ')}` : ''}`,
+    `Next push: ${st.next}`,
+    ...(st.tray ? [`${st.tray.refused ? 'Refused' : 'Popped'} values: ${st.tray.values.join(', ')}`] : []),
+    ...st.marks.map(mark => `Slot ${mark.slot} is emphasized after ${mark.kind}`),
+  ].join('. ') + '.';
 }

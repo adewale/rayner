@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Trace } from '../../../explain/testing.ts';
 import { Scene, Code, parseUnifiedDiff } from '../../../src/index.ts';
-import type { VMobject, Sink } from '../../../src/index.ts';
+import type { VMobject, Sink, SceneClass } from '../../../src/index.ts';
 import { assertStepState } from '../../../explain/testing.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import * as mrCache from './code.ts';
@@ -25,7 +25,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
  * two code texts, its line counts are git's, and every line git leaves alone ends exactly
  * on its line of the after block.
  */
-async function mrCacheDiff(trace: { steps: { step: string; meta: Record<string,unknown>; evidence?: { kind: string }[] }[] }, Bound: new (sink: Sink) => Scene) {
+async function mrCacheDiff(trace: { steps: { step: string; meta: Record<string,unknown>; evidence?: { kind: string }[] }[] }, Bound: SceneClass) {
   const { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } = mrCache;
   // The syntax colours lie inside their lines.
   for (const [code, spans] of [

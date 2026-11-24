@@ -1,19 +1,26 @@
 // Rayner's animations of state: SetState adopts a model state at its place in a schedule built
-// before it plays (each event of a machine's send and replay), and Follow writes the pictures of
-// one sampled number into its targets (under view.tween and a transition's follow). Kept out of
+// before it plays (each event of a machine's send and sendSequence), and Follow writes the pictures of
+// one sampled number into its targets (under view.tween, tweenState and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
-import { Animation, playsOn } from '../src/animation.ts';
+import { Animation, NonvisualTarget, playsOn } from '../src/animation.ts';
 import type { AnimationOptions } from '../src/animation.ts';
-import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
+import { Mobject as MobjectClass, keyed } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { cloneJson } from '../src/json.ts';
 import type { JsonObject } from '../src/json.ts';
-import type { Scene, SceneState, Evidence } from '../src/scene.ts';
+import type { SceneInputs, SceneState, Evidence } from '../src/scene.ts';
 
-// A shared, non-drawing target makes simultaneous SetStates on one Scene
-// visible to play()'s ordinary overlap check. Separate scenes do not conflict.
-const stateTargets = new WeakMap<object, Group>();
+// A shared, non-drawing target makes model writers on one Scene visible to
+// play()'s ordinary overlap check. Separate scenes do not conflict.
+const stateTargets = new WeakMap<object, NonvisualTarget>();
+
+/** @internal The shared write target for a scene's model, including sampled changes. */
+export function stateTarget(host: object): NonvisualTarget {
+  let target = stateTargets.get(host);
+  if (!target) { target = keyed(new NonvisualTarget(), 'Scene.state'); stateTargets.set(host, target); }
+  return target;
+}
 
 /** @internal */
 export interface SetStateOptions {
@@ -28,17 +35,15 @@ export interface SetStateOptions {
  */
 export class SetState<S extends object = SceneState> extends Animation {
   /** @internal The scene whose state it sets: a play on another scene refuses it. */
-  readonly [playsOn]: Scene<S, any>;
+  readonly [playsOn]: SceneInputs<S>;
   readonly event: string | undefined;
   private readonly snapshot: JsonObject | null;
   private readonly update: ((current: S) => S) | null;
 
-  constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
+  constructor(host: SceneInputs<S>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
-    let target = stateTargets.get(host);
-    if (!target) { target = new Group(); stateTargets.set(host, target); }
-    super(target, { runTime: 0, remover: true });
+    super(stateTarget(host), { runTime: 0 });
     this[playsOn] = host;
     this.event = event;
     this.snapshot = snapshot;
@@ -49,7 +54,7 @@ export class SetState<S extends object = SceneState> extends Animation {
     const next = this.update
       ? this.update(cloneJson(this[playsOn].state, 'machine.send()', 'this.state') as S)
       : this.snapshot;
-    this[playsOn].state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
+    this[playsOn].state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as SceneInputs<S>['state'];
     super.doBegin();
   }
 
@@ -82,8 +87,8 @@ export interface FollowOptions extends AnimationOptions {
  * the picture at that value and writes it into the targets, so the drawings always
  * agree. Correct by construction: Follow writes nothing but its declared targets,
  * and only from the value, so a seek renders what a full run renders and play()'s
- * one-writer check covers everything it touches. No updater is registered. The value is exact at both ends; an easing that overshoots samples
- * outside them, as a Transform would. See docs/CHOREOGRAPHY.md.
+ * one-writer check covers everything it touches. Eased progress at or below 0 gives the start,
+ * and at or above 1 gives the end. See docs/CHOREOGRAPHY.md.
  */
 export class Follow extends Animation {
   readonly spec: FollowSpec;
@@ -115,7 +120,7 @@ export class Follow extends Animation {
     this.doInterpolate(0);
   }
 
-  /** The value at an eased alpha: exact at 0 and 1. */
+  /** The value at an eased alpha, clamped to the two endpoints. */
   valueAt(alpha: number): number {
     return alpha <= 0 ? this.start : alpha >= 1 ? this.spec.to : this.start + (this.spec.to - this.start) * alpha;
   }

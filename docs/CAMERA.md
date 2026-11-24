@@ -63,7 +63,7 @@ this.frame.scale(0.5).addUpdater((f) => f.moveTo(token));
 - **Clips**: `clipBox` is in world coordinates and so are clip rects; the viewBox only
   changes what part of the world is visible, so clipped groups zoom with everything else.
 - **Text** (a step's picture drawn as text, in `describeExplainer` and `rayner see`): the grid shows the frame box, so zoomed content reads larger.
-- **Pages and PNGs**: they render through the sinks above. `rayner shots`
+- **Pages and PNGs**: they render through the sinks above. `rayner contact-sheet`
   and the gallery tiles turn on culling (below). A page's reader zoom narrows the `viewBox` inside the camera's box, so an
   author's camera move keeps playing under it ([reference](REFERENCE.md#controls-and-accessibility)).
 

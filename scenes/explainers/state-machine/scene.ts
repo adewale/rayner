@@ -1,5 +1,4 @@
 import { frames, RING, drawSocketCard, branchSpans, drawTrails, drawRing, drawBranch, walkToken, SEND_LINES } from './picture.ts';
-import type { When } from './picture.ts';
 import { Scene, Text, Create, FadeIn, AnimationGroup, Succession } from '../../../src/index.ts';
 import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
@@ -22,7 +21,7 @@ const DIAGRAM = regionBox('top', { left: -7.9, right: 7.9, bottom: 0.85 }),
   CARD = regionBox('full', { left: 2.35, top: 0.7 });
 const OPTIONS = ['It throws an error', 'It sends the message', 'It returns, sends nothing'];
 
-export default class StateMachineExplainer extends Scene<SocketState, {}> {
+export default class StateMachineExplainer extends Scene {
   static meta = {
     sources: [
       'https://websockets.spec.whatwg.org/#dom-websocket-send',
@@ -46,13 +45,13 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
         { value: 'closing', label: 'Right after close()' },
       ],
     },
-  ] satisfies readonly Setting[];
-  override state = socketStart();
+  ] as const satisfies readonly Setting[];
+  override state: SocketState = socketStart();
   /** The socket's card, rebuilt from scene.state at every sync. */
   readout!: View<Card>;
 
   override async construct() {
-    const which = settingsOf(this).when as When,
+    const which = settingsOf(this, StateMachineExplainer).when,
       s = stage(this, { headingSize: 0.6, style: 'dracula' });
     // Where the page's machine starts: a new socket, or one whose open handler has sent "hi".
     const start: SocketState = which === 'connecting' ? socketStart() : { ...socketReplay(['server accepts', 'send()']), event: null, result: null, branch: null };
@@ -77,16 +76,16 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
     // Its lit bar is on the branch the last event ran, so the panel is a view of the state too.
     const codeView = view(
       this,
-      (st) => {
+      (st, _shown, drawing) => {
         const lines = st.branch && BRANCH_LINES[st.branch];
-        return code(s, SEND_LINES, { at: CODE, size: 0.19, key: 'code', lit: lines ? { lines: [lines[0]!, lines.at(-1)!], as: 'run' } : null });
+        return code(drawing, SEND_LINES, { at: CODE, size: 0.19, key: 'code', lit: lines ? { lines: [lines[0]!, lines.at(-1)!], as: 'run' } : null });
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(codeView, { runTime: 0.4 });
     const codeLines = () => (codeView.current as CodeBlock).code.lines;
     // The card shows the state, not a copy of it: each sync rebuilds it from scene.state.
-    const readout = (this.readout = view(this, (st) => drawSocketCard(s, st, CARD), { place: false }));
+    const readout = (this.readout = view(this, (st, _shown, drawing) => drawSocketCard(drawing, st, CARD), { drawing: s.drawing, place: false }));
     s.keep(readout);
 
     const spans = branchSpans((codeView.current as CodeBlock).code);
@@ -183,7 +182,7 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
       ),
     });
 
-    await this.play(machine.replay(which === 'connecting' ? ['send()'] : ['close()', 'send()']));
+    await this.play(machine.sendSequence(which === 'connecting' ? ['send()'] : ['close()', 'send()']));
     // A phone opens on the check send() failed and the line it ran, which is the answer.
     const ran = which === 'connecting' ? [2, 3, ...BRANCH_LINES.throw] : [8, 9, 10, 11, ...BRANCH_LINES.return];
     s.opening(...ran.map((i) => codeLines()[i]!), branch.current.find(`send:box:${this.state.branch}`)!);
@@ -194,20 +193,20 @@ export default class StateMachineExplainer extends Scene<SocketState, {}> {
         line: 'The open event fires, and send() can work from here.',
         caption: 'When the server accepts the handshake, the ring walks to OPEN and the open event fires. The open event is the moment readyState becomes OPEN, so it is the first moment send() can send.',
       });
-      await this.play(machine.replay(['server accepts']));
+      await this.play(machine.sendSequence(['server accepts']));
       await this.step('send', {
         title: 'The same send(), now sent',
         line: 'Press close(), then send(): what happens now?',
         caption: 'In OPEN the same send() passes both checks and queues the message, and the server gets it. So send from the open handler, or check ws.readyState === WebSocket.OPEN first. Press close(), then send(), and see the other half of the answer.',
       });
-      await this.play(machine.replay(['send()']));
+      await this.play(machine.sendSequence(['send()']));
     } else {
       await this.step('closed', {
         title: 'The server answers: CLOSED',
         line: 'Press send() or close(): neither changes anything now.',
         caption: 'The server answers the close frame, the ring walks to CLOSED and the close event fires. send() returns quietly here too, so code that must not lose a message checks ws.readyState === WebSocket.OPEN before it sends.',
       });
-      await this.play(machine.replay(['server answers close()']));
+      await this.play(machine.sendSequence(['server answers close()']));
     }
     at = this.state;
     s.opening(...codeLines(), diagram.current.find('diagram')!, ring.current.find(`socket:ring:${at.ready}`)!, readout.current);

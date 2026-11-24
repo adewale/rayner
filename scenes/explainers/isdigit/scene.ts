@@ -56,7 +56,9 @@ type DigitState = {
   accepts?: Record<string, number>;
 };
 
-export default class IsDigitExplainer extends Scene<DigitState, {}> {
+export default class IsDigitExplainer extends Scene {
+  override state: DigitState = {};
+
   static meta = {
     sources: [
       CPY + 'Doc/builtins/stdtypes.rst#L2432-L2523',
@@ -105,13 +107,13 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
       default: 'isdigit',
       options: PREDICATES.map((p) => ({ value: p, label: `${p}()` })),
     },
-  ];
+  ] as const;
 
   override async construct() {
     const scriptAnswer = answerOf(this);
-    const values = settingsOf(this);
-    const id = values.char as CharId,
-      guard = values.guard as Predicate;
+    const values = settingsOf(this, IsDigitExplainer);
+    const id = values.char,
+      guard = values.guard;
     const c = CHARS[id];
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const type = numericType(c),
@@ -147,10 +149,10 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
       returnsOf = (st: DigitState) => `returns ${TF(having(st, 'guard').guard.passes)}`;
     const program = view(
       this,
-      (st) => {
+      (st, _shown, drawing) => {
         const { predicate, passes } = having(st, 'guard').guard;
         // The lines that run when the check passes, or the check alone when it fails.
-        const block = code(s, [`s = "${st.char}"`, `if s.${predicate}():`, '    n = int(s)'], {
+        const block = code(drawing, [`s = "${st.char}"`, `if s.${predicate}():`, '    n = int(s)'], {
           at: [-7.55, -4.0, 7.55, TOP],
           size: GUARD_SIZE,
           lit: { lines: passes ? [1, 2] : 1, as: passes ? 'run' : 'the check that fails' },
@@ -160,15 +162,15 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
         block.shift([-across / 2 - x0, 0]);
         // What the check returns, said at the end of its line, just outside the panel.
         const check = block.code.lines[1]!.box()!;
-        const returns = callout(s, check, returnsOf(st), {
+        const returns = callout(drawing, check, returnsOf(st), {
           side: 'right',
           gap: block.panel.box()![2] - check[2] + CALLOUT_GAP,
-          color: passes ? s.look.good : s.look.bad,
+          color: passes ? drawing.look.good : drawing.look.bad,
           size: GUARD_SIZE,
         });
         return new Group(block, returns);
       },
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(program, { runTime: 0.4 });
 
@@ -191,9 +193,9 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     // The source is the same in every scenario; the branch this character takes is its state's.
     const transform = view(
       this,
-      (st) =>
+      (st, _shown, drawing) =>
         code(
-          s,
+          drawing,
           [
             '// unicodeobject.c:9538-9552, abridged',
             'if (ch < 127) out[i] = ch;',
@@ -210,11 +212,11 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
             key: 'transform',
           },
         ),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(transform, { runTime: 0.4 });
     // What int() does with it: a view of the state's answer, where the stage's note went.
-    const said = view(this, (st) => new Text(answer(st).said, { fontSize: SIZE, color: s.look.soft, shaping: this.textShaping }).moveTo([0, -3.55]), { place: false });
+    const said = view(this, (st, _shown, drawing) => new Text(answer(st).said, { fontSize: SIZE, color: drawing.look.soft, shaping: drawing.shaping }).moveTo([0, -3.55]), { drawing: s.drawing, place: false });
     await s.enter(said, { runTime: 0.3 });
 
     // ------------------------------------------------------------------ the lineup
@@ -308,13 +310,13 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     // The quoted lines, the line with the numeric value or fields in focus.
     const quoted = view(
       this,
-      (st) =>
-        code(s, having(st, 'ucd').ucd, {
+      (st, _shown, drawing) =>
+        code(drawing, having(st, 'ucd').ucd, {
           at: [-WIDE, -0.05, WIDE, TOP],
           size: SIZE,
           lit: { lines: id === 'han' ? 3 : 2, as: id === 'han' ? 'the numeric value' : 'the numeric fields' },
         }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(quoted, { runTime: 0.4 });
     const row = quoted.current;
@@ -330,8 +332,8 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     };
     const fieldCard = view(
       this,
-      (st) => card(s, fieldRows(st), { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', size: SIZE, width: 10, direction: 'ltr' }),
-      { place: false },
+      (st, _shown, drawing) => card(drawing, fieldRows(st), { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', size: SIZE, width: 10, direction: 'ltr' }),
+      { drawing: s.drawing, place: false },
     );
     await s.enter(fieldCard, { runTime: 0.35, shift: [0, -0.08] });
 
@@ -386,11 +388,11 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     const MARKED = `${guard}() but not int()`;
     const counts = view(
       this,
-      (st) =>
-        card(s, countRows(st), {
+      (st, _shown, drawing) =>
+        card(drawing, countRows(st), {
           at: [-7.55, -0.75, 7.55, 2.4], align: 'top', size: SIZE, width: 11, direction: 'ltr', lit: { row: MARKED, as: 'this scenario’s check' },
         }),
-      { place: false },
+      { drawing: s.drawing, place: false },
     );
     await s.enter(counts, { runTime: 0.35, shift: [0, -0.08] });
     // The answer's code right under the counts, the pair centred down the stage.

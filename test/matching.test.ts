@@ -13,9 +13,47 @@ import { drawsFrom as rng } from './lib/random-scene.ts';
 import type { Rng } from './lib/random-scene.ts';
 import { beginAnimation, interpolateAnimation, matchRows } from '../src/animation.ts';
 import { mobjectId } from '../src/mobject.ts';
+import { renderAsync } from '@resvg/resvg-js';
+import { toSvgString } from '../src/index.ts';
 
 Scene.captionWpm = Infinity;
 await loadFonts();
+
+test('whole Text replacements retain endpoint ink and fade together under seeking and lag', async () => {
+  const raster = async (word: Text) => {
+    const scene = new Scene(new StringSink()); scene.add(word);
+    return (await renderAsync(toSvgString(scene, {width: 800}), {font:{loadSystemFonts:false}})).pixels;
+  };
+  for (const ownership of ['label', 'container', 'unkeyed'] as const) {
+    const make = (words: string, x: number) => {
+      const text = new Text(words).shift([x, 0]);
+      if (ownership === 'label') keyed(text, 'label');
+      const root = new Group(text);
+      if (ownership === 'container') { const parent = keyed(new Group(text), `panel:${words}`); root.add(parent); }
+      return {text, root};
+    };
+    for (const lagRatio of [0, 0.3]) {
+      const before = make('Direct conversation', -2), after = make('Continue it?', 2);
+      const oldInk = await raster(before.text.copy()), newInk = await raster(after.text.copy());
+      const animation = new Transform(before.root, after.root, {match:{by:'key',text:'whole'},staged:true,lagRatio});
+      beginAnimation(animation);
+      const rows = animation[matchRows];
+      assert.equal(rows.fadesOut.length, parts(new Group(new Text('Direct conversation'))).length);
+      assert.equal(rows.fadesIn.length, parts(new Group(new Text('Continue it?'))).length);
+      for (const alpha of [0.1,0.3,0.5,0.7,0.9,0.3,0.7,0,1]) {
+        interpolateAnimation(animation, alpha);
+        for (const [fades, reference] of [[rows.fadesOut, oldInk], [rows.fadesIn, newInk]] as const) {
+          assert.equal(new Set(fades.map(r=>r.sub.style.opacity)).size, 1, `${ownership}: the word shares one opacity`);
+          // Normalize opacity only: this independent native reference checks that
+          // replacement never deforms, translates or individually shrinks glyph ink.
+          const word = new Text('');
+          word.add(...fades.map(row=>row.sub.copy().setStyle({opacity:1},false)));
+          assert.ok(Buffer.from(await raster(word)).equals(Buffer.from(reference)), `${ownership}, lag ${lagRatio}, alpha ${alpha}: full word ink`);
+        }
+      }
+    }
+  }
+});
 
 /** Visible VMobjects with points: what a matched Transform pairs. */
 const parts = (m: Mobject) => m.family().filter((p) => p instanceof VMobject && p.style.opacity > 0 && p.hasPoints());
@@ -364,8 +402,7 @@ test('find and findAll address parts by key, depth first, on a mobject and acros
 
 test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
   const { view } = await import('../explain/index.ts');
-  const scene = new Scene<{ order: number[] }>(new StringSink());
-  scene.state = { order: [1, 2, 3] };
+  const scene = Object.assign(new Scene(new StringSink()), { state: { order: [1, 2, 3] } });
   const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
     const g = new Group(new Rectangle({ width: 0.8, height: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
     keyed(g, `cell:${z}`);
