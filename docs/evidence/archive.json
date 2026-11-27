@@ -1,13 +1,8 @@
 {
-  "about": "Dated motion-audit evidence archived on the evidence branch. Each hash is the Git object of docs/evidence/<name> at that commit; test/evidence-archive.test.ts verifies them. Notes correct the archive without editing it.",
+  "about": "Dated motion-audit evidence removed from the source tree but kept in its history. `commit` is the last commit of #115 that carried the bundles; main reaches it through #115's merge commit, so no other branch is needed. Each hash is the Git object of docs/evidence/<name> at that commit; test/evidence-archive.test.ts verifies them. Notes correct the archive without editing it.",
   "repository": "adewale/rayner",
-  "branch": "evidence",
-  "commit": "b0e3c5e03ec7274a96492da699ccf31011743ea9",
-  "movedFrom": {
-    "branch": "fix/motion-detection",
-    "commit": "6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef",
-    "pullRequest": 115
-  },
+  "commit": "6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef",
+  "pullRequest": 115,
   "bundles": [
     {
       "name": "conversations-endpoint-2026-11-22",
