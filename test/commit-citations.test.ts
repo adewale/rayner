@@ -1,5 +1,6 @@
 // Living docs cite only commits a clone of this repository can resolve, and permalinks only paths
-// that exist at their commit. A commit made in a throwaway worktree and never pushed is a citation
+// that exist at their commit. A cited commit outside main's history must be kept by a provenance/*
+// tag, so pruning any branch cannot lose it. A commit made in a throwaway worktree and never pushed is a citation
 // nobody can check; history kept elsewhere (another repository, a seed) is declared below instead.
 // Archived records are not living docs: their own corrections live in docs/evidence/archive.json.
 import { test } from 'node:test';
@@ -63,4 +64,14 @@ test('every motion-corpus entry names the fix commit it reverts, and that commit
   const { CORPUS } = await import('./fixtures/motion-corpus/corpus.ts');
   const missing = [...new Set(CORPUS.map((e) => e.commit))].filter((sha) => !resolves(`${sha}^{commit}`));
   assert.deepEqual(missing, [], 'a corpus entry cites a fix commit this clone cannot resolve (its branch, claude/focused-newton-s7zxou, must stay)');
+});
+
+const inHistory = (sha: string) => { try { git('merge-base', '--is-ancestor', sha, 'HEAD'); return true; } catch { return false; } };
+const tagged = (sha: string) => git('for-each-ref', '--contains', sha, '--format=%(refname)', 'refs/tags/provenance/') !== '';
+
+test('every cited commit outside main\'s history is kept by a provenance tag, so any branch can be pruned', { skip: SHALLOW }, async () => {
+  const { CORPUS } = await import('./fixtures/motion-corpus/corpus.ts');
+  const cited = new Set([...citations().map((c) => c.sha).filter((sha) => !declared(sha)), ...CORPUS.map((e) => e.commit)]);
+  const unkept = [...cited].filter((sha) => resolves(`${sha}^{commit}`) && !inHistory(sha) && !tagged(sha));
+  assert.deepEqual(unkept, [], 'tag each so pruning branches cannot lose it: git tag -a provenance/<first 8 hex> <sha> -m "<why it is cited>" && git push origin refs/tags/provenance/<first 8 hex>');
 });

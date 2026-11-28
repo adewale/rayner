@@ -12,23 +12,23 @@ Dated audits, before-and-after captures and reviews of finished work are in Git 
 
 ## Archived motion audits
 
-The dated motion audits behind [the motion corpus](../MOTION-CORPUS.md), 13 bundles and 132 MB, are archived on the [`evidence` branch](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9) rather than in the source tree. Each is byte-identical to what [#115](https://github.com/adewale/rayner/pull/115) carried at `6bc9bfc8`, under the same paths. [`archive.json`](archive.json) records the branch commit and each bundle's Git object hash, and `test/evidence-archive.test.ts` checks every bundle against it, so the archive cannot change unnoticed. Read one with `git fetch origin evidence` and `git show origin/evidence:docs/evidence/<bundle>/README.md`.
+The dated motion audits behind [the motion corpus](../MOTION-CORPUS.md), 13 bundles and 132 MB, are no longer in the source tree; they stay in its history at [`6bc9bfc8`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence), the last commit of [#115](https://github.com/adewale/rayner/pull/115) that carried them, which `main` reaches through that pull request's merge commit. [`archive.json`](archive.json) records each bundle's Git object hash there, and `test/evidence-archive.test.ts` checks every bundle against it, so the archive cannot change unnoticed and needs no branch of its own. Read one with `git show 6bc9bfc8:docs/evidence/<bundle>/README.md` in a full clone.
 
 | Bundle | What it records |
 | --- | --- |
-| [`conversations-endpoint-2026-11-22`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/conversations-endpoint-2026-11-22) | Direct Conversation endpoint paint |
-| [`motion-all59-2026-11-21`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-all59-2026-11-21) | Visual audit of the 59 motion reconstructions |
-| [`motion-construction-2026-11-21`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-construction-2026-11-21) | Principled construction repairs for Rayner |
-| [`motion-consumer-binding-2026-11-23`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-consumer-binding-2026-11-23) | Native evidence binding and source-39 results |
-| [`motion-current-audit-2026-11-22`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-current-audit-2026-11-22) | Fresh native capture, 22 November 2026 |
-| [`motion-occlusion-2026-11-20`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-occlusion-2026-11-20) | Foreground glyph occlusion: 20 November 2026 |
-| [`motion-raster-resource-2026-11-21`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-raster-resource-2026-11-21) | Native raster resource investigation |
-| [`motion-regressions-2026-11-22`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-regressions-2026-11-22) | Regression repairs and independent follow-up, 22 November 2026 |
-| [`motion-root-causes-2026-11-21`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-root-causes-2026-11-21) | Motion repairs from the 59-case causal review |
-| [`motion-root-causes-2026-11-22`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-root-causes-2026-11-22) | Authored motion contracts and stable SignIn grants |
-| [`motion-root-causes-2026-11-23`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-root-causes-2026-11-23) | Prospective exact domain clearance |
-| [`motion-sol61-2026-11-21`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-sol61-2026-11-21) | Ten-agent investigation of the 59 historical motion cases |
-| [`motion-visual-guide-2026-11-23`](https://github.com/adewale/rayner/tree/b0e3c5e03ec7274a96492da699ccf31011743ea9/docs/evidence/motion-visual-guide-2026-11-23) | Motion repairs: visual review guide |
+| [`conversations-endpoint-2026-11-22`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/conversations-endpoint-2026-11-22) | Direct Conversation endpoint paint |
+| [`motion-all59-2026-11-21`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-all59-2026-11-21) | Visual audit of the 59 motion reconstructions |
+| [`motion-construction-2026-11-21`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-construction-2026-11-21) | Principled construction repairs for Rayner |
+| [`motion-consumer-binding-2026-11-23`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-consumer-binding-2026-11-23) | Native evidence binding and source-39 results |
+| [`motion-current-audit-2026-11-22`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-current-audit-2026-11-22) | Fresh native capture, 22 November 2026 |
+| [`motion-occlusion-2026-11-20`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-occlusion-2026-11-20) | Foreground glyph occlusion: 20 November 2026 |
+| [`motion-raster-resource-2026-11-21`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-raster-resource-2026-11-21) | Native raster resource investigation |
+| [`motion-regressions-2026-11-22`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-regressions-2026-11-22) | Regression repairs and independent follow-up, 22 November 2026 |
+| [`motion-root-causes-2026-11-21`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-root-causes-2026-11-21) | Motion repairs from the 59-case causal review |
+| [`motion-root-causes-2026-11-22`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-root-causes-2026-11-22) | Authored motion contracts and stable SignIn grants |
+| [`motion-root-causes-2026-11-23`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-root-causes-2026-11-23) | Prospective exact domain clearance |
+| [`motion-sol61-2026-11-21`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-sol61-2026-11-21) | Ten-agent investigation of the 59 historical motion cases |
+| [`motion-visual-guide-2026-11-23`](https://github.com/adewale/rayner/tree/6bc9bfc86be87f4a3da3c0e23a23b8c4a9c918ef/docs/evidence/motion-visual-guide-2026-11-23) | Motion repairs: visual review guide |
 
 The archive is not edited. What it gets wrong is noted here and in `archive.json` instead:
 

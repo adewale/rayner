@@ -10,7 +10,7 @@
 // the commit whose hunk made the fix. `kind` is #101's kind for it, from the fix's own comment.
 // tools/repo/motion-corpus.ts builds each variant in a copy of the Poppy folders under out/ and runs
 // the keyed motion check on it; test/motion-corpus.test.ts holds the recall measured there.
-// The all-59 visual audit (motion-all59-2026-11-21 on the evidence branch, docs/evidence/README.md) distinguishes
+// The all-59 visual audit (motion-all59-2026-11-21, archived in history: docs/evidence/README.md) distinguishes
 // confirmed, secondary, editorial, blocked and stale reconstructions. Rejection is not accuracy.
 
 /** One text edit to a file of a frozen Poppy folder: `find` (its text, exactly once) becomes `replace`. */
