@@ -73,13 +73,14 @@ export function runInChild(id: string, full = false): Promise<EntryResult> {
 export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 2, full = false, bases = true, progress }: { jobs?: number; full?: boolean; bases?: boolean; progress?: (r: EntryResult) => void } = {}) {
   if (!Number.isSafeInteger(jobs) || jobs < 1) throw new RangeError('jobs must be a positive integer');
   if (new Set(entries.map(e => e.id)).size !== entries.length) throw new Error('corpus entries must have unique identities');
-  const pool = async (ids: readonly string[], fullRun: boolean) => {
+  const pool = async (ids: readonly string[], fullRun: boolean, completed?: (r: EntryResult, i: number) => EntryResult) => {
     const out = new Array<EntryResult>(ids.length);
     let next = 0;
     const worker = async () => {
       while (next < ids.length) {
         const i = next++;
-        out[i] = await runInChild(ids[i]!, fullRun);
+        const result = await runInChild(ids[i]!, fullRun);
+        out[i] = completed ? completed(result, i) : result;
       }
     };
     await Promise.all(Array.from({ length: Math.min(jobs, ids.length) }, worker));
@@ -89,12 +90,13 @@ export async function runCorpus(entries: readonly CorpusEntry[], { jobs = 2, ful
   const baselines = await pool(chapters.map((c) => baseline(c).id), true);
   if (baselines.length !== chapters.length || baselines.some((r, i) => r.id !== baseline(chapters[i]!).id)) throw new Error('incomplete baseline inventory');
   const byChapter = new Map(chapters.map((c, i) => [c, baselines[i]!] as const));
-  const results = (await pool(entries.map((e) => e.id), full)).map((r, i) => {
+  const results = await pool(entries.map((e) => e.id), full, (r, i) => {
     const entry = entries[i]!;
     if (r.id !== entry.id) throw new Error('incomplete variant inventory');
-    return againstBaseline(r, byChapter.get(entry.chapter), entry.expectedFinding, entry.expectedRefusal);
+    const result = againstBaseline(r, byChapter.get(entry.chapter), entry.expectedFinding, entry.expectedRefusal);
+    progress?.(result); // Report adjusted completions immediately, preserving result order.
+    return result;
   });
-  for (const r of results) progress?.(r);
   return { results, baselines, comparison: bases ? 'baseline-subtracted' as const : 'variants-only' as const };
 }
 

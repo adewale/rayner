@@ -88,7 +88,7 @@ test('merging story shards preserves every scenario, final step and width across
   fc.assert(
     fc.property(
       fc.array(fc.integer({ min: 1, max: 8 }), { minLength: 5, maxLength: 20 }),
-      fc.integer({ min: 1, max: 5 }),
+      fc.integer({ min: 1, max: 8 }),
       (counts, total) => {
         const expected = counts.map((n, i) => {
           const steps = Array.from({ length: n }, (_, j) => `step-${j}`);
@@ -316,7 +316,7 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
 });
 
 test('scene sharding preserves all scenarios once and keeps a scene on one owner', () => {
-  fc.assert(fc.property(fc.array(fc.array(fc.integer({min: 1, max: 10}), {minLength: 1, maxLength: 5}), {minLength: 3, maxLength: 16}), fc.integer({min: 1, max: 5}), (scenes, total) => {
+  fc.assert(fc.property(fc.array(fc.array(fc.integer({min: 1, max: 10}), {minLength: 1, maxLength: 5}), {minLength: 3, maxLength: 16}), fc.integer({min: 1, max: 8}), (scenes, total) => {
     const scenarios = scenes.flatMap((counts, i) => counts.map((count, j) => {
       const steps = Array.from({length: count}, (_, k) => `step-${k}`);
       return {scene: `scene-${i}`, settings: {case: String(j)}, steps, narrowOpenings: narrowObligations(steps)};
@@ -335,6 +335,23 @@ test('scene sharding preserves all scenarios once and keeps a scene on one owner
   const scenarios = ['a', 'b', 'c', 'a'].map(scene => ({scene, settings: {}, steps: ['first'], narrowOpenings: narrowObligations(['first'])}));
   assert.deepEqual(reviewScenarios(scenarios, {part: 1, total: 2}).map(c => c.scene), ['a', 'a']);
   assert.deepEqual(reviewScenarios(scenarios, {part: 2, total: 2}).map(c => c.scene), ['b', 'c']);
+});
+
+test('the six-shard campaign retains every scenario and both widths, rejecting missing, duplicate and stale parts', () => {
+  const expected: PlannedScenario[] = Array.from({length: 18}, (_, i) => [0, 1, 2].map(c => ({
+    scene: `scene-${i}`, settings: {case: String(c)}, steps: ['first', 'final'], narrowOpenings: narrowObligations(['first', 'final']),
+  }))).flat();
+  const parts = receipts(expected, 6);
+  assert.equal(parts.length, 6);
+  assert.ok(parts.every(part => part.results.length > 0));
+  const merged = mergeStoryReviews(parts, expected, 'catalog', 'code');
+  assert.equal(merged.scenarios, 54); assert.equal(merged.stepWidths, 216);
+  assert.throws(() => mergeStoryReviews(parts.slice(0, 5), expected, 'catalog', 'code'), /missing story shards/);
+  assert.throws(() => mergeStoryReviews([...parts.slice(0, 5), parts[0]!], expected, 'catalog', 'code'), /exact shard inventory/);
+  const stale = structuredClone(parts); stale[5]!.catalogHash = 'old';
+  assert.throws(() => mergeStoryReviews(stale, expected, 'catalog', 'code'), /stale catalog artifact/);
+  const cut = structuredClone(parts); cut[5]!.results[0]!.steps.pop(); cut[5]!.stepWidths--;
+  assert.throws(() => mergeStoryReviews(cut, expected, 'catalog', 'code'));
 });
 
 test('live states: the built description names the live steps; a receipt must visit each at both widths, with legible labels, and what a press changed legible on a phone', async () => {

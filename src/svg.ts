@@ -59,8 +59,7 @@ export interface ElementRecord {
 }
 
 /** Per-VMobject record memo (see attrsCache): the style and path it was built from. */
-interface AttrsCache {
-  paint: string;
+interface AttrsCache extends Pick<StyleRecord, 'lineCap' | 'lineJoin' | 'fillRule' | 'dashArray' | 'dashOffset' | 'miterLimit' | 'paintOrder'> {
   id: number;
   d: string;
   fill: string;
@@ -196,12 +195,13 @@ function elementFor(m: Mobject, relative: boolean): ElementRecord | null {
   if (m instanceof VMobject) {
     if (!m.hasPoints()) return null;
     const pd = pathData(m, relative);
-    const paint = JSON.stringify([s.lineCap, s.lineJoin, s.fillRule, s.dashArray, s.dashOffset, s.miterLimit, s.paintOrder]);
     let k = attrsCache.get(m), id = mobjectId(m);
-    if (!(k && k.paint === paint && k.id === id && k.d === pd.d && k.fill === s.fill && k.fillOpacity === s.fillOpacity && k.stroke === s.stroke &&
+    if (!(k && k.lineCap === s.lineCap && k.lineJoin === s.lineJoin && k.fillRule === s.fillRule && k.dashArray === s.dashArray &&
+        k.dashOffset === s.dashOffset && k.miterLimit === s.miterLimit && k.paintOrder === s.paintOrder && k.id === id && k.d === pd.d && k.fill === s.fill && k.fillOpacity === s.fillOpacity && k.stroke === s.stroke &&
         k.strokeWidth === s.strokeWidth && k.strokeOpacity === s.strokeOpacity && k.opacity === s.opacity && k.drawFraction === s.drawFraction)) {
       perf.count('attrs miss');
-      attrsCache.set(m, k = { paint, id, d: pd.d, fill: s.fill, fillOpacity: s.fillOpacity, stroke: s.stroke, strokeWidth: s.strokeWidth, strokeOpacity: s.strokeOpacity, opacity: s.opacity, drawFraction: s.drawFraction, attrs: vmobjectAttrs(m, s, pd), rec: null });
+      attrsCache.set(m, k = { lineCap: s.lineCap, lineJoin: s.lineJoin, fillRule: s.fillRule, dashArray: s.dashArray, dashOffset: s.dashOffset,
+        miterLimit: s.miterLimit, paintOrder: s.paintOrder, id, d: pd.d, fill: s.fill, fillOpacity: s.fillOpacity, stroke: s.stroke, strokeWidth: s.strokeWidth, strokeOpacity: s.strokeOpacity, opacity: s.opacity, drawFraction: s.drawFraction, attrs: vmobjectAttrs(m, s, pd), rec: null });
     }
     if (k.rec && k.rec.tx === pd.tx && k.rec.ty === pd.ty) { perf.count('element hit'); return k.rec; }
     perf.count('element moved');
